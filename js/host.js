@@ -3,7 +3,7 @@
 import {
   WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS,
   CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC,
-  WEAPON_COST, ITEMS,
+  WEAPON_COST, ITEMS, PATHS, BASH,
   FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp,
 } from './config.js';
 import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldDir, outOfMap, GW, GH } from './world.js';
@@ -13,7 +13,7 @@ const num = (v) => typeof v === 'number' && Number.isFinite(v);
 const r1 = (v) => Math.round(v * 10) / 10;
 const r2 = (v) => Math.round(v * 100) / 100;
 const SNAP_RATE = 15;
-const GHOST_MS = 30000; // how long a player who dropped during a host change keeps their spot
+const GHOST_MS = 45000; // how long a player whose connection dropped keeps their spot
 const token = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); return [...b].map((x) => x.toString(16).padStart(2, '0')).join(''); };
 const GOLDEN = 2.399963;
 export const REVIVE_R = 60;
@@ -114,6 +114,16 @@ export class HostGame {
     else if (this.phase === 'break') this.checkAllReady();
   }
 
+  // A connection dropped. During a game the player keeps their spot for a while so they can come back.
+  playerLost(pid) {
+    const p = this.players.get(pid);
+    if (!p) return;
+    if (!p.inGame || (this.phase !== 'combat' && this.phase !== 'break')) { this.removePlayer(pid); return; }
+    p.ghost = true; p.ghostAt = performance.now(); p.wasInGame = true; p.inGame = false;
+    this.pushRoster();
+    if (this.phase === 'combat') this.checkOver(); else this.checkAllReady();
+  }
+
   onMsg(pid, m) {
     try { this.handle(pid, m); } catch (e) { console.warn('Geçersiz mesaj yok sayıldı', e); }
   }
@@ -128,10 +138,9 @@ export class HostGame {
       const rj = m.rejoin;
       if (rj && typeof rj === 'object' && Number.isInteger(rj.pid) && typeof rj.tok === 'string' && rj.tok.length <= 40) {
         const old = this.players.get(rj.pid);
-        if (old && old.ghost && old.tok === rj.tok && this.net.rebind(pid, rj.pid)) {
+        if (old && old.tok === rj.tok && rj.pid !== this.hostPid && this.net.rebind(pid, rj.pid)) {
           this.net.markPlayer(rj.pid);
-          old.ghost = false;
-          old.inGame = !!old.wasInGame;
+          if (old.ghost) { old.ghost = false; old.inGame = !!old.wasInGame; }
           this.sendTo(rj.pid, { t: 'w', pid: rj.pid, tok: old.tok });
           this.pushRoster();
           return;
@@ -156,6 +165,7 @@ export class HostGame {
         break;
       case 'in': this.onInput(p, m); break;
       case 'ab': this.onAbility(p, m); break;
+      case 'bash': this.onBash(p, m); break;
       case 'buy': this.onBuy(p, m); break;
       case 'start': if (isHost && this.phase === 'lobby') this.start(); break;
       case 'set':
@@ -184,12 +194,15 @@ export class HostGame {
     if (p.alive && num(m.x) && num(m.y)) { p.x = clamp(m.x, B.x0, B.x1); p.y = clamp(m.y, B.y0, B.y1); }
     if (p.alive && num(m.a)) p.a = clamp(m.a, -10, 10);
     if (this.phase === 'combat' && Array.isArray(m.h) && m.h.length <= 80) {
+      const slow = p.wp === 4 && p.wt > 0 ? PATHS[4].slow[p.wt] : 0;
       for (const h of m.h) {
-        if (!Array.isArray(h) || h.length !== 2) continue;
+        if (!Array.isArray(h) || h.length < 2 || h.length > 3) continue;
         const [id, d] = h;
         if (!Number.isInteger(id) || !num(d) || d < 0 || d > 5000) continue;
         const z = this.zIndex.get(id);
-        if (z) this.damage(z, d, p);
+        if (!z) continue;
+        if (slow && h[2] === 1) z.slowUntil = this.time + (isBoss(z.t) ? slow * 0.5 : slow);
+        this.damage(z, d, p);
       }
     }
     if (Array.isArray(m.s) && m.s.length <= 16 && this.shots.length < 240) {
@@ -245,6 +258,38 @@ export class HostGame {
     }
   }
 
+  // Dipçik: a short melee shove in front of the player. Knocks zombies back, stuns them
+  // and knocks a Kalkanlı's shield aside so it can be shot from the front.
+  onBash(p, m) {
+    if (!p.inGame || !p.alive || this.phase !== 'combat' || !num(m.a)) return;
+    if (this.time < (p.bashAt || 0) - 0.15) return;
+    p.bashAt = this.time + BASH.cd;
+    const a = clamp(m.a, -10, 10);
+    p.a = a;
+    const dmg = BASH.dmg * (1 + 0.15 * (p.lv ? p.lv.dmg : 0));
+    let hit = 0;
+    for (const z of this.zombies) {
+      if (z.dead) continue;
+      const T = ZTYPES[z.t];
+      const dx = z.x - p.x, dy = z.y - p.y, d = Math.hypot(dx, dy);
+      if (d > BASH.range + T.r) continue;
+      let da = Math.atan2(dy, dx) - a;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      if (Math.abs(da) > BASH.arc && d > T.r + PLAYER_R) continue;
+      hit++;
+      const boss = isBoss(z.t);
+      if (!boss) {
+        z.stunT = z.t === 6 ? BASH.shieldStun : BASH.stun;
+        const k = z.t === 2 ? 0.5 : 1;
+        z.kvx = (dx / (d || 1)) * BASH.kb * k; z.kvy = (dy / (d || 1)) * BASH.kb * k;
+        if (z.st === ZS.WINDUP || z.st === ZS.DASH || z.st === ZS.SPIT || z.st === ZS.SUMMON) { z.st = ZS.NORMAL; z.cd = Math.max(z.cd, 1.5); }
+      }
+      this.damage(z, boss ? dmg * 0.5 : dmg, p);
+    }
+    this.ev(['bs', p.pid, Math.round(p.x), Math.round(p.y), r2(a), hit ? 1 : 0]);
+  }
+
   onBuy(p, m) {
     if (this.phase !== 'break' || !p.inGame || typeof m.k !== 'string') return;
     if (m.k === 'heal') {
@@ -252,7 +297,13 @@ export class HostGame {
       return;
     }
     if (m.k === 'wpn') {
-      if (p.wt < 2 && p.gold >= WEAPON_COST[p.wt + 1]) { p.gold -= WEAPON_COST[p.wt + 1]; p.wt++; }
+      if (p.wt >= 2 || p.gold < WEAPON_COST[p.wt + 1]) return;
+      if (p.wt === 0) {
+        // the first upgrade picks one of the four paths; later ones follow it
+        if (!Number.isInteger(m.p) || m.p < 1 || m.p >= PATHS.length) return;
+        p.wp = m.p;
+      }
+      p.gold -= WEAPON_COST[p.wt + 1]; p.wt++;
       return;
     }
     const u = UPGRADES.find((x) => x.k === m.k);
@@ -314,6 +365,8 @@ export class HostGame {
     p.shieldUntil = 0;
     p.rev = 0;
     p.wt = 0;
+    p.wp = 0;
+    p.bashAt = 0;
     p.powerUntil = 0;
     p.hasteUntil = 0;
     p.revives = 0;
@@ -412,7 +465,13 @@ export class HostGame {
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     let gone = false;
-    for (const p of [...this.players.values()]) if (p.ghost && now - p.ghostAt > GHOST_MS) { this.players.delete(p.pid); gone = true; }
+    for (const p of [...this.players.values()]) {
+      if (p.ghost && now - p.ghostAt > GHOST_MS) {
+        this.players.delete(p.pid); gone = true;
+        this.turrets = this.turrets.filter((t) => t.owner !== p.pid);
+        this.mines = this.mines.filter((m) => m.owner !== p.pid);
+      }
+    }
     if (gone) { this.pushRoster(); if (this.phase === 'combat') this.checkOver(); }
     this.backupAcc += dt;
     if (this.backupAcc >= 1) { this.backupAcc = 0; this.sendBackup(); }
@@ -564,6 +623,19 @@ export class HostGame {
       const T = ZTYPES[z.t];
       z.cd -= dt; z.cd2 -= dt;
 
+      // knocked back and dazed by a Dipçik
+      if (z.stunT > 0) {
+        z.stunT -= dt;
+        if (z.kvx || z.kvy) {
+          moveCircle(z, z.kvx * dt, z.kvy * dt, T.r);
+          const damp = Math.exp(-dt * 8);
+          z.kvx *= damp; z.kvy *= damp;
+          if (Math.abs(z.kvx) + Math.abs(z.kvy) < 5) { z.kvx = 0; z.kvy = 0; }
+        }
+        this.separate(z, T, grid, hw, HC, dt, 0);
+        continue;
+      }
+
       // pick the nearest living player now and then
       z.rt -= dt;
       if (z.rt <= 0) {
@@ -660,7 +732,7 @@ export class HostGame {
 
       // ----- steering -----
       const ranged = z.t === 4 || z.t === 7 || z.t === 8;
-      let dx, dy, speed = T.spd * z.sm;
+      let dx, dy, speed = T.spd * z.sm * (z.slowUntil > this.time ? 0.55 : 1);
       if (z.los) {
         let ax = tx, ay = ty;
         if (dist < 220 && dist > reach + 20) {
@@ -729,7 +801,7 @@ export class HostGame {
 
   // Bullets and turret fire from the front don't hurt a Kalkanlı.
   shielded(z, fromX, fromY) {
-    if (z.t !== 6 || z.face == null) return false;
+    if (z.t !== 6 || z.face == null || z.stunT > 0) return false;
     let d = Math.atan2(fromY - z.y, fromX - z.x) - z.face;
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
@@ -913,13 +985,14 @@ export class HostGame {
         p.gold, p.kills, p.sp, p.lv.dmg, p.lv.rate, p.lv.hp, p.lv.spd, p.lv.cd,
         Math.max(0, r1(p.abAt - this.time)), p.shopReady ? 1 : 0, this.time < p.shieldUntil ? 1 : 0,
         p.alive ? 0 : r2((p.rev || 0) / REVIVE_TIME),
-        Math.max(0, r1(p.powerUntil - this.time)), Math.max(0, r1(p.hasteUntil - this.time)), p.wt,
+        Math.max(0, r1(p.powerUntil - this.time)), Math.max(0, r1(p.hasteUntil - this.time)), p.wt, p.wp || 0,
       ]);
     }
     const Z = [];
     for (const z of this.zombies) {
       if (z.dead) continue;
-      Z.push([z.id, z.t, Math.round(z.x), Math.round(z.y), Math.ceil(z.hp), z.st, z.st === ZS.WINDUP || z.st === ZS.DASH ? r2(z.cdir) : 0, z.t === 6 && z.face != null ? r2(z.face) : 0]);
+      const fl = (z.slowUntil > this.time ? 1 : 0) | (z.stunT > 0 ? 2 : 0);
+      Z.push([z.id, z.t, Math.round(z.x), Math.round(z.y), Math.ceil(z.hp), z.st, z.st === ZS.WINDUP || z.st === ZS.DASH ? r2(z.cdir) : 0, z.t === 6 && z.face != null ? r2(z.face) : 0, fl]);
     }
     return {
       t: 's', ph: this.phase === 'combat' ? 'c' : 'b', w: this.wave, n: this.waveN, hm: DIFFS[this.diff].hp,

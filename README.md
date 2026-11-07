@@ -15,6 +15,7 @@ Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda
 | Fare | Nişan |
 | Sol tık | Ateş |
 | Boşluk / Sağ tık | Sınıf yeteneği |
+| F | Dipçik: önündeki zombileri iter ve sersemletir, Kalkanlı'nın kalkanını düşürür |
 | Fare tekerleği / + − | Yakınlaştır, uzaklaştır |
 | 1–7 | Molada silah ve yükseltme satın al |
 | Tab | Skor tablosu |
@@ -22,7 +23,7 @@ Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda
 
 ### Telefonda
 
-Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu ittiğin sürece silah ateş eder. Yetenek, Menü ve Skor için ekrandaki düğmeleri kullan.
+Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu ittiğin sürece silah ateş eder. Yetenek, Dipçik, Menü ve Skor için ekrandaki düğmeleri kullan.
 
 ### Ayarlar
 
@@ -63,7 +64,7 @@ Zorluk seviyeleri: Kolay, Normal, Zor, Kâbus.
 | İri | Kırmızı uyarıdan sonra hızla saldırıp oyuncuyu savurur |
 | Tükürücü | Mesafeyi korur, uzaktan asit tükürür (4. dalgadan itibaren) |
 | Patlayan | Yanına gelince patlar; öldürülünce de patlayıp yakındaki zombilere zarar verir (5. dalga) |
-| Kalkanlı | Önden gelen mermileri kalkanıyla durdurur. Yandan, arkadan, ateşle ya da patlamayla vur (6. dalga) |
+| Kalkanlı | Önden gelen mermileri kalkanıyla durdurur. Yandan, arkadan, ateşle ya da patlamayla vur; ya da **Dipçik** ile kalkanını düşürüp birkaç saniye önden vur (6. dalga) |
 | Çağırıcı | Uzakta durup yeni zombiler çağırır. Önce onu indirin (8. dalga) |
 
 ### Bosslar
@@ -74,14 +75,25 @@ Her 5 dalgada bir boss gelir: sırayla **Dev** (yere vurur), **Kraliçe** (yelpa
 
 Ölen zombiler bazen eşya düşürür: **Sargı** (can), **Altın**, **Güç** (10 sn iki kat hasar), **Hız** (10 sn daha hızlı). Bosslar her zaman eşya bırakır.
 
-Cephanelikte her sınıfın silahı iki kez geliştirilebilir (150 ve 400 altın). Her seviye hasarı ve atış hızını artırır, ayrıca sınıfa özel bir bonus verir (Tamirci'ye daha çok saçma, Nişancı'ya daha çok delme, Bombacı'ya daha geniş patlama, Alevci'ye daha uzun menzil).
+Cephanelikte her sınıfın silahı iki kez geliştirilebilir (150 ve 400 altın). İlk geliştirmede dört yoldan birini seçersin, ikincisi aynı yolda devam eder. Her yolun silahı farklı görünür:
+
+| Yol | Etkisi |
+| --- | --- |
+| Ağır | Daha yavaş ama çok sert vurur |
+| Seri | Çok daha hızlı ateş eder |
+| Delici | Mermiler zombileri deler, menzil artar (Bombacı'da patlama alanı büyür) |
+| Buz | Vurduğun zombiler birkaç saniye yavaşlar |
+
+Her seviye ayrıca sınıfa özel bir bonus verir (Tamirci'ye daha çok saçma, Nişancı'ya daha çok delme, Bombacı'ya daha geniş patlama, Alevci'ye daha uzun menzil).
 
 ## Teknik notlar
 
 - Saf HTML, CSS ve JavaScript. Derleme adımı yok.
 - Çok oyunculu bağlantı [PeerJS](https://peerjs.com/) (WebRTC) ile kurulur. Oyunu kurucunun tarayıcısı yönetir, diğer oyuncular ona bağlanır. Bu yüzden kurucunun sekmesi açık kalmalı ve internet bağlantısı iyi olmalı.
 - Kurucu ayrılırsa (sekmeyi kapatsa bile) oyun bitmez: en önce katılan oyuncu kurucu olur, diğerleri birkaç saniye içinde altınları, yükseltmeleri ve sınıflarıyla birlikte yeniden bağlanır. Bunun için kurucu her saniye oyunun yedeğini sıradaki oyuncuya gönderir.
-- Gelen her mesaj biçim ve boyut açısından denetlenir. Saniyede çok fazla mesaj gönderen oyuncu odadan atılır.
+- Bir oyuncunun bağlantısı kısa süre koparsa oyun onu otomatik olarak yeniden bağlar; altını, yükseltmeleri ve yeri 45 saniye korunur.
+- Büyük mesajlar (örneğin kalabalık dalgalardaki oyun yedeği) parçalara bölünerek gönderilir.
+- Gelen her mesaj biçim ve boyut açısından denetlenir. Uzun süre çok fazla mesaj gönderen oyuncu odadan atılır.
 
 ## GitHub Pages ile yayınlama
 

@@ -140,3 +140,6 @@ export function pickup(k, x, y) {
   else if (k === 2) { tone(v, 0.3, 200, 500, 'sawtooth'); tone(v * 0.5, 0.3, 300, 750, 'square', 0.05); } // power
   else { burst(v, 0.25, 1400, 1, 'bandpass'); tone(v * 0.5, 0.25, 400, 1200, 'sine'); }   // speed
 }
+// Dipçik: a quick whoosh, and a dull thud when it connects.
+export function bash(x, y, own) { const v = vol(x, y, own ? 0.3 : 0.16); if (v) burst(v, 0.12, 1100, 1.2, 'bandpass'); }
+export function bashHit(x, y) { const v = vol(x, y, 0.45); if (v) { tone(v, 0.14, 160, 60, 'sine'); burst(v * 0.6, 0.08, 700, 0.8); } }

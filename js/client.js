@@ -1,6 +1,6 @@
 // What every player's browser runs (the host included): own movement and shooting,
 // smoothing of what the host sends, and visual effects.
-import { CX, CY, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS } from './config.js';
+import { CX, CY, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS, BASH } from './config.js';
 import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds } from './world.js';
 import * as sfx from './sfx.js';
 import { SETTINGS } from './settings.js';
@@ -37,8 +37,8 @@ export class ClientGame {
     this.paused = false;
     this.self = {
       x: CX, y: CY, a: 0, hp: 100, maxHp: 100, alive: true, inGame: false,
-      gold: 0, kills: 0, sp: -1, lv: { dmg: 0, rate: 0, hp: 0, spd: 0, cd: 0 }, abLeft: 0, shopReady: false, wt: 0, power: 0, haste: 0,
-      kvx: 0, kvy: 0,
+      gold: 0, kills: 0, sp: -1, lv: { dmg: 0, rate: 0, hp: 0, spd: 0, cd: 0 }, abLeft: 0, shopReady: false, wt: 0, wp: 0, power: 0, haste: 0,
+      kvx: 0, kvy: 0, bashLeft: 0,
     };
     this.time = 0;
     this.fireT = 0;
@@ -51,7 +51,7 @@ export class ClientGame {
     this.shake = 0;
     this.hitMark = 0;
     this.zoom = 1;
-    this.input = { keys: new Set(), mx: 0, my: 0, down: false, ab: false, tmove: null, taim: null, tfire: false };
+    this.input = { keys: new Set(), mx: 0, my: 0, down: false, ab: false, bash: false, tmove: null, taim: null, tfire: false };
     this.touch = false;
     this.cam = { x: CX, y: CY, scale: 1, vw: 1, vh: 1 };
     this.hm = 1;
@@ -59,8 +59,8 @@ export class ClientGame {
   }
 
   get cls() { const r = this.roster.get(this.me); return r ? r.cls : 'asker'; }
-  get myStats() { return stats(this.cls, this.self.lv, this.self.wt); }
-  get myWeapon() { return weaponOf(this.cls, this.self.wt); }
+  get myStats() { return stats(this.cls, this.self.lv, this.self.wt, this.self.wp); }
+  get myWeapon() { return weaponOf(this.cls, this.self.wt, this.self.wp); }
   nameOf(pid) { const r = this.roster.get(pid); return r ? r.name : 'Biri'; }
   clsOf(pid) { const r = this.roster.get(pid); return r ? r.cls : 'asker'; }
   fxOn(pid, k) { const f = this.fx.get(pid); return !!f && f.k === k && this.time < f.until; }
@@ -88,7 +88,7 @@ export class ClientGame {
 
     const seenP = new Set();
     for (const e of s.P) {
-      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, l0, l1, l2, l3, l4, ab, rdy, shield, rev, pw, hs, wt] = e;
+      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, l0, l1, l2, l3, l4, ab, rdy, shield, rev, pw, hs, wt, wp] = e;
       seenP.add(pid);
       if (pid === this.me) {
         const S = this.self;
@@ -98,19 +98,19 @@ export class ClientGame {
         if (!S.alive && alive && S.inGame) this.notices.push({ k: 'revived' });
         S.hp = hp; S.maxHp = maxHp; S.alive = !!alive; S.gold = gold; S.kills = kills;
         S.lv = { dmg: l0, rate: l1, hp: l2, spd: l3, cd: l4 };
-        S.abLeft = ab; S.shopReady = !!rdy; S.inGame = true; S.wt = wt || 0; S.power = pw || 0; S.haste = hs || 0;
+        S.abLeft = ab; S.shopReady = !!rdy; S.inGame = true; S.wt = wt || 0; S.wp = wp || 0; S.power = pw || 0; S.haste = hs || 0;
       }
       let p = this.ps.get(pid);
       if (!p) { p = { x, y, a, walk: 0 }; this.ps.set(pid, p); }
       if (pid === this.me) { p.x = this.self.x; p.y = this.self.y; }
       p.tx = x; p.ty = y; p.ta = a; p.hp = hp; p.maxHp = maxHp; p.alive = !!alive;
-      p.kills = kills; p.ready = !!rdy; p.shield = !!shield; p.rev = rev || 0; p.wt = wt || 0; p.power = pw || 0; p.haste = hs || 0;
+      p.kills = kills; p.ready = !!rdy; p.shield = !!shield; p.rev = rev || 0; p.wt = wt || 0; p.wp = wp || 0; p.power = pw || 0; p.haste = hs || 0;
     }
     for (const pid of [...this.ps.keys()]) if (!seenP.has(pid)) this.ps.delete(pid);
     if (!seenP.has(this.me)) this.self.inGame = false;
 
     const seenZ = new Set();
-    for (const [id, t, x, y, hp, st, cdir, sface] of s.Z) {
+    for (const [id, t, x, y, hp, st, cdir, sface, fl] of s.Z) {
       seenZ.add(id);
       let z = this.zs.get(id);
       if (!z) {
@@ -132,7 +132,7 @@ export class ClientGame {
         if (st === ZS.WINDUP || st === ZS.SLAM) sfx.growl(x, y);
         if (st === ZS.SPIT) sfx.spit(x, y);
       }
-      z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.max = zMaxHp(t, this.wave, this.waveN, this.hm);
+      z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm);
       if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
     }
     for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
@@ -208,6 +208,13 @@ export class ClientGame {
         sfx.pickup(k, x, y);
         break;
       }
+      case 'bs': {
+        const [, pid, x, y, a, hit] = ev;
+        const p = this.ps.get(pid);
+        if (pid !== this.me) { if (p) p.bashT = 0.25; sfx.bash(x, y, false); }
+        if (hit) { this.bashHit(x + Math.cos(a) * 40, y + Math.sin(a) * 40); sfx.bashHit(x, y); if (pid === this.me) this.shake = Math.min(10, this.shake + 5); }
+        break;
+      }
       case 'we': this.notices.push({ k: 'clear', w: ev[1], bonus: ev[2] }); sfx.waveClear(); break;
       default: break;
     }
@@ -269,14 +276,26 @@ export class ClientGame {
         if (k) { this.fx.set(this.me, { k, until: this.time + c.ab.dur }); this.ring(S.x, S.y, AB_COL[cls], 60); }
         if (cls !== 'doktor' && cls !== 'alevci') sfx.ability(cls, S.x, S.y);
       }
+
+      // Dipçik: melee shove, the host decides what it hits
+      S.bashLeft = Math.max(0, S.bashLeft - dt);
+      if (this.input.bash && S.bashLeft <= 0 && this.phase === 'combat') {
+        S.bashLeft = BASH.cd;
+        this.send({ t: 'bash', a: Math.round(S.a * 100) / 100 });
+        if (meP) meP.bashT = 0.25;
+        this.swoosh(S.x, S.y, S.a);
+        sfx.bash(S.x, S.y, true);
+      }
     }
     this.input.ab = false;
+    this.input.bash = false;
 
     this.updateBullets(dt);
 
     // smooth everyone else toward the latest host positions
     const kf = 1 - Math.exp(-dt * 14);
     for (const [pid, p] of this.ps) {
+      if (p.bashT > 0) p.bashT = Math.max(0, p.bashT - dt);
       if (pid === this.me) { p.x = S.x; p.y = S.y; p.a = S.a; continue; }
       if (p.tx == null) continue;
       if (Math.hypot(p.tx - p.x, p.ty - p.y) > 300) { p.x = p.tx; p.y = p.ty; }
@@ -345,6 +364,7 @@ export class ClientGame {
       mx += Math.cos(S.a + Math.PI / 2) * 6 * this.side; my += Math.sin(S.a + Math.PI / 2) * 6 * this.side;
     }
     for (let i = 0; i < c.pellets; i++) this.bullets.push(this.makeBullet(c, mx, my, S.a, dmg, pierce, true));
+    if (c.heavy) this.shake = Math.min(8, this.shake + 1.5 * c.heavy);
     this.shotsQ.push([Math.round(mx), Math.round(my), Math.round(S.a * 100) / 100]);
     if (c.kind !== 'f') { this.flash(mx, my, S.a); this.casing(S.x, S.y, S.a); }
     if (c.kind === 'f') this.flameAt.set(this.me, { t: this.time, x: S.x, y: S.y });
@@ -358,7 +378,8 @@ export class ClientGame {
     return {
       x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: c.life, max: c.life,
       dmg, pierce, own, hit: null, kind: c.kind || 'b', aoe: c.aoe || 0,
-      w: c.pellets > 1 ? 1.6 : c.gun >= 36 ? 2.6 : 2,
+      w: (c.pellets > 1 ? 1.6 : c.gun >= 36 ? 2.6 : 2) + (c.heavy || 0) * 0.6,
+      col: c.path ? c.col : null, frost: !!c.frost,
     };
   }
 
@@ -372,7 +393,7 @@ export class ClientGame {
     }
     const cls = this.clsOf(pid);
     const pl = this.ps.get(pid);
-    const c = weaponOf(cls, pl ? pl.wt : 0);
+    const c = weaponOf(cls, pl ? pl.wt : 0, pl ? pl.wp : 0);
     if (c.kind === 'f') this.flameAt.set(pid, { t: this.time, x, y });
     for (let i = 0; i < c.pellets; i++) this.bullets.push(this.makeBullet(c, x, y, a, 0, c.pierce, false));
     if (c.kind !== 'f') this.flash(x, y, a);
@@ -394,8 +415,8 @@ export class ClientGame {
         if (dx * dx + dy * dy > r * r) continue;
         if (b.hit && b.hit.has(z.id)) continue;
         if (b.kind === 'g') { this.grenadeBlast(b); alive = false; break; }
-        if (b.kind === 'b' && z.t === 6 && this.blocks(z, b)) { this.sparks(b.x, b.y); sfx.clang(b.x, b.y); alive = false; break; }
-        if (b.own) this.dealHit(z, b.dmg);
+        if (b.kind === 'b' && z.t === 6 && !(z.fl & 2) && this.blocks(z, b)) { this.sparks(b.x, b.y); sfx.clang(b.x, b.y); alive = false; break; }
+        if (b.own) this.dealHit(z, b.dmg, b.frost);
         if (b.kind === 'b') this.blood(b.x, b.y, Math.atan2(b.vy, b.vx), 4);
         if (b.pierce > 0) { b.pierce--; (b.hit || (b.hit = new Set())).add(z.id); }
         else { alive = false; break; }
@@ -423,8 +444,8 @@ export class ClientGame {
     return best;
   }
 
-  dealHit(z, dmg) {
-    this.hitsQ.push([z.id, Math.round(dmg)]);
+  dealHit(z, dmg, frost) {
+    this.hitsQ.push(frost ? [z.id, Math.round(dmg), 1] : [z.id, Math.round(dmg)]);
     z.pend.push({ d: dmg, t: this.time });
     z.flash = 0.08;
     const pending = z.pend.reduce((s, e) => s + e.d, 0);
@@ -440,13 +461,27 @@ export class ClientGame {
     if (b.own) {
       for (const z of this.zs.values()) {
         if (z.dying) continue;
-        if (Math.hypot(z.x - b.x, z.y - b.y) < b.aoe + ZTYPES[z.t].r) this.dealHit(z, b.dmg);
+        if (Math.hypot(z.x - b.x, z.y - b.y) < b.aoe + ZTYPES[z.t].r) this.dealHit(z, b.dmg, b.frost);
       }
     }
     this.explode(b.x, b.y, b.aoe);
+    if (b.frost) this.ring(b.x, b.y, '#7bdff2', b.aoe);
   }
 
   // ---------- effects ----------
+  swoosh(x, y, a) {
+    for (let i = 0; i < 7; i++) {
+      const ang = a + (i / 6 - 0.5) * BASH.arc * 1.6, r = 34;
+      this.addPart({ x: x + Math.cos(ang) * r, y: y + Math.sin(ang) * r, vx: Math.cos(ang) * 120, vy: Math.sin(ang) * 120, life: 0.16, max: 0.16, col: '#e8e4d8', size: 2.4, kind: 'dot' });
+    }
+  }
+  bashHit(x, y) {
+    for (let i = 0; i < 6; i++) {
+      const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 120;
+      this.addPart({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, max: 0.3, col: '#f5e6b8', size: 2.2, kind: 'dot' });
+    }
+    this.ring(x, y, '#f5e6b8', 34);
+  }
   flash(x, y, a) {
     this.addPart({ x, y, vx: 0, vy: 0, life: 0.06, max: 0.06, col: '#ffd58a', size: 9, kind: 'flash', a });
     this.light(x, y, 120, 0.06, '255,200,120');

@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 6;
+export const VERSION = 7;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 10;
+export const BUILD = 11;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
@@ -62,13 +62,13 @@ export const CLASSES = {
     bars: { can: 0.45, hiz: 0.75, hasar: 0.45 },
   },
   tamirci: {
-    name: 'Tamirci', weapon: 'Pompalı', tiers: ['Pompalı', 'Otomatik pompalı', 'Ağır pompalı'], desc: 'Yakın mesafede yıkıcı. Kendi taretini kurar.',
+    name: 'Tamirci', weapon: 'Pompalı', tiers: ['Pompalı', 'Otomatik pompalı', 'Savaş pompalısı'], desc: 'Yakın mesafede yıkıcı. Kendi taretini kurar.',
     hp: 135, spd: 205, dmg: 13, rate: 1.6, spread: 0.3, bspd: 950, life: 0.32, pellets: 7, pierce: 0, kind: 'b', gun: 24,
     ab: { name: 'Taret', desc: '20 saniye boyunca zombilere ateş eden bir taret kurar.', cd: 24, dur: 20, dmg: 13, rate: 0.2, range: 420 },
     bars: { can: 0.65, hiz: 0.45, hasar: 0.75 },
   },
   nisanci: {
-    name: 'Nişancı', weapon: 'Dürbünlü tüfek', tiers: ['Dürbünlü tüfek', 'Uzun namlu', 'Ağır nişancı tüfeği'], desc: 'Az ama ölümcül atış. Mermiler sürüyü deler.',
+    name: 'Nişancı', weapon: 'Dürbünlü tüfek', tiers: ['Dürbünlü tüfek', 'Uzun namlu', 'Keskin nişancı tüfeği'], desc: 'Az ama ölümcül atış. Mermiler sürüyü deler.',
     hp: 90, spd: 210, dmg: 95, rate: 1.1, spread: 0.008, bspd: 1900, life: 0.9, pellets: 1, pierce: 3, kind: 'b', gun: 36,
     ab: { name: 'Odak', desc: '5 saniye boyunca iki kat hasar, mermiler her şeyi deler.', cd: 18, dur: 5 },
     bars: { can: 0.35, hiz: 0.5, hasar: 1 },
@@ -86,7 +86,7 @@ export const CLASSES = {
     bars: { can: 0.6, hiz: 0.45, hasar: 0.7 },
   },
   bombaci: {
-    name: 'Bombacı', weapon: 'Bomba atar', tiers: ['Bomba atar', 'Altılı bomba atar', 'Ağır bomba atar'], desc: 'Her atış patlar. Kalabalığa karşı birebir.',
+    name: 'Bombacı', weapon: 'Bomba atar', tiers: ['Bomba atar', 'Altılı bomba atar', 'Tamburlu bomba atar'], desc: 'Her atış patlar. Kalabalığa karşı birebir.',
     hp: 110, spd: 205, dmg: 70, rate: 1.15, spread: 0.03, bspd: 720, life: 0.85, pellets: 1, pierce: 0, kind: 'g', aoe: 95, gun: 26,
     ab: { name: 'Mayın', desc: 'Ayağının dibine mayın bırakır. Aynı anda en fazla 3 mayın.', cd: 8, dmg: 220, r: 140, max: 3 },
     bars: { can: 0.5, hiz: 0.45, hasar: 0.85 },
@@ -108,23 +108,48 @@ export const UPGRADES = [
 ];
 export const HEAL_COST = 25;
 
-// Weapon tiers bought in the armory: more damage and fire rate, plus a class-specific bonus.
+// Weapon tiers bought in the armory. The first upgrade picks one of four paths (index 1..4, 0 = none yet),
+// the second one makes that path stronger. Every tier also gives the class bonus.
 export const WEAPON_COST = [0, 150, 400];
-export const WEAPON_DMG = [1, 1.35, 1.8];
-export const WEAPON_RATE = [1, 1.1, 1.2];
-export function weaponOf(cls, wt) {
+export const PATHS = [
+  { name: 'Standart', adj: '', col: '#ffe1a6', dmg: [1, 1, 1], rate: [1, 1, 1] },
+  { name: 'Ağır', adj: 'Ağır', desc: 'Daha yavaş ama çok sert vurur', col: '#ff8a3d', dmg: [1, 1.55, 2.1], rate: [1, 0.9, 0.85] },
+  { name: 'Seri', adj: 'Seri', desc: 'Çok daha hızlı ateş eder', col: '#ffd23f', dmg: [1, 1.05, 1.05], rate: [1, 1.3, 1.75] },
+  { name: 'Delici', adj: 'Delici', desc: 'Mermiler zombileri deler, menzil artar', col: '#c77dff', dmg: [1, 1.25, 1.45], rate: [1, 1.05, 1.1] },
+  { name: 'Buz', adj: 'Buzlu', desc: 'Vurduğun zombiler yavaşlar', col: '#7bdff2', dmg: [1, 1.2, 1.4], rate: [1, 1.08, 1.15], slow: [0, 1.5, 2.5] },
+];
+const lowerFirst = (s) => s.charAt(0).toLocaleLowerCase('tr') + s.slice(1);
+export function weaponOf(cls, wt, wp = 0) {
   const c = CLASSES[cls] || CLASSES.asker;
   const t = Math.max(0, Math.min(2, wt | 0));
+  const k = t > 0 ? Math.max(1, Math.min(4, wp | 0)) : 0;
+  const P = PATHS[k];
+  const pierceT = k === 3 ? t : 0;
   return {
     ...c,
     tier: t,
-    name: c.tiers[t],
+    path: k,
+    col: P.col,
+    frost: k === 4,
+    name: t === 0 ? c.tiers[0] : `${P.adj} ${lowerFirst(c.tiers[t])}`,
     pellets: c.pellets + (cls === 'tamirci' ? 2 * t : 0),
-    pierce: c.pierce + (cls === 'nisanci' ? t : 0),
-    aoe: (c.aoe || 0) + (cls === 'bombaci' ? 15 * t : 0),
-    life: c.life + (cls === 'alevci' ? 0.05 * t : 0),
+    pierce: c.pierce + (cls === 'nisanci' ? t : 0) + (c.kind === 'g' ? 0 : pierceT),
+    aoe: (c.aoe || 0) + (cls === 'bombaci' ? 15 * t : 0) + (c.kind === 'g' && k === 3 ? 25 * t : 0) + (c.kind === 'g' && k === 1 ? 10 * t : 0),
+    life: (c.life + (cls === 'alevci' ? 0.05 * t : 0)) * (k === 3 ? 1 + 0.15 * t : 1),
+    bspd: c.bspd * (k === 3 ? 1 + 0.15 * t : 1),
+    heavy: k === 1 ? t : 0,
   };
 }
+// Short path description for the shop, with class-specific wording where it differs.
+export function pathDesc(cls, k) {
+  const c = CLASSES[cls] || CLASSES.asker;
+  if (k === 3 && c.kind === 'g') return 'Patlama alanı çok büyür, menzil artar';
+  if (k === 3 && c.kind === 'f') return 'Alev daha uzağa gider, daha çok zombiyi deler';
+  return PATHS[k].desc;
+}
+
+// Dipçik (melee shove), key F.
+export const BASH = { cd: 1.1, range: 52, arc: 1.05, dmg: 18, kb: 520, stun: 0.6, shieldStun: 2.6 };
 
 // Items zombies sometimes drop. k is sent over the network.
 export const ITEMS = [
@@ -168,14 +193,17 @@ export const FIRST_BREAK = 8;
 export const BREAK_TIME = 25;
 export const START_GOLD = 40;
 
-export function stats(cls, lv, wt = 0) {
+// Base tier bonus every path gets, on top of the path's own multipliers.
+const TIER_DMG = [1, 1.1, 1.2];
+export function stats(cls, lv, wt = 0, wp = 0) {
   const c = CLASSES[cls] || CLASSES.asker;
   const t = Math.max(0, Math.min(2, wt | 0));
+  const P = PATHS[t > 0 ? Math.max(1, Math.min(4, wp | 0)) : 0];
   return {
     maxHp: c.hp + 20 * lv.hp,
     spd: c.spd * (1 + 0.06 * lv.spd),
-    dmg: c.dmg * (1 + 0.15 * lv.dmg) * WEAPON_DMG[t],
-    rate: c.rate * (1 + 0.1 * lv.rate) * WEAPON_RATE[t],
+    dmg: c.dmg * (1 + 0.15 * lv.dmg) * TIER_DMG[t] * P.dmg[t],
+    rate: c.rate * (1 + 0.1 * lv.rate) * P.rate[t],
     cd: Math.max(0.4, 1 - 0.1 * lv.cd),
   };
 }

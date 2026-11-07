@@ -1,9 +1,9 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { ZTYPES, WEAPON_COST, weaponOf, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
+import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathDesc, BASH, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
-import { Renderer, drawCharacter } from './render.js';
+import { Renderer, drawCharacter, drawWeaponPreview } from './render.js';
 import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
@@ -134,7 +134,7 @@ async function createRoom(offline) {
   S.game = new ClientGame(send, 1);
   S.host.local = onMessage;
   net.onMsg = (pid, m) => S.host.onMsg(pid, m);
-  net.onLeave = (pid) => S.host.removePlayer(pid);
+  net.onLeave = (pid) => S.host.playerLost(pid);
   S.host.addPlayer(1, name || 'Kurucu');
   startTicker();
 }
@@ -192,51 +192,62 @@ window.addEventListener('beforeunload', () => { if (S.role === 'host' && S.host)
 // ---------- host migration ----------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// The host's connection dropped. The next player in line takes over; everyone else reconnects to them.
+// The link to the host dropped. Often the host is still there and only the connection hiccuped, so first
+// try to reconnect to the same room. If the room is really gone, the next player in line takes it over
+// and everyone else reconnects to them. Everyone keeps their class, gold and upgrades.
 function hostLost() {
   const r = S.roster;
   if (S.role !== 'client' || !r || !r.code || S.rejoining) { leave('Kurucuyla bağlantı koptu. Oda kapanmış olabilir.'); return; }
   S.rejoining = true;
   const old = S.net; S.net = null;
   if (old) { old.onClose = null; old.onMsg = null; old.destroy(); }
-  if (r.succ === S.me && S.backup) takeOver(r.code);
-  else rejoin(r.code);
+  reconnect(r.code, r.succ === S.me && !!S.backup);
 }
 
-async function takeOver(code) {
-  toast('Kurucu ayrıldı. Oyunu sen devralıyorsun…');
-  const net = new HostNet();
-  try { await net.open(code, 30000); } catch (e) { leave('Kurucu ayrıldı ve oda devralınamadı.'); return; }
-  if (!S.rejoining) { net.destroy(); return; } // left meanwhile
+async function reconnect(code, canTakeOver) {
+  toast('Bağlantı koptu. Yeniden bağlanılıyor…');
+  const until = performance.now() + 40000;
+  let first = true;
+  while (S.rejoining && performance.now() < until) {
+    if (!first) await sleep(1500);
+    first = false;
+    if (!S.rejoining) return;
+    // still a room under this code? (a live host, or someone who already took over)
+    const net = new ClientNet();
+    let ok = true;
+    try { await net.connect(code, 5000); } catch (e) { ok = false; net.destroy(); }
+    if (!S.rejoining) { if (ok) net.destroy(); return; }
+    if (ok) {
+      S.net = net;
+      net.onMsg = onMessage;
+      net.onClose = hostLost;
+      S.rejoining = false;
+      net.send({ t: 'hello', v: VERSION, name: S.name || '', rejoin: { pid: S.me, tok: S.tok } });
+      toast('Yeniden bağlandın.', 'good');
+      return;
+    }
+    // nobody answers: the next in line takes the room over
+    if (canTakeOver && S.backup) {
+      const host = new HostNet();
+      let got = true;
+      try { await host.open(code, 3000); } catch (e) { got = false; }
+      if (!S.rejoining) { if (got) host.destroy(); return; }
+      if (got) { becomeHost(host); return; }
+    }
+  }
+  if (S.rejoining) leave('Kurucuyla bağlantı koptu ve oyun devam ettirilemedi.');
+}
+
+function becomeHost(net) {
   const host = new HostGame(net);
   host.restore(S.backup, S.me);
   net.nextPid = Math.max(S.me, ...host.players.keys()) + 1;
   S.role = 'host'; S.net = net; S.host = host; S.rejoining = false; S.backup = null;
   host.local = onMessage;
   net.onMsg = (pid, m) => host.onMsg(pid, m);
-  net.onLeave = (pid) => host.removePlayer(pid);
+  net.onLeave = (pid) => host.playerLost(pid);
   host.pushRoster();
-  toast('Artık kurucu sensin. Diğerleri yeniden bağlanıyor.', 'good');
-}
-
-async function rejoin(code) {
-  toast('Kurucu ayrıldı. Yeni kurucuya bağlanılıyor…');
-  const until = performance.now() + 35000;
-  while (S.rejoining && performance.now() < until) {
-    await sleep(1500);
-    if (!S.rejoining) return;
-    const net = new ClientNet();
-    try { await net.connect(code); } catch (e) { continue; }
-    if (!S.rejoining) { net.destroy(); return; }
-    S.net = net;
-    net.onMsg = onMessage;
-    net.onClose = hostLost;
-    S.rejoining = false;
-    net.send({ t: 'hello', v: VERSION, name: S.name || '', rejoin: { pid: S.me, tok: S.tok } });
-    toast('Yeni kurucuya bağlandın.', 'good');
-    return;
-  }
-  if (S.rejoining) leave('Kurucu ayrıldı ve oyun devam ettirilemedi.');
+  toast('Kurucu ayrıldı. Artık kurucu sensin, diğerleri yeniden bağlanıyor.', 'good');
 }
 
 // ---------- incoming messages ----------
@@ -621,6 +632,13 @@ function updateHud() {
     $('#t-ab').textContent = left > 0 ? `${Math.ceil(left)} sn` : c.ab.name;
   }
   $('#hud-ab').title = c.ab.desc;
+  const bashL = me.bashLeft || 0;
+  $('#hud-bash-fill').style.height = (bashL > 0 ? (1 - bashL / BASH.cd) * 100 : 100) + '%';
+  $('#hud-bash').classList.toggle('ready', bashL <= 0);
+  if (IS_TOUCH) {
+    $('#t-bash').hidden = !me.alive || g.phase !== 'combat';
+    $('#t-bash').classList.toggle('ready', bashL <= 0);
+  }
   const act = g.fx.get(S.me);
   if (act && g.time < act.until) { $('#hud-ab-cd').textContent = `Aktif: ${Math.ceil(act.until - g.time)} sn`; $('#hud-ab').classList.add('active'); }
   else $('#hud-ab').classList.remove('active');
@@ -672,14 +690,37 @@ function buildShop() {
     b.addEventListener('click', () => buy(it.k));
     li.append(b);
     list.append(li);
+    if (it.k === 'wpn') list.append(buildPaths());
   });
   S.shopBuilt = true;
+  S.shopCls = S.game ? S.game.cls : null;
 }
 
-function buy(k) {
+// The four weapon paths, offered at the first weapon upgrade.
+function buildPaths() {
+  const li = el('li', 'paths');
+  li.id = 'shop-paths';
+  const cls = S.game ? S.game.cls : 'asker';
+  for (let k = 1; k < PATHS.length; k++) {
+    const b = el('button', 'path-btn');
+    b.type = 'button';
+    b.dataset.p = String(k);
+    b.style.setProperty('--pc', PATHS[k].col);
+    const cv = document.createElement('canvas');
+    cv.width = 240; cv.height = 84;
+    drawWeaponPreview(cv.getContext('2d'), cls, 2, k, cv.width, cv.height);
+    b.append(cv, el('span', 'nm', PATHS[k].name), el('span', 'ds', pathDesc(cls, k)));
+    b.addEventListener('click', () => buy('wpn', k));
+    li.append(b);
+  }
+  return li;
+}
+
+function buy(k, path) {
   const g = S.game;
   if (!g || g.phase !== 'break' || !g.self.alive) return;
-  send({ t: 'buy', k });
+  if (k === 'wpn' && g.self.wt === 0 && !path) { const f = $('#shop-paths .path-btn'); if (f) f.focus(); return; }
+  send(path ? { t: 'buy', k, p: path } : { t: 'buy', k });
   sfx.buy();
 }
 
@@ -688,7 +729,7 @@ function updateShop() {
   const open = g.phase === 'break' && g.self.inGame;
   $('#shop').hidden = !open;
   if (!open) return;
-  if (!S.shopBuilt) buildShop();
+  if (!S.shopBuilt || S.shopCls !== g.cls) buildShop();
   $('#shop-time').textContent = String(g.breakT);
   $('#shop-gold').textContent = fmt(g.self.gold);
   for (const b of $('#shop-list').querySelectorAll('.shop-item')) {
@@ -698,13 +739,23 @@ function updateShop() {
       cost = HEAL_COST;
       can = g.self.alive && g.self.hp < g.self.maxHp && g.self.gold >= cost;
     } else if (k === 'wpn') {
-      const wt = g.self.wt;
+      const wt = g.self.wt, wp = g.self.wp;
       maxed = wt >= 2;
       cost = maxed ? 0 : WEAPON_COST[wt + 1];
-      can = !maxed && g.self.gold >= cost && g.self.alive;
-      b.querySelector('.nm').textContent = maxed ? weaponOf(g.cls, 2).name : `Silah: ${weaponOf(g.cls, wt + 1).name}`;
-      b.querySelector('.ds').textContent = maxed ? 'En güçlü silahın elinde' : '+%35 hasar, daha hızlı ateş';
+      can = !maxed && wt > 0 && g.self.gold >= cost && g.self.alive;
+      const picking = wt === 0;
+      b.querySelector('.nm').textContent = picking ? 'Silah yolu seç' : maxed ? weaponOf(g.cls, 2, wp).name : `Silah: ${weaponOf(g.cls, wt + 1, wp).name}`;
+      b.querySelector('.ds').textContent = picking ? 'Aşağıdan bir yol seç. Sonraki yükseltme aynı yolda devam eder.'
+        : maxed ? `${PATHS[wp].name} yolunun en güçlü silahı elinde` : `${PATHS[wp].name} yolu: ${pathDesc(g.cls, wp).toLocaleLowerCase('tr')}`;
+      b.style.setProperty('--pc', wt > 0 ? PATHS[wp].col : '');
+      b.classList.toggle('picking', picking);
       b.querySelectorAll('.pips i').forEach((p, i) => p.classList.toggle('on', i < wt));
+      const paths = $('#shop-paths');
+      if (paths) {
+        paths.hidden = !picking;
+        const ok = g.self.gold >= WEAPON_COST[1] && g.self.alive;
+        for (const pb of paths.querySelectorAll('.path-btn')) pb.disabled = !ok;
+      }
     } else {
       const u = UPGRADES.find((x) => x.k === k);
       const lv = g.self.lv[k];
@@ -767,6 +818,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Equal' || e.code === 'NumpadAdd') { setZoom(zoom * 1.12); return; }
   if (e.code === 'Minus' || e.code === 'NumpadSubtract') { setZoom(zoom / 1.12); return; }
   if (e.code === 'Space') { if (!e.repeat) S.game.input.ab = true; return; }
+  if (e.code === 'KeyF') { if (!e.repeat) S.game.input.bash = true; return; }
   if (/^Digit[1-7]$/.test(e.code)) {
     const i = Number(e.code.slice(5)) - 1;
     const k = i === 0 ? 'wpn' : i <= UPGRADES.length ? UPGRADES[i - 1].k : 'heal';
@@ -971,6 +1023,7 @@ stick($('#stick-aim'), (x, y) => {
   S.game.input.tfire = l > 0.35;
 });
 $('#t-ab').addEventListener('pointerdown', (e) => { e.preventDefault(); if (S.game) S.game.input.ab = true; });
+$('#t-bash').addEventListener('pointerdown', (e) => { e.preventDefault(); if (S.game) S.game.input.bash = true; });
 $('#t-menu').addEventListener('click', () => { if ($('#esc').hidden) openEsc(); else closeEsc(); });
 $('#t-board').addEventListener('click', () => { const b = $('#board'); b.hidden = !b.hidden; if (!b.hidden) renderBoard(); });
 function updateRotate() {

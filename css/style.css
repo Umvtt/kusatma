@@ -239,7 +239,9 @@ body.playing { user-select: none; -webkit-user-select: none; }
   background: rgba(13,17,15,.82); border: 1px solid var(--line); border-radius: var(--radius); backdrop-filter: blur(4px);
 }
 .hp-box { width: 300px; padding: 10px 14px 12px; }
-.hp-top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+.hp-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+.hp-top > span { white-space: nowrap; }
+#hud-class { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 #hud-class { color: var(--dim); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
 .hp-bar { height: 12px; border-radius: 6px; background: #252f29; overflow: hidden; }
 .hp-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #2fae62, var(--heal)); border-radius: 6px; transition: width .15s; }
@@ -258,6 +260,9 @@ body.playing { user-select: none; -webkit-user-select: none; }
 .ab-key { position: relative; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
 .ab-box strong { position: relative; font-size: 15px; }
 .ab-cd { position: relative; font-size: 12px; color: var(--dim); font-weight: 600; }
+.bash-box { width: 84px; }
+.bash-box .ab-fill { background: rgba(236,230,214,.12); }
+.bash-box.ready { border-color: #cfc8b4; }
 .gold-box { padding: 8px 14px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; min-width: 104px; }
 .gold-box strong { font-size: 22px; line-height: 1.1; display: inline-flex; }
 .gold-box { display: grid; grid-template-columns: auto auto; column-gap: 8px; align-items: center; }
@@ -387,6 +392,19 @@ body.playing { user-select: none; -webkit-user-select: none; }
 .buff.power { color: var(--accent); border-color: var(--accent); }
 .buff.haste { color: #4cc9f0; border-color: #4cc9f0; }
 .shop-item.weapon { border-color: rgba(245,197,66,.35); }
+.shop-item.weapon { border-left: 3px solid var(--pc, rgba(245,197,66,.35)); }
+.shop-item.weapon.picking[disabled] { opacity: 1; cursor: default; }
+.shop-list .paths { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.shop-list .paths[hidden] { display: none; }
+.path-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 6px 8px 8px;
+  background: var(--panel-2, #18201b); border: 1px solid var(--line); border-top: 3px solid var(--pc); border-radius: 8px; color: var(--text); cursor: pointer; font: inherit;
+}
+.path-btn:hover:not([disabled]), .path-btn:focus-visible { border-color: var(--pc); }
+.path-btn[disabled] { opacity: .5; cursor: not-allowed; }
+.path-btn canvas { width: 100%; height: auto; aspect-ratio: 240 / 84; background: radial-gradient(ellipse at center, #4a5249, #2b312b); border-radius: 5px; }
+.path-btn .nm { font-weight: 700; font-size: 13px; color: var(--pc); }
+.path-btn .ds { font-size: 11px; color: var(--dim); line-height: 1.3; }
 
 .row.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .row.end { justify-content: flex-end; }
@@ -416,6 +434,8 @@ body.playing { user-select: none; -webkit-user-select: none; }
 .t-btn { position: absolute; pointer-events: auto; touch-action: none; border: 1px solid rgba(236,230,214,.3); background: rgba(13,17,15,.7); border-radius: 999px; font-weight: 700; font-size: 12px; padding: 10px 14px; color: var(--text); }
 .t-btn.t-ability { right: max(170px, calc(env(safe-area-inset-right, 0px) + 170px)); bottom: max(40px, env(safe-area-inset-bottom, 0px)); width: 76px; height: 76px; padding: 0; border-color: var(--accent); }
 .t-btn.t-ability.ready { background: rgba(255,107,44,.3); }
+.t-btn.t-bash { right: max(256px, calc(env(safe-area-inset-right, 0px) + 256px)); bottom: max(48px, env(safe-area-inset-bottom, 0px)); width: 60px; height: 60px; padding: 0; font-size: 11px; }
+.t-btn.t-bash.ready { background: rgba(236,230,214,.22); }
 .t-btn.t-pause { left: max(14px, env(safe-area-inset-left, 0px)); top: 104px; }
 .t-btn.t-score { left: calc(max(14px, env(safe-area-inset-left, 0px)) + 76px); top: 104px; }
 .rotate { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 24px; background: var(--bg); }

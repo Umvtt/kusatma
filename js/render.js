@@ -130,12 +130,14 @@ export class Renderer {
         g.beginPath(); g.moveTo(b.x - b.vx * 0.04, b.y - b.vy * 0.04); g.lineTo(b.x, b.y); g.stroke();
         continue;
       }
-      g.strokeStyle = b.own ? 'rgba(255,224,150,0.95)' : 'rgba(255,214,140,0.7)';
+      if (b.col) { g.strokeStyle = b.col; g.globalAlpha = b.own ? 0.95 : 0.75; }
+      else g.strokeStyle = b.own ? 'rgba(255,224,150,0.95)' : 'rgba(255,214,140,0.7)';
       g.lineWidth = b.w;
       g.beginPath();
       g.moveTo(b.x - b.vx * 0.022, b.y - b.vy * 0.022);
       g.lineTo(b.x, b.y);
       g.stroke();
+      g.globalAlpha = 1;
     }
     for (const q of game.spits.values()) {
       g.fillStyle = 'rgba(159,191,42,0.35)';
@@ -203,7 +205,8 @@ export class Renderer {
       if (b.kind !== 'f') continue;
       const age = 1 - b.life / b.max;
       g.globalAlpha = 0.5 * (1 - age);
-      g.fillStyle = age < 0.35 ? '#ffd166' : age < 0.7 ? '#ff8c3a' : '#c2410c';
+      if (b.frost) g.fillStyle = age < 0.35 ? '#e6fbff' : age < 0.7 ? '#7bdff2' : '#2a6fb0';
+      else g.fillStyle = age < 0.35 ? '#ffd166' : age < 0.7 ? '#ff8c3a' : '#c2410c';
       g.beginPath(); g.arc(b.x, b.y, 5 + age * 16, 0, Math.PI * 2); g.fill();
     }
     for (const p of game.parts) {
@@ -731,13 +734,31 @@ function drawZombie(g, z, time) {
     g.strokeStyle = fl ? '#fff' : '#d8cfb0'; g.lineWidth = r * 0.16; g.lineCap = 'round';
     for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(r * 0.3, sd * r * 0.3); g.quadraticCurveTo(r * 0.1, sd * r * 0.95, r * 0.75, sd * r * 0.8); g.stroke(); }
   }
-  if (z.t === 6) { // riot shield held in front
+  if (z.t === 6) { // riot shield held in front, swung aside while dazed by a Dipçik
+    g.save();
+    if (z.fl & 2) { g.translate(0, r * 0.9); g.rotate(1.25); }
     g.fillStyle = fl ? '#fff' : '#8a949e';
     rr(g, r * 0.95, -r * 1.1, r * 0.32, r * 2.2, 4); g.fill();
     g.strokeStyle = '#3a4048'; g.lineWidth = 2; g.stroke();
     g.fillStyle = 'rgba(160,200,230,0.35)'; g.fillRect(r * 1.0, -r * 0.5, r * 0.18, r * 0.4);
+    g.restore();
   }
   g.restore();
+  if (z.fl & 1) { // frozen: icy rim
+    g.strokeStyle = 'rgba(160,230,255,0.85)'; g.lineWidth = 2.5;
+    g.fillStyle = 'rgba(123,223,242,0.22)';
+    g.beginPath(); g.arc(z.x, z.y, r + 3, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = '#e6fbff';
+    for (let i = 0; i < 4; i++) { const a = z.id + i * 1.7; g.fillRect(z.x + Math.cos(a) * r * 0.8 - 1.5, z.y + Math.sin(a) * r * 0.8 - 1.5, 3, 3); }
+  }
+  if (z.fl & 2) { // dazed: stars circling the head
+    g.fillStyle = '#ffe27a';
+    for (let i = 0; i < 3; i++) {
+      const a = time * 6 + i * 2.1;
+      const sx = z.x + Math.cos(a) * r * 0.75, sy = z.y - r * 0.4 + Math.sin(a) * r * 0.3;
+      star(g, sx, sy, 3.6);
+    }
+  }
   if (isBoss(z.t)) return; // bosses use the big bar at the top of the screen
   if (z.hp < z.max || z.dying) {
     // show the health the player's own hits have already taken off, so a finished zombie reads as empty
@@ -795,7 +816,7 @@ function drawPlayer(g, game, pid, p, info, alive) {
     }
   }
   g.scale(1.15, 1.15);
-  drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, power: p.power > 0 });
+  drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time });
   g.restore();
 }
 
@@ -870,10 +891,14 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
     g.beginPath(); g.ellipse(-3, 0, 5, 10, 0, 0, Math.PI * 2); g.fill();
   }
 
-  // weapon and arms
+  // weapon and arms; a Dipçik thrusts them forward
+  const thrust = opts.bash > 0 ? Math.sin((1 - opts.bash / 0.25) * Math.PI) * 9 : 0;
+  g.save();
+  if (thrust) g.translate(thrust, 0);
   drawWeapon(g, cls);
-  if (opts.wt) { g.fillStyle = opts.wt === 2 ? '#f5c542' : '#ff6b2c'; g.fillRect(14, 1, 10, 2.2); if (opts.wt === 2) g.fillRect(14, 6.6, 10, 2.2); }
+  if (opts.wt) drawWeaponMod(g, cls, opts.wt, opts.wp || 1, opts.time || 0);
   drawArms(g, cls, dark);
+  g.restore();
 
   // head and headgear
   g.fillStyle = SKIN;
@@ -919,6 +944,63 @@ function drawWeapon(g, cls) {
     case 'bombaci': g.fillStyle = '#3f4a2a'; g.fillRect(4, 0, 26, 9); g.fillStyle = '#1e2414'; g.beginPath(); g.arc(30, 4.5, 4.5, 0, Math.PI * 2); g.fill(); break;
     case 'izci': g.fillStyle = M; g.fillRect(12, -9, 13, 4); g.fillRect(12, 5, 13, 4); break;
     default: break;
+  }
+}
+
+// Just the gun, for the armory's path buttons.
+export function drawWeaponPreview(g, cls, wt, wp, w, h) {
+  g.clearRect(0, 0, w, h);
+  g.save();
+  const m = MUZZLE[cls] || MUZZLE.asker;
+  const len = m[0] + (wp === 3 ? 14 : 6) + 24;
+  const k = Math.min((w - 16) / len, (h - 8) / 22);
+  g.translate((w - len * k) / 2 + 24 * k, h / 2 - 4 * k);
+  g.scale(k, k);
+  if (cls === 'izci') g.translate(-10, 2);
+  drawWeapon(g, cls);
+  if (wt) drawWeaponMod(g, cls, wt, wp, 0);
+  g.restore();
+}
+
+// Where each class's weapon ends and what height its barrel sits at (izci has two pistols).
+const MUZZLE = { asker: [34, 4], doktor: [26, 4], tamirci: [32, 4.2], nisanci: [42, 4.7], kalkanci: [36, 4], alevci: [31, 4.2], bombaci: [34, 4.5], izci: [25, -7, 7] };
+const PATH_COL = ['#ffe1a6', '#ff8a3d', '#ffd23f', '#c77dff', '#7bdff2'];
+
+// Visible parts an upgraded weapon gets, different for each of the four paths; tier 2 adds more.
+function drawWeaponMod(g, cls, wt, wp, time) {
+  const m = MUZZLE[cls] || MUZZLE.asker;
+  const ys = m.length > 2 ? [m[1], m[2]] : [m[1]];
+  const x = m[0], two = wt >= 2, col = PATH_COL[wp] || PATH_COL[1];
+  const M = '#191c19';
+  for (const y of ys) {
+    const small = ys.length > 1;
+    if (wp === 1) { // Ağır: thick barrel shroud and a muzzle brake
+      g.fillStyle = '#2b2f2b'; g.fillRect(x - (small ? 9 : 14), y - 3.6, small ? 9 : 14, 7.2);
+      g.fillStyle = M; g.fillRect(x, y - (two ? 4.2 : 3.4), two ? 6 : 4, two ? 8.4 : 6.8);
+      g.fillStyle = '#555c55'; g.fillRect(x + 1, y - 1, two ? 4 : 2, 2);
+      g.fillStyle = col; g.fillRect(x - (small ? 8 : 12), y - 3.6, 2.2, 7.2);
+      if (two) { g.fillRect(x - (small ? 4 : 6), y - 3.6, 2.2, 7.2); g.fillStyle = '#2b2f2b'; g.fillRect(x - 20, y + 3, 9, 4); }
+    } else if (wp === 2) { // Seri: drum magazine and a vented barrel
+      g.fillStyle = '#2b2f2b'; g.fillRect(x - (small ? 8 : 12), y - 2.8, small ? 8 : 12, 5.6);
+      g.fillStyle = '#6a706a'; for (let i = 0; i < (small ? 2 : 4); i++) g.fillRect(x - (small ? 7 : 11) + i * 3, y - 1.5, 1.4, 3);
+      const dr = two ? 5 : 4.2, dx = x - (small ? 6 : 11), dy = y + (small ? 0 : 8);
+      if (!small) { g.fillStyle = '#2f342f'; g.beginPath(); g.arc(dx, dy, dr, 0, Math.PI * 2); g.fill(); g.strokeStyle = col; g.lineWidth = 1.6; g.stroke(); g.fillStyle = col; g.beginPath(); g.arc(dx, dy, 1.4, 0, Math.PI * 2); g.fill(); }
+      else { g.fillStyle = col; g.fillRect(x - 9, y - 3.2, 8, 1.3); }
+      if (two && !small) { g.fillStyle = M; g.fillRect(x, y - 3.2, 3, 2); g.fillRect(x, y + 1.2, 3, 2); }
+    } else if (wp === 3) { // Delici: long thin barrel and a scope
+      const ext = two ? 12 : 7;
+      g.fillStyle = M; g.fillRect(x - 1, y - 1.3, ext + 1, 2.6);
+      g.fillStyle = col; g.fillRect(x + ext - 2, y - 1.6, 2, 3.2);
+      if (!small) { g.fillStyle = '#101210'; g.fillRect(x - 22, y - 7, 12, 3); g.fillStyle = col; g.fillRect(x - 11, y - 6.6, 1.6, 2.2); }
+      if (two) { g.strokeStyle = col; g.lineWidth = 1; g.beginPath(); g.moveTo(x - 6, y - 2.6); g.lineTo(x + ext - 3, y - 2.6); g.stroke(); }
+    } else { // Buz: frost canisters and a glowing cold tip
+      g.fillStyle = '#d9f4ff'; rr(g, x - (small ? 10 : 18), y - (small ? 6.5 : 8.5), small ? 6 : 9, 4, 2); g.fill();
+      if (two) { rr(g, x - (small ? 10 : 18), y + (small ? 2.5 : 4.5), small ? 6 : 9, 4, 2); g.fill(); }
+      g.fillStyle = '#3a8fc0'; g.fillRect(x - (small ? 7 : 14), y - (small ? 6 : 8), 1.5, 3);
+      const glow = 0.6 + 0.4 * Math.sin(time * 5);
+      g.fillStyle = `rgba(123,223,242,${glow})`; g.fillRect(x - 1, y - 2.4, 4, 4.8);
+      g.fillStyle = '#e6fbff'; g.fillRect(x, y - 1, 2, 2);
+    }
   }
 }
 
@@ -969,6 +1051,12 @@ function drawHead(g, cls, color) {
       g.fillStyle = '#a8996a'; rr(g, 4, -5.5, 6, 11, 3); g.fill(); break;
     default: break;
   }
+}
+
+function star(g, x, y, s) {
+  g.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, k = i % 2 ? s * 0.45 : s; g.lineTo(x + Math.cos(a) * k, y + Math.sin(a) * k); }
+  g.closePath(); g.fill();
 }
 
 function rr(g, x, y, w, h, r) {

@@ -5,9 +5,11 @@ import { CODE_LEN } from './config.js';
 const PREFIX = 'kusatma-';
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I lookalikes
 const MAX_MSGS_PER_SEC = 80;   // normal play sends about 22
+const MSG_BURST = 400;         // a link that stalled and then delivers its backlog at once is not spam
+const PIECE = 5000;            // PeerJS refuses JSON messages over 16 KB; bigger ones go in pieces of this many characters
 const MAX_MSG_CHARS = 6000;
 const HOST_STALE_MS = 30000;   // drop a player we have not heard from in this long
-const CLIENT_STALE_MS = 6000;  // the host pings every 2 s; this long without anything means it is gone
+const CLIENT_STALE_MS = 8000;  // the host pings every 2 s; this long without anything means the link is down
 
 export function makeCode() {
   const bytes = new Uint8Array(CODE_LEN);
@@ -22,6 +24,16 @@ export function cleanCode(s) {
 }
 
 const peerAvailable = () => typeof Peer === 'function';
+
+// Splits a message that is too big for one PeerJS message into pieces the client puts back together.
+let packId = 0;
+function pack(msg) {
+  const str = JSON.stringify(msg);
+  if (str.length <= PIECE) return [msg];
+  const id = ++packId, n = Math.ceil(str.length / PIECE), out = [];
+  for (let i = 0; i < n; i++) out.push({ t: 'ck', id, i, n, d: str.slice(i * PIECE, (i + 1) * PIECE) });
+  return out;
+}
 
 export class HostNet {
   constructor() {
@@ -67,11 +79,11 @@ export class HostNet {
 
   accept(conn) {
     conn.on('open', () => {
-      const info = { pid: this.nextPid++, conn, player: false, count: 0, win: performance.now(), last: performance.now() };
+      const info = { pid: this.nextPid++, conn, player: false, tokens: MSG_BURST, win: performance.now(), last: performance.now() };
       this.conns.set(info.pid, info);
       conn.on('data', (d) => this.receive(info, d));
       conn.on('close', () => this.drop(info));
-      conn.on('error', () => this.drop(info));
+      conn.on('error', (e) => { if (!e || e.type !== 'message-too-big') this.drop(info); });
       setTimeout(() => { if (this.conns.get(info.pid) === info && !info.player) this.close(info.pid); }, 6000);
     });
   }
@@ -79,12 +91,13 @@ export class HostNet {
   receive(info, d) {
     const now = performance.now();
     info.last = now;
-    if (now - info.win > 1000) { info.win = now; info.count = 0; }
-    info.count++;
+    // token bucket: refills at MAX_MSGS_PER_SEC, holds up to MSG_BURST
+    info.tokens = Math.min(MSG_BURST, info.tokens + (now - info.win) / 1000 * MAX_MSGS_PER_SEC);
+    info.win = now;
     let size = 0;
     try { size = JSON.stringify(d).length; } catch (e) { size = Infinity; }
-    if (size > MAX_MSG_CHARS) info.count += 10;
-    if (info.count > MAX_MSGS_PER_SEC) { this.kick(info.pid, 'spam'); return; }
+    info.tokens -= size > MAX_MSG_CHARS ? 20 : 1;
+    if (info.tokens < 0) { this.kick(info.pid, 'spam'); return; }
     if (size > MAX_MSG_CHARS) return;
     if (d && d.t === 'p') return; // keep-alive
     if (this.onMsg) this.onMsg(info.pid, d);
@@ -92,10 +105,16 @@ export class HostNet {
 
   markPlayer(pid) { const i = this.conns.get(pid); if (i) i.player = true; }
 
-  // A reconnecting player gets their old player number back.
+  // A reconnecting player gets their old player number back. A stale link still holding that number is closed quietly.
   rebind(from, to) {
     const i = this.conns.get(from);
-    if (!i || this.conns.has(to)) return false;
+    if (!i) return false;
+    const old = this.conns.get(to);
+    if (old) {
+      if (!old.player) return false;
+      this.conns.delete(to);
+      try { old.conn.close(); } catch (e) { /* ignore */ }
+    }
     this.conns.delete(from);
     i.pid = to;
     this.conns.set(to, i);
@@ -104,12 +123,16 @@ export class HostNet {
 
   send(pid, msg) {
     const i = this.conns.get(pid);
-    if (i && i.conn.open) { try { i.conn.send(msg); } catch (e) { /* closed mid-send */ } }
+    if (!i || !i.conn.open) return;
+    for (const part of pack(msg)) { try { i.conn.send(part); } catch (e) { /* closed mid-send */ } }
   }
 
   broadcast(msg) {
+    let parts = null;
     for (const i of this.conns.values()) {
-      if (i.player && i.conn.open) { try { i.conn.send(msg); } catch (e) { /* ignore */ } }
+      if (!i.player || !i.conn.open) continue;
+      if (!parts) parts = pack(msg);
+      for (const part of parts) { try { i.conn.send(part); } catch (e) { /* ignore */ } }
     }
   }
 
@@ -171,9 +194,24 @@ export class ClientNet {
     this.onClose = null;
     this.last = performance.now();
     this.closed = false;
+    this.parts = null; // pieces of a split message being put back together
   }
 
-  connect(code) {
+  // Puts split messages back together; returns the whole message once every piece is in.
+  unpack(d) {
+    if (!d || d.t !== 'ck') return d;
+    const { id, i, n } = d;
+    if (!Number.isInteger(n) || n < 1 || n > 400 || !Number.isInteger(i) || i < 0 || i >= n || typeof d.d !== 'string') return null;
+    if (!this.parts || this.parts.id !== id) this.parts = { id, n, got: 0, d: new Array(n) };
+    const P = this.parts;
+    if (P.n !== n || P.d[i] != null) return null;
+    P.d[i] = d.d; P.got++;
+    if (P.got < n) return null;
+    this.parts = null;
+    try { return JSON.parse(P.d.join('')); } catch (e) { return null; }
+  }
+
+  connect(code, waitMs = 15000) {
     if (!peerAvailable()) return Promise.reject(new Error('peerjs-missing'));
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -185,14 +223,19 @@ export class ClientNet {
         try { peer.destroy(); } catch (e) { /* ignore */ }
         reject(new Error(reason));
       };
-      const timer = setTimeout(() => fail('timeout'), 15000);
+      const timer = setTimeout(() => fail('timeout'), waitMs);
       peer.on('open', () => {
         const conn = peer.connect(PREFIX + code.toLowerCase(), { reliable: true, serialization: 'json' });
         this.conn = conn;
         conn.on('open', () => { if (settled) return; settled = true; clearTimeout(timer); this.last = performance.now(); resolve(); });
-        conn.on('data', (d) => { this.last = performance.now(); if (d && d.t === 'p') return; if (this.onMsg) this.onMsg(d); });
+        conn.on('data', (d) => {
+          this.last = performance.now();
+          if (d && d.t === 'p') return;
+          const m = this.unpack(d);
+          if (m && this.onMsg) this.onMsg(m);
+        });
         conn.on('close', () => { if (settled) this.lost(); else fail('closed'); });
-        conn.on('error', () => { if (settled) this.lost(); else fail('closed'); });
+        conn.on('error', (e) => { if (e && e.type === 'message-too-big') return; if (settled) this.lost(); else fail('closed'); });
       });
       peer.on('error', (e) => { if (!settled) fail(e.type || 'error'); });
       peer.on('disconnected', () => { /* signalling only; the game link stays up */ });
