@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kuşatma</title>
+  <meta name="description" content="Arkadaşlarınla birlikte zombi sürülerine karşı dayan. 15 kişiye kadar, tarayıcıda, ücretsiz.">
+  <meta name="theme-color" content="#0d110f">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d110f'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%23ff6b2c'/%3E%3Cpath d='M16 3v6M16 23v6M3 16h6M23 16h6' stroke='%23ece6d6' stroke-width='2.5'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game" aria-label="Oyun alanı"></canvas>
+
+  <!-- Ana menü -->
+  <section id="menu" class="screen menu">
+    <div class="menu-wrap">
+      <header class="brand">
+        <p class="eyebrow">Ortak hayatta kalma · 1–15 oyuncu</p>
+        <h1 class="logo">Kuşatma</h1>
+        <p class="tagline">Sürü her dalgada büyüyor. Sınıfını seç, takımını topla, sabaha kadar dayan.</p>
+        <ul class="facts">
+          <li><strong>4</strong><span>sınıf</span></li>
+          <li><strong>15</strong><span>oyuncuya kadar</span></li>
+          <li><strong>∞</strong><span>dalga</span></li>
+        </ul>
+      </header>
+
+      <div class="card menu-card">
+        <label class="field" for="name">
+          <span>Takma adın</span>
+          <input id="name" maxlength="16" autocomplete="off" spellcheck="false" placeholder="ör. Kartal">
+        </label>
+        <button id="btn-create" class="btn primary big" type="button">Oda kur</button>
+        <div class="divider"><span>ya da arkadaşının odasına katıl</span></div>
+        <div class="join-row">
+          <label class="sr-only" for="code">Oda kodu</label>
+          <input id="code" class="code-input" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ODA KODU">
+          <button id="btn-join" class="btn" type="button">Katıl</button>
+        </div>
+        <button id="btn-solo" class="btn ghost" type="button">Tek başına oyna</button>
+        <p id="menu-msg" class="msg" role="status" hidden></p>
+      </div>
+    </div>
+    <footer class="keys">
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hareket</span>
+      <span>Fare ile nişan al, <kbd>Sol tık</kbd> ateş</span>
+      <span><kbd>Boşluk</kbd> ya da <kbd>Sağ tık</kbd> yetenek</span>
+      <span><kbd>Tab</kbd> skor tablosu</span>
+    </footer>
+  </section>
+
+  <!-- Lobi -->
+  <section id="lobby" class="screen lobby" hidden>
+    <div class="lobby-wrap">
+      <header class="lobby-head">
+        <div>
+          <p class="eyebrow" id="lobby-eyebrow">Lobi</p>
+          <h2 class="h2" id="lobby-title">Takımını topla</h2>
+        </div>
+        <div class="code-box" id="code-box">
+          <span class="eyebrow">Oda kodu</span>
+          <strong id="room-code" class="room-code">······</strong>
+          <button id="btn-copy" class="btn small" type="button">Kodu kopyala</button>
+        </div>
+      </header>
+
+      <div class="lobby-grid">
+        <section class="card players-card" aria-labelledby="players-h">
+          <div class="card-head">
+            <h3 id="players-h">Oyuncular</h3>
+            <span id="player-count" class="count">1/15</span>
+          </div>
+          <ul id="player-list" class="player-list"></ul>
+        </section>
+
+        <section class="classes" aria-labelledby="classes-h">
+          <div class="card-head">
+            <h3 id="classes-h">Sınıfını seç</h3>
+          </div>
+          <div id="class-list" class="class-list" role="radiogroup" aria-labelledby="classes-h"></div>
+        </section>
+      </div>
+
+      <footer class="lobby-foot">
+        <p id="lobby-note" class="note"></p>
+        <div class="row">
+          <button id="btn-leave" class="btn ghost" type="button">Odadan ayrıl</button>
+          <button id="btn-ready" class="btn primary big" type="button">Hazırım</button>
+        </div>
+      </footer>
+    </div>
+  </section>
+
+  <!-- Oyun içi arayüz -->
+  <section id="hud" class="hud" hidden>
+    <div class="hud-tl">
+      <div class="wave-box">
+        <span class="eyebrow" id="hud-phase">Dalga</span>
+        <strong id="hud-wave">1</strong>
+        <span id="hud-sub" class="hud-sub">Kalan zombi: 0</span>
+      </div>
+      <ul id="hud-team" class="team"></ul>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="hp-box">
+        <div class="hp-top"><span id="hud-class">Asker</span><span id="hud-hp-text">120 / 120</span></div>
+        <div class="hp-bar"><i id="hud-hp-fill"></i></div>
+      </div>
+      <div class="ab-box" id="hud-ab">
+        <i class="ab-fill" id="hud-ab-fill"></i>
+        <span class="ab-key">Boşluk</span>
+        <strong id="hud-ab-name">Öfke</strong>
+        <span id="hud-ab-cd" class="ab-cd">Hazır</span>
+      </div>
+      <div class="gold-box">
+        <span class="coin" aria-hidden="true"></span>
+        <strong id="hud-gold">0</strong>
+        <span class="kills"><span id="hud-kills">0</span> leş</span>
+      </div>
+    </div>
+
+    <aside id="shop" class="shop" hidden aria-labelledby="shop-h">
+      <div class="shop-head">
+        <div>
+          <span class="eyebrow">Mola</span>
+          <h3 id="shop-h">Cephanelik</h3>
+        </div>
+        <div class="shop-timer"><strong id="shop-time">20</strong><span>sn</span></div>
+      </div>
+      <p class="shop-gold"><span class="coin" aria-hidden="true"></span> <strong id="shop-gold">0</strong> altın</p>
+      <ul id="shop-list" class="shop-list"></ul>
+      <button id="btn-shop-ready" class="btn primary" type="button">Hazırım</button>
+      <p id="shop-ready-count" class="note center"></p>
+    </aside>
+
+    <div id="dead" class="dead" hidden>
+      <strong>Düştün</strong>
+      <span>Bir sıhhiye seni kaldırabilir. Dalga bitince zaten geri döneceksin.</span>
+      <span id="dead-watch" class="dead-watch"></span>
+    </div>
+
+    <div id="banner" class="banner" hidden>
+      <span class="eyebrow" id="banner-eyebrow"></span>
+      <strong id="banner-title"></strong>
+      <span id="banner-sub"></span>
+    </div>
+
+    <div id="board" class="board" hidden>
+      <div class="card board-card">
+        <div class="card-head"><h3>Skor tablosu</h3><span class="count" id="board-wave"></span></div>
+        <table class="table">
+          <thead><tr><th>Oyuncu</th><th>Sınıf</th><th class="num">Leş</th><th>Durum</th><th></th></tr></thead>
+          <tbody id="board-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Oyun sonu -->
+  <section id="over" class="screen over" hidden>
+    <div class="over-wrap card">
+      <p class="eyebrow">Oyun bitti</p>
+      <h2 class="h2">Kuşatma düştü</h2>
+      <p id="over-sub" class="lead"></p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>#</th><th>Oyuncu</th><th>Sınıf</th><th class="num">Leş</th><th class="num">Hasar</th></tr></thead>
+          <tbody id="over-body"></tbody>
+        </table>
+      </div>
+      <p id="over-note" class="note"></p>
+      <div class="row">
+        <button id="btn-over-leave" class="btn ghost" type="button">Odadan ayrıl</button>
+        <button id="btn-over-lobby" class="btn primary" type="button">Lobiye dön</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="confirm" class="confirm" hidden>
+    <div class="card confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h3 id="confirm-title"></h3>
+      <p id="confirm-text" class="note"></p>
+      <div class="row">
+        <button id="confirm-no" class="btn ghost" type="button">Vazgeç</button>
+        <button id="confirm-yes" class="btn danger" type="button">Evet</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="js/vendor/peerjs.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
