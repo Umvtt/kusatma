@@ -8,6 +8,7 @@ import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
+import { LIVE, liveStart, liveStat, liveBlock } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -111,6 +112,7 @@ function stopTicker() { if (S.ticker) S.ticker.stop(); S.ticker = null; }
 
 // ---------- starting and leaving ----------
 async function createRoom(offline) {
+  if (!offline && liveBlock()) { menuMsg(liveBlock()); return; }
   const name = getName();
   menuMsg(offline ? '' : 'Oda kuruluyor…', true);
   busy(true);
@@ -142,6 +144,7 @@ async function createRoom(offline) {
 async function joinRoom() {
   const code = cleanCode($('#code').value);
   if (code.length !== CODE_LEN) { menuMsg('Oda kodu 6 karakter olmalı.'); $('#code').focus(); return; }
+  if (liveBlock()) { menuMsg(liveBlock()); return; }
   const name = getName();
   menuMsg('Odaya bağlanılıyor…', true);
   busy(true);
@@ -269,7 +272,7 @@ function onMessage(m) {
       break;
     case 'r': onRoster(m); break;
     case 's': if (S.game) S.game.onSnap(m); break;
-    case 'o': S.over = m; m.record = saveBest(m.wave); renderOver(); if (S.roster) route(); break;
+    case 'o': S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host'); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
     case 'bk': if (S.role === 'client' && m.s && typeof m.s === 'object') S.backup = m.s; break;
@@ -1033,6 +1036,42 @@ window.addEventListener('resize', updateRotate);
 
 $('#build').textContent = `Yapı ${BUILD}`;
 show('menu');
+
+// ---------- live link to the owner's server ----------
+const online = () => S.role && S.net && !(S.net instanceof OfflineNet);
+function liveNews() {
+  let b = $('#live-news');
+  if (!b) { b = el('p', 'live-news'); b.id = 'live-news'; $('.menu-card').prepend(b); }
+  b.textContent = LIVE.news.on ? LIVE.news.text : '';
+  b.hidden = !(LIVE.news.on && LIVE.news.text);
+}
+function liveNote(title, text) {
+  let b = $('#live-note');
+  if (!b) {
+    b = el('div', 'live-note'); b.id = 'live-note'; b.setAttribute('role', 'alert');
+    const x = el('button', 'btn small', 'Tamam'); x.type = 'button'; x.onclick = () => { b.hidden = true; };
+    b.append(el('strong', ''), el('p', ''), x); document.body.append(b);
+  }
+  b.querySelector('strong').textContent = title;
+  b.querySelector('p').textContent = text;
+  b.hidden = false;
+  clearTimeout(liveNote.t); liveNote.t = setTimeout(() => { b.hidden = true; }, 15000);
+}
+liveStart({
+  state: () => ({
+    name: (S.roster && S.me && myEntry() ? myEntry().name : '') || $('#name').value.trim(),
+    room: online() && S.roster ? S.roster.code || '' : '',
+    mode: !S.role ? '' : online() ? S.role : 'solo',
+    st: S.roster ? S.roster.ph : S.screen,
+    wave: S.game ? S.game.wave || 0 : 0,
+    n: S.roster ? S.roster.players.length : 0,
+    ver: BUILD,
+  }),
+  onCfg: () => { liveNews(); if (online() && LIVE.maint.on) leave(liveBlock()); },
+  onMsg: (t) => liveNote('Yöneticiden mesaj', t),
+  onKick: (t) => { if (online()) leave('Yönetici seni oyundan çıkardı.' + (t ? ' Sebep: ' + t : '')); else liveNote('Yönetici', t || 'Oyundan çıkarıldın.'); },
+  onBan: () => { if (online()) leave(liveBlock()); else menuMsg(liveBlock()); },
+});
 
 // For automated tests only: open the page with ?debug to expose state.
 if (new URLSearchParams(location.search).has('debug')) window.__kusatma = S;

@@ -500,3 +500,10 @@ body.touch .shop { top: 60px; bottom: auto; right: 8px; width: min(320px, 46%); 
   .banner { animation: none; }
   .toast { animation: none; }
 }
+
+/* ---------- messages from the owner's server ---------- */
+.live-news { margin: 0 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--panel-2); font-size: 14px; }
+.live-note { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 90; width: min(440px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+  padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+.live-note p { margin: 0; overflow-wrap: anywhere; }
+.live-note[hidden], .live-news[hidden] { display: none; }
