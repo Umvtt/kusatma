@@ -33,6 +33,19 @@ Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda
 | Bombacı | Bomba atar | **Mayın**: yere mayın bırakır (en fazla 3) |
 | İzci | Çift tabanca | **Depar**: 4 sn boyunca %60 daha hızlı |
 
+## Haritalar
+
+Kurucu lobide haritayı ve zorluğu seçer. Harita her oyunda yeniden oluşturulur ve oyuncu sayısıyla birlikte büyür: tek başına 1800×1200, 15 kişiyle 4320×2880. Oyun sırasında biri katılırsa sınırlar yavaşça genişler.
+
+| Harita | Özellik |
+| --- | --- |
+| Meydan | Beton bloklar ve kasalar |
+| Benzinlik | Arabalar, pompalar, dükkanlar |
+| Hastane Bahçesi | Çitler, ambulanslar, binalar |
+| Orman | Sık ağaçlar, kayalar, kütükler |
+
+Zorluk seviyeleri: Kolay, Normal, Zor, Kâbus.
+
 ## Zombiler
 
 | Zombi | Davranış |

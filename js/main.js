@@ -1,10 +1,12 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
+import { MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { Renderer, drawCharacter } from './render.js';
 import * as sfx from './sfx.js';
+import { WORLD, setMap } from './world.js';
+import { generateMap } from './mapgen.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -202,6 +204,11 @@ function onMessage(m) {
 function onRoster(m) {
   const prevPhase = S.roster ? S.roster.ph : null;
   S.roster = m;
+  // build the same map the host built (the host page shares it already)
+  if (m.theme && MAPS[m.theme] && Number.isInteger(m.seed) && (m.theme !== WORLD.theme || m.seed !== WORLD.seed)) {
+    const map = generateMap(m.theme, m.seed);
+    setMap(map.theme, map.seed, map.obstacles, map.decor);
+  }
   if (S.game) S.game.onRoster(m);
   if (m.ph === 'lobby' && prevPhase && prevPhase !== 'lobby') { renderer.clearDecals(); S.over = null; }
   if ((m.ph === 'break' || m.ph === 'combat') && prevPhase === 'lobby') { renderer.clearDecals(); if (S.game) S.game.reset(); }
@@ -263,6 +270,8 @@ function renderLobby() {
     list.append(el('li', 'empty-slot', 'Arkadaşlarına oda kodunu gönder, buraya katılsınlar.'));
   }
 
+  renderSettings(r, isHost);
+
   const cl = $('#class-list');
   if (!cl.childElementCount) buildClassCards();
   if (me && cl.dataset.color !== me.color) { cl.dataset.color = me.color; drawPreviews(me.color); }
@@ -299,6 +308,30 @@ function renderLobby() {
     btn.disabled = false;
     note.textContent = 'Kurucu oyunu başlattığında savaş başlar.';
   }
+}
+
+function renderSettings(r, isHost) {
+  const canEdit = isHost && r.ph === 'lobby';
+  $('#settings-who').textContent = canEdit ? 'Sen seçiyorsun' : 'Kurucu seçer';
+  const ml = $('#map-list');
+  if (!ml.childElementCount) {
+    for (const id of [...MAP_ORDER, 'rastgele']) {
+      const b = el('button', 'choice'); b.type = 'button'; b.dataset.v = id; b.setAttribute('role', 'radio');
+      b.append(el('b', '', id === 'rastgele' ? 'Rastgele' : MAPS[id].name));
+      b.addEventListener('click', () => send({ t: 'set', map: id }));
+      ml.append(b);
+    }
+    const dl = $('#diff-list');
+    for (const id of DIFF_ORDER) {
+      const b = el('button', '', DIFFS[id].name); b.type = 'button'; b.dataset.v = id; b.setAttribute('role', 'radio');
+      b.addEventListener('click', () => send({ t: 'set', diff: id }));
+      dl.append(b);
+    }
+  }
+  for (const b of ml.children) { b.setAttribute('aria-checked', b.dataset.v === r.map ? 'true' : 'false'); b.disabled = !canEdit; }
+  for (const b of $('#diff-list').children) { b.setAttribute('aria-checked', b.dataset.v === r.diff ? 'true' : 'false'); b.disabled = !canEdit; }
+  $('#diff-desc').textContent = DIFFS[r.diff] ? DIFFS[r.diff].desc : '';
+  $('#map-desc').textContent = r.map === 'rastgele' ? 'Her oyunda dört haritadan biri seçilir.' : MAPS[r.map] ? MAPS[r.map].desc : '';
 }
 
 function buildClassCards() {

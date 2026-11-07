@@ -1,7 +1,7 @@
 // What every player's browser runs (the host included): own movement and shooting,
 // smoothing of what the host sends, and visual effects.
-import { MAP_W, MAP_H, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats } from './config.js';
-import { moveCircle, resolveCircle, pointInObstacle, outOfMap } from './world.js';
+import { CX, CY, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats } from './config.js';
+import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds } from './world.js';
 import * as sfx from './sfx.js';
 
 const SEND_INTERVAL = 0.05;
@@ -33,7 +33,7 @@ export class ClientGame {
     this.lastSnapAt = performance.now();
     this.paused = false;
     this.self = {
-      x: MAP_W / 2, y: MAP_H / 2, a: 0, hp: 100, maxHp: 100, alive: true, inGame: false,
+      x: CX, y: CY, a: 0, hp: 100, maxHp: 100, alive: true, inGame: false,
       gold: 0, kills: 0, sp: -1, lv: { dmg: 0, rate: 0, hp: 0, spd: 0, cd: 0 }, abLeft: 0, shopReady: false,
       kvx: 0, kvy: 0,
     };
@@ -49,7 +49,8 @@ export class ClientGame {
     this.hitMark = 0;
     this.zoom = 1;
     this.input = { keys: new Set(), mx: 0, my: 0, down: false, ab: false };
-    this.cam = { x: MAP_W / 2, y: MAP_H / 2, scale: 1, vw: 1, vh: 1 };
+    this.cam = { x: CX, y: CY, scale: 1, vw: 1, vh: 1 };
+    this.hm = 1;
     this.spectate = null;
   }
 
@@ -76,6 +77,8 @@ export class ClientGame {
     this.waveN = s.n;
     this.breakT = s.bt;
     this.zLeft = s.zl;
+    this.hm = s.hm || 1;
+    if (s.B) setBounds(s.B[0], s.B[1], s.B[2], s.B[3]);
     if (prevPhase === 'combat' && this.phase === 'break') this.spits.clear();
 
     const seenP = new Set();
@@ -106,7 +109,7 @@ export class ClientGame {
       seenZ.add(id);
       let z = this.zs.get(id);
       if (!z) {
-        z = { id, t, x, y, face: Math.atan2(MAP_H / 2 - y, MAP_W / 2 - x), pend: [], dying: 0, born: this.time, flash: 0, walk: Math.random() * 6, st: 0 };
+        z = { id, t, x, y, face: Math.atan2(CY - y, CX - x), pend: [], dying: 0, born: this.time, flash: 0, walk: Math.random() * 6, st: 0 };
         this.zs.set(id, z);
         if (Math.random() < 0.15) sfx.growl(x, y);
       }
@@ -124,7 +127,7 @@ export class ClientGame {
         if (st === ZS.WINDUP || st === ZS.SLAM) sfx.growl(x, y);
         if (st === ZS.SPIT) sfx.spit(x, y);
       }
-      z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.max = zMaxHp(t, this.wave, this.waveN);
+      z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.max = zMaxHp(t, this.wave, this.waveN, this.hm);
       if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
     }
     for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);

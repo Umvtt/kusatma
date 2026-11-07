@@ -71,6 +71,7 @@
       </header>
 
       <div class="lobby-grid">
+        <div class="lobby-side">
         <section class="card players-card" aria-labelledby="players-h">
           <div class="card-head">
             <h3 id="players-h">Oyuncular</h3>
@@ -78,6 +79,19 @@
           </div>
           <ul id="player-list" class="player-list"></ul>
         </section>
+
+        <section class="card settings-card" aria-labelledby="game-settings-h">
+          <div class="card-head">
+            <h3 id="game-settings-h">Harita</h3>
+            <span class="count" id="settings-who">Kurucu seçer</span>
+          </div>
+          <div id="map-list" class="choice-list" role="radiogroup" aria-labelledby="game-settings-h"></div>
+          <p id="map-desc" class="note"></p>
+          <div class="card-head sub-head"><h3 id="diff-h">Zorluk</h3></div>
+          <div id="diff-list" class="seg" role="radiogroup" aria-labelledby="diff-h"></div>
+          <p id="diff-desc" class="note"></p>
+        </section>
+        </div>
 
         <section class="classes" aria-labelledby="classes-h">
           <div class="card-head">

@@ -1,11 +1,12 @@
 // The host's browser runs this: zombies, waves, damage, gold and upgrades.
 // Every incoming message is checked for shape and size so bad data can't crash the game.
 import {
-  MAP_W, MAP_H, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS,
+  WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS,
   CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, ZS,
   FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp,
 } from './config.js';
-import { moveCircle, pointInObstacle, clearLine, buildField, fieldDir, GW, GH } from './world.js';
+import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldDir, outOfMap, GW, GH } from './world.js';
+import { generateMap } from './mapgen.js';
 
 const num = (v) => typeof v === 'number' && Number.isFinite(v);
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -33,6 +34,10 @@ export class HostGame {
     this.last = performance.now();
     this.snapAcc = 0;
     this.field = new Float32Array(GW * GH);
+    this.mapPick = 'meydan'; // lobby choice, may be 'rastgele'
+    this.diff = 'normal';
+    this.theme = null;
+    this.seed = 0;
     this.resetWorld();
   }
 
@@ -50,6 +55,8 @@ export class HostGame {
     this.breakT = 0;
     this.time = 0;
     this.fieldT = 0;
+    this.areaN = 1;
+    this.bounds = null; // current playable rectangle, grows toward the target
     this.shots = [];
     this.events = [];
   }
@@ -66,6 +73,7 @@ export class HostGame {
   roster() {
     return {
       t: 'r', ph: this.phase, code: this.net.code || null, host: this.hostPid,
+      map: this.mapPick, diff: this.diff, theme: this.theme, seed: this.seed,
       players: [...this.players.values()].map((p) => ({
         pid: p.pid, name: p.name, cls: p.cls, ready: p.ready, color: p.color, inGame: p.inGame,
       })),
@@ -124,6 +132,13 @@ export class HostGame {
       case 'ab': this.onAbility(p, m); break;
       case 'buy': this.onBuy(p, m); break;
       case 'start': if (isHost && this.phase === 'lobby') this.start(); break;
+      case 'set':
+        if (isHost && this.phase === 'lobby') {
+          if (typeof m.map === 'string' && (m.map === 'rastgele' || Object.prototype.hasOwnProperty.call(MAPS, m.map))) this.mapPick = m.map;
+          if (typeof m.diff === 'string' && Object.prototype.hasOwnProperty.call(DIFFS, m.diff)) this.diff = m.diff;
+          this.pushRoster();
+        }
+        break;
       case 'chat': this.onChat(p, m); break;
       case 'pause': if (isHost && this.net.code == null) this.paused = !!m.on; break;
       case 'lobby': if (isHost && this.phase === 'over') this.toLobby(); break;
@@ -139,7 +154,8 @@ export class HostGame {
 
   onInput(p, m) {
     if (!p.inGame) return;
-    if (p.alive && num(m.x) && num(m.y)) { p.x = clamp(m.x, 0, MAP_W); p.y = clamp(m.y, 0, MAP_H); }
+    const B = WORLD.bounds;
+    if (p.alive && num(m.x) && num(m.y)) { p.x = clamp(m.x, B.x0, B.x1); p.y = clamp(m.y, B.y0, B.y1); }
     if (p.alive && num(m.a)) p.a = clamp(m.a, -10, 10);
     if (this.phase === 'combat' && Array.isArray(m.h) && m.h.length <= 80) {
       for (const h of m.h) {
@@ -153,7 +169,7 @@ export class HostGame {
     if (Array.isArray(m.s) && m.s.length <= 16 && this.shots.length < 240) {
       for (const s of m.s) {
         if (Array.isArray(s) && s.length === 3 && s.every(num)) {
-          this.shots.push([p.pid, Math.round(clamp(s[0], 0, MAP_W)), Math.round(clamp(s[1], 0, MAP_H)), r2(clamp(s[2], -10, 10))]);
+          this.shots.push([p.pid, Math.round(clamp(s[0], 0, WORLD_W)), Math.round(clamp(s[1], 0, WORLD_H)), r2(clamp(s[2], -10, 10))]);
         }
       }
     }
@@ -187,7 +203,8 @@ export class HostGame {
       let x = num(m.x) ? m.x : p.x, y = num(m.y) ? m.y : p.y;
       if (Math.hypot(x - p.x, y - p.y) > 120 || pointInObstacle(x, y, 14)) { x = p.x; y = p.y; }
       this.turrets = this.turrets.filter((t) => t.owner !== p.pid);
-      this.turrets.push({ id: this.nextId++, owner: p.pid, x: clamp(x, 20, MAP_W - 20), y: clamp(y, 20, MAP_H - 20), a: p.a, life: c.ab.dur, cd: 0 });
+      const B = WORLD.bounds;
+      this.turrets.push({ id: this.nextId++, owner: p.pid, x: clamp(x, B.x0 + 20, B.x1 - 20), y: clamp(y, B.y0 + 20, B.y1 - 20), a: p.a, life: c.ab.dur, cd: 0 });
     } else if (p.cls === 'kalkanci') {
       p.shieldUntil = this.time + c.ab.dur;
     } else if (p.cls === 'alevci') {
@@ -225,6 +242,14 @@ export class HostGame {
   // ---------- game flow ----------
   start() {
     this.resetWorld();
+    this.theme = this.mapPick === 'rastgele' ? MAP_ORDER[Math.floor(Math.random() * MAP_ORDER.length)] : this.mapPick;
+    this.seed = (Math.random() * 2 ** 31) | 0;
+    const map = generateMap(this.theme, this.seed);
+    setMap(map.theme, map.seed, map.obstacles, map.decor);
+    this.areaN = Math.max(1, this.players.size);
+    const a = areaFor(this.areaN);
+    this.bounds = { x0: CX - a.w / 2, y0: CY - a.h / 2, x1: CX + a.w / 2, y1: CY + a.h / 2 };
+    setBounds(this.bounds.x0, this.bounds.y0, this.bounds.x1, this.bounds.y1);
     this.phase = 'break';
     this.breakT = FIRST_BREAK;
     const all = [...this.players.values()];
@@ -236,13 +261,13 @@ export class HostGame {
     const mates = ring ? [] : this.inGame().filter((q) => q.alive && q !== p);
     if (mates.length) {
       const m = mates[Math.floor(Math.random() * mates.length)];
-      p.x = clamp(m.x + (Math.random() - 0.5) * 80, 40, MAP_W - 40);
-      p.y = clamp(m.y + (Math.random() - 0.5) * 80, 40, MAP_H - 40);
+      p.x = m.x + (Math.random() - 0.5) * 60;
+      p.y = m.y + (Math.random() - 0.5) * 60;
     } else {
       const ang = (index / Math.max(1, total)) * Math.PI * 2;
       const rad = total > 1 ? 70 : 0;
-      p.x = MAP_W / 2 + Math.cos(ang) * rad;
-      p.y = MAP_H / 2 + Math.sin(ang) * rad;
+      p.x = CX + Math.cos(ang) * rad;
+      p.y = CY + Math.sin(ang) * rad;
     }
     p.lv = { dmg: 0, rate: 0, hp: 0, spd: 0, cd: 0 };
     p.maxHp = stats(p.cls, p.lv).maxHp;
@@ -259,6 +284,8 @@ export class HostGame {
     p.ready = false;
     p.sp = (p.sp || 0) + 1;
     p.inGame = true;
+    // a new player makes the map grow (it never shrinks during a game)
+    this.areaN = Math.max(this.areaN, this.inGame().length);
   }
 
   startWave() {
@@ -267,7 +294,7 @@ export class HostGame {
     const n = Math.max(1, this.inGame().length);
     this.waveN = n;
     const w = this.wave;
-    const total = Math.min(450, Math.round((8 + w * 5) * (0.7 + 0.3 * n)));
+    const total = Math.min(450, Math.round((8 + w * 5) * (0.7 + 0.3 * n) * DIFFS[this.diff].count));
     const pRun = w >= 2 ? Math.min(0.28, 0.08 + w * 0.02) : 0;
     const pBig = w >= 3 ? Math.min(0.14, 0.03 + w * 0.01) : 0;
     const pSpit = w >= 4 ? Math.min(0.12, 0.02 + w * 0.01) : 0;
@@ -344,8 +371,19 @@ export class HostGame {
     }
   }
 
+  growBounds(dt) {
+    const a = areaFor(this.areaN);
+    const t = { x0: CX - a.w / 2, y0: CY - a.h / 2, x1: CX + a.w / 2, y1: CY + a.h / 2 };
+    const step = 70 * dt; // pixels per second on each side
+    const b = this.bounds;
+    const go = (v, to, dir) => (dir < 0 ? Math.max(to, v - step) : Math.min(to, v + step));
+    b.x0 = go(b.x0, t.x0, -1); b.y0 = go(b.y0, t.y0, -1); b.x1 = go(b.x1, t.x1, 1); b.y1 = go(b.y1, t.y1, 1);
+    setBounds(b.x0, b.y0, b.x1, b.y1);
+  }
+
   tick(dt) {
     this.time += dt;
+    this.growBounds(dt);
     if (this.phase === 'break') {
       this.breakT -= dt;
       this.updateTurrets(dt);
@@ -399,20 +437,22 @@ export class HostGame {
   spawnZombie(t) {
     const T = ZTYPES[t];
     const alive = this.inGame().filter((p) => p.alive);
+    const B = WORLD.bounds;
     let x = 0, y = 0;
-    for (let tries = 0; tries < 6; tries++) {
+    for (let tries = 0; tries < 12; tries++) {
       const side = Math.floor(Math.random() * 4);
       const along = Math.random();
-      if (side < 2) { x = side === 0 ? T.r + 2 : MAP_W - T.r - 2; y = along * MAP_H; }
-      else { x = along * MAP_W; y = side === 2 ? T.r + 2 : MAP_H - T.r - 2; }
+      if (side < 2) { x = side === 0 ? B.x0 + T.r + 2 : B.x1 - T.r - 2; y = B.y0 + along * (B.y1 - B.y0); }
+      else { x = B.x0 + along * (B.x1 - B.x0); y = side === 2 ? B.y0 + T.r + 2 : B.y1 - T.r - 2; }
+      if (pointInObstacle(x, y, T.r + 4)) continue;
       if (!alive.some((p) => Math.hypot(p.x - x, p.y - y) < 350)) break;
     }
     const id = this.nextId++;
     const z = {
-      id, t, x, y, hp: zMaxHp(t, this.wave, this.waveN), dead: false,
+      id, t, x, y, hp: zMaxHp(t, this.wave, this.waveN, DIFFS[this.diff].hp), dead: false,
       tg: null, rt: 0, los: false, losT: 0, st: ZS.NORMAL, stT: 0, cd: 1 + Math.random() * 2,
       dx: 0, dy: 0, cdir: 0, hitSet: null, slot: id * GOLDEN, side: id % 2 ? 1 : -1,
-      sm: (1 + Math.min(0.35, this.wave * 0.015)) * (0.9 + Math.random() * 0.2),
+      sm: (1 + Math.min(0.35, this.wave * 0.015)) * (0.9 + Math.random() * 0.2) * DIFFS[this.diff].spd,
     };
     this.zombies.push(z);
     this.zIndex.set(id, z);
@@ -420,7 +460,7 @@ export class HostGame {
 
   hurt(p, dmg) {
     if (!p.alive) return;
-    p.hp -= dmg * (this.time < p.shieldUntil ? 0.3 : 1);
+    p.hp -= dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1);
     if (p.hp <= 0) this.down(p);
   }
 
@@ -434,7 +474,7 @@ export class HostGame {
     const zs = this.zombies;
 
     // spatial hash for crowd separation
-    const HC = 60, hw = Math.ceil(MAP_W / HC);
+    const HC = 60, hw = Math.ceil(WORLD_W / HC);
     const grid = new Map();
     for (const z of zs) {
       const k = Math.floor(z.y / HC) * hw + Math.floor(z.x / HC);
@@ -575,7 +615,7 @@ export class HostGame {
     const players = this.inGame().filter((p) => p.alive);
     for (const s of this.spits) {
       s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
-      if (s.life <= 0 || pointInObstacle(s.x, s.y) || s.x < 0 || s.y < 0 || s.x > MAP_W || s.y > MAP_H) { s.life = 0; this.ev(['sp', Math.round(s.x), Math.round(s.y)]); continue; }
+      if (s.life <= 0 || pointInObstacle(s.x, s.y) || outOfMap(s.x, s.y)) { s.life = 0; this.ev(['sp', Math.round(s.x), Math.round(s.y)]); continue; }
       for (const p of players) {
         if (Math.hypot(p.x - s.x, p.y - s.y) < PLAYER_R + 8) { this.hurt(p, 14); s.life = 0; this.ev(['sp', Math.round(s.x), Math.round(s.y)]); break; }
       }
@@ -628,7 +668,7 @@ export class HostGame {
     if (z.hp <= 0) {
       z.dead = true;
       this.zIndex.delete(z.id);
-      if (p && p.inGame) { p.gold += ZTYPES[z.t].gold; p.kills++; }
+      if (p && p.inGame) { p.gold += Math.round(ZTYPES[z.t].gold * DIFFS[this.diff].gold); p.kills++; }
       this.ev(['d', Math.round(z.x), Math.round(z.y), z.t]);
     }
   }
@@ -658,7 +698,8 @@ export class HostGame {
       Z.push([z.id, z.t, Math.round(z.x), Math.round(z.y), Math.ceil(z.hp), z.st, z.st === ZS.WINDUP || z.st === ZS.DASH ? r2(z.cdir) : 0]);
     }
     return {
-      t: 's', ph: this.phase === 'combat' ? 'c' : 'b', w: this.wave, n: this.waveN,
+      t: 's', ph: this.phase === 'combat' ? 'c' : 'b', w: this.wave, n: this.waveN, hm: DIFFS[this.diff].hp,
+      B: [Math.round(this.bounds.x0), Math.round(this.bounds.y0), Math.round(this.bounds.x1), Math.round(this.bounds.y1)],
       bt: Math.max(0, Math.ceil(this.breakT)), zl: this.queue.length + Z.length,
       P, Z,
       T: this.turrets.map((t) => [t.id, Math.round(t.x), Math.round(t.y), r2(t.a), Math.ceil(t.life)]),

@@ -1,40 +1,43 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 3;
+export const VERSION = 4;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 6;
+export const BUILD = 7;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
 
-export const MAP_W = 2400;
-export const MAP_H = 1600;
+// The whole world is generated up front; only the playable area inside it grows with the player count.
+export const WORLD_W = 4400;
+export const WORLD_H = 3000;
+export const CX = WORLD_W / 2;
+export const CY = WORLD_H / 2;
 export const PLAYER_R = 16;
 
 export const ZOOM_MIN = 0.7;
 export const ZOOM_MAX = 1.6;
 
-// Rectangular cover. k: 'beton' (concrete) or 'kasa' (crate)
-export const OBSTACLES = [
-  { x: 520, y: 340, w: 220, h: 60, k: 'beton' },
-  { x: 520, y: 400, w: 60, h: 140, k: 'beton' },
-  { x: 1660, y: 340, w: 220, h: 60, k: 'beton' },
-  { x: 1820, y: 400, w: 60, h: 140, k: 'beton' },
-  { x: 520, y: 1200, w: 220, h: 60, k: 'beton' },
-  { x: 520, y: 1060, w: 60, h: 140, k: 'beton' },
-  { x: 1660, y: 1200, w: 220, h: 60, k: 'beton' },
-  { x: 1820, y: 1060, w: 60, h: 140, k: 'beton' },
-  { x: 1080, y: 200, w: 240, h: 50, k: 'beton' },
-  { x: 1080, y: 1350, w: 240, h: 50, k: 'beton' },
-  { x: 250, y: 740, w: 50, h: 120, k: 'beton' },
-  { x: 2100, y: 740, w: 50, h: 120, k: 'beton' },
-  { x: 900, y: 620, w: 56, h: 56, k: 'kasa' },
-  { x: 1444, y: 620, w: 56, h: 56, k: 'kasa' },
-  { x: 900, y: 924, w: 56, h: 56, k: 'kasa' },
-  { x: 1444, y: 924, w: 56, h: 56, k: 'kasa' },
-  { x: 1180, y: 540, w: 40, h: 40, k: 'kasa' },
-  { x: 1180, y: 1020, w: 40, h: 40, k: 'kasa' },
-];
+// Playable size for n players: 1800x1200 alone, 4320x2880 with 15.
+export function areaFor(n) {
+  const k = Math.min(MAX_PLAYERS, Math.max(1, n)) - 1;
+  return { w: 1800 + k * 180, h: 1200 + k * 120 };
+}
+
+export const MAP_ORDER = ['meydan', 'benzinlik', 'hastane', 'orman'];
+export const MAPS = {
+  meydan: { name: 'Meydan', desc: 'Beton bloklar ve kasalarla dolu terk edilmiş bir şehir meydanı.' },
+  benzinlik: { name: 'Benzinlik', desc: 'Yol kenarı, terk edilmiş arabalar, pompalar ve küçük dükkanlar.' },
+  hastane: { name: 'Hastane Bahçesi', desc: 'Çitler, ambulanslar ve hastane binaları arasında dar yollar.' },
+  orman: { name: 'Orman', desc: 'Sık ağaçlar, kayalar ve devrilmiş kütükler. Görüş kısa.' },
+};
+
+export const DIFF_ORDER = ['kolay', 'normal', 'zor', 'kabus'];
+export const DIFFS = {
+  kolay: { name: 'Kolay', desc: 'Zombiler daha zayıf ve az.', hp: 0.75, dmg: 0.7, count: 0.8, spd: 0.95, gold: 1.2 },
+  normal: { name: 'Normal', desc: 'Dengeli bir kuşatma.', hp: 1, dmg: 1, count: 1, spd: 1, gold: 1 },
+  zor: { name: 'Zor', desc: 'Daha çok, daha güçlü zombi.', hp: 1.3, dmg: 1.3, count: 1.2, spd: 1.08, gold: 1 },
+  kabus: { name: 'Kâbus', desc: 'Sadece en iyi takımlar için.', hp: 1.7, dmg: 1.6, count: 1.4, spd: 1.15, gold: 0.9 },
+};
 
 export const PLAYER_COLORS = [
   '#ff8a3d', '#4cc9f0', '#f15bb5', '#9ef01a', '#ffd23f',
@@ -114,8 +117,8 @@ export const ZTYPES = [
   { name: 'Dev', hp: 1600, spd: 62, r: 40, dps: 50, gold: 150, col: '#8a4a3c', dark: '#4a221a' },
   { name: 'Tükürücü', hp: 50, spd: 88, r: 14, dps: 6, gold: 12, col: '#8f9a3a', dark: '#4d5420' },
 ];
-export const zMaxHp = (t, wave, n) =>
-  ZTYPES[t].hp * (1 + (Math.max(1, wave) - 1) * 0.12) * (t === 3 ? 1 + 0.35 * (Math.max(1, n) - 1) : 1);
+export const zMaxHp = (t, wave, n, hm = 1) =>
+  ZTYPES[t].hp * hm * (1 + (Math.max(1, wave) - 1) * 0.12) * (t === 3 ? 1 + 0.35 * (Math.max(1, n) - 1) : 1);
 
 // zombie states sent over the network
 export const ZS = { NORMAL: 0, WINDUP: 1, DASH: 2, SLAM: 3, SPIT: 4 };
