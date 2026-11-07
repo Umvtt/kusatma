@@ -1,5 +1,5 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
+import { BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
@@ -662,6 +662,7 @@ if (window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia(
   menuMsg('Kuşatma klavye ve fare ile oynanır. En iyi deneyim için bilgisayardan aç.', true);
 }
 
+$('#build').textContent = `Yapı ${BUILD}`;
 show('menu');
 
 // For automated tests only: open the page with ?debug to expose state.
