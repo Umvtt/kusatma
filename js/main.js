@@ -1,9 +1,13 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN } from './config.js';
+import { VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
-import { Renderer } from './render.js';
+import { Renderer, drawCharacter } from './render.js';
+import * as sfx from './sfx.js';
+
+let zoom = 1;
+try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -196,7 +200,7 @@ function onRoster(m) {
   S.roster = m;
   if (S.game) S.game.onRoster(m);
   if (m.ph === 'lobby' && prevPhase && prevPhase !== 'lobby') { renderer.clearDecals(); S.over = null; }
-  if ((m.ph === 'break' || m.ph === 'combat') && prevPhase === 'lobby') renderer.clearDecals();
+  if ((m.ph === 'break' || m.ph === 'combat') && prevPhase === 'lobby') { renderer.clearDecals(); if (S.game) S.game.reset(); }
   route();
   renderLobby();
 }
@@ -257,6 +261,7 @@ function renderLobby() {
 
   const cl = $('#class-list');
   if (!cl.childElementCount) buildClassCards();
+  if (me && cl.dataset.color !== me.color) { cl.dataset.color = me.color; drawPreviews(me.color); }
   for (const card of cl.children) {
     const on = me && card.dataset.cls === me.cls;
     card.setAttribute('aria-checked', on ? 'true' : 'false');
@@ -301,7 +306,12 @@ function buildClassCards() {
     b.dataset.cls = id;
     b.setAttribute('role', 'radio');
     const top = el('div', 'class-top');
-    top.append(el('span', 'class-name', c.name), el('span', 'class-weapon', c.weapon));
+    const pv = el('canvas', 'class-preview');
+    pv.width = 128; pv.height = 128;
+    pv.setAttribute('aria-hidden', 'true');
+    const title = el('div', 'class-title');
+    title.append(el('span', 'class-name', c.name), el('span', 'class-weapon', c.weapon));
+    top.append(pv, title);
     const bars = el('div', 'bars');
     for (const [label, v] of [['Can', c.bars.can], ['Hız', c.bars.hiz], ['Hasar', c.bars.hasar]]) {
       const bar = el('div', 'bar'); const i = el('i'); i.style.width = Math.round(v * 100) + '%'; bar.append(i);
@@ -319,6 +329,18 @@ function buildClassCards() {
       if (n) { e.preventDefault(); send({ t: 'cls', c: n }); cl.querySelector(`[data-cls="${n}"]`).focus(); }
     });
     cl.append(b);
+  }
+}
+
+function drawPreviews(color) {
+  for (const card of $('#class-list').children) {
+    const cv = card.querySelector('canvas');
+    const g = cv.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, cv.width, cv.height);
+    g.translate(50, 72);
+    g.scale(2.05, 2.05);
+    drawCharacter(g, card.dataset.cls, color || '#ff8a3d', -0.6, 0, { alive: true });
   }
 }
 
@@ -385,6 +407,7 @@ function startLoop() {
     last = now;
     const g = S.game;
     if (!g || S.screen !== 'game') return;
+    g.zoom = zoom;
     g.update(dt);
     renderer.draw(g, g.roster);
     S.hudT -= dt;
@@ -457,6 +480,9 @@ function updateHud() {
   $('#hud-ab-fill').style.height = (left > 0 ? (1 - left / cd) * 100 : 100) + '%';
   $('#hud-ab').classList.toggle('ready', left <= 0);
   $('#hud-ab').title = c.ab.desc;
+  const act = g.fx.get(S.me);
+  if (act && g.time < act.until) { $('#hud-ab-cd').textContent = `Aktif: ${Math.ceil(act.until - g.time)} sn`; $('#hud-ab').classList.add('active'); }
+  else $('#hud-ab').classList.remove('active');
   $('#hud-gold').textContent = fmt(me.gold);
   $('#hud-kills').textContent = fmt(me.kills);
 
@@ -495,6 +521,7 @@ function buy(k) {
   const g = S.game;
   if (!g || g.phase !== 'break' || !g.self.alive) return;
   send({ t: 'buy', k });
+  sfx.buy();
 }
 
 function updateShop() {
@@ -566,6 +593,9 @@ window.addEventListener('keydown', (e) => {
   if (e.target && e.target.tagName === 'INPUT') return;
   if (GAME_KEYS.has(e.code)) e.preventDefault();
   if (e.code === 'Tab') { $('#board').hidden = false; renderBoard(); return; }
+  if (e.code === 'KeyM') { setMute(sfx.toggleMute()); return; }
+  if (e.code === 'Equal' || e.code === 'NumpadAdd') { setZoom(zoom * 1.12); return; }
+  if (e.code === 'Minus' || e.code === 'NumpadSubtract') { setZoom(zoom / 1.12); return; }
   if (e.code === 'Space') { if (!e.repeat) S.game.input.ab = true; return; }
   if (/^Digit[1-6]$/.test(e.code)) {
     const i = Number(e.code.slice(5)) - 1;
@@ -592,6 +622,28 @@ cv.addEventListener('pointerdown', (e) => {
 });
 window.addEventListener('pointerup', (e) => { if (S.game && e.button === 0) S.game.input.down = false; });
 cv.addEventListener('contextmenu', (e) => e.preventDefault());
+window.addEventListener('wheel', (e) => {
+  if (S.screen !== 'game' || (e.target.closest && e.target.closest('.shop, .board'))) return;
+  e.preventDefault();
+  setZoom(zoom * Math.exp(-clamp(e.deltaY, -200, 200) * 0.0015));
+}, { passive: false });
+
+function setZoom(z) {
+  zoom = clamp(z, ZOOM_MIN, ZOOM_MAX);
+  try { localStorage.setItem('kusatma-zoom', zoom.toFixed(3)); } catch (e) { /* ignore */ }
+}
+
+function setMute(m) {
+  const b = $('#btn-mute');
+  b.textContent = m ? 'Ses kapalı' : 'Ses açık';
+  b.setAttribute('aria-pressed', m ? 'true' : 'false');
+  b.classList.toggle('off', m);
+}
+setMute(sfx.isMuted());
+$('#btn-mute').addEventListener('click', () => { sfx.unlock(); setMute(sfx.toggleMute()); });
+// browsers only allow sound after the first click or key press
+window.addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
+window.addEventListener('keydown', () => sfx.unlock(), { capture: true });
 
 // ---------- menu ----------
 try { const saved = localStorage.getItem('kusatma-ad'); if (saved) $('#name').value = saved; } catch (e) { /* ignore */ }
@@ -611,3 +663,6 @@ if (window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia(
 }
 
 show('menu');
+
+// For automated tests only: open the page with ?debug to expose state.
+if (new URLSearchParams(location.search).has('debug')) window.__kusatma = S;

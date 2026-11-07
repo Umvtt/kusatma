@@ -15,17 +15,33 @@ Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda
 | Fare | Nişan |
 | Sol tık | Ateş |
 | Boşluk / Sağ tık | Sınıf yeteneği |
+| Fare tekerleği / + − | Yakınlaştır, uzaklaştır |
 | 1–6 | Molada yükseltme satın al |
 | Tab | Skor tablosu |
+| M | Sesi aç / kapat |
 
 ## Sınıflar
 
 | Sınıf | Silah | Yetenek |
 | --- | --- | --- |
-| Asker | Piyade tüfeği | **Öfke**: 6 sn boyunca iki kat hızlı ateş |
-| Sıhhiye | Hafif makineli | **Şifa Dalgası**: yakındakileri iyileştirir, düşenleri kaldırır |
-| Mühendis | Pompalı | **Taret**: 20 sn boyunca ateş eden taret kurar |
-| Keskin Nişancı | Uzun namlu | **Odak**: 5 sn iki kat hasar, sınırsız delme |
+| Asker | Tüfek | **Hızlı Ateş**: 6 sn boyunca iki kat hızlı ateş |
+| Doktor | Makineli | **İyileştir**: yakındakileri iyileştirir, düşenleri kaldırır |
+| Tamirci | Pompalı | **Taret**: 20 sn boyunca ateş eden taret kurar |
+| Nişancı | Dürbünlü tüfek | **Odak**: 5 sn iki kat hasar, mermiler her şeyi deler |
+| Tank | Ağır makineli | **Kalkan**: 5 sn boyunca %70 daha az hasar |
+| Alevci | Alev makinesi | **Alev Patlaması**: etraftaki tüm zombileri yakar |
+| Bombacı | Bomba atar | **Mayın**: yere mayın bırakır (en fazla 3) |
+| İzci | Çift tabanca | **Depar**: 4 sn boyunca %60 daha hızlı |
+
+## Zombiler
+
+| Zombi | Davranış |
+| --- | --- |
+| Yürüyen | Duvarların etrafından dolaşır, sürüyle birlikte oyuncuları çevreler |
+| Koşucu | Hızlıdır, yaklaşınca üstüne atılır |
+| İri | Kırmızı uyarıdan sonra hızla saldırıp oyuncuyu savurur |
+| Tükürücü | Mesafeyi korur, uzaktan asit tükürür (4. dalgadan itibaren) |
+| Dev | Her 5 dalgada bir gelir, yere vurup çevresindekileri savurur |
 
 ## Teknik notlar
 

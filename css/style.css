@@ -134,7 +134,7 @@ kbd {
 }
 
 /* ---------- lobby ---------- */
-.lobby-wrap { margin: auto; width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 22px; }
+.lobby-wrap { margin: auto; width: 100%; max-width: 1320px; display: flex; flex-direction: column; gap: 18px; }
 .lobby-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px; }
 .code-box {
   display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 16px; align-items: center;
@@ -144,7 +144,7 @@ kbd {
 .room-code { grid-column: 1; font-family: var(--display); font-weight: 400; font-size: 34px; letter-spacing: 0.18em; color: var(--accent); line-height: 1.1; }
 .code-box .btn { grid-column: 2; grid-row: 1 / span 2; }
 
-.lobby-grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.lobby-grid { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .players-card { padding: 18px; }
 .player-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .player {
@@ -165,29 +165,34 @@ kbd {
 .kick { padding: 4px 9px; font-size: 12px; }
 .empty-slot { padding: 9px 10px; border-radius: 8px; border: 1px dashed var(--line); color: #5b665d; font-size: 13px; }
 
-.class-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.class-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 1180px) { .class-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .class-card {
-  appearance: none; text-align: left; cursor: pointer; padding: 16px; border-radius: var(--radius);
-  background: var(--panel); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px;
+  appearance: none; text-align: left; cursor: pointer; padding: 12px 14px 14px; border-radius: var(--radius);
+  background: var(--panel); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px;
   transition: border-color .15s, background .15s;
 }
 .class-card:hover { border-color: #3d4b42; }
 .class-card[aria-checked="true"] { border-color: var(--accent); background: linear-gradient(180deg, rgba(255,107,44,.08), transparent 70%), var(--panel); box-shadow: inset 0 0 0 1px var(--accent); }
 .class-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.class-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.class-name { font-family: var(--display); font-size: 22px; font-weight: 400; }
+.class-top { display: flex; align-items: center; gap: 10px; }
+.class-preview { width: 64px; height: 64px; flex: none; border-radius: 8px; background: radial-gradient(circle at 45% 50%, #26302a, #161c18 70%); }
+.class-title { display: flex; flex-direction: column; min-width: 0; }
+.class-name { font-family: var(--display); font-size: 19px; font-weight: 400; line-height: 1.1; }
 .class-weapon { font-size: 12px; color: var(--dim); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
-.class-desc { margin: 0; font-size: 14px; color: #c9c3b3; }
-.bars { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 10px; align-items: center; font-size: 12px; color: var(--dim); }
+.class-desc { margin: 0; font-size: 13px; line-height: 1.35; color: #c9c3b3; }
+.class-card[disabled] { cursor: default; opacity: .7; }
+.bars { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; align-items: center; font-size: 12px; color: var(--dim); }
 .bar { height: 5px; border-radius: 3px; background: #252f29; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--text); border-radius: 3px; }
-.ability { border-top: 1px solid var(--line); padding-top: 10px; font-size: 13px; color: var(--dim); }
+.ability { border-top: 1px solid var(--line); padding-top: 8px; font-size: 12.5px; line-height: 1.35; color: var(--dim); margin-top: auto; }
 .ability b { color: var(--text); }
 
 .lobby-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
 
 /* ---------- HUD ---------- */
-.hud { position: fixed; inset: 0; z-index: 4; pointer-events: none; font-variant-numeric: tabular-nums; }
+.hud { position: fixed; inset: 0; z-index: 4; pointer-events: none; font-variant-numeric: tabular-nums; user-select: none; -webkit-user-select: none; }
+body.playing { user-select: none; -webkit-user-select: none; }
 .hud > * { pointer-events: auto; }
 .hud-tl { position: absolute; top: 16px; left: max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
 .wave-box {
@@ -223,6 +228,13 @@ kbd {
 .ab-box { position: relative; overflow: hidden; width: 150px; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; }
 .ab-fill { position: absolute; left: 0; bottom: 0; width: 100%; height: 0; background: rgba(255,107,44,.16); }
 .ab-box.ready { border-color: var(--accent); }
+.ab-box.active { border-color: var(--heal); }
+.ab-box.active .ab-cd { color: var(--heal); }
+.hud-br { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); bottom: 18px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.hud-br .btn { background: rgba(13,17,15,.82); }
+.hud-br .btn.off { color: var(--dim); }
+.hud-br .hint { font-size: 12px; color: var(--dim); background: rgba(13,17,15,.6); padding: 4px 8px; border-radius: 6px; }
+.hud-br kbd { font-size: 11px; }
 .ab-box.ready .ab-cd { color: var(--accent); }
 .ab-key { position: relative; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
 .ab-box strong { position: relative; font-size: 15px; }
@@ -322,6 +334,8 @@ kbd {
   .hp-box { width: 100%; }
   .shop { top: auto; bottom: 150px; max-height: 45%; width: calc(100% - 32px); }
   .team { display: none; }
+  .hud-br .hint { display: none; }
+  .hud-br { bottom: auto; top: 160px; }
 }
 @media (max-width: 560px) {
   .class-list { grid-template-columns: minmax(0, 1fr); }
