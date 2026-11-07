@@ -160,6 +160,9 @@ async function joinRoom() {
 }
 
 function leave(reason) {
+  closeEsc(true);
+  closeChat();
+  $('#chat-log').replaceChildren();
   stopTicker();
   cancelAnimationFrame(S.raf);
   S.raf = 0;
@@ -189,7 +192,8 @@ function onMessage(m) {
       break;
     case 'r': onRoster(m); break;
     case 's': if (S.game) S.game.onSnap(m); break;
-    case 'o': S.over = m; renderOver(); if (S.roster) route(); break;
+    case 'o': S.over = m; saveBest(m.wave); renderOver(); if (S.roster) route(); break;
+    case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
     default: break;
   }
@@ -487,10 +491,15 @@ function updateHud() {
   $('#hud-kills').textContent = fmt(me.kills);
 
   // downed
-  $('#dead').hidden = me.alive || !me.inGame;
+  $('#dead').hidden = me.alive || !me.inGame || !$('#esc').hidden;
+  $('#dead-sub').textContent = g.ps.size > 1
+    ? 'Bir takım arkadaşın yanına gelirse seni kaldırır. Dalga bitince zaten geri döneceksin.'
+    : 'Bu dalga bitince geri döneceksin.';
+  $('#net-warn').hidden = S.role !== 'client' || performance.now() - g.lastSnapAt < 1500;
   if (!me.alive) {
     const w = g.spectate != null ? g.nameOf(g.spectate) : null;
-    $('#dead-watch').textContent = w ? `${w} izleniyor` : '';
+    const mine = g.ps.get(S.me);
+    $('#dead-watch').textContent = mine && mine.rev > 0 ? `Kaldırılıyorsun… %${Math.round(mine.rev * 100)}` : w ? `${w} izleniyor` : '';
   }
 
   updateShop();
@@ -591,6 +600,9 @@ const GAME_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown
 window.addEventListener('keydown', (e) => {
   if (S.screen !== 'game' || !S.game || !$('#confirm').hidden) return;
   if (e.target && e.target.tagName === 'INPUT') return;
+  if (e.code === 'Escape') { e.preventDefault(); if ($('#esc').hidden) openEsc(); else closeEsc(); return; }
+  if (!$('#esc').hidden) return;
+  if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); if (S.role === 'client' || (S.roster && S.roster.code)) openChat(); return; }
   if (GAME_KEYS.has(e.code)) e.preventDefault();
   if (e.code === 'Tab') { $('#board').hidden = false; renderBoard(); return; }
   if (e.code === 'KeyM') { setMute(sfx.toggleMute()); return; }
@@ -661,6 +673,74 @@ if (hashCode.length === CODE_LEN) { $('#code').value = hashCode; menuMsg('Takma 
 if (window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches) {
   menuMsg('Kuşatma klavye ve fare ile oynanır. En iyi deneyim için bilgisayardan aç.', true);
 }
+
+// ---------- Esc menu (pauses solo games) ----------
+function openEsc() {
+  if (!S.game) return;
+  const solo = S.role === 'host' && S.roster && !S.roster.code;
+  $('#esc-eyebrow').textContent = solo ? 'Duraklatıldı' : 'Menü';
+  $('#esc-title').textContent = solo ? 'Oyun durdu' : 'Oyun sürüyor';
+  $('#esc-note').textContent = solo ? 'Zombiler de bekliyor. Hazır olduğunda devam et.' : 'Çok oyunculu oyunda oyun arka planda devam eder. Dikkatli ol.';
+  $('#esc-leave').textContent = solo ? 'Ana menüye dön' : 'Odadan ayrıl';
+  $('#esc-mute').textContent = sfx.isMuted() ? 'Sesi aç' : 'Sesi kapat';
+  S.game.input.keys.clear(); S.game.input.down = false;
+  $('#esc').hidden = false;
+  if (solo) { S.game.paused = true; send({ t: 'pause', on: true }); }
+  document.body.classList.remove('playing');
+  $('#esc-resume').focus();
+}
+function closeEsc(silent) {
+  if ($('#esc').hidden) return;
+  $('#esc').hidden = true;
+  if (S.game && S.game.paused) { S.game.paused = false; if (!silent) send({ t: 'pause', on: false }); }
+  if (S.screen === 'game') document.body.classList.add('playing');
+}
+$('#esc-resume').addEventListener('click', () => closeEsc());
+$('#esc-mute').addEventListener('click', () => { setMute(sfx.toggleMute()); $('#esc-mute').textContent = sfx.isMuted() ? 'Sesi aç' : 'Sesi kapat'; });
+$('#esc-leave').addEventListener('click', () => { closeEsc(); $('#btn-leave').click(); });
+
+// ---------- chat ----------
+function openChat() {
+  const inp = $('#chat-input');
+  S.game.input.keys.clear(); S.game.input.down = false;
+  inp.hidden = false; $('#chat').classList.add('open');
+  inp.focus();
+}
+function closeChat() {
+  const inp = $('#chat-input');
+  inp.value = ''; inp.hidden = true; inp.blur();
+  $('#chat').classList.remove('open');
+}
+$('#chat-input').addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  if (e.key === 'Enter') { const t = e.target.value.trim(); if (t) send({ t: 'chat', m: t }); closeChat(); }
+  else if (e.key === 'Escape') closeChat();
+});
+function addChat(pid, text) {
+  if (typeof text !== 'string') return;
+  const info = S.roster && S.roster.players.find((p) => p.pid === pid);
+  const li = el('li');
+  const who = el('b', '', (info ? info.name : 'Biri') + ':');
+  if (info) who.style.color = info.color;
+  li.append(who, document.createTextNode(text));
+  const log = $('#chat-log');
+  log.append(li);
+  while (log.children.length > 6) log.firstChild.remove();
+  if (S.screen !== 'game') toast(`${info ? info.name : 'Biri'}: ${text}`);
+}
+
+// ---------- best wave, kept in this browser ----------
+function saveBest(w) {
+  try { const b = Number(localStorage.getItem('kusatma-rekor')) || 0; if (w > b) localStorage.setItem('kusatma-rekor', String(w)); } catch (e) { /* ignore */ }
+  showBest();
+}
+function showBest() {
+  let b = 0;
+  try { b = Number(localStorage.getItem('kusatma-rekor')) || 0; } catch (e) { /* ignore */ }
+  $('#best-wave').textContent = b ? String(b) : '–';
+  $('#best-label').textContent = b ? 'en iyi dalgan' : 'henüz rekor yok';
+}
+showBest();
 
 $('#build').textContent = `Yapı ${BUILD}`;
 show('menu');

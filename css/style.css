@@ -332,6 +332,25 @@ body.playing { user-select: none; -webkit-user-select: none; }
   font-size: 11px; font-weight: 600; letter-spacing: .08em; color: rgba(143,154,142,.6); font-variant-numeric: tabular-nums;
 }
 
+.net-warn {
+  position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+  padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  background: rgba(229,72,77,.18); border: 1px solid rgba(229,72,77,.6); color: #ffc2c4;
+}
+.chat { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); bottom: 34px; width: min(380px, calc(100% - 32px)); display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.chat-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.chat-log li { align-self: flex-start; max-width: 100%; padding: 4px 9px; border-radius: 6px; background: rgba(13,17,15,.72); font-size: 13.5px; overflow-wrap: anywhere; animation: chatfade 9s ease forwards; }
+.chat-log li b { font-weight: 600; margin-right: 6px; }
+.chat.open .chat-log li { animation: none; opacity: 1; }
+.chat-input { pointer-events: auto; padding: 9px 12px; font-size: 14px; background: rgba(13,17,15,.92); }
+@keyframes chatfade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+.esc { position: absolute; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(7,9,8,.62); backdrop-filter: blur(3px); }
+.esc-card { width: 100%; max-width: 420px; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.esc-card h3 { font-family: var(--display); font-weight: 400; font-size: 30px; text-transform: none; letter-spacing: 0; }
+.esc-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.esc-keys { list-style: none; margin: 6px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; font-size: 13px; color: var(--dim); }
+.esc-keys kbd { font-size: 11px; }
+
 /* ---------- small screens ---------- */
 @media (max-width: 880px) {
   .menu-wrap { grid-template-columns: minmax(0, 1fr); gap: 28px; }
@@ -341,6 +360,7 @@ body.playing { user-select: none; -webkit-user-select: none; }
   .shop { top: auto; bottom: 150px; max-height: 45%; width: calc(100% - 32px); }
   .team { display: none; }
   .hud-br .hint { display: none; }
+  .chat { bottom: 150px; }
   .hud-br { bottom: auto; top: 160px; }
 }
 @media (max-width: 560px) {

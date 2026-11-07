@@ -29,6 +29,9 @@ export class ClientGame {
     this.decals = [];
     this.notices = [];
     this.fx = new Map(); // pid -> { k, until }
+    this.flameAt = new Map(); // pid -> { t, x, y } of the latest flame shot
+    this.lastSnapAt = performance.now();
+    this.paused = false;
     this.self = {
       x: MAP_W / 2, y: MAP_H / 2, a: 0, hp: 100, maxHp: 100, alive: true, inGame: false,
       gold: 0, kills: 0, sp: -1, lv: { dmg: 0, rate: 0, hp: 0, spd: 0, cd: 0 }, abLeft: 0, shopReady: false,
@@ -67,6 +70,7 @@ export class ClientGame {
 
   onSnap(s) {
     const prevPhase = this.phase;
+    this.lastSnapAt = performance.now();
     this.phase = s.ph === 'c' ? 'combat' : 'break';
     this.wave = s.w;
     this.waveN = s.n;
@@ -76,7 +80,7 @@ export class ClientGame {
 
     const seenP = new Set();
     for (const e of s.P) {
-      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, l0, l1, l2, l3, l4, ab, rdy, shield] = e;
+      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, l0, l1, l2, l3, l4, ab, rdy, shield, rev] = e;
       seenP.add(pid);
       if (pid === this.me) {
         const S = this.self;
@@ -92,7 +96,7 @@ export class ClientGame {
       if (!p) { p = { x, y, a, walk: 0 }; this.ps.set(pid, p); }
       if (pid === this.me) { p.x = this.self.x; p.y = this.self.y; }
       p.tx = x; p.ty = y; p.ta = a; p.hp = hp; p.maxHp = maxHp; p.alive = !!alive;
-      p.kills = kills; p.ready = !!rdy; p.shield = !!shield;
+      p.kills = kills; p.ready = !!rdy; p.shield = !!shield; p.rev = rev || 0;
     }
     for (const pid of [...this.ps.keys()]) if (!seenP.has(pid)) this.ps.delete(pid);
     if (!seenP.has(this.me)) this.self.inGame = false;
@@ -159,10 +163,10 @@ export class ClientGame {
         const cls = this.clsOf(pid);
         const c = CLASSES[cls];
         const p = this.ps.get(pid);
-        const k = { asker: 'rage', nisanci: 'focus', izci: 'sprint', tank: 'shield' }[cls];
+        const k = { asker: 'rage', nisanci: 'focus', izci: 'sprint', kalkanci: 'shield' }[cls];
         if (k && pid !== this.me) this.fx.set(pid, { k, until: this.time + c.ab.dur });
         if (p && pid !== this.me && k) this.ring(p.x, p.y, AB_COL[cls], 55);
-        if (p && pid !== this.me) sfx.ability(p.x, p.y);
+        if (p && pid !== this.me && cls !== 'doktor' && cls !== 'alevci') sfx.ability(cls, p.x, p.y);
         break;
       }
       case 'kb': if (ev[1] === this.me) { this.self.kvx += ev[2]; this.self.kvy += ev[3]; this.shake = Math.min(14, this.shake + 10); } break;
@@ -183,12 +187,13 @@ export class ClientGame {
 
   // ---------- local actions ----------
   update(dt) {
+    if (this.paused) { sfx.flame(0); this.input.ab = false; return; }
     this.time += dt;
     const S = this.self;
     const st = this.myStats;
     const cls = this.cls;
     const c = CLASSES[cls];
-    const active = S.inGame && S.alive && (this.phase === 'combat' || this.phase === 'break');
+    const active = !this.paused && S.inGame && S.alive && (this.phase === 'combat' || this.phase === 'break');
     const meP = this.ps.get(this.me);
 
     if (active) {
@@ -229,9 +234,9 @@ export class ClientGame {
         this.abLock = 0.6;
         const ax = S.x + Math.cos(S.a) * 40, ay = S.y + Math.sin(S.a) * 40;
         this.send({ t: 'ab', x: Math.round(ax), y: Math.round(ay) });
-        const k = { asker: 'rage', nisanci: 'focus', izci: 'sprint', tank: 'shield' }[cls];
+        const k = { asker: 'rage', nisanci: 'focus', izci: 'sprint', kalkanci: 'shield' }[cls];
         if (k) { this.fx.set(this.me, { k, until: this.time + c.ab.dur }); this.ring(S.x, S.y, AB_COL[cls], 60); }
-        sfx.ability(S.x, S.y);
+        if (cls !== 'doktor' && cls !== 'alevci') sfx.ability(cls, S.x, S.y);
       }
     }
     this.input.ab = false;
@@ -288,6 +293,12 @@ export class ClientGame {
       }
     }
     sfx.setListener(this.cam.x, this.cam.y);
+    let flame = 0;
+    for (const [pid, f] of this.flameAt) {
+      if (this.time - f.t > 0.12) { if (this.time - f.t > 1) this.flameAt.delete(pid); continue; }
+      flame = Math.max(flame, pid === this.me ? 1 : 0.6 * Math.max(0, 1 - Math.hypot(f.x - this.cam.x, f.y - this.cam.y) / 1000));
+    }
+    sfx.flame(flame);
   }
 
   fire(c, st) {
@@ -305,6 +316,7 @@ export class ClientGame {
     for (let i = 0; i < c.pellets; i++) this.bullets.push(this.makeBullet(c, mx, my, S.a, dmg, pierce, true));
     this.shotsQ.push([Math.round(mx), Math.round(my), Math.round(S.a * 100) / 100]);
     if (c.kind !== 'f') { this.flash(mx, my, S.a); this.casing(S.x, S.y, S.a); }
+    if (c.kind === 'f') this.flameAt.set(this.me, { t: this.time, x: S.x, y: S.y });
     sfx.shot(this.cls, S.x, S.y, true);
     if (this.cls === 'tamirci' || this.cls === 'nisanci' || this.cls === 'bombaci') this.shake = Math.min(8, this.shake + 4);
   }
@@ -329,6 +341,7 @@ export class ClientGame {
     }
     const cls = this.clsOf(pid);
     const c = CLASSES[cls];
+    if (c.kind === 'f') this.flameAt.set(pid, { t: this.time, x, y });
     for (let i = 0; i < c.pellets; i++) this.bullets.push(this.makeBullet(c, x, y, a, 0, c.pierce, false));
     if (c.kind !== 'f') this.flash(x, y, a);
     sfx.shot(cls, x, y, false);
@@ -431,7 +444,7 @@ export class ClientGame {
       const a = (i / 40) * Math.PI * 2, s = r * 2.2 * (0.7 + Math.random() * 0.4);
       this.addPart({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.45, max: 0.45, col: i % 2 ? '#ff9a3c' : '#ffd166', size: 6 + Math.random() * 5, kind: 'fire' });
     }
-    sfx.boom(x, y);
+    sfx.ability('alevci', x, y);
   }
   dust(x, y, r) {
     for (let i = 0; i < 24; i++) {
@@ -468,7 +481,7 @@ export class ClientGame {
   }
 }
 
-export const AB_COL = { asker: '#ff6b2c', nisanci: '#7bdff2', izci: '#9ef01a', tank: '#a0c4ff', doktor: '#43d17a', tamirci: '#ffd23f', alevci: '#ff6b2c', bombaci: '#ffb347' };
+export const AB_COL = { asker: '#ff6b2c', nisanci: '#7bdff2', izci: '#9ef01a', kalkanci: '#a0c4ff', doktor: '#43d17a', tamirci: '#ffd23f', alevci: '#ff6b2c', bombaci: '#ffb347' };
 
 function lerpAngle(a, b, k) {
   let d = b - a;

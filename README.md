@@ -28,7 +28,7 @@ Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda
 | Doktor | Makineli | **İyileştir**: yakındakileri iyileştirir, düşenleri kaldırır |
 | Tamirci | Pompalı | **Taret**: 20 sn boyunca ateş eden taret kurar |
 | Nişancı | Dürbünlü tüfek | **Odak**: 5 sn iki kat hasar, mermiler her şeyi deler |
-| Tank | Ağır makineli | **Kalkan**: 5 sn boyunca %70 daha az hasar |
+| Kalkancı | Ağır makineli | **Kalkan**: 5 sn boyunca %70 daha az hasar |
 | Alevci | Alev makinesi | **Alev Patlaması**: etraftaki tüm zombileri yakar |
 | Bombacı | Bomba atar | **Mayın**: yere mayın bırakır (en fazla 3) |
 | İzci | Çift tabanca | **Depar**: 4 sn boyunca %60 daha hızlı |

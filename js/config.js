@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 2;
+export const VERSION = 3;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 3;
+export const BUILD = 4;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
@@ -42,7 +42,7 @@ export const PLAYER_COLORS = [
   '#b8f2e6', '#e9c46a', '#ff99c8', '#a0c4ff', '#caffbf',
 ];
 
-export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'tank', 'alevci', 'bombaci', 'izci'];
+export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci'];
 
 // kind: 'b' bullet, 'f' flame, 'g' grenade
 export const CLASSES = {
@@ -70,8 +70,8 @@ export const CLASSES = {
     ab: { name: 'Odak', desc: '5 saniye boyunca iki kat hasar, mermiler her şeyi deler.', cd: 18, dur: 5 },
     bars: { can: 0.35, hiz: 0.5, hasar: 1 },
   },
-  tank: {
-    name: 'Tank', weapon: 'Ağır makineli', desc: 'Önde durur, sürünün darbesini karşılar.',
+  kalkanci: {
+    name: 'Kalkancı', weapon: 'Ağır makineli', desc: 'Önde durur, sürünün darbesini karşılar.',
     hp: 210, spd: 180, dmg: 9, rate: 13, spread: 0.13, bspd: 1050, life: 0.6, pellets: 1, pierce: 0, kind: 'b', gun: 30,
     ab: { name: 'Kalkan', desc: '5 saniye boyunca aldığın hasar %70 azalır.', cd: 20, dur: 5 },
     bars: { can: 1, hiz: 0.3, hasar: 0.5 },

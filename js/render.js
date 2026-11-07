@@ -209,6 +209,7 @@ export class Renderer {
       g.fillStyle = grad;
       g.fillRect(0, 0, vw, vh);
     }
+    this.drawMates(g, game, roster);
     this.drawMinimap(g, game, roster);
     if (S.inGame && S.alive) this.drawCrosshair(g, game);
   }
@@ -245,6 +246,36 @@ export class Renderer {
     for (const li of game.lights) glow(li.x, li.y, li.r, Math.min(1, li.life / li.max + 0.2));
     for (const b of game.bullets) if (b.kind === 'f' && inView(b.x, b.y)) glow(b.x, b.y, 50, 0.35);
     l.restore();
+  }
+
+  // Arrows on the screen edge pointing at teammates you can't see. Downed ones pulse red.
+  drawMates(g, game, roster) {
+    const c = game.cam, m = 34;
+    for (const [pid, p] of game.ps) {
+      if (pid === game.me) continue;
+      const sx = (p.x - c.x) * c.scale + c.vw / 2, sy = (p.y - c.y) * c.scale + c.vh / 2;
+      if (sx > 0 && sx < c.vw && sy > 0 && sy < c.vh) continue;
+      const info = roster.get(pid);
+      const dx = sx - c.vw / 2, dy = sy - c.vh / 2;
+      // place on a ring around the player so the HUD never covers it
+      const a = Math.atan2(dy, dx), ring = Math.min(c.vw, c.vh) * 0.36 - m;
+      const ax = c.vw / 2 + Math.cos(a) * ring, ay = c.vh / 2 + Math.sin(a) * ring;
+      const down = !p.alive;
+      g.save(); g.translate(ax, ay);
+      if (down) { g.globalAlpha = 0.6 + 0.4 * Math.sin(game.time * 6); }
+      g.fillStyle = 'rgba(10,14,12,0.8)';
+      g.beginPath(); g.arc(0, 0, 13, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = down ? '#e5484d' : (info ? info.color : '#fff'); g.lineWidth = 2; g.stroke();
+      g.rotate(a);
+      g.fillStyle = down ? '#e5484d' : (info ? info.color : '#fff');
+      g.beginPath(); g.moveTo(19, 0); g.lineTo(12, -5); g.lineTo(12, 5); g.closePath(); g.fill();
+      g.rotate(-a);
+      g.fillStyle = down ? '#e5484d' : '#ece6d6';
+      g.font = '700 11px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(down ? '+' : (info ? info.name.slice(0, 1).toLocaleUpperCase('tr-TR') : '?'), 0, 0.5);
+      g.restore();
+    }
+    g.globalAlpha = 1; g.textBaseline = 'alphabetic';
   }
 
   drawCrosshair(g, game) {
@@ -450,7 +481,6 @@ function drawZombie(g, z, time) {
   g.fillStyle = 'rgba(0,0,0,0.3)';
   g.beginPath(); g.ellipse(3, 5, r, r * 0.85, 0, 0, Math.PI * 2); g.fill();
   if (age < 0.5) { const s = 0.4 + age * 1.2; g.scale(s, s); g.globalAlpha = age * 2; }
-  if (z.dying) g.globalAlpha = 0.45;
   if (z.t === 3) {
     g.fillStyle = 'rgba(229,72,77,0.13)';
     g.beginPath(); g.arc(0, 0, r + 10 + Math.sin(time * 4) * 3, 0, Math.PI * 2); g.fill();
@@ -502,8 +532,10 @@ function drawZombie(g, z, time) {
   g.fillStyle = 'rgba(0,0,0,0.25)';
   g.beginPath(); g.arc(r * 0.12, -r * 0.12, r * 0.18, 0, Math.PI * 2); g.fill();
   g.restore();
-  if (z.hp < z.max && !z.dying) {
-    const w = Math.max(24, r * 2), kk = clamp(z.hp / z.max, 0, 1);
+  if (z.hp < z.max || z.dying) {
+    // show the health the player's own hits have already taken off, so a finished zombie reads as empty
+    const pending = z.pend ? z.pend.reduce((s, e) => s + e.d, 0) : 0;
+    const w = Math.max(24, r * 2), kk = z.dying ? 0 : clamp((z.hp - pending) / z.max, 0, 1);
     g.fillStyle = 'rgba(0,0,0,0.6)';
     g.fillRect(z.x - w / 2, z.y - r - 12, w, 4);
     g.fillStyle = z.t === 3 ? '#ff6b2c' : '#e5484d';
@@ -519,7 +551,6 @@ function shirtOf(z) {
 }
 
 function drawEyes(g, z) {
-  if (z.dying) return;
   const r = ZTYPES[z.t].r;
   const c = Math.cos(z.face), s = Math.sin(z.face);
   const hx = z.x + c * r * 0.42, hy = z.y + s * r * 0.42;
@@ -538,6 +569,17 @@ function drawPlayer(g, game, pid, p, info, alive) {
   g.save();
   g.translate(p.x, p.y);
   if (alive && fxk) drawAura(g, fxk, game.time);
+  if (!alive) {
+    const pulse = 0.5 + 0.5 * Math.sin(game.time * 5);
+    g.strokeStyle = `rgba(229,72,77,${0.35 + pulse * 0.35})`; g.lineWidth = 2;
+    g.setLineDash([5, 5]);
+    g.beginPath(); g.arc(0, 0, 60, 0, Math.PI * 2); g.stroke();
+    g.setLineDash([]);
+    if (p.rev > 0) {
+      g.strokeStyle = '#43d17a'; g.lineWidth = 5; g.lineCap = 'round';
+      g.beginPath(); g.arc(0, 0, 28, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p.rev)); g.stroke();
+    }
+  }
   g.scale(1.15, 1.15);
   drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me });
   g.restore();
@@ -588,13 +630,13 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
 
   // torso
   g.fillStyle = cls === 'nisanci' ? '#3a4a30' : color;
-  g.beginPath(); g.ellipse(-1, 0, 9.5, cls === 'tank' ? 16.5 : 15, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(-1, 0, 9.5, cls === 'kalkanci' ? 16.5 : 15, 0, 0, Math.PI * 2); g.fill();
   g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 2.5; g.stroke();
   if (cls === 'nisanci') { // ghillie fringe in team colour
     g.strokeStyle = color; g.lineWidth = 2;
     for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(-4, i * 4); g.lineTo(-11, i * 4.5 + 1); g.stroke(); }
   }
-  if (cls === 'tank') {
+  if (cls === 'kalkanci') {
     g.fillStyle = '#5a6066';
     for (const s of [-1, 1]) { g.beginPath(); g.ellipse(0, s * 13, 7, 5.5, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#2d3135'; g.lineWidth = 1.5; g.stroke(); }
     g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(-6, -7, 10, 14);
@@ -634,7 +676,7 @@ function drawBack(g, cls, color) {
     case 'tamirci':
       g.fillStyle = '#d9822b'; rr(g, -18, -8, 9, 16, 2); g.fill();
       g.strokeStyle = '#8a4b14'; g.lineWidth = 1.5; g.strokeRect(-17, -6, 7, 12); break;
-    case 'tank': g.fillStyle = '#4a4f55'; rr(g, -19, -10, 10, 20, 3); g.fill(); g.strokeStyle = '#2d3135'; g.lineWidth = 1.5; g.stroke(); break;
+    case 'kalkanci': g.fillStyle = '#4a4f55'; rr(g, -19, -10, 10, 20, 3); g.fill(); g.strokeStyle = '#2d3135'; g.lineWidth = 1.5; g.stroke(); break;
     case 'alevci':
       for (const s of [-1, 1]) { g.fillStyle = '#b8352a'; rr(g, -20, s * 5 - 4, 11, 8, 4); g.fill(); g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(-18, s * 5 - 3, 6, 1.5); }
       g.strokeStyle = '#222'; g.lineWidth = 2; g.beginPath(); g.moveTo(-10, 5); g.quadraticCurveTo(0, 14, 12, 6); g.stroke(); break;
@@ -654,7 +696,7 @@ function drawWeapon(g, cls) {
     case 'doktor': g.fillStyle = M; g.fillRect(6, 1.5, 20, 5); g.fillRect(12, 6, 3, 6); break;
     case 'tamirci': g.fillStyle = W; g.fillRect(2, 1.5, 10, 6); g.fillStyle = M; g.fillRect(10, 2, 22, 4.5); g.fillStyle = '#3a2a1a'; g.fillRect(16, 2, 6, 5); break;
     case 'nisanci': g.fillStyle = W; g.fillRect(2, 2, 10, 5); g.fillStyle = M; g.fillRect(10, 3, 32, 3.5); g.fillStyle = '#0d0f0d'; g.fillRect(14, 0, 10, 2.5); g.fillStyle = '#7bdff2'; g.fillRect(23, 0.5, 1.5, 1.5); break;
-    case 'tank':
+    case 'kalkanci':
       g.fillStyle = '#2a2d2a'; g.fillRect(4, 0, 16, 8);
       g.fillStyle = M; for (const y of [0.8, 3.2, 5.6]) g.fillRect(18, y, 18, 1.8);
       g.fillStyle = '#3d423d'; g.fillRect(30, 0, 3, 8); break;
@@ -675,7 +717,7 @@ function drawArms(g, cls, dark) {
     hand(12, -7); hand(12, 7);
     return;
   }
-  const front = { asker: 22, doktor: 18, tamirci: 20, nisanci: 24, tank: 16, alevci: 20, bombaci: 20 }[cls] || 20;
+  const front = { asker: 22, doktor: 18, tamirci: 20, nisanci: 24, kalkanci: 16, alevci: 20, bombaci: 20 }[cls] || 20;
   g.beginPath(); g.moveTo(1, 12); g.lineTo(9, 5); g.moveTo(1, -12); g.lineTo(front, 3); g.stroke();
   hand(9, 5); hand(front, 3);
 }
@@ -696,7 +738,7 @@ function drawHead(g, cls, color) {
     case 'nisanci':
       g.fillStyle = '#2f3b2a'; g.beginPath(); g.arc(-1, 0, 8.5, 0, Math.PI * 2); g.fill();
       g.fillStyle = SKIN; g.beginPath(); g.arc(4, 0, 3.4, -1.2, 1.2); g.fill(); break;
-    case 'tank':
+    case 'kalkanci':
       g.fillStyle = '#5a6066'; g.beginPath(); g.arc(0, 0, 9, 0, Math.PI * 2); g.fill();
       g.strokeStyle = '#2d3135'; g.lineWidth = 1.5; g.stroke();
       g.fillStyle = '#111'; g.fillRect(5, -4.5, 2.5, 9); break;

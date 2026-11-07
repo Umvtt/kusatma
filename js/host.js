@@ -12,6 +12,8 @@ const r1 = (v) => Math.round(v * 10) / 10;
 const r2 = (v) => Math.round(v * 100) / 100;
 const SNAP_RATE = 15;
 const GOLDEN = 2.399963;
+export const REVIVE_R = 60;
+export const REVIVE_TIME = 3;
 
 export function cleanName(s, pid) {
   const name = String(typeof s === 'string' ? s : '')
@@ -122,6 +124,8 @@ export class HostGame {
       case 'ab': this.onAbility(p, m); break;
       case 'buy': this.onBuy(p, m); break;
       case 'start': if (isHost && this.phase === 'lobby') this.start(); break;
+      case 'chat': this.onChat(p, m); break;
+      case 'pause': if (isHost && this.net.code == null) this.paused = !!m.on; break;
       case 'lobby': if (isHost && this.phase === 'over') this.toLobby(); break;
       case 'kick':
         if (isHost && Number.isInteger(m.pid) && m.pid !== this.hostPid && this.players.has(m.pid)) {
@@ -155,6 +159,16 @@ export class HostGame {
     }
   }
 
+  onChat(p, m) {
+    if (typeof m.m !== 'string') return;
+    const now = performance.now();
+    if (now - (p.chatAt || 0) < 700) return; // at most one line every 0.7 s per player
+    const text = m.m.replace(/[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '').trim().slice(0, 100);
+    if (!text) return;
+    p.chatAt = now;
+    this.out({ t: 'c', pid: p.pid, m: text });
+  }
+
   onAbility(p, m) {
     if (!p.inGame || !p.alive || (this.phase !== 'combat' && this.phase !== 'break')) return;
     if (this.time < p.abAt) return;
@@ -174,7 +188,7 @@ export class HostGame {
       if (Math.hypot(x - p.x, y - p.y) > 120 || pointInObstacle(x, y, 14)) { x = p.x; y = p.y; }
       this.turrets = this.turrets.filter((t) => t.owner !== p.pid);
       this.turrets.push({ id: this.nextId++, owner: p.pid, x: clamp(x, 20, MAP_W - 20), y: clamp(y, 20, MAP_H - 20), a: p.a, life: c.ab.dur, cd: 0 });
-    } else if (p.cls === 'tank') {
+    } else if (p.cls === 'kalkanci') {
       p.shieldUntil = this.time + c.ab.dur;
     } else if (p.cls === 'alevci') {
       for (const z of this.zombies) {
@@ -239,6 +253,7 @@ export class HostGame {
     p.dmg = 0;
     p.abAt = 0;
     p.shieldUntil = 0;
+    p.rev = 0;
     p.a = 0;
     p.shopReady = false;
     p.ready = false;
@@ -317,7 +332,7 @@ export class HostGame {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
-    if (this.phase !== 'combat' && this.phase !== 'break') return;
+    if (this.paused || (this.phase !== 'combat' && this.phase !== 'break')) return;
     this.tick(dt);
     if (this.phase !== 'combat' && this.phase !== 'break') return;
     this.snapAcc += dt;
@@ -343,12 +358,30 @@ export class HostGame {
       buildField(this.inGame().filter((p) => p.alive), this.field);
     }
     this.spawn(dt);
+    this.updateRevives(dt);
     this.updateZombies(dt);
     this.updateSpits(dt);
     this.updateTurrets(dt);
     this.updateMines(dt);
     this.zombies = this.zombies.filter((z) => !z.dead);
     if (this.phase === 'combat' && this.queue.length === 0 && this.zombies.length === 0) this.endWave();
+  }
+
+  updateRevives(dt) {
+    const ps = this.inGame();
+    for (const p of ps) {
+      if (p.alive) { p.rev = 0; continue; }
+      let rate = 0;
+      for (const q of ps) {
+        if (q === p || !q.alive || Math.hypot(q.x - p.x, q.y - p.y) > REVIVE_R) continue;
+        rate = Math.max(rate, q.cls === 'doktor' ? 2 : 1);
+      }
+      p.rev = rate ? (p.rev || 0) + dt * rate : Math.max(0, (p.rev || 0) - dt);
+      if (p.rev >= REVIVE_TIME) {
+        p.rev = 0; p.alive = true; p.hp = Math.ceil(p.maxHp * 0.35);
+        this.ev(['up', p.pid]);
+      }
+    }
   }
 
   spawn(dt) {
@@ -616,6 +649,7 @@ export class HostGame {
         p.pid, Math.round(p.x), Math.round(p.y), r2(p.a), Math.ceil(p.hp), p.maxHp, p.alive ? 1 : 0,
         p.gold, p.kills, p.sp, p.lv.dmg, p.lv.rate, p.lv.hp, p.lv.spd, p.lv.cd,
         Math.max(0, r1(p.abAt - this.time)), p.shopReady ? 1 : 0, this.time < p.shieldUntil ? 1 : 0,
+        p.alive ? 0 : r2((p.rev || 0) / REVIVE_TIME),
       ]);
     }
     const Z = [];

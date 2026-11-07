@@ -25,7 +25,7 @@
         <ul class="facts">
           <li><strong>8</strong><span>sınıf</span></li>
           <li><strong>15</strong><span>oyuncuya kadar</span></li>
-          <li><strong>∞</strong><span>dalga</span></li>
+          <li><strong id="best-wave">–</strong><span id="best-label">en iyi dalgan</span></li>
         </ul>
       </header>
 
@@ -50,8 +50,8 @@
       <span>Fare ile nişan al, <kbd>Sol tık</kbd> ateş</span>
       <span><kbd>Boşluk</kbd> ya da <kbd>Sağ tık</kbd> yetenek</span>
       <span><kbd>Tekerlek</kbd> yakınlaştır</span>
-      <span><kbd>Tab</kbd> skor tablosu</span>
-      <span><kbd>M</kbd> ses</span>
+      <span><kbd>Enter</kbd> sohbet</span>
+      <span><kbd>Esc</kbd> menü</span>
     </footer>
   </section>
 
@@ -126,9 +126,40 @@
       </div>
     </div>
 
+    <div id="net-warn" class="net-warn" hidden>Bağlantı zayıf. Kurucudan veri bekleniyor…</div>
+
+    <div class="chat" id="chat">
+      <ul id="chat-log" class="chat-log" aria-live="polite"></ul>
+      <label class="sr-only" for="chat-input">Sohbet mesajı</label>
+      <input id="chat-input" class="chat-input" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Mesaj yaz, Enter ile gönder · Esc ile vazgeç" hidden>
+    </div>
+
+    <div id="esc" class="esc" hidden>
+      <div class="card esc-card" role="dialog" aria-modal="true" aria-labelledby="esc-title">
+        <p class="eyebrow" id="esc-eyebrow">Menü</p>
+        <h3 id="esc-title">Oyun sürüyor</h3>
+        <p class="note" id="esc-note">Çok oyunculu oyunda oyun arka planda devam eder.</p>
+        <div class="esc-actions">
+          <button id="esc-resume" class="btn primary" type="button">Oyuna dön</button>
+          <button id="esc-mute" class="btn" type="button">Ses açık</button>
+          <button id="esc-leave" class="btn ghost" type="button">Odadan ayrıl</button>
+        </div>
+        <ul class="esc-keys">
+          <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hareket</li>
+          <li><kbd>Sol tık</kbd> ateş</li>
+          <li><kbd>Boşluk</kbd> yetenek</li>
+          <li><kbd>Tekerlek</kbd> yakınlaştır</li>
+          <li><kbd>Enter</kbd> sohbet</li>
+          <li><kbd>Tab</kbd> skorlar</li>
+          <li><kbd>M</kbd> ses</li>
+          <li><kbd>Esc</kbd> menü</li>
+        </ul>
+      </div>
+    </div>
+
     <div class="hud-br">
       <button id="btn-mute" class="btn small" type="button" aria-pressed="false">Ses açık</button>
-      <span class="hint"><kbd>Tekerlek</kbd> yakınlaştır · <kbd>Tab</kbd> skorlar</span>
+      <span class="hint"><kbd>Esc</kbd> menü · <kbd>Enter</kbd> sohbet · <kbd>Tab</kbd> skorlar</span>
     </div>
 
     <aside id="shop" class="shop" hidden aria-labelledby="shop-h">
@@ -147,7 +178,7 @@
 
     <div id="dead" class="dead" hidden>
       <strong>Düştün</strong>
-      <span>Bir sıhhiye seni kaldırabilir. Dalga bitince zaten geri döneceksin.</span>
+      <span id="dead-sub">Bir takım arkadaşın yanına gelirse seni kaldırır. Dalga bitince zaten geri döneceksin.</span>
       <span id="dead-watch" class="dead-watch"></span>
     </div>
 

@@ -66,12 +66,17 @@ function tone(v, dur, f0, f1, type = 'sine', delay = 0) {
 
 const SHOT = {
   asker: [0.35, 0.09, 1800, 0.8], doktor: [0.25, 0.06, 2400, 0.8], tamirci: [0.55, 0.22, 900, 0.7],
-  nisanci: [0.6, 0.3, 1200, 0.6], tank: [0.3, 0.07, 1500, 0.8], izci: [0.3, 0.07, 2200, 0.9],
+  nisanci: [0.6, 0.3, 1200, 0.6], kalkanci: [0.3, 0.07, 1500, 0.8], izci: [0.3, 0.07, 2200, 0.9],
 };
 
 export function shot(cls, x, y, own) {
-  if (cls === 'alevci') { const v = vol(x, y, own ? 0.12 : 0.06); if (v) burst(v, 0.12, 700, 0.5, 'bandpass'); return; }
-  if (cls === 'bombaci') { const v = vol(x, y, own ? 0.35 : 0.2); if (v) tone(v, 0.15, 220, 90, 'triangle'); return; }
+  if (cls === 'alevci') return; // the flamethrower is a continuous loop, see flame()
+  if (cls === 'bombaci') {
+    // hollow launcher thump, nothing like a gunshot
+    const v = vol(x, y, own ? 0.5 : 0.28);
+    if (v) { tone(v, 0.22, 140, 55, 'sine'); burst(v * 0.5, 0.12, 500, 0.6); tone(v * 0.25, 0.08, 900, 600, 'triangle', 0.02); }
+    return;
+  }
   const s = SHOT[cls] || SHOT.asker;
   const v = vol(x, y, own ? s[0] : s[0] * 0.55);
   if (!v) return;
@@ -87,7 +92,38 @@ export function growl(x, y) { const v = vol(x, y, 0.14); if (v) tone(v, 0.5, 110
 export function spit(x, y) { const v = vol(x, y, 0.2); if (v) burst(v, 0.15, 1200, 3, 'bandpass'); }
 export function hurt() { const v = vol(null, null, 0.3); if (v) { tone(v, 0.18, 300, 120, 'sawtooth'); } }
 export function heal(x, y) { const v = vol(x, y, 0.3); if (v) { tone(v, 0.25, 520, 780); tone(v * 0.8, 0.3, 660, 990, 'sine', 0.08); } }
-export function ability(x, y) { const v = vol(x, y, 0.3); if (v) tone(v, 0.3, 300, 900, 'triangle'); }
+export function ability(cls, x, y) {
+  const v = vol(x, y, 0.35);
+  if (!v) return;
+  switch (cls) {
+    case 'asker': tone(v, 0.12, 300, 600, 'square'); tone(v, 0.18, 450, 900, 'square', 0.08); break; // rally
+    case 'nisanci': tone(v * 0.7, 0.35, 1800, 2600, 'sine'); burst(v * 0.3, 0.05, 4000, 2, 'highpass'); break; // scope zoom
+    case 'izci': burst(v, 0.35, 900, 0.7, 'bandpass'); tone(v * 0.4, 0.3, 200, 500, 'sine'); break; // whoosh
+    case 'kalkanci': tone(v, 0.5, 180, 180, 'triangle'); tone(v * 0.6, 0.5, 360, 362, 'sine'); burst(v * 0.4, 0.08, 3000, 3, 'bandpass'); break; // metal hum
+    case 'tamirci': for (let i = 0; i < 3; i++) { burst(v * 0.6, 0.05, 2500, 4, 'bandpass'); tone(v * 0.4, 0.05, 700, 650, 'square', i * 0.09); } break; // clank
+    case 'bombaci': tone(v * 0.6, 0.06, 1200, 1200, 'square'); tone(v * 0.6, 0.06, 1600, 1600, 'square', 0.12); break; // mine beep
+    case 'alevci': burst(v * 1.2, 0.6, 600, 0.6); tone(v, 0.5, 90, 40, 'sawtooth'); break; // fire burst
+    default: tone(v, 0.3, 300, 900, 'triangle');
+  }
+}
+
+// Continuous flamethrower roar. Called every frame with 0..1 (loudest nearby flamethrower).
+let flameSrc = null, flameGain = null, flameFilter = null;
+export function flame(level) {
+  if (!ctx) return;
+  if (!flameSrc) {
+    flameSrc = ctx.createBufferSource(); flameSrc.buffer = noise; flameSrc.loop = true;
+    flameFilter = ctx.createBiquadFilter(); flameFilter.type = 'lowpass'; flameFilter.frequency.value = 500; flameFilter.Q.value = 0.8;
+    const rumble = ctx.createBiquadFilter(); rumble.type = 'peaking'; rumble.frequency.value = 160; rumble.gain.value = 8;
+    flameGain = ctx.createGain(); flameGain.gain.value = 0;
+    flameSrc.connect(flameFilter).connect(rumble).connect(flameGain).connect(master);
+    flameSrc.start();
+  }
+  const t = ctx.currentTime;
+  const target = muted ? 0 : level * 0.55;
+  flameGain.gain.setTargetAtTime(target, t, target > flameGain.gain.value ? 0.03 : 0.12);
+  flameFilter.frequency.setTargetAtTime(400 + level * 900 + Math.random() * 200, t, 0.05);
+}
 export function waveStart() { const v = vol(null, null, 0.45); if (v) { tone(v, 0.9, 110, 90, 'sawtooth'); tone(v * 0.7, 0.9, 165, 135, 'sawtooth', 0.05); } }
 export function waveClear() { const v = vol(null, null, 0.35); if (v) { tone(v, 0.2, 440, 440, 'triangle'); tone(v, 0.35, 660, 660, 'triangle', 0.15); } }
 export function buy() { const v = vol(null, null, 0.25); if (v) { tone(v, 0.08, 880, 880, 'square'); tone(v, 0.12, 1320, 1320, 'square', 0.06); } }
