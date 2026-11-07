@@ -85,7 +85,7 @@ function getName() {
 }
 
 function send(msg) {
-  if (S.role === 'host') S.host.onMsg(1, msg);
+  if (S.role === 'host') S.host.onMsg(S.me, msg);
   else if (S.net) S.net.send(msg);
 }
 
@@ -162,7 +162,8 @@ async function joinRoom() {
   S.role = 'client';
   S.net = net;
   net.onMsg = onMessage;
-  net.onClose = () => leave('Kurucuyla bağlantı koptu. Oda kapanmış olabilir.');
+  net.onClose = hostLost;
+  S.name = name;
   net.send({ t: 'hello', v: VERSION, name });
   startTicker();
 }
@@ -174,14 +175,69 @@ function leave(reason) {
   stopTicker();
   cancelAnimationFrame(S.raf);
   S.raf = 0;
-  if (S.net) { const n = S.net; S.net = null; n.onClose = null; n.onMsg = null; n.destroy(); }
+  if (S.net) {
+    const n = S.net; S.net = null; n.onClose = null; n.onMsg = null;
+    // a leaving host hands the game over first, so the room lives on
+    if (S.role === 'host' && S.host && n.code) { S.host.sendBackup(); setTimeout(() => n.destroy(), 400); } else n.destroy();
+  }
   S.host = null; S.game = null; S.role = null; S.me = null; S.roster = null; S.over = null; S.shopBuilt = false;
+  S.backup = null; S.tok = null; S.rejoining = false;
   renderer.clearDecals();
   show('menu');
   menuMsg(reason || '');
 }
 
-window.addEventListener('beforeunload', () => { if (S.net) S.net.destroy(); });
+window.addEventListener('beforeunload', () => { if (S.role === 'host' && S.host) S.host.sendBackup(); if (S.net) S.net.destroy(); });
+
+// ---------- host migration ----------
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The host's connection dropped. The next player in line takes over; everyone else reconnects to them.
+function hostLost() {
+  const r = S.roster;
+  if (S.role !== 'client' || !r || !r.code || S.rejoining) { leave('Kurucuyla bağlantı koptu. Oda kapanmış olabilir.'); return; }
+  S.rejoining = true;
+  const old = S.net; S.net = null;
+  if (old) { old.onClose = null; old.onMsg = null; old.destroy(); }
+  if (r.succ === S.me && S.backup) takeOver(r.code);
+  else rejoin(r.code);
+}
+
+async function takeOver(code) {
+  toast('Kurucu ayrıldı. Oyunu sen devralıyorsun…');
+  const net = new HostNet();
+  try { await net.open(code, 30000); } catch (e) { leave('Kurucu ayrıldı ve oda devralınamadı.'); return; }
+  if (!S.rejoining) { net.destroy(); return; } // left meanwhile
+  const host = new HostGame(net);
+  host.restore(S.backup, S.me);
+  net.nextPid = Math.max(S.me, ...host.players.keys()) + 1;
+  S.role = 'host'; S.net = net; S.host = host; S.rejoining = false; S.backup = null;
+  host.local = onMessage;
+  net.onMsg = (pid, m) => host.onMsg(pid, m);
+  net.onLeave = (pid) => host.removePlayer(pid);
+  host.pushRoster();
+  toast('Artık kurucu sensin. Diğerleri yeniden bağlanıyor.', 'good');
+}
+
+async function rejoin(code) {
+  toast('Kurucu ayrıldı. Yeni kurucuya bağlanılıyor…');
+  const until = performance.now() + 35000;
+  while (S.rejoining && performance.now() < until) {
+    await sleep(1500);
+    if (!S.rejoining) return;
+    const net = new ClientNet();
+    try { await net.connect(code); } catch (e) { continue; }
+    if (!S.rejoining) { net.destroy(); return; }
+    S.net = net;
+    net.onMsg = onMessage;
+    net.onClose = hostLost;
+    S.rejoining = false;
+    net.send({ t: 'hello', v: VERSION, name: S.name || '', rejoin: { pid: S.me, tok: S.tok } });
+    toast('Yeni kurucuya bağlandın.', 'good');
+    return;
+  }
+  if (S.rejoining) leave('Kurucu ayrıldı ve oyun devam ettirilemedi.');
+}
 
 // ---------- incoming messages ----------
 const BYE = {
@@ -196,6 +252,8 @@ function onMessage(m) {
   switch (m.t) {
     case 'w':
       S.me = m.pid;
+      S.tok = m.tok;
+      S.rejoining = false;
       if (!S.game) S.game = new ClientGame(send, m.pid);
       break;
     case 'r': onRoster(m); break;
@@ -203,6 +261,7 @@ function onMessage(m) {
     case 'o': S.over = m; m.record = saveBest(m.wave); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
+    case 'bk': if (S.role === 'client' && m.s && typeof m.s === 'object') S.backup = m.s; break;
     default: break;
   }
 }
@@ -259,7 +318,8 @@ function renderLobby() {
     const nm = el('div', 'p-name');
     nm.append(el('b', '', p.name + (p.pid === S.me ? ' (sen)' : '')), el('small', '', CLASSES[p.cls].name));
     let chip;
-    if (p.pid === r.host) chip = el('span', 'chip host', 'Kurucu');
+    if (p.away) chip = el('span', 'chip', 'Bağlanıyor');
+    else if (p.pid === r.host) chip = el('span', 'chip host', 'Kurucu');
     else if (running || r.ph === 'over') chip = el('span', 'chip' + (p.inGame ? ' ok' : ''), p.inGame ? 'Oyunda' : 'Bekliyor');
     else chip = el('span', 'chip' + (p.ready ? ' ok' : ''), p.ready ? 'Hazır' : 'Bekliyor');
     li.append(dot, nm, chip);
@@ -402,7 +462,7 @@ $('#btn-ready').addEventListener('click', () => {
 
 $('#btn-leave').addEventListener('click', () => {
   if (S.role === 'host' && S.roster && S.roster.players.length > 1) {
-    ask('Odayı kapat', 'Kurucu sensin. Ayrılırsan oda herkes için kapanır.', 'Odayı kapat', () => leave(''));
+    ask('Odadan ayrıl', 'Kurucu sensin. Ayrılırsan kuruculuk başka bir oyuncuya geçer ve oyun devam eder.', 'Ayrıl', () => leave(''));
   } else leave('');
 });
 

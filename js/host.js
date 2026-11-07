@@ -13,6 +13,8 @@ const num = (v) => typeof v === 'number' && Number.isFinite(v);
 const r1 = (v) => Math.round(v * 10) / 10;
 const r2 = (v) => Math.round(v * 100) / 100;
 const SNAP_RATE = 15;
+const GHOST_MS = 30000; // how long a player who dropped during a host change keeps their spot
+const token = () => { const b = new Uint8Array(8); crypto.getRandomValues(b); return [...b].map((x) => x.toString(16).padStart(2, '0')).join(''); };
 const GOLDEN = 2.399963;
 export const REVIVE_R = 60;
 export const REVIVE_TIME = 3;
@@ -34,6 +36,7 @@ export class HostGame {
     this.local = null; // delivers messages to the host's own screen
     this.last = performance.now();
     this.snapAcc = 0;
+    this.backupAcc = 0;
     this.field = new Float32Array(GW * GH);
     this.mapPick = 'meydan'; // lobby choice, may be 'rastgele'
     this.diff = 'normal';
@@ -74,10 +77,10 @@ export class HostGame {
 
   roster() {
     return {
-      t: 'r', ph: this.phase, code: this.net.code || null, host: this.hostPid,
+      t: 'r', ph: this.phase, code: this.net.code || null, host: this.hostPid, succ: this.successor(),
       map: this.mapPick, diff: this.diff, theme: this.theme, seed: this.seed,
       players: [...this.players.values()].map((p) => ({
-        pid: p.pid, name: p.name, cls: p.cls, ready: p.ready, color: p.color, inGame: p.inGame,
+        pid: p.pid, name: p.name, cls: p.cls, ready: p.ready, color: p.color, inGame: p.inGame || !!p.ghost, away: !!p.ghost,
       })),
     };
   }
@@ -85,11 +88,19 @@ export class HostGame {
 
   inGame() { return [...this.players.values()].filter((p) => p.inGame); }
 
+  // Who takes over if this host leaves: the connected player who joined first.
+  successor() {
+    let best = null;
+    for (const p of this.players.values()) if (p.pid !== this.hostPid && !p.ghost && (best == null || p.pid < best)) best = p.pid;
+    return best;
+  }
+
   addPlayer(pid, name) {
     const used = new Set([...this.players.values()].map((p) => p.color));
     const color = PLAYER_COLORS.find((c) => !used.has(c)) || PLAYER_COLORS[pid % PLAYER_COLORS.length];
-    this.players.set(pid, { pid, name, cls: 'asker', ready: false, color, inGame: false, sp: 0 });
-    this.sendTo(pid, { t: 'w', pid });
+    const tok = token();
+    this.players.set(pid, { pid, name, cls: 'asker', ready: false, color, inGame: false, sp: 0, tok });
+    this.sendTo(pid, { t: 'w', pid, tok });
     this.pushRoster();
   }
 
@@ -113,6 +124,19 @@ export class HostGame {
     if (!p) {
       if (m.t !== 'hello') return;
       if (m.v !== VERSION) { this.net.kick(pid, 'version'); return; }
+      // coming back after a host change: same player number, same progress
+      const rj = m.rejoin;
+      if (rj && typeof rj === 'object' && Number.isInteger(rj.pid) && typeof rj.tok === 'string' && rj.tok.length <= 40) {
+        const old = this.players.get(rj.pid);
+        if (old && old.ghost && old.tok === rj.tok && this.net.rebind(pid, rj.pid)) {
+          this.net.markPlayer(rj.pid);
+          old.ghost = false;
+          old.inGame = !!old.wasInGame;
+          this.sendTo(rj.pid, { t: 'w', pid: rj.pid, tok: old.tok });
+          this.pushRoster();
+          return;
+        }
+      }
       if (this.players.size >= MAX_PLAYERS) { this.net.kick(pid, 'full'); return; }
       this.net.markPlayer(pid);
       this.addPlayer(pid, cleanName(m.name, pid));
@@ -259,7 +283,11 @@ export class HostGame {
     this.phase = 'break';
     this.breakT = FIRST_BREAK;
     const all = [...this.players.values()];
-    all.forEach((p, i) => this.enter(p, i, all.length, true));
+    all.forEach((p, i) => {
+      this.enter(p, i, all.length, true);
+      // still reconnecting after a host change: they join this game as soon as they're back
+      if (p.ghost) { p.wasInGame = true; p.inGame = false; }
+    });
     this.pushRoster();
   }
 
@@ -383,6 +411,11 @@ export class HostGame {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
+    let gone = false;
+    for (const p of [...this.players.values()]) if (p.ghost && now - p.ghostAt > GHOST_MS) { this.players.delete(p.pid); gone = true; }
+    if (gone) { this.pushRoster(); if (this.phase === 'combat') this.checkOver(); }
+    this.backupAcc += dt;
+    if (this.backupAcc >= 1) { this.backupAcc = 0; this.sendBackup(); }
     if (this.paused || (this.phase !== 'combat' && this.phase !== 'break')) return;
     this.tick(dt);
     if (this.phase !== 'combat' && this.phase !== 'break') return;
@@ -824,6 +857,51 @@ export class HostGame {
     p.downs++;
     this.ev(['dn', p.pid]);
     this.checkOver();
+  }
+
+  // ---------- host migration ----------
+  sendBackup() {
+    const succ = this.successor();
+    if (succ == null || !this.net.code) return;
+    this.net.send(succ, { t: 'bk', s: this.backup() });
+  }
+
+  backup() {
+    const keep = ['phase', 'wave', 'waveN', 'diff', 'mapPick', 'theme', 'seed', 'areaN', 'bounds', 'breakT', 'time', 'queue', 'spawnT', 'bossWave', 'nextId', 'hostPid'];
+    const st = {};
+    for (const k of keep) st[k] = this[k];
+    st.players = [...this.players.values()].map((p) => ({ ...p }));
+    st.zombies = this.zombies.filter((z) => !z.dead).map((z) => ({ ...z, hitSet: null }));
+    st.turrets = this.turrets; st.mines = this.mines; st.items = this.items; st.spits = this.spits;
+    return st;
+  }
+
+  // Continue a game from the previous host's backup. Everyone else is kept as "reconnecting" for a while.
+  restore(st, myPid) {
+    const keep = ['phase', 'wave', 'waveN', 'diff', 'mapPick', 'theme', 'seed', 'areaN', 'bounds', 'breakT', 'time', 'queue', 'spawnT', 'bossWave', 'nextId'];
+    for (const k of keep) if (st[k] !== undefined) this[k] = st[k];
+    const oldHost = st.hostPid;
+    this.hostPid = myPid;
+    this.players = new Map();
+    const now = performance.now();
+    for (const p of st.players || []) {
+      if (p.pid === oldHost) continue;
+      const q = { ...p };
+      if (q.pid !== myPid) { q.ghost = true; q.ghostAt = now; q.wasInGame = q.inGame; q.inGame = false; }
+      this.players.set(q.pid, q);
+    }
+    this.zombies = (st.zombies || []).map((z) => ({ ...z, hitSet: null }));
+    this.zIndex = new Map(this.zombies.map((z) => [z.id, z]));
+    this.turrets = st.turrets || []; this.mines = st.mines || []; this.items = st.items || []; this.spits = st.spits || [];
+    this.shots = []; this.events = [];
+    if (this.theme && (WORLD.theme !== this.theme || WORLD.seed !== this.seed)) {
+      const map = generateMap(this.theme, this.seed);
+      setMap(map.theme, map.seed, map.obstacles, map.decor);
+    }
+    if (this.bounds) setBounds(this.bounds.x0, this.bounds.y0, this.bounds.x1, this.bounds.y1);
+    this.fieldT = 0;
+    this.last = performance.now();
+    this.paused = false;
   }
 
   snapshot() {

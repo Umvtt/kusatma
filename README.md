@@ -80,6 +80,7 @@ Cephanelikte her sınıfın silahı iki kez geliştirilebilir (150 ve 400 altın
 
 - Saf HTML, CSS ve JavaScript. Derleme adımı yok.
 - Çok oyunculu bağlantı [PeerJS](https://peerjs.com/) (WebRTC) ile kurulur. Oyunu kurucunun tarayıcısı yönetir, diğer oyuncular ona bağlanır. Bu yüzden kurucunun sekmesi açık kalmalı ve internet bağlantısı iyi olmalı.
+- Kurucu ayrılırsa (sekmeyi kapatsa bile) oyun bitmez: en önce katılan oyuncu kurucu olur, diğerleri birkaç saniye içinde altınları, yükseltmeleri ve sınıflarıyla birlikte yeniden bağlanır. Bunun için kurucu her saniye oyunun yedeğini sıradaki oyuncuya gönderir.
 - Gelen her mesaj biçim ve boyut açısından denetlenir. Saniyede çok fazla mesaj gönderen oyuncu odadan atılır.
 
 ## GitHub Pages ile yayınlama

@@ -7,7 +7,7 @@ const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I lookalikes
 const MAX_MSGS_PER_SEC = 80;   // normal play sends about 22
 const MAX_MSG_CHARS = 6000;
 const HOST_STALE_MS = 30000;   // drop a player we have not heard from in this long
-const CLIENT_STALE_MS = 15000; // give up on a host we have not heard from in this long
+const CLIENT_STALE_MS = 6000;  // the host pings every 2 s; this long without anything means it is gone
 
 export function makeCode() {
   const bytes = new Uint8Array(CODE_LEN);
@@ -33,13 +33,14 @@ export class HostNet {
     this.onLeave = null;
   }
 
-  open() {
+  // fixed: take over an existing room code (host migration), retrying while the old host's id is still held.
+  open(fixed = null, waitMs = 15000) {
     if (!peerAvailable()) return Promise.reject(new Error('peerjs-missing'));
     return new Promise((resolve, reject) => {
       let finished = false;
-      const timer = setTimeout(() => { if (!finished) { finished = true; this.destroy(); reject(new Error('timeout')); } }, 15000);
+      const timer = setTimeout(() => { if (!finished) { finished = true; this.destroy(); reject(new Error('timeout')); } }, waitMs);
       const attempt = (n) => {
-        const code = makeCode();
+        const code = fixed || makeCode();
         const peer = new Peer(PREFIX + code.toLowerCase(), { debug: 0 });
         let opened = false;
         peer.on('open', () => {
@@ -47,14 +48,16 @@ export class HostNet {
           opened = true; finished = true; clearTimeout(timer);
           this.peer = peer; this.code = code;
           peer.on('connection', (conn) => this.accept(conn));
-          peer.on('disconnected', () => { try { if (!peer.destroyed) peer.reconnect(); } catch (e) { /* ignore */ } });
+          // signalling server dropped us: reconnect so new players can still find the room (never while shutting down)
+          peer.on('disconnected', () => { if (this.closing) return; setTimeout(() => { try { if (!this.closing && !peer.destroyed) peer.reconnect(); } catch (e) { /* ignore */ } }, 1000); });
           resolve(code);
         });
         peer.on('error', (e) => {
           if (opened) { console.warn('PeerJS:', e.type); return; }
           peer.destroy();
           if (finished) return;
-          if (e.type === 'unavailable-id' && n < 4) attempt(n + 1);
+          if (e.type === 'unavailable-id' && fixed) setTimeout(() => { if (!finished) attempt(n + 1); }, 1500);
+          else if (e.type === 'unavailable-id' && n < 4) attempt(n + 1);
           else { finished = true; clearTimeout(timer); reject(e); }
         });
       };
@@ -88,6 +91,16 @@ export class HostNet {
   }
 
   markPlayer(pid) { const i = this.conns.get(pid); if (i) i.player = true; }
+
+  // A reconnecting player gets their old player number back.
+  rebind(from, to) {
+    const i = this.conns.get(from);
+    if (!i || this.conns.has(to)) return false;
+    this.conns.delete(from);
+    i.pid = to;
+    this.conns.set(to, i);
+    return true;
+  }
 
   send(pid, msg) {
     const i = this.conns.get(pid);
@@ -130,6 +143,7 @@ export class HostNet {
   }
 
   destroy() {
+    this.closing = true;
     for (const i of this.conns.values()) { try { i.conn.close(); } catch (e) { /* ignore */ } }
     this.conns.clear();
     if (this.peer) { try { this.peer.destroy(); } catch (e) { /* ignore */ } }
@@ -141,6 +155,7 @@ export class HostNet {
 export class OfflineNet {
   constructor() { this.code = null; this.onMsg = null; this.onLeave = null; }
   markPlayer() {}
+  rebind() { return false; }
   send() {}
   broadcast() {}
   kick() {}
