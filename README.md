@@ -20,6 +20,14 @@ Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda
 | Tab | Skor tablosu |
 | M | Sesi aç / kapat |
 
+### Telefonda
+
+Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu ittiğin sürece silah ateş eder. Yetenek, Menü ve Skor için ekrandaki düğmeleri kullan.
+
+### Ayarlar
+
+Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, gece karanlığı, yakınlaştırma, ekran sarsıntısı, hasar sayıları ve kameranın nişan yönüne kayması. Ayarlar tarayıcında saklanır.
+
 ## Sınıflar
 
 | Sınıf | Silah | Yetenek |

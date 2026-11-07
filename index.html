@@ -41,7 +41,10 @@
           <input id="code" class="code-input" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ODA KODU">
           <button id="btn-join" class="btn" type="button">Katıl</button>
         </div>
-        <button id="btn-solo" class="btn ghost" type="button">Tek başına oyna</button>
+        <div class="row two">
+          <button id="btn-solo" class="btn ghost" type="button">Tek başına oyna</button>
+          <button id="btn-settings" class="btn ghost" type="button">Ayarlar</button>
+        </div>
         <p id="menu-msg" class="msg" role="status" hidden></p>
       </div>
     </div>
@@ -170,6 +173,7 @@
         <div class="esc-actions">
           <button id="esc-resume" class="btn primary" type="button">Oyuna dön</button>
           <button id="esc-mute" class="btn" type="button">Ses açık</button>
+          <button id="esc-settings" class="btn" type="button">Ayarlar</button>
           <button id="esc-leave" class="btn ghost" type="button">Odadan ayrıl</button>
         </div>
         <ul class="esc-keys">
@@ -233,9 +237,11 @@
       <p class="eyebrow">Oyun bitti</p>
       <h2 class="h2">Kuşatma düştü</h2>
       <p id="over-sub" class="lead"></p>
+      <p id="over-record" class="record" hidden>Yeni rekor!</p>
+      <div id="over-awards" class="awards"></div>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>#</th><th>Oyuncu</th><th>Sınıf</th><th class="num">Leş</th><th class="num">Hasar</th></tr></thead>
+          <thead><tr><th>#</th><th>Oyuncu</th><th>Sınıf</th><th class="num">Leş</th><th class="num">Hasar</th><th class="num">Kaldırma</th><th class="num">Düşme</th></tr></thead>
           <tbody id="over-body"></tbody>
         </table>
       </div>
@@ -257,6 +263,28 @@
       </div>
     </div>
   </div>
+
+  <div id="settings" class="confirm" hidden>
+    <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="card-head"><h3 id="settings-title">Ayarlar</h3><button id="settings-close" class="btn small" type="button">Kapat</button></div>
+      <label class="set-row" for="set-volume"><span>Ses seviyesi</span><output id="set-volume-out">70</output><input id="set-volume" type="range" min="0" max="100" step="5"></label>
+      <label class="set-row" for="set-darkness"><span>Gece karanlığı</span><output id="set-darkness-out">50</output><input id="set-darkness" type="range" min="20" max="70" step="5"></label>
+      <label class="set-row" for="set-zoom"><span>Yakınlaştırma</span><output id="set-zoom-out">100</output><input id="set-zoom" type="range" min="70" max="160" step="5"></label>
+      <label class="set-check" for="set-shake"><input id="set-shake" type="checkbox"><span>Ekran sarsıntısı</span></label>
+      <label class="set-check" for="set-dmgnums"><input id="set-dmgnums" type="checkbox"><span>Hasar sayıları</span></label>
+      <label class="set-check" for="set-lead"><input id="set-lead" type="checkbox"><span>Kamera nişan yönüne kaysın</span></label>
+      <div class="row end"><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div>
+    </div>
+  </div>
+
+  <div id="touch" class="touchpad" hidden>
+    <div id="stick-move" class="stick left" aria-hidden="true"><i></i></div>
+    <div id="stick-aim" class="stick right" aria-hidden="true"><i></i></div>
+    <button id="t-ab" class="t-btn t-ability" type="button">Yetenek</button>
+    <button id="t-menu" class="t-btn t-pause" type="button">Menü</button>
+    <button id="t-board" class="t-btn t-score" type="button">Skor</button>
+  </div>
+  <div id="rotate" class="rotate" hidden><strong>Telefonunu yan çevir</strong><span>Kuşatma yatay ekranda oynanır.</span></div>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="build" class="build" aria-label="Yapı numarası"></div>

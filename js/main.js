@@ -7,6 +7,7 @@ import { Renderer, drawCharacter } from './render.js';
 import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
+import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -31,6 +32,9 @@ const S = {
 };
 
 const renderer = new Renderer($('#game'));
+const IS_TOUCH = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches);
+document.body.classList.toggle('touch', IS_TOUCH);
+try { if (IS_TOUCH && !localStorage.getItem('kusatma-zoom')) zoom = 0.85; } catch (e) { /* ignore */ }
 window.addEventListener('resize', () => renderer.resize());
 
 // ---------- helpers ----------
@@ -39,6 +43,8 @@ function show(screen) {
   for (const id of ['menu', 'lobby', 'over']) $('#' + id).hidden = id !== screen;
   $('#hud').hidden = screen !== 'game';
   document.body.classList.toggle('playing', screen === 'game');
+  $('#touch').hidden = !(IS_TOUCH && screen === 'game');
+  updateRotate();
   if (screen !== 'game') { $('#board').hidden = true; if (S.game) { S.game.input.down = false; S.game.input.keys.clear(); } }
 }
 
@@ -194,7 +200,7 @@ function onMessage(m) {
       break;
     case 'r': onRoster(m); break;
     case 's': if (S.game) S.game.onSnap(m); break;
-    case 'o': S.over = m; saveBest(m.wave); renderOver(); if (S.roster) route(); break;
+    case 'o': S.over = m; m.record = saveBest(m.wave); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
     default: break;
@@ -416,7 +422,33 @@ $('#btn-copy').addEventListener('click', async () => {
 function renderOver() {
   const o = S.over;
   if (!o) return;
-  $('#over-sub').textContent = `${o.wave}. dalgaya kadar dayandınız.`;
+  const mins = Math.floor((o.time || 0) / 60), secs = String((o.time || 0) % 60).padStart(2, '0');
+  const parts = [`${o.wave}. dalgaya kadar dayandınız`, `${mins}:${secs} dakika`];
+  if (o.theme && MAPS[o.theme]) parts.push(MAPS[o.theme].name);
+  if (o.diff && DIFFS[o.diff]) parts.push(DIFFS[o.diff].name);
+  $('#over-sub').textContent = parts.join(' · ');
+  $('#over-record').hidden = !o.record;
+
+  // awards: only shown when someone actually earned them
+  const score = (p) => p.kills * 2 + p.dmg / 50 + p.revives * 15 - p.downs * 5;
+  const best = (f, min = 1) => { let top = null; for (const p of o.P) if (f(p) >= min && (!top || f(p) > f(top))) top = p; return top; };
+  const awards = [];
+  const mvp = best(score, -Infinity);
+  if (mvp && o.P.length > 1) awards.push(['Takımın yıldızı', mvp, `${fmt(mvp.kills)} leş, ${fmt(mvp.revives)} kaldırma`, true]);
+  const k = best((p) => p.kills); if (k) awards.push(['Kasap', k, `${fmt(k.kills)} leş`]);
+  const d = best((p) => p.dmg); if (d) awards.push(['Yıkıcı', d, `${fmt(d.dmg)} hasar`]);
+  const r = best((p) => p.revives); if (r) awards.push(['Melek', r, `${fmt(r.revives)} kez kaldırdı`]);
+  const pk = best((p) => p.picks); if (pk) awards.push(['Toplayıcı', pk, `${fmt(pk.picks)} eşya topladı`]);
+  const never = o.P.filter((p) => p.downs === 0);
+  if (never.length === 1 && o.P.length > 1) awards.push(['Ölümsüz', never[0], 'Hiç düşmedi']);
+  $('#over-awards').replaceChildren(...awards.map(([title, p, stat, gold]) => {
+    const card = el('div', 'award' + (gold ? ' mvp' : ''));
+    const name = el('b', '', p.name + (p.pid === S.me ? ' (sen)' : ''));
+    name.style.color = p.color;
+    card.append(el('span', 'eyebrow', title), name, el('small', '', stat));
+    return card;
+  }));
+
   const body = $('#over-body');
   body.replaceChildren();
   o.P.forEach((p, i) => {
@@ -424,7 +456,7 @@ function renderOver() {
     const who = el('div', 'who'); const dot = el('span', 'dot'); dot.style.background = p.color;
     who.append(dot, el('span', '', p.name + (p.pid === S.me ? ' (sen)' : '')));
     const tdWho = el('td'); tdWho.append(who);
-    tr.append(el('td', '', String(i + 1)), tdWho, el('td', '', CLASSES[p.cls].name), el('td', 'num', fmt(p.kills)), el('td', 'num', fmt(p.dmg)));
+    tr.append(el('td', '', String(i + 1)), tdWho, el('td', '', CLASSES[p.cls].name), el('td', 'num', fmt(p.kills)), el('td', 'num', fmt(p.dmg)), el('td', 'num', fmt(p.revives || 0)), el('td', 'num', fmt(p.downs || 0)));
     body.append(tr);
   });
   const isHost = S.role === 'host';
@@ -445,6 +477,7 @@ function startLoop() {
     const g = S.game;
     if (!g || S.screen !== 'game') return;
     g.zoom = zoom;
+    g.touch = IS_TOUCH;
     g.update(dt);
     renderer.draw(g, g.roster);
     S.hudT -= dt;
@@ -520,6 +553,13 @@ function updateHud() {
   $('#hud-ab-cd').textContent = left > 0 ? `${Math.ceil(left)} sn` : 'Hazır';
   $('#hud-ab-fill').style.height = (left > 0 ? (1 - left / cd) * 100 : 100) + '%';
   $('#hud-ab').classList.toggle('ready', left <= 0);
+  if (IS_TOUCH) {
+    const fighting = g.phase === 'combat' && me.alive;
+    $('#stick-aim').hidden = !fighting;
+    $('#t-ab').hidden = !me.alive;
+    $('#t-ab').classList.toggle('ready', left <= 0);
+    $('#t-ab').textContent = left > 0 ? `${Math.ceil(left)} sn` : c.ab.name;
+  }
   $('#hud-ab').title = c.ab.desc;
   const act = g.fx.get(S.me);
   if (act && g.time < act.until) { $('#hud-ab-cd').textContent = `Aktif: ${Math.ceil(act.until - g.time)} sn`; $('#hud-ab').classList.add('active'); }
@@ -728,9 +768,7 @@ $('#name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createRoo
 const hashCode = cleanCode(location.hash.slice(1));
 if (hashCode.length === CODE_LEN) { $('#code').value = hashCode; menuMsg('Takma adını yaz ve “Katıl”a bas.', true); }
 
-if (window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches) {
-  menuMsg('Kuşatma klavye ve fare ile oynanır. En iyi deneyim için bilgisayardan aç.', true);
-}
+if (IS_TOUCH && !hashCode) menuMsg('Telefonda: sol çubukla yürü, sağ çubukla nişan al ve ateş et.', true);
 
 // ---------- Esc menu (pauses solo games) ----------
 function openEsc() {
@@ -804,8 +842,10 @@ function addChat(pid, text) {
 
 // ---------- best wave, kept in this browser ----------
 function saveBest(w) {
-  try { const b = Number(localStorage.getItem('kusatma-rekor')) || 0; if (w > b) localStorage.setItem('kusatma-rekor', String(w)); } catch (e) { /* ignore */ }
+  let record = false;
+  try { const b = Number(localStorage.getItem('kusatma-rekor')) || 0; if (w > b) { localStorage.setItem('kusatma-rekor', String(w)); record = b > 0; } } catch (e) { /* ignore */ }
   showBest();
+  return record;
 }
 function showBest() {
   let b = 0;
@@ -814,6 +854,69 @@ function showBest() {
   $('#best-label').textContent = b ? 'en iyi dalgan' : 'henüz rekor yok';
 }
 showBest();
+
+// ---------- settings dialog ----------
+function openSettings() {
+  $('#set-volume').value = SETTINGS.volume;
+  $('#set-darkness').value = SETTINGS.darkness;
+  $('#set-zoom').value = Math.round(zoom * 100);
+  $('#set-shake').checked = SETTINGS.shake;
+  $('#set-dmgnums').checked = SETTINGS.dmgNums;
+  $('#set-lead').checked = SETTINGS.lead;
+  syncSettingsLabels();
+  $('#settings').hidden = false;
+  $('#settings-close').focus();
+}
+function syncSettingsLabels() {
+  $('#set-volume-out').textContent = `%${$('#set-volume').value}`;
+  $('#set-darkness-out').textContent = `%${$('#set-darkness').value}`;
+  $('#set-zoom-out').textContent = `%${$('#set-zoom').value}`;
+}
+$('#btn-settings').addEventListener('click', openSettings);
+$('#esc-settings').addEventListener('click', openSettings);
+$('#settings-close').addEventListener('click', () => { $('#settings').hidden = true; });
+$('#set-volume').addEventListener('input', (e) => { setSetting('volume', Number(e.target.value)); syncSettingsLabels(); });
+$('#set-darkness').addEventListener('input', (e) => { setSetting('darkness', Number(e.target.value)); syncSettingsLabels(); });
+$('#set-zoom').addEventListener('input', (e) => { setZoom(Number(e.target.value) / 100); syncSettingsLabels(); });
+$('#set-shake').addEventListener('change', (e) => setSetting('shake', e.target.checked));
+$('#set-dmgnums').addEventListener('change', (e) => setSetting('dmgNums', e.target.checked));
+$('#set-lead').addEventListener('change', (e) => setSetting('lead', e.target.checked));
+$('#settings-reset').addEventListener('click', () => { resetSettings(); setZoom(IS_TOUCH ? 0.85 : 1); openSettings(); });
+onSettings((st) => sfx.setVolume(st.volume / 100));
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#settings').hidden) { e.stopImmediatePropagation(); $('#settings').hidden = true; } }, { capture: true });
+
+// ---------- phone controls ----------
+function stick(elm, onMove) {
+  const knob = elm.querySelector('i');
+  let id = null;
+  const at = (e) => {
+    const r = elm.getBoundingClientRect();
+    let x = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), y = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+    const l = Math.hypot(x, y);
+    if (l > 1) { x /= l; y /= l; }
+    knob.style.transform = `translate(${x * r.width * 0.32}px, ${y * r.height * 0.32}px)`;
+    onMove(x, y);
+  };
+  elm.addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.unlock(); id = e.pointerId; elm.setPointerCapture(id); at(e); });
+  elm.addEventListener('pointermove', (e) => { if (e.pointerId === id) at(e); });
+  const end = (e) => { if (e.pointerId !== id) return; id = null; knob.style.transform = ''; onMove(0, 0); };
+  elm.addEventListener('pointerup', end);
+  elm.addEventListener('pointercancel', end);
+}
+stick($('#stick-move'), (x, y) => { if (S.game) S.game.input.tmove = { x, y }; });
+stick($('#stick-aim'), (x, y) => {
+  if (!S.game) return;
+  const l = Math.hypot(x, y);
+  S.game.input.taim = l > 0.2 ? Math.atan2(y, x) : null;
+  S.game.input.tfire = l > 0.35;
+});
+$('#t-ab').addEventListener('pointerdown', (e) => { e.preventDefault(); if (S.game) S.game.input.ab = true; });
+$('#t-menu').addEventListener('click', () => { if ($('#esc').hidden) openEsc(); else closeEsc(); });
+$('#t-board').addEventListener('click', () => { const b = $('#board'); b.hidden = !b.hidden; if (!b.hidden) renderBoard(); });
+function updateRotate() {
+  $('#rotate').hidden = !(IS_TOUCH && S.screen === 'game' && window.innerHeight > window.innerWidth);
+}
+window.addEventListener('resize', updateRotate);
 
 $('#build').textContent = `Yapı ${BUILD}`;
 show('menu');

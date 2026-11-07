@@ -1,10 +1,10 @@
 // Canvas drawing: an abandoned plaza at night, seen from above, lit by the team's flashlights.
 import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, isBoss, clamp } from './config.js';
 import { WORLD, obstaclesIn } from './world.js';
+import { SETTINGS } from './settings.js';
 
 const DECAL_SCALE = 0.5;
 const MINI_W = 180;
-const DARKNESS = 0.5;
 const SKIN = '#d9a77a';
 
 export class Renderer {
@@ -83,7 +83,7 @@ export class Renderer {
     const scale = clamp(Math.min(vw, vh) / 900, 0.55, 1.15) * game.zoom;
     let fx = S.x, fy = S.y;
     if (game.spectate != null) { const p = game.ps.get(game.spectate); if (p) { fx = p.x; fy = p.y; } }
-    else if (S.alive) {
+    else if (S.alive && SETTINGS.lead && !game.touch) {
       fx += clamp((game.input.mx - vw / 2) / scale, -400, 400) * 0.18;
       fy += clamp((game.input.my - vh / 2) / scale, -300, 300) * 0.18;
     }
@@ -92,7 +92,7 @@ export class Renderer {
     cam.x += (fx - cam.x) * k;
     cam.y += (fy - cam.y) * k;
     cam.scale = scale; cam.vw = vw; cam.vh = vh;
-    const sh = game.shake;
+    const sh = SETTINGS.shake ? game.shake : 0;
     const ox = sh ? (Math.random() - 0.5) * sh : 0, oy = sh ? (Math.random() - 0.5) * sh : 0;
 
     const world = (ctx, s) => { ctx.translate(vw / 2 * s + ox * s, vh / 2 * s + oy * s); ctx.scale(scale * s, scale * s); ctx.translate(-cam.x, -cam.y); };
@@ -219,6 +219,7 @@ export class Renderer {
     for (const [pid, p] of game.ps) if (inView(p.x, p.y)) drawTag(g, p, roster.get(pid), pid === game.me);
     g.font = '700 14px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
     for (const t of game.texts) {
+      g.font = t.small ? '700 12px Rubik, system-ui, sans-serif' : '700 14px Rubik, system-ui, sans-serif';
       g.globalAlpha = Math.max(0, 1 - t.t / 1.2);
       g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillText(t.txt, t.x + 1, t.y + 1);
       g.fillStyle = t.col; g.fillText(t.txt, t.x, t.y);
@@ -238,7 +239,7 @@ export class Renderer {
     }
     this.drawMates(g, game, roster);
     this.drawMinimap(g, game, roster);
-    if (S.inGame && S.alive) this.drawCrosshair(g, game);
+    if (S.inGame && S.alive && !game.touch) this.drawCrosshair(g, game);
   }
 
   drawLights(game, world, inView) {
@@ -246,7 +247,7 @@ export class Renderer {
     l.setTransform(1, 0, 0, 1, 0, 0);
     l.globalCompositeOperation = 'source-over';
     l.clearRect(0, 0, this.lightCv.width, this.lightCv.height);
-    l.fillStyle = `rgba(4,7,12,${DARKNESS})`;
+    l.fillStyle = `rgba(4,7,12,${SETTINGS.darkness / 100})`;
     l.fillRect(0, 0, this.lightCv.width, this.lightCv.height);
     l.save();
     world(l, 0.5);

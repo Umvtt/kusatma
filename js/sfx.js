@@ -3,6 +3,8 @@ let ctx = null, master = null, noise = null;
 let muted = false;
 try { muted = localStorage.getItem('kusatma-ses') === '0'; } catch (e) { /* ignore */ }
 const listener = { x: 0, y: 0 };
+let level = 0.5; // master volume when not muted
+export function setVolume(v) { level = Math.max(0, Math.min(1, v)) * 0.7; if (master) master.gain.value = muted ? 0 : level; }
 let budget = 0, budgetT = 0;
 
 export function unlock() {
@@ -11,7 +13,7 @@ export function unlock() {
   if (!AC) return;
   ctx = new AC();
   master = ctx.createGain();
-  master.gain.value = muted ? 0 : 0.5;
+  master.gain.value = muted ? 0 : level;
   const comp = ctx.createDynamicsCompressor();
   master.connect(comp).connect(ctx.destination);
   noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
@@ -23,7 +25,7 @@ export function isMuted() { return muted; }
 export function toggleMute() {
   muted = !muted;
   try { localStorage.setItem('kusatma-ses', muted ? '0' : '1'); } catch (e) { /* ignore */ }
-  if (master) master.gain.value = muted ? 0 : 0.5;
+  if (master) master.gain.value = muted ? 0 : level;
   return muted;
 }
 export function setListener(x, y) { listener.x = x; listener.y = y; }

@@ -365,9 +365,9 @@ export class HostGame {
   gameOver() {
     this.phase = 'over';
     const P = this.inGame()
-      .map((p) => ({ pid: p.pid, name: p.name, cls: p.cls, color: p.color, kills: p.kills, dmg: Math.round(p.dmg) }))
+      .map((p) => ({ pid: p.pid, name: p.name, cls: p.cls, color: p.color, kills: p.kills, dmg: Math.round(p.dmg), revives: p.revives || 0, downs: p.downs || 0, picks: p.picks || 0, wt: p.wt || 0 }))
       .sort((a, b) => b.kills - a.kills);
-    this.out({ t: 'o', wave: this.wave, P });
+    this.out({ t: 'o', wave: this.wave, P, time: Math.round(this.time), diff: this.diff, theme: this.theme });
     this.pushRoster();
   }
 

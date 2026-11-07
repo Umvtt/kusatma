@@ -3,6 +3,7 @@
 import { CX, CY, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS } from './config.js';
 import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds } from './world.js';
 import * as sfx from './sfx.js';
+import { SETTINGS } from './settings.js';
 
 const SEND_INTERVAL = 0.05;
 const MAX_PARTS = 700;
@@ -50,7 +51,8 @@ export class ClientGame {
     this.shake = 0;
     this.hitMark = 0;
     this.zoom = 1;
-    this.input = { keys: new Set(), mx: 0, my: 0, down: false, ab: false };
+    this.input = { keys: new Set(), mx: 0, my: 0, down: false, ab: false, tmove: null, taim: null, tfire: false };
+    this.touch = false;
     this.cam = { x: CX, y: CY, scale: 1, vw: 1, vh: 1 };
     this.hm = 1;
     this.spectate = null;
@@ -229,8 +231,10 @@ export class ClientGame {
       if (k.has('KeyS') || k.has('ArrowDown')) my += 1;
       if (k.has('KeyA') || k.has('ArrowLeft')) mx -= 1;
       if (k.has('KeyD') || k.has('ArrowRight')) mx += 1;
-      const len = Math.hypot(mx, my);
-      const spd = st.spd * (this.fxOn(this.me, 'sprint') ? 1.6 : 1) * (S.haste > 0 ? 1.4 : 1);
+      let len = Math.hypot(mx, my), push = 1;
+      const tm = this.input.tmove;
+      if (len === 0 && tm && (tm.x || tm.y)) { mx = tm.x; my = tm.y; len = Math.hypot(mx, my); push = Math.min(1, len); } // joystick: analog
+      const spd = st.spd * (this.fxOn(this.me, 'sprint') ? 1.6 : 1) * (S.haste > 0 ? 1.4 : 1) * push;
       const bx = S.x, by = S.y;
       if (len > 0) moveCircle(S, (mx / len) * spd * dt, (my / len) * spd * dt, PLAYER_R);
       if (S.kvx || S.kvy) {
@@ -248,12 +252,13 @@ export class ClientGame {
       }
       resolveCircle(S, PLAYER_R);
       if (meP) meP.walk += Math.hypot(S.x - bx, S.y - by);
-      const w = this.toWorld(this.input.mx, this.input.my);
-      S.a = Math.atan2(w.y - S.y, w.x - S.x);
+      if (this.input.taim != null) S.a = this.input.taim;
+      else if (len > 0 && this.touch) S.a = Math.atan2(my, mx); // no aim stick: face where you walk
+      else if (!this.touch) { const w = this.toWorld(this.input.mx, this.input.my); S.a = Math.atan2(w.y - S.y, w.x - S.x); }
 
       const rate = st.rate * (this.fxOn(this.me, 'rage') ? 2 : 1);
       this.fireT = Math.max(0, this.fireT - dt);
-      if (this.input.down && this.fireT <= 0) { this.fire(this.myWeapon, st); this.fireT = 1 / rate; }
+      if ((this.input.down || this.input.tfire) && this.fireT <= 0) { this.fire(this.myWeapon, st); this.fireT = 1 / rate; }
 
       this.abLock = Math.max(0, this.abLock - dt);
       if (this.input.ab && S.abLeft <= 0 && this.abLock <= 0) {
@@ -426,6 +431,9 @@ export class ClientGame {
     if (z.hp - pending <= 0) z.dying = this.time;
     if (this.hitMark < 0.05) sfx.hit();
     this.hitMark = 0.12;
+    if (SETTINGS.dmgNums && this.texts.length < 40) {
+      this.texts.push({ x: z.x + (Math.random() - 0.5) * 16, y: z.y - ZTYPES[z.t].r - 4, txt: String(Math.round(dmg)), col: '#ffe1a6', t: 0.5, small: true });
+    }
   }
 
   grenadeBlast(b) {
