@@ -128,3 +128,13 @@ export function waveStart() { const v = vol(null, null, 0.45); if (v) { tone(v, 
 export function waveClear() { const v = vol(null, null, 0.35); if (v) { tone(v, 0.2, 440, 440, 'triangle'); tone(v, 0.35, 660, 660, 'triangle', 0.15); } }
 export function buy() { const v = vol(null, null, 0.25); if (v) { tone(v, 0.08, 880, 880, 'square'); tone(v, 0.12, 1320, 1320, 'square', 0.06); } }
 export function down() { const v = vol(null, null, 0.4); if (v) tone(v, 0.6, 400, 80, 'sawtooth'); }
+export function summon(x, y) { const v = vol(x, y, 0.35); if (v) { tone(v, 0.7, 220, 110, 'sine'); tone(v * 0.6, 0.7, 330, 165, 'triangle', 0.05); burst(v * 0.3, 0.5, 600, 4, 'bandpass'); } }
+export function clang(x, y) { const v = vol(x, y, 0.15); if (v) { tone(v, 0.08, 1400, 1300, 'square'); burst(v * 0.5, 0.05, 3500, 5, 'bandpass'); } }
+export function pickup(k, x, y) {
+  const v = vol(x, y, 0.35);
+  if (!v) return;
+  if (k === 0) { tone(v, 0.15, 500, 750); tone(v, 0.2, 750, 1000, 'sine', 0.1); }        // heal
+  else if (k === 1) { tone(v, 0.06, 1500, 1500, 'square'); tone(v, 0.12, 2000, 2000, 'square', 0.06); } // coins
+  else if (k === 2) { tone(v, 0.3, 200, 500, 'sawtooth'); tone(v * 0.5, 0.3, 300, 750, 'square', 0.05); } // power
+  else { burst(v, 0.25, 1400, 1, 'bandpass'); tone(v * 0.5, 0.25, 400, 1200, 'sine'); }   // speed
+}

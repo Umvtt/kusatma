@@ -1,5 +1,5 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
+import { ZTYPES, WEAPON_COST, weaponOf, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
@@ -456,7 +456,11 @@ function startLoop() {
 
 function notice(n) {
   const g = S.game;
-  if (n.k === 'wave') banner(n.w % 5 === 0 ? 'Dev geliyor' : 'Sürü yaklaşıyor', `Dalga ${n.w}`, n.w % 5 === 0 ? 'Bu dalgada bir Dev var. Birlikte vurun.' : 'Sırt sırta verin.');
+  if (n.k === 'wave') {
+    const boss = n.boss ? ZTYPES[n.boss].name : null;
+    const tip = { 3: 'Yere vurmadan önce kırmızı halkadan çıkın.', 8: 'Asit yağdırır ve koşucu çağırır. Dağılın.', 9: 'Kırmızı çizgiden kaçın, sonra arkasından vurun.' }[n.boss];
+    banner(boss ? `${boss} geliyor` : 'Sürü yaklaşıyor', `Dalga ${n.w}`, boss ? tip : 'Sırt sırta verin.');
+  }
   else if (n.k === 'clear') banner('Dalga temizlendi', 'Mola', `Herkese +${n.bonus} altın. Cephanelikten yükseltme al.`);
   else if (n.k === 'down') toast(n.pid === S.me ? 'Düştün!' : `${g.nameOf(n.pid)} düştü!`, 'bad');
   else if (n.k === 'up') toast(`${g.nameOf(n.pid)} ayağa kalktı.`, 'good');
@@ -521,6 +525,18 @@ function updateHud() {
   if (act && g.time < act.until) { $('#hud-ab-cd').textContent = `Aktif: ${Math.ceil(act.until - g.time)} sn`; $('#hud-ab').classList.add('active'); }
   else $('#hud-ab').classList.remove('active');
   $('#hud-gold').textContent = fmt(me.gold);
+  $('#hud-class').textContent = `${c.name} · ${g.myWeapon.name}`;
+  const buffs = [];
+  if (me.power > 0) buffs.push(['power', `Güç ${Math.ceil(me.power)} sn`]);
+  if (me.haste > 0) buffs.push(['haste', `Hız ${Math.ceil(me.haste)} sn`]);
+  const bl = $('#hud-buffs');
+  if (bl.dataset.sig !== buffs.join()) { bl.dataset.sig = buffs.join(); bl.replaceChildren(...buffs.map(([k, t]) => el('span', 'buff ' + k, t))); }
+  const boss = g.boss();
+  $('#boss').hidden = !boss;
+  if (boss) {
+    $('#boss-name').textContent = ZTYPES[boss.t].name;
+    $('#boss-fill').style.width = Math.max(0, Math.min(1, boss.hp / boss.max)) * 100 + '%';
+  }
   $('#hud-kills').textContent = fmt(me.kills);
 
   // downed
@@ -543,7 +559,7 @@ function updateHud() {
 function buildShop() {
   const list = $('#shop-list');
   list.replaceChildren();
-  const items = [...UPGRADES.map((u) => ({ k: u.k, name: u.name, desc: u.desc, u })), { k: 'heal', name: 'Sargı', desc: 'Canını tamamen doldurur' }];
+  const items = [{ k: 'wpn', name: 'Silah', desc: '' }, ...UPGRADES.map((u) => ({ k: u.k, name: u.name, desc: u.desc, u })), { k: 'heal', name: 'Sargı', desc: 'Canını tamamen doldurur' }];
   items.forEach((it, i) => {
     const li = el('li');
     const b = el('button', 'shop-item');
@@ -552,6 +568,7 @@ function buildShop() {
     const cost = el('span', 'cost'); cost.append(el('span', 'coin'), el('span', 'cv'));
     b.append(el('span', 'hk', String(i + 1)), el('span', 'nm', it.name), cost, el('span', 'ds', it.desc));
     if (it.u) { const pips = el('span', 'pips'); for (let j = 0; j < it.u.max; j++) pips.append(el('i')); b.append(pips); }
+    if (it.k === 'wpn') { b.classList.add('weapon'); const pips = el('span', 'pips'); for (let j = 0; j < 2; j++) pips.append(el('i')); b.append(pips); }
     b.addEventListener('click', () => buy(it.k));
     li.append(b);
     list.append(li);
@@ -580,6 +597,14 @@ function updateShop() {
     if (k === 'heal') {
       cost = HEAL_COST;
       can = g.self.alive && g.self.hp < g.self.maxHp && g.self.gold >= cost;
+    } else if (k === 'wpn') {
+      const wt = g.self.wt;
+      maxed = wt >= 2;
+      cost = maxed ? 0 : WEAPON_COST[wt + 1];
+      can = !maxed && g.self.gold >= cost && g.self.alive;
+      b.querySelector('.nm').textContent = maxed ? weaponOf(g.cls, 2).name : `Silah: ${weaponOf(g.cls, wt + 1).name}`;
+      b.querySelector('.ds').textContent = maxed ? 'En güçlü silahın elinde' : '+%35 hasar, daha hızlı ateş';
+      b.querySelectorAll('.pips i').forEach((p, i) => p.classList.toggle('on', i < wt));
     } else {
       const u = UPGRADES.find((x) => x.k === k);
       const lv = g.self.lv[k];
@@ -642,9 +667,9 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Equal' || e.code === 'NumpadAdd') { setZoom(zoom * 1.12); return; }
   if (e.code === 'Minus' || e.code === 'NumpadSubtract') { setZoom(zoom / 1.12); return; }
   if (e.code === 'Space') { if (!e.repeat) S.game.input.ab = true; return; }
-  if (/^Digit[1-6]$/.test(e.code)) {
+  if (/^Digit[1-7]$/.test(e.code)) {
     const i = Number(e.code.slice(5)) - 1;
-    const k = i < UPGRADES.length ? UPGRADES[i].k : 'heal';
+    const k = i === 0 ? 'wpn' : i <= UPGRADES.length ? UPGRADES[i - 1].k : 'heal';
     buy(k);
     return;
   }

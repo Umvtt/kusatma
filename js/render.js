@@ -1,5 +1,5 @@
 // Canvas drawing: an abandoned plaza at night, seen from above, lit by the team's flashlights.
-import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, clamp } from './config.js';
+import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, isBoss, clamp } from './config.js';
 import { WORLD, obstaclesIn } from './world.js';
 
 const DECAL_SCALE = 0.5;
@@ -107,6 +107,7 @@ export class Renderer {
 
     for (const o of new Set(obstaclesIn(view.l - 60, view.t - 60, view.r + 60, view.b + 60))) drawObstacle(g, o);
     for (const m of game.mines) drawMine(g, m, game.time);
+    for (const it of game.items) if (inView(it[2], it[3])) drawItem(g, it, game.time);
     for (const t of game.ts.values()) drawTurret(g, t);
 
     // downed players lie under everything
@@ -216,6 +217,13 @@ export class Renderer {
     g.globalCompositeOperation = 'source-over';
     for (const m of game.mines) if (m[3] && Math.sin(game.time * 8 + m[0]) > 0) { g.fillStyle = '#ff3b30'; g.beginPath(); g.arc(m[1], m[2], 2.5, 0, Math.PI * 2); g.fill(); }
     for (const [pid, p] of game.ps) if (inView(p.x, p.y)) drawTag(g, p, roster.get(pid), pid === game.me);
+    g.font = '700 14px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
+    for (const t of game.texts) {
+      g.globalAlpha = Math.max(0, 1 - t.t / 1.2);
+      g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillText(t.txt, t.x + 1, t.y + 1);
+      g.fillStyle = t.col; g.fillText(t.txt, t.x, t.y);
+    }
+    g.globalAlpha = 1;
     g.restore();
 
     // screen-space overlays
@@ -261,6 +269,7 @@ export class Renderer {
       l.beginPath(); l.moveTo(p.x, p.y); l.arc(p.x, p.y, len, p.a - half, p.a + half); l.closePath(); l.fill();
     }
     for (const t of game.ts.values()) glow(t.x, t.y, 90, 0.6);
+    for (const it of game.items) glow(it[2], it[3], 70, 0.7);
     for (const q of game.spits.values()) glow(q.x, q.y, 50, 0.6);
     for (const li of game.lights) glow(li.x, li.y, li.r, Math.min(1, li.life / li.max + 0.2));
     for (const b of game.bullets) if (b.kind === 'f' && inView(b.x, b.y)) glow(b.x, b.y, 50, 0.35);
@@ -345,8 +354,8 @@ export class Renderer {
     g.fillStyle = 'rgba(236,230,214,0.16)';
     for (const o of new Set(obstaclesIn(B.x0, B.y0, B.x1, B.y1))) g.fillRect(mx(o.x), my(o.y), Math.max(1, o.w * s), Math.max(1, o.h * s));
     for (const z of game.zs.values()) {
-      g.fillStyle = z.t === 3 ? '#ff6b2c' : z.t === 4 ? '#b5d43a' : '#e5484d';
-      const sz = z.t === 3 ? 4 : z.t === 2 ? 3 : 2;
+      g.fillStyle = isBoss(z.t) ? '#ff6b2c' : z.t === 4 ? '#b5d43a' : z.t === 7 ? '#c08ae0' : '#e5484d';
+      const sz = isBoss(z.t) ? 5 : z.t === 2 || z.t === 6 ? 3 : 2;
       g.fillRect(mx(z.x) - sz / 2, my(z.y) - sz / 2, sz, sz);
     }
     for (const [pid, p] of game.ps) {
@@ -585,6 +594,23 @@ function drawTurret(g, t) {
   }
 }
 
+function drawItem(g, it, time) {
+  const [id, k, x, y, life] = it;
+  if (life <= 5 && Math.sin(time * 14) < 0) return; // blink before vanishing
+  const bob = Math.sin(time * 3 + id) * 3;
+  const col = ITEMS[k].col;
+  g.save(); g.translate(x, y + bob);
+  g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(2, 10 - bob, 11, 5, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(13,17,15,0.85)'; g.strokeStyle = col; g.lineWidth = 2.5;
+  g.beginPath(); g.arc(0, 0, 13, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = col; g.strokeStyle = col;
+  if (k === 0) { g.fillRect(-2.5, -7, 5, 14); g.fillRect(-7, -2.5, 14, 5); }
+  else if (k === 1) { g.beginPath(); g.arc(-3, 2, 4.5, 0, Math.PI * 2); g.arc(3, 2, 4.5, 0, Math.PI * 2); g.arc(0, -3, 4.5, 0, Math.PI * 2); g.fill(); }
+  else if (k === 2) { g.beginPath(); g.moveTo(0, -8); g.lineTo(7, 0); g.lineTo(0, 8); g.lineTo(-7, 0); g.closePath(); g.fill(); g.fillStyle = '#1a0d05'; g.font = '700 9px Rubik, sans-serif'; g.textAlign = 'center'; g.fillText('2×', 0, 3); }
+  else { g.beginPath(); g.moveTo(2, -9); g.lineTo(-5, 1); g.lineTo(0, 1); g.lineTo(-2, 9); g.lineTo(5, -1); g.lineTo(0, -1); g.closePath(); g.fill(); }
+  g.restore();
+}
+
 function drawMine(g, m, time) {
   const [, x, y, armed] = m;
   g.fillStyle = 'rgba(0,0,0,0.35)';
@@ -598,12 +624,22 @@ function drawMine(g, m, time) {
 
 // ---------- zombies ----------
 function drawTelegraph(g, z, time) {
-  if (z.st === ZS.WINDUP && z.t === 2) {
-    const pulse = 0.25 + 0.2 * Math.sin(time * 20);
+  if (z.st === ZS.WINDUP && CHARGE[z.t]) {
+    const pulse = 0.25 + 0.2 * Math.sin(time * 20), c = CHARGE[z.t], r = ZTYPES[z.t].r;
     g.save(); g.translate(z.x, z.y); g.rotate(z.cdir);
     g.fillStyle = `rgba(229,72,77,${pulse})`;
-    g.fillRect(0, -ZTYPES[2].r, 380, ZTYPES[2].r * 2);
+    g.fillRect(0, -r, c.spd * c.dur, r * 2);
     g.restore();
+  } else if (z.st === ZS.FUSE) {
+    const pulse = 0.25 + 0.25 * Math.sin(time * 30);
+    g.fillStyle = `rgba(255,120,40,${pulse})`;
+    g.beginPath(); g.arc(z.x, z.y, 110, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = 'rgba(255,120,40,0.8)'; g.lineWidth = 3; g.stroke();
+  } else if (z.st === ZS.SUMMON) {
+    g.strokeStyle = `rgba(176,122,216,${0.5 + 0.3 * Math.sin(time * 12)})`; g.lineWidth = 4;
+    g.setLineDash([10, 8]);
+    g.beginPath(); g.arc(z.x, z.y, 70, time * 2, time * 2 + Math.PI * 2); g.stroke();
+    g.setLineDash([]);
   } else if (z.st === ZS.SLAM) {
     const pulse = 0.2 + 0.15 * Math.sin(time * 18);
     g.fillStyle = `rgba(229,72,77,${pulse})`;
@@ -625,11 +661,16 @@ function drawZombie(g, z, time) {
     g.fillStyle = 'rgba(229,72,77,0.13)';
     g.beginPath(); g.arc(0, 0, r + 10 + Math.sin(time * 4) * 3, 0, Math.PI * 2); g.fill();
   }
-  if (z.t === 4) {
+  if (z.t === 4 || z.t === 8) {
     g.fillStyle = `rgba(159,191,42,${0.15 + (z.st === ZS.SPIT ? 0.25 : 0)})`;
     g.beginPath(); g.arc(0, 0, r + 8, 0, Math.PI * 2); g.fill();
   }
-  g.rotate(z.face);
+  if (z.t === 5 && z.st === ZS.FUSE) { const s = 1 + 0.12 * Math.sin(time * 40); g.scale(s, s); }
+  if (z.t === 9) {
+    g.fillStyle = 'rgba(229,72,77,0.13)';
+    g.beginPath(); g.arc(0, 0, r + 10 + Math.sin(time * 5) * 3, 0, Math.PI * 2); g.fill();
+  }
+  g.rotate(z.t === 6 && z.sface ? z.sface : z.face);
   const sway = Math.sin(z.walk + z.id) * 0.25;
   const fl = z.flash > 0;
   // feet
@@ -661,9 +702,23 @@ function drawZombie(g, z, time) {
     g.fillStyle = '#3a1a14';
     for (const s of [-1, 1]) for (const k of [0.2, 0.55]) { g.beginPath(); g.moveTo(-r * k, s * r * 0.5); g.lineTo(-r * (k + 0.1), s * r * 1.05); g.lineTo(-r * (k - 0.12), s * r * 0.55); g.fill(); }
   }
-  if (z.t === 4) {
+  if (z.t === 4 || z.t === 8) {
     g.fillStyle = '#b5d43a';
     for (const [px, py] of [[-0.3, -0.4], [-0.45, 0.3], [0.05, 0.5]]) { g.beginPath(); g.arc(px * r, py * r, r * 0.18, 0, Math.PI * 2); g.fill(); }
+  }
+  if (z.t === 5) { // glowing pustules, brighter when about to burst
+    g.fillStyle = z.st === ZS.FUSE && Math.sin(time * 30) > 0 ? '#fff2a8' : '#ffb347';
+    for (const [px, py, pr] of [[-0.35, -0.35, 0.22], [-0.5, 0.25, 0.18], [0, 0.45, 0.2], [0.05, -0.55, 0.15]]) { g.beginPath(); g.arc(px * r, py * r, r * pr, 0, Math.PI * 2); g.fill(); }
+  }
+  if (z.t === 7) { // hooded caster with glowing hands
+    g.fillStyle = '#2a1a34';
+    g.beginPath(); g.ellipse(-r * 0.2, 0, r * 0.7, r * 0.95, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = `rgba(200,140,255,${0.6 + 0.4 * Math.sin(time * 6)})`;
+    for (const sd of [-1, 1]) { g.beginPath(); g.arc(r * 1.1, sd * r * 0.55, r * 0.22, 0, Math.PI * 2); g.fill(); }
+  }
+  if (z.t === 8) { // queen's crown of spikes
+    g.fillStyle = '#5a6a12';
+    for (let i = 0; i < 6; i++) { const a = Math.PI * 0.6 + i * 0.25; g.beginPath(); g.moveTo(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6); g.lineTo(Math.cos(a) * r * 1.15, Math.sin(a) * r * 1.15); g.lineTo(Math.cos(a + 0.12) * r * 0.6, Math.sin(a + 0.12) * r * 0.6); g.fill(); g.beginPath(); g.moveTo(Math.cos(-a) * r * 0.6, Math.sin(-a) * r * 0.6); g.lineTo(Math.cos(-a) * r * 1.15, Math.sin(-a) * r * 1.15); g.lineTo(Math.cos(-a - 0.12) * r * 0.6, Math.sin(-a - 0.12) * r * 0.6); g.fill(); }
   }
   // head
   g.fillStyle = fl ? '#fff' : T.col;
@@ -671,7 +726,18 @@ function drawZombie(g, z, time) {
   g.strokeStyle = T.dark; g.lineWidth = 1.5; g.stroke();
   g.fillStyle = 'rgba(0,0,0,0.25)';
   g.beginPath(); g.arc(r * 0.12, -r * 0.12, r * 0.18, 0, Math.PI * 2); g.fill();
+  if (z.t === 9) { // ram horns
+    g.strokeStyle = fl ? '#fff' : '#d8cfb0'; g.lineWidth = r * 0.16; g.lineCap = 'round';
+    for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(r * 0.3, sd * r * 0.3); g.quadraticCurveTo(r * 0.1, sd * r * 0.95, r * 0.75, sd * r * 0.8); g.stroke(); }
+  }
+  if (z.t === 6) { // riot shield held in front
+    g.fillStyle = fl ? '#fff' : '#8a949e';
+    rr(g, r * 0.95, -r * 1.1, r * 0.32, r * 2.2, 4); g.fill();
+    g.strokeStyle = '#3a4048'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = 'rgba(160,200,230,0.35)'; g.fillRect(r * 1.0, -r * 0.5, r * 0.18, r * 0.4);
+  }
   g.restore();
+  if (isBoss(z.t)) return; // bosses use the big bar at the top of the screen
   if (z.hp < z.max || z.dying) {
     // show the health the player's own hits have already taken off, so a finished zombie reads as empty
     const pending = z.pend ? z.pend.reduce((s, e) => s + e.d, 0) : 0;
@@ -686,17 +752,22 @@ function drawZombie(g, z, time) {
 const SHIRTS = ['#4b4f5c', '#5c4a3d', '#3f5560', '#5b5a44', '#604040', '#45503f'];
 function shirtOf(z) {
   if (z.t === 3) return '#5a2a22';
-  if (z.t === 4) return '#5f6a2a';
+  if (z.t === 4 || z.t === 8) return '#5f6a2a';
+  if (z.t === 5) return '#7a4a28';
+  if (z.t === 6) return '#3a4450';
+  if (z.t === 7) return '#3a2448';
+  if (z.t === 9) return '#4a2a1c';
   return SHIRTS[z.id % SHIRTS.length];
 }
 
 function drawEyes(g, z) {
   const r = ZTYPES[z.t].r;
-  const c = Math.cos(z.face), s = Math.sin(z.face);
+  const f = z.t === 6 && z.sface ? z.sface : z.face;
+  const c = Math.cos(f), s = Math.sin(f);
   const hx = z.x + c * r * 0.42, hy = z.y + s * r * 0.42;
   const ex = -s * r * 0.17, ey = c * r * 0.17;
   const er = Math.max(1.4, r * 0.08);
-  g.fillStyle = z.t === 4 ? 'rgba(181,212,58,0.95)' : 'rgba(255,60,48,0.95)';
+  g.fillStyle = z.t === 4 || z.t === 8 ? 'rgba(181,212,58,0.95)' : z.t === 7 ? 'rgba(210,150,255,0.95)' : 'rgba(255,60,48,0.95)';
   g.beginPath(); g.arc(hx + ex, hy + ey, er, 0, Math.PI * 2); g.arc(hx - ex, hy - ey, er, 0, Math.PI * 2); g.fill();
 }
 
@@ -709,6 +780,8 @@ function drawPlayer(g, game, pid, p, info, alive) {
   g.save();
   g.translate(p.x, p.y);
   if (alive && fxk) drawAura(g, fxk, game.time);
+  if (alive && p.power > 0) { g.fillStyle = `rgba(255,107,44,${0.18 + 0.1 * Math.sin(game.time * 10)})`; g.beginPath(); g.arc(0, 0, 30, 0, Math.PI * 2); g.fill(); }
+  if (alive && p.haste > 0) { g.strokeStyle = 'rgba(76,201,240,0.6)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 24, game.time * 6, game.time * 6 + 2); g.stroke(); }
   if (!alive) {
     const pulse = 0.5 + 0.5 * Math.sin(game.time * 5);
     g.strokeStyle = `rgba(229,72,77,${0.35 + pulse * 0.35})`; g.lineWidth = 2;
@@ -721,7 +794,7 @@ function drawPlayer(g, game, pid, p, info, alive) {
     }
   }
   g.scale(1.15, 1.15);
-  drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me });
+  drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, power: p.power > 0 });
   g.restore();
 }
 
@@ -798,6 +871,7 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
 
   // weapon and arms
   drawWeapon(g, cls);
+  if (opts.wt) { g.fillStyle = opts.wt === 2 ? '#f5c542' : '#ff6b2c'; g.fillRect(14, 1, 10, 2.2); if (opts.wt === 2) g.fillRect(14, 6.6, 10, 2.2); }
   drawArms(g, cls, dark);
 
   // head and headgear
