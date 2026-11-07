@@ -110,12 +110,22 @@ export class ClientGame {
         this.zs.set(id, z);
         if (Math.random() < 0.15) sfx.growl(x, y);
       }
-      if (z.hp != null && hp < z.hp) z.flash = 0.08;
+      if (z.hp != null && hp < z.hp) {
+        z.flash = 0.08;
+        // the host has now applied some damage: stop counting that much of our own unconfirmed hits,
+        // otherwise the same damage is subtracted twice and the zombie looks dead when it isn't
+        let applied = z.hp - hp;
+        while (applied > 0 && z.pend.length) {
+          const e = z.pend[0];
+          if (e.d <= applied) { applied -= e.d; z.pend.shift(); } else { e.d -= applied; applied = 0; }
+        }
+      }
       if (st !== z.st) {
         if (st === ZS.WINDUP || st === ZS.SLAM) sfx.growl(x, y);
         if (st === ZS.SPIT) sfx.spit(x, y);
       }
       z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.max = zMaxHp(t, this.wave, this.waveN);
+      if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
     }
     for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
 
@@ -261,8 +271,8 @@ export class ClientGame {
       z.walk += moved * 0.12;
       if (z.st === ZS.WINDUP || z.st === ZS.DASH && z.t === 2) z.face = lerpAngle(z.face, z.cdir, 0.3);
       else if (moved > 0.05) z.face = lerpAngle(z.face, Math.atan2(z.y - oy, z.x - ox), 0.18);
-      z.pend = z.pend.filter((e) => this.time - e.t < 0.45);
-      if (z.dying && this.time - z.dying > 0.6) { z.dying = 0; z.pend = []; }
+      z.pend = z.pend.filter((e) => this.time - e.t < 1);
+      if (z.dying && this.time - z.dying > 1) { z.dying = 0; z.pend = []; }
       z.flash = Math.max(0, z.flash - dt);
     }
     for (const t of this.ts.values()) t.a = lerpAngle(t.a, t.ta, kf);
