@@ -682,6 +682,9 @@ function openEsc() {
   $('#esc-title').textContent = solo ? 'Oyun durdu' : 'Oyun sürüyor';
   $('#esc-note').textContent = solo ? 'Zombiler de bekliyor. Hazır olduğunda devam et.' : 'Çok oyunculu oyunda oyun arka planda devam eder. Dikkatli ol.';
   $('#esc-leave').textContent = solo ? 'Ana menüye dön' : 'Odadan ayrıl';
+  const code = S.roster && S.roster.code;
+  $('#esc-code').hidden = !code;
+  if (code) $('#esc-code-val').textContent = code;
   $('#esc-mute').textContent = sfx.isMuted() ? 'Sesi aç' : 'Sesi kapat';
   S.game.input.keys.clear(); S.game.input.down = false;
   $('#esc').hidden = false;
@@ -696,6 +699,18 @@ function closeEsc(silent) {
   if (S.screen === 'game') document.body.classList.add('playing');
 }
 $('#esc-resume').addEventListener('click', () => closeEsc());
+$('#esc-copy').addEventListener('click', async () => {
+  const code = S.roster && S.roster.code;
+  if (!code) return;
+  const b = $('#esc-copy');
+  try { await navigator.clipboard.writeText(code); b.textContent = 'Kopyalandı'; }
+  catch (e) {
+    const range = document.createRange(); range.selectNodeContents($('#esc-code-val'));
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    b.textContent = 'Seçildi, kopyala';
+  }
+  setTimeout(() => { b.textContent = 'Kodu kopyala'; }, 1800);
+});
 $('#esc-mute').addEventListener('click', () => { setMute(sfx.toggleMute()); $('#esc-mute').textContent = sfx.isMuted() ? 'Sesi aç' : 'Sesi kapat'; });
 $('#esc-leave').addEventListener('click', () => { closeEsc(); $('#btn-leave').click(); });
 
