@@ -3,6 +3,10 @@
 import { CODE_LEN } from './config.js';
 
 const PREFIX = 'kusatma-';
+// connection helpers: public STUN, plus our relay (TURN) when the server gives it, used only if a direct link fails
+const ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }];
+export function addIce(list) { if (Array.isArray(list)) for (const x of list.slice(0, 4)) if (x && x.urls) ICE.push(x); }
+const peerOpts = () => ({ debug: 0, config: { iceServers: ICE } });
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I lookalikes
 const MAX_MSGS_PER_SEC = 80;   // normal play sends about 22
 const MSG_BURST = 400;         // a link that stalled and then delivers its backlog at once is not spam
@@ -53,7 +57,7 @@ export class HostNet {
       const timer = setTimeout(() => { if (!finished) { finished = true; this.destroy(); reject(new Error('timeout')); } }, waitMs);
       const attempt = (n) => {
         const code = fixed || makeCode();
-        const peer = new Peer(PREFIX + code.toLowerCase(), { debug: 0 });
+        const peer = new Peer(PREFIX + code.toLowerCase(), peerOpts());
         let opened = false;
         peer.on('open', () => {
           if (finished) { peer.destroy(); return; }
@@ -215,7 +219,7 @@ export class ClientNet {
     if (!peerAvailable()) return Promise.reject(new Error('peerjs-missing'));
     return new Promise((resolve, reject) => {
       let settled = false;
-      const peer = new Peer({ debug: 0 });
+      const peer = new Peer(peerOpts());
       this.peer = peer;
       const fail = (reason) => {
         if (settled) return;

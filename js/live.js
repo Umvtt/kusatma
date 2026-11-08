@@ -115,6 +115,12 @@ export async function acctCheck() {
 }
 export const topGet = () => api('/ktop');
 export const roomsGet = () => api('/krooms');
+let turnP = null;
+// relay details from our server; waits at most 2.5 s so a slow network never holds up making or joining a room
+export function turnReady(add) {
+  if (!turnP) turnP = api('/turn').then((j) => { if (j && j.ok) add(j.ice); }).catch(() => {});
+  return Promise.race([turnP, new Promise((r) => setTimeout(r, 2500))]);
+}
 // someone else's account owns this name
 export function nameTaken(name) { const k = nkey(name); return !!k && LIVE.names.includes(k) && !(ACCT && nkey(ACCT.name) === k); }
 

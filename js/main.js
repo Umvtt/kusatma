@@ -1,6 +1,6 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
 import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathDesc, BASH, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
-import { HostNet, OfflineNet, ClientNet, cleanCode } from './net.js';
+import { HostNet, OfflineNet, ClientNet, cleanCode, addIce } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { Renderer, drawCharacter, drawWeaponPreview } from './render.js';
@@ -8,7 +8,7 @@ import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -122,7 +122,7 @@ async function createRoom(offline, opts) {
   busy(true);
   const net = offline ? new OfflineNet() : new HostNet();
   try {
-    if (!offline) await net.open();
+    if (!offline) { await turnReady(addIce); await net.open(); }
   } catch (e) {
     busy(false);
     menuMsg(e && e.message === 'peerjs-missing'
@@ -161,6 +161,7 @@ async function joinRoom() {
   busy(true);
   const net = new ClientNet();
   try {
+    await turnReady(addIce);
     await net.connect(code);
   } catch (e) {
     busy(false);
