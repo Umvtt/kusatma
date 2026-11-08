@@ -1,5 +1,5 @@
 // Canvas drawing: an abandoned plaza at night, seen from above, lit by the team's flashlights.
-import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, isBoss, clamp } from './config.js';
+import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp } from './config.js';
 import { WORLD, obstaclesIn } from './world.js';
 import { SETTINGS } from './settings.js';
 
@@ -106,8 +106,10 @@ export class Renderer {
     g.drawImage(this.decal, 0, 0, WORLD_W, WORLD_H);
 
     for (const o of new Set(obstaclesIn(view.l - 60, view.t - 60, view.r + 60, view.b + 60))) drawObstacle(g, o);
+    for (const q of game.zones) if (inView(q[2], q[3])) drawZone(g, q, game.time);
     for (const m of game.mines) drawMine(g, m, game.time);
     for (const it of game.items) if (inView(it[2], it[3])) drawItem(g, it, game.time);
+    for (const mk of game.marks) drawStrikeMark(g, mk);
     for (const t of game.ts.values()) drawTurret(g, t);
 
     // downed players lie under everything
@@ -118,6 +120,8 @@ export class Renderer {
     for (const z of game.zs.values()) if (inView(z.x, z.y)) drawZombie(g, z, game.time);
 
     for (const [pid, p] of game.ps) if (p.alive && inView(p.x, p.y)) drawPlayer(g, game, pid, p, roster.get(pid), true);
+    for (const w of game.walls) if (inView(w[1], w[2])) drawWall(g, w);
+    for (const l of game.lobs) drawLob(g, l);
 
     // projectiles
     g.lineCap = 'round';
@@ -132,11 +136,13 @@ export class Renderer {
       }
       if (b.col) { g.strokeStyle = b.col; g.globalAlpha = b.own ? 0.95 : 0.75; }
       else g.strokeStyle = b.own ? 'rgba(255,224,150,0.95)' : 'rgba(255,214,140,0.7)';
-      g.lineWidth = b.w;
+      const tl = 0.022 * (b.tier >= 3 ? 1.5 : 1);
+      g.lineWidth = b.w * (b.crit ? 1.6 : 1) + (b.tier >= 5 ? 0.8 : 0);
       g.beginPath();
-      g.moveTo(b.x - b.vx * 0.022, b.y - b.vy * 0.022);
+      g.moveTo(b.x - b.vx * tl, b.y - b.vy * tl);
       g.lineTo(b.x, b.y);
       g.stroke();
+      if (b.crit || b.tier >= 5) { g.strokeStyle = '#fff'; g.globalAlpha = 0.8; g.lineWidth = Math.max(1, b.w * 0.45); g.beginPath(); g.moveTo(b.x - b.vx * 0.01, b.y - b.vy * 0.01); g.lineTo(b.x, b.y); g.stroke(); }
       g.globalAlpha = 1;
     }
     for (const q of game.spits.values()) {
@@ -167,6 +173,13 @@ export class Renderer {
         g.globalAlpha = kk;
         g.fillStyle = p.col;
         g.beginPath(); g.arc(p.x, p.y, p.size, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1;
+      } else if (p.kind === 'shard') {
+        g.globalAlpha = kk;
+        g.fillStyle = p.col;
+        g.save(); g.translate(p.x, p.y); g.rotate(p.a + kk * 4);
+        g.beginPath(); g.moveTo(-p.size, 0); g.lineTo(0, -p.size * 0.5); g.lineTo(p.size * 1.4, 0); g.lineTo(0, p.size * 0.5); g.closePath(); g.fill();
+        g.restore();
         g.globalAlpha = 1;
       }
     }
@@ -209,6 +222,13 @@ export class Renderer {
       else g.fillStyle = age < 0.35 ? '#ffd166' : age < 0.7 ? '#ff8c3a' : '#c2410c';
       g.beginPath(); g.arc(b.x, b.y, 5 + age * 16, 0, Math.PI * 2); g.fill();
     }
+    for (const z of game.zaps) drawZap(g, z);
+    for (const q of game.zones) if (q[1] === 1 && inView(q[2], q[3])) {
+      g.globalAlpha = 0.18 * Math.min(1, q[5] * 3);
+      g.fillStyle = '#ff7a2c';
+      g.beginPath(); g.arc(q[2], q[3], q[4] * 0.9, 0, Math.PI * 2); g.fill();
+    }
+    g.globalAlpha = 1;
     for (const p of game.parts) {
       if (p.kind !== 'fire') continue;
       const kk = p.life / p.max;
@@ -277,6 +297,10 @@ export class Renderer {
     for (const q of game.spits.values()) glow(q.x, q.y, 50, 0.6);
     for (const li of game.lights) glow(li.x, li.y, li.r, Math.min(1, li.life / li.max + 0.2));
     for (const b of game.bullets) if (b.kind === 'f' && inView(b.x, b.y)) glow(b.x, b.y, 50, 0.35);
+    for (const q of game.zones) if (q[1] === 1 && inView(q[2], q[3])) glow(q[2], q[3], q[4] * 1.6, 0.5);
+    for (const z of game.zaps) for (let i = 0; i + 1 < z.pts.length; i += 2) glow(z.pts[i], z.pts[i + 1], 80, 0.5);
+    for (const z of game.zs.values()) if (z.fl & 8 && inView(z.x, z.y)) glow(z.x, z.y, 45, 0.35);
+    for (const m of game.marks) glow(m.x, m.y, 160, 0.4);
     l.restore();
   }
 
@@ -744,7 +768,30 @@ function drawZombie(g, z, time) {
     g.restore();
   }
   g.restore();
-  if (z.fl & 1) { // frozen: icy rim
+  if (z.fl & 4) { // poisoned: green haze and bubbles
+    g.fillStyle = 'rgba(143,209,79,0.2)';
+    g.beginPath(); g.arc(z.x, z.y, r + 2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(170,230,90,0.85)';
+    for (let i = 0; i < 3; i++) { const k = ((time * 0.8 + i / 3 + z.id * 0.13) % 1); g.beginPath(); g.arc(z.x + Math.sin(z.id + i * 2.1) * r * 0.6, z.y - r * 0.2 - k * r * 1.2, 1.5 + (1 - k) * 1.5, 0, Math.PI * 2); g.fill(); }
+  }
+  if (z.fl & 32 && z.t === 6) { // shield eaten by acid
+    g.strokeStyle = 'rgba(160,230,60,0.8)'; g.lineWidth = 2; g.setLineDash([3, 4]);
+    g.beginPath(); g.arc(z.x, z.y, r + 6, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+  }
+  if (z.fl & 8) { // burning: little flames licking up
+    for (let i = 0; i < 4; i++) {
+      const a = z.id + i * 1.6, fx = z.x + Math.cos(a) * r * 0.55, fy = z.y + Math.sin(a) * r * 0.55;
+      const h = 5 + 4 * Math.sin(time * 18 + i * 2);
+      g.fillStyle = i % 2 ? 'rgba(255,154,60,0.9)' : 'rgba(255,209,102,0.9)';
+      g.beginPath(); g.moveTo(fx - 3, fy); g.quadraticCurveTo(fx, fy - h * 1.6, fx + 3, fy); g.closePath(); g.fill();
+    }
+  }
+  if (z.fl & 16) { // frozen solid
+    g.fillStyle = 'rgba(200,240,255,0.45)'; g.strokeStyle = 'rgba(230,251,255,0.95)'; g.lineWidth = 2;
+    g.beginPath();
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + z.id, rr = r + 5 + (i % 2) * 3; g.lineTo(z.x + Math.cos(a) * rr, z.y + Math.sin(a) * rr); }
+    g.closePath(); g.fill(); g.stroke();
+  } else if (z.fl & 1) { // slowed: icy rim
     g.strokeStyle = 'rgba(160,230,255,0.85)'; g.lineWidth = 2.5;
     g.fillStyle = 'rgba(123,223,242,0.22)';
     g.beginPath(); g.arc(z.x, z.y, r + 3, 0, Math.PI * 2); g.fill(); g.stroke();
@@ -816,7 +863,7 @@ function drawPlayer(g, game, pid, p, info, alive) {
     }
   }
   g.scale(1.15, 1.15);
-  drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time });
+  drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time });
   g.restore();
 }
 
@@ -896,7 +943,7 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
   g.save();
   if (thrust) g.translate(thrust, 0);
   drawWeapon(g, cls);
-  if (opts.wt) drawWeaponMod(g, cls, opts.wt, opts.wp || 1, opts.time || 0);
+  if (opts.wt) drawWeaponMod(g, cls, opts.wt, opts.wp || 1, opts.time || 0, opts.wb || 0);
   drawArms(g, cls, dark);
   g.restore();
 
@@ -948,7 +995,7 @@ function drawWeapon(g, cls) {
 }
 
 // Just the gun, for the armory's path buttons.
-export function drawWeaponPreview(g, cls, wt, wp, w, h) {
+export function drawWeaponPreview(g, cls, wt, wp, w, h, wb = 0, time = 0) {
   g.clearRect(0, 0, w, h);
   g.save();
   const m = MUZZLE[cls] || MUZZLE.asker;
@@ -958,16 +1005,51 @@ export function drawWeaponPreview(g, cls, wt, wp, w, h) {
   g.scale(k, k);
   if (cls === 'izci') g.translate(-10, 2);
   drawWeapon(g, cls);
-  if (wt) drawWeaponMod(g, cls, wt, wp, 0);
+  if (wt) drawWeaponMod(g, cls, wt, wp, time, wb);
   g.restore();
 }
 
 // Where each class's weapon ends and what height its barrel sits at (izci has two pistols).
 const MUZZLE = { asker: [34, 4], doktor: [26, 4], tamirci: [32, 4.2], nisanci: [42, 4.7], kalkanci: [36, 4], alevci: [31, 4.2], bombaci: [34, 4.5], izci: [25, -7, 7] };
-const PATH_COL = ['#ffe1a6', '#ff8a3d', '#ffd23f', '#c77dff', '#7bdff2'];
+const PATH_COL = PATHS.map((p) => p.col);
 
 // Visible parts an upgraded weapon gets, different for each of the four paths; tier 2 adds more.
-function drawWeaponMod(g, cls, wt, wp, time) {
+function drawWeaponMod(g, cls, wt, wp, time, wb = 0) {
+  drawWeaponMod2(g, cls, wt, wp, time);
+  if (wt >= 3) drawWeaponHigh(g, cls, wt, wp, time, wb);
+}
+
+// Levels 3-5: a branch stripe, extra parts and, at the top level, a pulsing glow.
+function drawWeaponHigh(g, cls, wt, wp, time, wb) {
+  const m = MUZZLE[cls] || MUZZLE.asker;
+  const ys = m.length > 2 ? [m[1], m[2]] : [m[1]];
+  const x = m[0], col = PATH_COL[wp] || PATH_COL[1];
+  const small = ys.length > 1;
+  for (const y of ys) {
+    // branch marking: one bar for the first branch, two for the second
+    g.fillStyle = col;
+    for (let i = 0; i < (wb === 2 ? 2 : 1); i++) g.fillRect(x - (small ? 14 : 24) + i * 3.5, y - 2.4, 2, 4.8);
+    if (wt >= 4) { // rail under the barrel and a side box
+      g.fillStyle = '#262a26'; g.fillRect(x - (small ? 13 : 22), y + 2.6, small ? 9 : 16, 2.2);
+      g.fillStyle = col; g.fillRect(x - (small ? 6 : 9), y + 2.8, 2, 1.8);
+      if (!small) { g.fillStyle = '#1d211d'; rr(g, x - 26, y - 6.8, 7, 4, 1.5); g.fill(); g.fillStyle = col; g.fillRect(x - 24.5, y - 5.6, 3.5, 1.4); }
+    }
+    if (wt >= 5) { // top level: glowing core along the barrel
+      const k = 0.55 + 0.45 * Math.sin(time * 6 + y);
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = 0.35 * k;
+      g.fillStyle = col;
+      g.beginPath(); g.ellipse(x - 6, y, small ? 10 : 16, 6, 0, 0, Math.PI * 2); g.fill();
+      g.globalAlpha = 0.9 * k;
+      g.fillRect(x - (small ? 10 : 18), y - 0.6, small ? 10 : 18, 1.2);
+      g.beginPath(); g.arc(x + 2, y, 2.4, 0, Math.PI * 2); g.fill();
+      g.restore();
+    }
+  }
+}
+
+function drawWeaponMod2(g, cls, wt, wp, time) {
   const m = MUZZLE[cls] || MUZZLE.asker;
   const ys = m.length > 2 ? [m[1], m[2]] : [m[1]];
   const x = m[0], two = wt >= 2, col = PATH_COL[wp] || PATH_COL[1];
@@ -993,6 +1075,27 @@ function drawWeaponMod(g, cls, wt, wp, time) {
       g.fillStyle = col; g.fillRect(x + ext - 2, y - 1.6, 2, 3.2);
       if (!small) { g.fillStyle = '#101210'; g.fillRect(x - 22, y - 7, 12, 3); g.fillStyle = col; g.fillRect(x - 11, y - 6.6, 1.6, 2.2); }
       if (two) { g.strokeStyle = col; g.lineWidth = 1; g.beginPath(); g.moveTo(x - 6, y - 2.6); g.lineTo(x + ext - 3, y - 2.6); g.stroke(); }
+    } else if (wp === 5) { // Zehir: green vial and a dripping tip
+      g.fillStyle = '#2b2f2b'; g.fillRect(x - (small ? 8 : 12), y - 2.6, small ? 8 : 12, 5.2);
+      g.fillStyle = col; rr(g, x - (small ? 12 : 19), y - (small ? 7 : 9.5), small ? 5 : 7, small ? 4 : 5.5, 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(x - (small ? 11 : 17.5), y - (small ? 6.4 : 8.6), 1.4, small ? 2 : 3);
+      if (two) { g.fillStyle = col; rr(g, x - (small ? 12 : 19), y + (small ? 3 : 4), small ? 5 : 7, small ? 4 : 5.5, 2); g.fill(); }
+      const drip = (time * 2 + y) % 1;
+      g.fillStyle = col; g.beginPath(); g.arc(x + 1, y + 2 + drip * 4, 1.3, 0, Math.PI * 2); g.fill();
+    } else if (wp === 6) { // Elektrik: coils and a sparking tip
+      g.strokeStyle = col; g.lineWidth = 1.3;
+      const n = small ? 3 : two ? 6 : 4;
+      for (let i = 0; i < n; i++) { const cx = x - (small ? 10 : 18) + i * 2.6; g.beginPath(); g.ellipse(cx, y, 1, small ? 3 : 4.2, 0, 0, Math.PI * 2); g.stroke(); }
+      g.fillStyle = '#e6f7ff';
+      if (Math.sin(time * 23 + y) > 0.2) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + 4, y - 2); g.lineTo(x + 2.5, y); g.lineTo(x + 6, y + 2); g.lineTo(x + 1, y + 0.8); g.closePath(); g.fill(); }
+      if (two && !small) { g.fillStyle = '#1d211d'; g.fillRect(x - 24, y + 3.5, 8, 4); g.fillStyle = col; g.fillRect(x - 23, y + 4.5, 2, 2); g.fillRect(x - 19.5, y + 4.5, 2, 2); }
+    } else if (wp === 7) { // Yangın: fuel tank and a pilot flame at the muzzle
+      g.fillStyle = '#7a2a1c'; rr(g, x - (small ? 12 : 20), y + (small ? 2 : 3.5), small ? 6 : 10, small ? 4 : 5, 2); g.fill();
+      g.fillStyle = '#2b2f2b'; g.fillRect(x - (small ? 6 : 9), y - 2.6, small ? 6 : 9, 5.2);
+      const fl = 0.7 + 0.3 * Math.sin(time * 20 + y);
+      g.fillStyle = `rgba(255,154,60,${fl})`; g.beginPath(); g.ellipse(x + 2.5, y, 3 * fl + (two ? 1 : 0), 1.8, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#ffd166'; g.beginPath(); g.arc(x + 1.5, y, 1, 0, Math.PI * 2); g.fill();
+      if (two) { g.strokeStyle = col; g.lineWidth = 1; g.beginPath(); g.moveTo(x - (small ? 9 : 15), y + (small ? 2 : 3.5)); g.quadraticCurveTo(x - 5, y + 6, x - 2, y + 2.6); g.stroke(); }
     } else { // Buz: frost canisters and a glowing cold tip
       g.fillStyle = '#d9f4ff'; rr(g, x - (small ? 10 : 18), y - (small ? 6.5 : 8.5), small ? 6 : 9, 4, 2); g.fill();
       if (two) { rr(g, x - (small ? 10 : 18), y + (small ? 2.5 : 4.5), small ? 6 : 9, 4, 2); g.fill(); }
@@ -1082,6 +1185,17 @@ function drawTag(g, p, info, isMe) {
   g.fillText(info.name, p.x + 1, y - 5);
   g.fillStyle = p.alive ? (isMe ? '#ffffff' : info.color) : '#9aa39a';
   g.fillText(info.name, p.x, y - 6);
+  if (p.wt > 0) { // weapon level badge after the name
+    const tw = g.measureText(info.name).width;
+    const bx = p.x + tw / 2 + 4, by = y - 16, txt = ROMAN[p.wt] || '';
+    g.font = '700 9px Rubik, system-ui, sans-serif';
+    const bw = g.measureText(txt).width + 7;
+    g.fillStyle = 'rgba(0,0,0,0.7)'; rr(g, bx, by, bw, 12, 3); g.fill();
+    g.strokeStyle = PATH_COL[p.wp] || '#fff'; g.lineWidth = p.wt >= 5 ? 1.6 : 1; g.stroke();
+    g.fillStyle = PATH_COL[p.wp] || '#fff'; g.textAlign = 'left';
+    g.fillText(txt, bx + 3.5, by + 9.5);
+    g.textAlign = 'center';
+  }
   if (p.alive && p.maxHp) {
     const w = 34, k = clamp(p.hp / p.maxHp, 0, 1);
     g.fillStyle = 'rgba(0,0,0,0.65)';
@@ -1089,4 +1203,88 @@ function drawTag(g, p, info, isMe) {
     g.fillStyle = k > 0.5 ? '#43d17a' : k > 0.25 ? '#f5c542' : '#e5484d';
     g.fillRect(p.x - w / 2, y, w * k, 4);
   }
+}
+
+// ---------- items in the world ----------
+function drawZone(g, q, time) {
+  const [id, k, x, y, r, left] = q;
+  const a = Math.min(1, left * 3);
+  if (k === 0) { // poison cloud
+    for (let i = 0; i < 5; i++) {
+      const ang = time * 0.6 + i * 1.256 + id, rr2 = r * 0.45;
+      g.fillStyle = `rgba(120,190,60,${0.13 * a})`;
+      g.beginPath(); g.arc(x + Math.cos(ang) * rr2, y + Math.sin(ang) * rr2, r * 0.6, 0, Math.PI * 2); g.fill();
+    }
+    g.strokeStyle = `rgba(143,209,79,${0.35 * a})`; g.lineWidth = 2; g.setLineDash([6, 8]);
+    g.beginPath(); g.arc(x, y, r, time, time + Math.PI * 2); g.stroke(); g.setLineDash([]);
+  } else { // ground fire
+    g.fillStyle = `rgba(90,30,10,${0.35 * a})`;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    for (let i = 0; i < 7; i++) {
+      const ang = i * 0.9 + id, d = (i % 3) * r * 0.3;
+      const fx = x + Math.cos(ang) * d, fy = y + Math.sin(ang) * d, h = 8 + 5 * Math.sin(time * 16 + i);
+      g.fillStyle = i % 2 ? `rgba(255,154,60,${0.85 * a})` : `rgba(255,209,102,${0.85 * a})`;
+      g.beginPath(); g.moveTo(fx - 5, fy + 3); g.quadraticCurveTo(fx, fy - h * 1.5, fx + 5, fy + 3); g.closePath(); g.fill();
+    }
+  }
+}
+
+function drawWall(g, w) {
+  const [, x, y, a, hp] = w;
+  g.save(); g.translate(x, y); g.rotate(a);
+  g.fillStyle = 'rgba(0,0,0,0.35)'; rr(g, -46, -8, 96, 22, 6); g.fill();
+  for (let row = 0; row < 2; row++) {
+    for (let i = 0; i < 6; i++) {
+      const bx = -48 + i * 16 + (row ? 8 : 0);
+      if (bx + 16 > 50) continue;
+      g.fillStyle = row ? '#a58a58' : '#b99b66';
+      rr(g, bx, -11 + row * 10, 16, 11, 4); g.fill();
+      g.strokeStyle = '#6e5a36'; g.lineWidth = 1.2; g.stroke();
+    }
+  }
+  g.restore();
+  if (hp < 100) {
+    g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(x - 20, y - 26, 40, 4);
+    g.fillStyle = hp > 50 ? '#c9a66b' : hp > 25 ? '#f5c542' : '#e5484d'; g.fillRect(x - 20, y - 26, 40 * hp / 100, 4);
+  }
+}
+
+function drawLob(g, l) {
+  const k = Math.min(1, l.t / l.max);
+  const x = l.x0 + (l.x1 - l.x0) * k, y = l.y0 + (l.y1 - l.y0) * k;
+  const h = Math.sin(k * Math.PI) * 60;
+  g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(x, y + 4, 6, 3, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#4b5a2a'; g.beginPath(); g.arc(x, y - h, 5.5, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#23291a'; g.lineWidth = 1.5; g.stroke();
+  g.strokeStyle = 'rgba(255,90,54,0.6)'; g.setLineDash([4, 5]); g.lineWidth = 1.5;
+  g.beginPath(); g.arc(l.x1, l.y1, 30, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+}
+
+function drawStrikeMark(g, m) {
+  const pulse = 0.5 + 0.5 * Math.sin(m.t * 12);
+  g.strokeStyle = `rgba(255,59,48,${0.45 + 0.4 * pulse})`; g.lineWidth = 3;
+  g.beginPath(); g.arc(m.x, m.y, 150, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = `rgba(255,59,48,${0.07 + 0.06 * pulse})`; g.fill();
+  g.beginPath(); g.moveTo(m.x - 26, m.y); g.lineTo(m.x + 26, m.y); g.moveTo(m.x, m.y - 26); g.lineTo(m.x, m.y + 26); g.stroke();
+}
+
+function drawZap(g, z) {
+  const k = 1 - z.t / z.max;
+  g.strokeStyle = z.big ? '#e6f7ff' : '#bfe8ff'; g.lineWidth = z.big ? 4 : 2.2; g.globalAlpha = k;
+  g.lineJoin = 'round';
+  g.beginPath();
+  const p = z.pts;
+  g.moveTo(p[0], p[1]);
+  for (let i = 2; i + 1 < p.length; i += 2) {
+    const x0 = p[i - 2], y0 = p[i - 1], x1 = p[i], y1 = p[i + 1];
+    const dx = x1 - x0, dy = y1 - y0, n = Math.max(2, Math.round(Math.hypot(dx, dy) / 22));
+    for (let j = 1; j < n; j++) {
+      const t = j / n, jit = Math.sin(z.seed + i * 7 + j * 3.1 + z.t * 60) * 9;
+      g.lineTo(x0 + dx * t - dy / (Math.hypot(dx, dy) || 1) * jit, y0 + dy * t + dx / (Math.hypot(dx, dy) || 1) * jit);
+    }
+    g.lineTo(x1, y1);
+  }
+  g.stroke();
+  g.strokeStyle = '#ffffff'; g.lineWidth = z.big ? 1.6 : 0.9; g.stroke();
+  g.globalAlpha = 1;
 }

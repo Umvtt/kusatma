@@ -143,3 +143,7 @@ export function pickup(k, x, y) {
 // Dipçik: a quick whoosh, and a dull thud when it connects.
 export function bash(x, y, own) { const v = vol(x, y, own ? 0.3 : 0.16); if (v) burst(v, 0.12, 1100, 1.2, 'bandpass'); }
 export function bashHit(x, y) { const v = vol(x, y, 0.45); if (v) { tone(v, 0.14, 160, 60, 'sine'); burst(v * 0.6, 0.08, 700, 0.8); } }
+export function zap(x, y) { const v = vol(x, y, 0.16); if (v) { burst(v, 0.12, 4200, 6, 'bandpass'); tone(v * 0.5, 0.1, 1800, 600, 'square'); } }
+export function thunder(x, y) { const v = vol(x, y, 0.75); if (v) { burst(v, 0.9, 500, 0.6); burst(v * 0.7, 0.15, 5000, 3, 'bandpass'); tone(v * 0.6, 0.6, 90, 35, 'sawtooth'); } }
+export function siren(x, y) { const v = vol(null, null, 0.3); void x; void y; if (v) { tone(v, 0.7, 500, 900, 'triangle'); tone(v, 0.7, 900, 500, 'triangle', 0.7); tone(v, 0.7, 500, 900, 'triangle', 1.4); } }
+export function boomSmall(x, y) { const v = vol(x, y, 0.35); if (v) { burst(v, 0.3, 500, 0.6); tone(v * 0.6, 0.25, 160, 50, 'sine'); } }

@@ -182,3 +182,32 @@ export function fieldDir(field, x, y) {
   const d = Math.hypot(tx, ty) || 1;
   return { x: tx / d, y: ty / d };
 }
+
+// Like fieldDir, but looks a few cells down the path and heads for the farthest one in plain view
+// (checked with the zombie's own radius), so big zombies cut corners smoothly instead of snagging.
+export function fieldAhead(field, x, y, r) {
+  let i = cellOf(x, y);
+  let tx = null, ty = null;
+  for (let step = 0; step < 6; step++) {
+    const cx = i % GW, cy = (i - cx) / GW;
+    let best = field[i], bj = -1;
+    for (const [ox, oy] of NB) {
+      const nx = cx + ox, ny = cy + oy;
+      if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+      const j = ny * GW + nx;
+      if (BLOCKED[j]) continue;
+      if (ox && oy && (BLOCKED[cy * GW + nx] || BLOCKED[ny * GW + cx])) continue;
+      if (field[j] < best) { best = field[j]; bj = j; }
+    }
+    if (bj < 0) break;
+    const px = (bj % GW) * CELL + CELL / 2, py = Math.floor(bj / GW) * CELL + CELL / 2;
+    if (step > 0 && !clearLine(x, y, px, py, r * 0.9)) break;
+    tx = px; ty = py; i = bj;
+  }
+  if (tx == null) return fieldDir(field, x, y);
+  const dx = tx - x, dy = ty - y, d = Math.hypot(dx, dy) || 1;
+  return { x: dx / d, y: dy / d };
+}
+
+// Field value at a world position (Infinity in walls or out of reach).
+export function fieldAt(field, x, y) { return field[cellOf(x, y)]; }

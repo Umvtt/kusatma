@@ -150,7 +150,10 @@
           <div class="card-head">
             <h3 id="classes-h">Sınıfını seç</h3>
           </div>
-          <div id="class-list" class="class-list" role="radiogroup" aria-labelledby="classes-h"></div>
+          <div class="class-wrap">
+            <div id="class-list" class="class-list" role="radiogroup" aria-labelledby="classes-h"></div>
+            <aside id="class-detail" class="card class-detail" aria-live="polite"></aside>
+          </div>
         </section>
       </div>
 
@@ -193,6 +196,7 @@
         <strong id="hud-ab-name">Öfke</strong>
         <span id="hud-ab-cd" class="ab-cd">Hazır</span>
       </div>
+      <div id="hud-gear" class="gear-bar" hidden></div>
       <div class="ab-box bash-box" id="hud-bash" title="Önündeki zombileri iter ve sersemletir. Kalkanlı'nın kalkanını düşürür.">
         <i class="ab-fill" id="hud-bash-fill"></i>
         <span class="ab-key">F</span>
@@ -236,6 +240,8 @@
           <li><kbd>Sol tık</kbd> ateş</li>
           <li><kbd>Boşluk</kbd> yetenek</li>
           <li><kbd>F</kbd> dipçik</li>
+          <li><kbd>1</kbd>–<kbd>4</kbd> eşyalar</li>
+          <li><kbd>Q</kbd> <kbd>E</kbd> cephanelik sekmeleri</li>
           <li><kbd>Tekerlek</kbd> yakınlaştır</li>
           <li><kbd>Enter</kbd> sohbet</li>
           <li><kbd>Tab</kbd> skorlar</li>
@@ -259,6 +265,7 @@
         <div class="shop-timer"><strong id="shop-time">20</strong><span>sn</span></div>
       </div>
       <p class="shop-gold"><span class="coin" aria-hidden="true"></span> <strong id="shop-gold">0</strong> altın</p>
+      <div id="shop-tabs" class="shop-tabs" role="tablist" aria-label="Cephanelik"></div>
       <ul id="shop-list" class="shop-list"></ul>
       <button id="btn-shop-ready" class="btn primary" type="button">Hazırım</button>
       <p id="shop-ready-count" class="note center"></p>
@@ -371,6 +378,7 @@
     <div id="stick-aim" class="stick right" aria-hidden="true"><i></i></div>
     <button id="t-ab" class="t-btn t-ability" type="button">Yetenek</button>
     <button id="t-bash" class="t-btn t-bash" type="button">Dipçik</button>
+    <div id="t-gear" class="t-gear-row" hidden></div>
     <button id="t-menu" class="t-btn t-pause" type="button">Menü</button>
     <button id="t-board" class="t-btn t-score" type="button">Skor</button>
   </div>

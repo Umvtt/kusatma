@@ -17,13 +17,15 @@ Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda
 | Boşluk / Sağ tık | Sınıf yeteneği |
 | F | Dipçik: önündeki zombileri iter ve sersemletir, Kalkanlı'nın kalkanını düşürür |
 | Fare tekerleği / + − | Yakınlaştır, uzaklaştır |
-| 1–7 | Molada silah ve yükseltme satın al |
+| 1–9 | Molada: açık sekmedeki şeyi satın al |
+| Q / E | Molada: cephanelik sekmeleri |
+| 1–4 | Savaşta: eşya kullan (el bombası, barikat, ilk yardım, hava saldırısı) |
 | Tab | Skor tablosu |
 | M | Sesi aç / kapat |
 
 ### Telefonda
 
-Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu ittiğin sürece silah ateş eder. Yetenek, Dipçik, Menü ve Skor için ekrandaki düğmeleri kullan.
+Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu ittiğin sürece silah ateş eder. Yetenek, Dipçik, eşyalar, Menü ve Skor için ekrandaki düğmeleri kullan.
 
 ### Ayarlar
 
@@ -31,16 +33,18 @@ Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, gece k
 
 ## Sınıflar
 
-| Sınıf | Silah | Yetenek |
-| --- | --- | --- |
-| Asker | Tüfek | **Hızlı Ateş**: 6 sn boyunca iki kat hızlı ateş |
-| Doktor | Makineli | **İyileştir**: yakındakileri iyileştirir, düşenleri kaldırır |
-| Tamirci | Pompalı | **Taret**: 20 sn boyunca ateş eden taret kurar |
-| Nişancı | Dürbünlü tüfek | **Odak**: 5 sn iki kat hasar, mermiler her şeyi deler |
-| Kalkancı | Ağır makineli | **Kalkan**: 5 sn boyunca %70 daha az hasar |
-| Alevci | Alev makinesi | **Alev Patlaması**: etraftaki tüm zombileri yakar |
-| Bombacı | Bomba atar | **Mayın**: yere mayın bırakır (en fazla 3) |
-| İzci | Çift tabanca | **Depar**: 4 sn boyunca %60 daha hızlı |
+| Sınıf | Silah | Yetenek | Pasif |
+| --- | --- | --- | --- |
+| Asker | Tüfek | **Hızlı Ateş**: 6 sn iki kat hızlı ateş | Canın yarıdan fazlayken +%10 hasar |
+| Doktor | Makineli | **İyileştir**: yakındakileri iyileştirir, düşenleri kaldırır | Can yenilenir, yanındakiler de; düşenleri iki kat hızlı kaldırır |
+| Tamirci | Pompalı | **Taret**: 20 sn ateş eden taret | Eşyalar %25 ucuz, barikatlar iki kat sağlam |
+| Nişancı | Dürbünlü tüfek | **Odak**: 5 sn iki kat hasar, her şeyi deler | +%12 kritik vuruş |
+| Kalkancı | Ağır makineli | **Kalkan**: 5 sn %70 az hasar | %15 az hasar, zor savrulur |
+| Alevci | Alev makinesi | **Alev Patlaması**: etraftakileri yakar | Alev tutuşturur, patlamalardan yarı hasar |
+| Bombacı | Bomba atar | **Mayın**: yere mayın bırakır | +2 el bombası, bombalar %30 sert |
+| İzci | Çift tabanca | **Depar**: 4 sn %60 daha hızlı | +%15 altın, uzaktan toplar, hızlı Dipçik |
+
+Lobide bir sınıfa tıklayınca (ya da fareyle üstüne gelince) yandaki panel her şeyi gösterir: değerler, yetenek, pasif, yetenek ustalığı ve silah serisi.
 
 ## Haritalar
 
@@ -75,16 +79,25 @@ Her 5 dalgada bir boss gelir: sırayla **Dev** (yere vurur), **Kraliçe** (yelpa
 
 Ölen zombiler bazen eşya düşürür: **Sargı** (can), **Altın**, **Güç** (10 sn iki kat hasar), **Hız** (10 sn daha hızlı). Bosslar her zaman eşya bırakır.
 
-Cephanelikte her sınıfın silahı iki kez geliştirilebilir (150 ve 400 altın). İlk geliştirmede dört yoldan birini seçersin, ikincisi aynı yolda devam eder. Her yolun silahı farklı görünür:
+Cephanelik dört sekmedir: **Silah**, **Gelişim**, **Eşya**, **Takım**.
 
-| Yol | Etkisi |
-| --- | --- |
-| Ağır | Daha yavaş ama çok sert vurur |
-| Seri | Çok daha hızlı ateş eder |
-| Delici | Mermiler zombileri deler, menzil artar (Bombacı'da patlama alanı büyür) |
-| Buz | Vurduğun zombiler birkaç saniye yavaşlar |
+**Silah:** beş seviye (150, 400, 850, 1500, 2400 altın). Seviye I'de yedi yoldan birini seçersin, seviye III'te yolun iki dalından birini. Seviye V dalın özel gücünü açar. Dalı 250 altına değiştirebilir, yolu sıfırlayıp harcadığının yarısını geri alabilirsin.
 
-Her seviye ayrıca sınıfa özel bir bonus verir (Tamirci'ye daha çok saçma, Nişancı'ya daha çok delme, Bombacı'ya daha geniş patlama, Alevci'ye daha uzun menzil).
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Ağır | Yavaş ama çok sert | Sarsıcı (her vuruş sersemletir) · Yıkıcı (patlayan mermi) |
+| Seri | Çok hızlı ateş | Fırtına (seken mermi) · Çift namlu (üç mermi) |
+| Delici | Deler, menzil artar | Keskin (üç kat kritik) · Ray (her şeyi, kalkanları da deler) |
+| Buz | Yavaşlatır | Donduran (buz kalıbı) · Kırılgan (ölünce buz patlaması) |
+| Zehir | Zehirler | Salgın (zehir bulutu) · Asit (kalkan eritir, bosslara tam işler) |
+| Elektrik | Şimşek sıçrar | Zincir (sersemletir) · Aşırı yük (yıldırım düşer) |
+| Yangın | Tutuşturur | Napalm (yananlar patlar) · Kor (yerde alev bırakır) |
+
+**Gelişim:** hasar, atış hızı, can, hız, yetenek süresi, kritik vuruş, yenilenme, zırh, mıknatıs, üç seviyelik yetenek ustalığı ve Sargı.
+
+**Eşya:** el bombası, barikat, ilk yardım, hava saldırısı. Savaşta 1–4 ile (telefonda düğmelerle) kullanılır.
+
+**Takım:** herkesin altın koyduğu ortak zırh, ortak güç, saha hastanesi ve ganimet. Seviye dolunca bütün takım kazanır.
 
 ## Teknik notlar
 
