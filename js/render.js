@@ -4,7 +4,7 @@ import { WORLD, obstaclesIn } from './world.js';
 import { SETTINGS } from './settings.js';
 import { ITEMS as COS } from './catalog.js';
 
-const DECAL_SCALE = 0.5;
+const DECAL_SCALE = 0.4;
 const MINI_W = 180;
 const SKIN = '#d9a77a';
 
@@ -21,6 +21,10 @@ export class Renderer {
     this.lightCv = document.createElement('canvas');
     this.lctx = this.lightCv.getContext('2d');
     this.lastT = performance.now();
+    this.fadeT = 0; this.checkT = 0;
+    // phones under memory pressure can throw away an off-screen picture; rebuild it instead of drawing nothing
+    for (const c of [this.decal, this.lightCv]) c.addEventListener('contextrestored', () => { this.mapKey = ''; });
+    canvas.addEventListener('contextrestored', () => { this.mapKey = ''; });
     this.resize();
   }
 
@@ -40,7 +44,28 @@ export class Renderer {
     if (!WORLD.theme || key === this.mapKey) return;
     this.mapKey = key;
     this.ground = makeGround(WORLD.theme, WORLD.seed, WORLD.decor);
+    this.ground.addEventListener('contextrestored', () => { this.mapKey = ''; });
     this.clearDecals();
+  }
+
+  // Blood and scorch marks fade out over about a minute and a half; every few seconds check the ground
+  // picture still has pixels (a dropped canvas reads back as transparent) and rebuild it if not.
+  upkeep(dt) {
+    this.fadeT += dt;
+    if (this.fadeT >= 1.5) {
+      this.fadeT = 0;
+      const g = this.dctx;
+      g.save(); g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,0.025)'; g.fillRect(0, 0, this.decal.width, this.decal.height); g.restore();
+    }
+    this.checkT += dt;
+    if (this.checkT >= 5 && this.ground) {
+      this.checkT = 0;
+      try {
+        const px = this.ground.getContext('2d').getImageData(4, 4, 1, 1).data;
+        if (px[3] === 0) { this.mapKey = ''; this.syncMap(); }
+      } catch (e) { /* ignore */ }
+      if (this.ctx.isContextLost && this.ctx.isContextLost()) this.ctx = this.cv.getContext('2d');
+    }
   }
 
   clearDecals() { this.dctx.clearRect(0, 0, this.decal.width, this.decal.height); }
@@ -103,6 +128,7 @@ export class Renderer {
     const inView = (x, y) => x > view.l && x < view.r && y > view.t && y < view.b;
 
     this.syncMap();
+    { const now = performance.now(); this.upkeep(Math.min(0.1, (now - (this.upT || now)) / 1000)); this.upT = now; }
     if (this.ground) g.drawImage(this.ground, 0, 0, WORLD_W, WORLD_H);
     g.drawImage(this.decal, 0, 0, WORLD_W, WORLD_H);
 
@@ -700,7 +726,7 @@ function drawZombie(g, z, time) {
   if (z.t === 10) g.globalAlpha *= z.st === ZS.PHASE ? 0.28 + 0.1 * Math.sin(time * 20) : 0.75 + 0.15 * Math.sin(time * 3 + z.id);
   if (z.t === 12 && z.st === ZS.CROUCH) g.scale(1.15, 0.8);
   if (z.t === 12 && z.st === ZS.LEAP) { const h = Math.sin(Math.PI * Math.min(1, (time - (z.leapT || time)) / 0.7)); g.translate(0, -h * 30); g.scale(1 + h * 0.35, 1 + h * 0.35); }
-  if (z.t === 15) { g.strokeStyle = `rgba(106,216,160,${0.25 + 0.15 * Math.sin(time * 3)})`; g.lineWidth = 2; g.setLineDash([4, 6]); g.beginPath(); g.arc(0, 0, 170, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); }
+  if (z.t === 15) { g.strokeStyle = `rgba(106,216,160,${0.1 + 0.06 * Math.sin(time * 3)})`; g.lineWidth = 1.5; g.setLineDash([3, 9]); g.beginPath(); g.arc(0, 0, 170, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); }
   if (z.t === 13) { const s = 1 + 0.04 * Math.sin(time * 5 + z.id); g.scale(s, s); }
   if (z.t === 9) {
     g.fillStyle = 'rgba(229,72,77,0.13)';

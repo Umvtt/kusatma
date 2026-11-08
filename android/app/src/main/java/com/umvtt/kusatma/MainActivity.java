@@ -9,7 +9,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
 import android.view.View;
+import android.webkit.RenderProcessGoneDetail;
+import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
@@ -42,6 +46,9 @@ public class MainActivity extends Activity {
     private WebView web;
     private int site = 0;
     private long lastBack = 0;
+    private TextView splash;
+    private boolean loaded = false;
+    private final Runnable slow = () -> { if (!loaded) nextSite(); };
     private final Handler ui = new Handler(Looper.getMainLooper());
 
     @Override
@@ -50,7 +57,17 @@ public class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         web = new WebView(this);
         web.setBackgroundColor(Color.rgb(13, 17, 15));
-        setContentView(web);
+        // a loading screen until the game's page has drawn, so a slow network never looks like a black screen
+        FrameLayout root = new FrameLayout(this);
+        root.addView(web);
+        splash = new TextView(this);
+        splash.setText("KUŞATMA\n\nYükleniyor…");
+        splash.setTextColor(Color.rgb(236, 230, 214));
+        splash.setTextSize(20);
+        splash.setGravity(Gravity.CENTER);
+        splash.setBackgroundColor(Color.rgb(13, 17, 15));
+        root.addView(splash, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        setContentView(root);
         immersive();
 
         WebSettings s = web.getSettings();
@@ -78,18 +95,40 @@ public class MainActivity extends Activity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest req, WebResourceError err) {
                 if (!req.isForMainFrame()) return;
-                // main address unreachable (offline, or blocked on this network): try the mirror, then show the offline page
-                if (site + 1 < SITES.length) { site++; load(); }
-                else view.loadUrl("file:///android_asset/offline.html");
+                nextSite(); // main address unreachable (offline, or blocked on this network)
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (url.startsWith("http") || url.startsWith("file")) { loaded = true; ui.removeCallbacks(slow); ui.postDelayed(() -> splash.setVisibility(View.GONE), 300); }
+            }
+
+            @Override
+            public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                // the page's renderer crashed (low memory): start the app's screen again instead of staying black
+                recreate();
+                return true;
             }
         });
 
-        if (state != null) web.restoreState(state);
-        else load();
+        load();
         checkForNewApp();
     }
 
-    private void load() { web.loadUrl(SITES[site] + "?app=" + BuildConfig.VERSION_CODE); }
+    private void load() {
+        loaded = false;
+        splash.setVisibility(View.VISIBLE);
+        ui.removeCallbacks(slow);
+        ui.postDelayed(slow, 12000); // no page after 12 s: try the next address
+        web.loadUrl(SITES[site] + "?app=" + BuildConfig.VERSION_CODE);
+    }
+
+    /** The mirror, then the offline page with a retry button. */
+    private void nextSite() {
+        ui.removeCallbacks(slow);
+        if (site + 1 < SITES.length) { site++; load(); }
+        else { loaded = true; splash.setVisibility(View.GONE); web.loadUrl("file:///android_asset/offline.html"); }
+    }
 
     @Override
     protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }
@@ -124,9 +163,8 @@ public class MainActivity extends Activity {
                 c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
         } else {
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+            // older Android: hide the navigation bar only, so the keyboard can still push the page up
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
         }
     }
 

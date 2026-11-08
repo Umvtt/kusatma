@@ -324,6 +324,35 @@ li.on .fr-st { color: #43d17a; }
 .ach-m .dim { font-size: 12px; }
 .ach-m .xpbar { height: 5px; }
 
+/* shop: owned filters, sale tags, the purchase window */
+.seg-tabs button { display: inline-flex; align-items: center; gap: 6px; }
+.tab-c { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,.08); color: var(--dim); }
+.seg-tabs button[aria-selected="true"] .tab-c { background: rgba(0,0,0,.18); color: #120a03; }
+.tab-sale { font-size: 11px; font-weight: 800; padding: 1px 5px; border-radius: 6px; background: #ff4f8b; color: #fff; }
+.shop-own { margin-top: -4px; }
+.item-card.on-sale { border-color: rgba(255,79,139,.55); }
+.ic-sale { position: absolute; top: 8px; right: 8px; padding: 2px 7px; border-radius: 6px; background: #ff4f8b; color: #fff; font-size: 11.5px; font-weight: 800; }
+.ic-was { color: var(--dim); font-size: 12px; margin-right: 6px; text-decoration-thickness: 2px; text-decoration-color: #ff4f8b; }
+.ic-price { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+.confirm > .buy-dlg { width: min(580px, calc(100vw - 24px)); max-width: none; max-height: calc(100% - 24px); overflow-y: auto; }
+.buy-body { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 16px; align-items: start; }
+.buy-prev .item-card { width: 100%; cursor: default; transform: none !important; }
+.buy-info { display: flex; flex-direction: column; gap: 8px; }
+.buy-info h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; }
+.buy-info p { margin: 0; font-size: 13.5px; }
+.buy-r { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #8f9a8e; }
+.buy-r.r-r { color: #4cc9f0; } .buy-r.r-e { color: #b26bff; } .buy-r.r-l { color: #ffc93d; } .buy-r.r-s { color: #ff4f8b; }
+.buy-rows { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.buy-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; font-size: 14px; border-top: 1px solid var(--line); }
+.buy-row:first-child { border-top: 0; }
+.buy-row.bad .gem-amt { color: #ff8a8a; }
+.buy-price { display: inline-flex; align-items: center; }
+.buy-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.buy-acts .btn.big { display: inline-flex; align-items: center; gap: 6px; flex: 1; justify-content: center; }
+.buy-dlg.bought { animation: bought .6s ease; box-shadow: 0 0 0 2px #5be3ff, 0 0 60px rgba(91,227,255,.35); }
+@keyframes bought { 30% { transform: scale(1.03); } }
+@media (max-width: 520px) { .buy-body { grid-template-columns: minmax(0, 1fr); } .buy-prev { max-width: 200px; margin-inline: auto; } }
+
 /* phones and small windows: bottom tab bar like an app */
 .phone-only { display: none; }
 .prof-head-acts { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -369,3 +398,4 @@ body.signed .build { z-index: 41; }
 @media (prefers-reduced-motion: reduce) {
   .dashpage *, .gem-pop { animation: none !important; transition: none !important; }
 }
+.ic-lim { max-width: calc(100% - 74px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

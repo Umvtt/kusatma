@@ -775,14 +775,23 @@ function updateHud() {
 
   // downed
   $('#dead').hidden = me.alive || !me.inGame || !$('#esc').hidden;
-  $('#dead-sub').textContent = g.ps.size > 1
-    ? 'Bir takım arkadaşın yanına gelirse seni kaldırır. Dalga bitince zaten geri döneceksin.'
-    : 'Bu dalga bitince geri döneceksin.';
+  $('#dead-sub').textContent = g.ps.size > 1 ? 'Bir arkadaşın yanına gelip seni kaldırabilir · dalga bitince dönersin' : 'Dalga bitince geri döneceksin';
   $('#net-warn').hidden = S.role !== 'client' || performance.now() - g.lastSnapAt < 1500;
   if (!me.alive) {
-    const w = g.spectate != null ? g.nameOf(g.spectate) : null;
+    const sp = g.spectate != null ? g.ps.get(g.spectate) : null;
     const mine = g.ps.get(S.me);
-    $('#dead-watch').textContent = mine && mine.rev > 0 ? `Kaldırılıyorsun… %${Math.round(mine.rev * 100)}` : w ? `${w} izleniyor` : '';
+    $('#spec').hidden = !sp;
+    if (sp) {
+      $('#spec-name').textContent = g.nameOf(g.spectate);
+      const info = S.roster && S.roster.players.find((p) => p.pid === g.spectate);
+      $('#spec-name').style.color = info ? info.color : '';
+      $('#spec-hp').style.width = Math.max(0, Math.min(1, sp.hp / (sp.maxHp || 1))) * 100 + '%';
+      const many = [...g.ps.entries()].filter(([pid, p]) => pid !== S.me && p.alive).length > 1;
+      $('#spec-prev').hidden = $('#spec-next').hidden = !many;
+    }
+    const rev = mine && mine.rev > 0;
+    $('#rev').hidden = !rev;
+    if (rev) { $('#dead-watch').textContent = 'Kaldırılıyorsun…'; $('#rev-fill').style.width = Math.round(mine.rev * 100) + '%'; }
   }
 
   updateShop();
@@ -848,6 +857,9 @@ function shopRow(list, name, desc, max, onBuy, upd, extra) {
   });
   return b;
 }
+// a gold price tag: coin + amount, red when you can't afford it yet
+function priceTag(cost) { const t = el('span', 'price-tag'); t.append(el('span', 'coin'), el('b', '', fmt(cost))); S.shopUpd.push(() => t.classList.toggle('poor', gold() < cost)); return t; }
+function costHead(text, cost) { const li = el('li', 'shop-sub cost-head'); li.append(el('span', '', text), priceTag(cost)); return li; }
 const alive = () => S.game && S.game.self.alive;
 const gold = () => (S.game ? S.game.self.gold : 0);
 
@@ -877,14 +889,14 @@ function buildWeaponTab(list, g) {
   list.append(card);
 
   if (wt === 0) {
-    list.append(el('li', 'shop-sub', `Yol seç · ${fmt(WEAPON_COST[1])} altın`));
+    list.append(costHead('Yol seç', WEAPON_COST[1]));
     const li = el('li', 'paths');
     for (let k = 1; k < PATHS.length; k++) {
       const b = el('button', 'path-btn');
       b.type = 'button';
       b.style.setProperty('--pc', PATHS[k].col);
       const hk = ++S.shopHk; b.dataset.hk = String(hk);
-      b.append(weaponCanvas(cls, 2, k, 0), el('span', 'nm', `${hk <= 9 ? hk + ' · ' : ''}${PATHS[k].name}`), el('span', 'ds', pathDesc(cls, k)));
+      b.append(weaponCanvas(cls, 2, k, 0), el('span', 'nm', `${hk <= 9 ? hk + ' · ' : ''}${PATHS[k].name}`), el('span', 'ds', pathDesc(cls, k)), priceTag(WEAPON_COST[1]));
       b.addEventListener('click', () => { send({ t: 'buy', k: 'wpn', p: k }); sfx.buy(); });
       li.append(b);
       S.shopUpd.push(() => { b.disabled = !(gold() >= WEAPON_COST[1] && alive()); });
@@ -893,14 +905,14 @@ function buildWeaponTab(list, g) {
     return;
   }
   if (wt === 2) {
-    list.append(el('li', 'shop-sub', `Seviye III: dal seç · ${fmt(WEAPON_COST[3])} altın`));
+    list.append(costHead('Seviye III: dal seç', WEAPON_COST[3]));
     const li = el('li', 'paths branches');
     P.br.forEach((br, i) => {
       const b = el('button', 'path-btn');
       b.type = 'button';
       b.style.setProperty('--pc', P.col);
       const hk = ++S.shopHk; b.dataset.hk = String(hk);
-      b.append(weaponCanvas(cls, 3, wp, i + 1), el('span', 'nm', `${hk} · ${br.name}`), el('span', 'ds', br.desc), el('span', 'cap', `Seviye V: ${br.cap}`));
+      b.append(weaponCanvas(cls, 3, wp, i + 1), el('span', 'nm', `${hk} · ${br.name}`), el('span', 'ds', br.desc), el('span', 'cap', `Seviye V: ${br.cap}`), priceTag(WEAPON_COST[3]));
       b.addEventListener('click', () => { send({ t: 'buy', k: 'wpn', b: i + 1 }); sfx.buy(); });
       li.append(b);
       S.shopUpd.push(() => { b.disabled = !(gold() >= WEAPON_COST[3] && alive()); });
@@ -979,32 +991,34 @@ function buildGearTab(list, g) {
 }
 
 function buildTeamTab(list, g) {
-  list.append(el('li', 'shop-sub', 'Herkes altın koyabilir. Seviye dolunca bütün takım kazanır.'));
+  list.append(el('li', 'shop-sub', 'Takımca altın biriktirin. Hedefe ulaşınca herkes güçlenir.'));
+  const coinBtn = (cls, label, hk) => { const b = el('button', 'btn small ' + cls); b.type = 'button'; if (hk) b.dataset.hk = String(hk); const c = el('span', 'coin'); const t = el('span', '', label); b.append(c, t); return [b, t]; };
   TEAM.forEach((t, i) => {
     const li = el('li', 'team-up');
     const head = el('div', 'tu-head');
     const pips = el('span', 'pips'); for (let j = 0; j < t.cost.length; j++) pips.append(el('i'));
     head.append(el('strong', '', t.name), pips);
-    const bar = el('div', 'tu-bar'); const fill = el('i'); bar.append(fill);
-    const meta = el('span', 'tu-meta');
+    const bar = el('div', 'tu-bar'); const fill = el('i'); const bt = el('span', 'tu-bt'); bar.append(fill, bt);
     const row = el('div', 'tu-btns');
     const hk = ++S.shopHk;
-    const give = el('button', 'btn small', `${hk} · +${TEAM_CHUNK}`); give.type = 'button'; give.dataset.hk = String(hk);
-    const all = el('button', 'btn small primary', 'Kalanı öde'); all.type = 'button';
+    const [give, giveT] = coinBtn('', `${TEAM_CHUNK} koy`, hk);
+    const [all, allT] = coinBtn('primary', 'Tamamla');
     give.addEventListener('click', () => { if (!give.disabled) { send({ t: 'buy', k: 'team', i }); sfx.buy(); } });
     all.addEventListener('click', () => { if (!all.disabled) { send({ t: 'buy', k: 'team', i, all: 1 }); sfx.buy(); } });
     row.append(give, all);
-    li.append(head, el('span', 'ds', t.desc), bar, meta, row);
+    li.append(head, el('span', 'ds', t.desc), bar, row);
     list.append(li);
     S.shopUpd.push(() => {
       const lv = g.team[i] | 0, maxed = lv >= t.cost.length, cost = g.teamCost[i] | 0, fund = g.teamFund[i] | 0, left = Math.max(0, cost - fund);
       pips.querySelectorAll('i').forEach((p, j) => p.classList.toggle('on', j < lv));
       fill.style.width = maxed ? '100%' : cost ? Math.min(100, (fund / cost) * 100) + '%' : '0%';
-      meta.textContent = maxed ? 'Tamamlandı' : `${fmt(fund)} / ${fmt(cost)} altın · seviye ${ROMAN[lv + 1]}`;
+      bt.textContent = maxed ? 'Tamamlandı ✓' : `${fmt(fund)} / ${fmt(cost)} · Seviye ${ROMAN[lv + 1]} için`;
       li.classList.toggle('maxed', maxed);
       give.disabled = maxed || !alive() || gold() <= 0;
+      giveT.textContent = `${Math.min(TEAM_CHUNK, Math.max(left, 1))} koy`;
       all.disabled = maxed || !alive() || gold() < left || left <= 0;
-      all.textContent = maxed ? 'Tamam' : `Kalanı öde · ${fmt(left)}`;
+      allT.textContent = maxed ? 'Tamam' : `${fmt(left)} ile tamamla`;
+      row.hidden = maxed;
     });
   });
 }
@@ -1131,6 +1145,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if ((e.code === 'KeyQ' || e.code === 'KeyE') && S.game.phase !== 'combat' && !$('#shop').hidden) { shopTabStep(e.code === 'KeyQ' ? -1 : 1); return; }
+  if (!S.game.self.alive && !e.repeat && ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight'].includes(e.code)) S.game.specStep = e.code === 'KeyA' || e.code === 'ArrowLeft' ? -1 : 1;
   S.game.input.keys.add(e.code);
 });
 window.addEventListener('keyup', (e) => {
@@ -1254,7 +1269,8 @@ function addChat(pid, text) {
   li.append(who, document.createTextNode(text));
   const log = $('#chat-log');
   log.append(li);
-  while (log.children.length > 6) log.firstChild.remove();
+  setTimeout(() => li.classList.add('old'), 7000); // fades away; shown again only while the chat is open
+  while (log.children.length > 20) log.firstChild.remove();
   if (S.screen !== 'game') toast(`${info ? info.name : 'Biri'}: ${text}`);
 }
 
@@ -1310,6 +1326,18 @@ $('#btn-promo').onclick = () => $('#btn-acct').click();
 // the Android app: a download button for Android browsers, and the back button inside the app
 const IN_APP = /KusatmaApp\//.test(navigator.userAgent);
 if (/Android/i.test(navigator.userAgent) && !IN_APP) $('#btn-apk').hidden = false;
+// Android browsers first see a full-screen "get the app" page (once per visit); they can still play here
+if (/Android/i.test(navigator.userAgent) && !IN_APP && !/[?&](debug|nogetapp)/.test(location.search)) {
+  let seen = false; try { seen = sessionStorage.getItem('kusatma-getapp') === '1'; } catch (e) { /* ignore */ }
+  if (!seen) $('#getapp').hidden = false;
+}
+// phones: while typing in a dialog, keep it at the top so the keyboard can't cover its buttons
+document.addEventListener('focusin', (e) => { if (IS_TOUCH && e.target.matches('.confirm input, .dm input')) { document.body.classList.add('kb'); setTimeout(() => e.target.scrollIntoView({ block: 'center' }), 250); } });
+document.addEventListener('focusout', () => setTimeout(() => { if (!document.activeElement || !document.activeElement.matches('.confirm input, .dm input')) document.body.classList.remove('kb'); }, 100));
+$('#acct-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#acct-pw').focus(); } });
+const gaDone = () => { $('#getapp').hidden = true; try { sessionStorage.setItem('kusatma-getapp', '1'); } catch (e) { /* ignore */ } };
+$('#ga-skip').onclick = gaDone;
+$('#ga-dl').addEventListener('click', () => { setTimeout(() => { $('#ga-dl').textContent = 'İndiriliyor… Bitince dosyayı aç'; }, 300); });
 window.kusatmaBack = () => {
   const open = [...document.querySelectorAll('.confirm')].find((d) => !d.hidden);
   if (open) { open.hidden = true; return 'handled'; }
@@ -1356,6 +1384,7 @@ stick($('#stick-aim'), (x, y) => {
   S.game.input.taim = l > 0.2 ? Math.atan2(y, x) : null;
   S.game.input.tfire = l > 0.35;
 });
+for (const [id, d] of [['#spec-prev', -1], ['#spec-next', 1]]) $(id).addEventListener('click', () => { if (S.game) S.game.specStep = d; });
 $('#t-ab').addEventListener('pointerdown', (e) => { e.preventDefault(); if (S.game) S.game.input.ab = true; });
 $('#t-bash').addEventListener('pointerdown', (e) => { e.preventDefault(); if (S.game) S.game.input.bash = true; });
 $('#t-menu').addEventListener('click', () => { if ($('#esc').hidden) openEsc(); else closeEsc(); });
@@ -1507,7 +1536,8 @@ function liveNote(title, text) {
     b.append(el('strong', ''), el('p', ''), x); document.body.append(b);
   }
   b.querySelector('strong').textContent = title;
-  b.querySelector('p').textContent = text;
+  const p = b.querySelector('p'); p.textContent = text || ''; p.hidden = !text;
+  b.classList.toggle('gift', /gönderdi/.test(title));
   b.hidden = false;
   clearTimeout(liveNote.t); liveNote.t = setTimeout(() => { b.hidden = true; }, 15000);
 }
@@ -1526,7 +1556,7 @@ liveStart({
     ver: BUILD,
   }),
   onCfg: () => { acctUi(); dashTop(); liveNews(); if (online() && LIVE.maint.on) leave(''); },
-  onMsg: (t) => liveNote('Yöneticiden mesaj', t),
+  onMsg: (t, title) => liveNote(title || 'Yöneticiden mesaj', t),
   onKick: (t) => { if (online()) leave('Yönetici seni oyundan çıkardı.' + (t ? ' Sebep: ' + t : '')); else liveNote('Yönetici', t || 'Oyundan çıkarıldın.'); },
   onEv: (k, n, t) => {
     if (S.host) S.host.adminEvent(k, n);
@@ -1557,3 +1587,4 @@ function gemPop(n, xp, cap) {
 
 // For automated tests only: open the page with ?debug to expose state.
 if (new URLSearchParams(location.search).has('debug')) window.__kusatma = S;
+window.__kusatmaReady = true;

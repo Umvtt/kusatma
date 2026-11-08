@@ -422,7 +422,7 @@ async function equip(slot, id) {
 
 // ---------- the gem shop ----------
 const SHOP_TABS = [['c', 'Sınıflar'], ['h', 'Şapkalar'], ['r', 'Renkler'], ['w', 'Silah'], ['f', 'Çerçeve'], ['n', 'İsim rengi'], ['u', 'Unvan'], ['t', 'Tema']];
-let shopTab = 'c';
+let shopTab = 'c', shopOwn = 'all';
 const priceOf = (id) => (LIVE.shop && LIVE.shop.p[id] != null ? LIVE.shop.p[id] : null);
 function shopPage(sec, tab) {
   if (tab) shopTab = tab;
@@ -433,14 +433,22 @@ function shopPage(sec, tab) {
   if (S && S.saleAll && S.saleUntil > Date.now()) { const b = el('div', 'dp-banner sale'); b.append(el('strong', '', `Her şeyde %${S.saleAll} indirim`), el('span', '', left(S.saleUntil))); sec.append(b); }
   if (!S) sec.append(el('p', 'msg', 'Mağaza bilgisi yüklenemedi. İnternetini kontrol et.'));
   const tabs = el('div', 'seg-tabs');
-  for (const [k, n] of SHOP_TABS) { const b = btn('', n, () => { shopTab = k; dashGo('shop'); }); b.setAttribute('aria-selected', String(k === shopTab)); tabs.append(b); }
+  const allIds = (k) => Object.keys(ITEMS).filter((id) => id.startsWith(k + '.') && !isFree(id) && !ITEMS[id].reward && (priceOf(id) != null || ITEMS[id].soon || owns(id)));
+  for (const [k, n] of SHOP_TABS) {
+    const L = allIds(k), have = L.filter((id) => owns(id)).length, sale = L.some((id) => S && S.o && S.o[id] && !owns(id));
+    const b = btn('', '', () => { shopTab = k; dashGo('shop'); }); b.append(el('span', '', n), el('span', 'tab-c', `${have}/${L.length}`)); if (sale) b.append(el('span', 'tab-sale', '%'));
+    b.setAttribute('aria-selected', String(k === shopTab)); tabs.append(b);
+  }
   sec.append(tabs);
+  const own = el('div', 'chips shop-own');
+  for (const [k, n] of [['all', 'Hepsi'], ['no', 'Sahip olmadıklarım'], ['yes', 'Sahip olduklarım'], ['sale', 'İndirimde']]) { const b = btn('chip-opt', n, () => { shopOwn = k; dashGo('shop'); }); b.setAttribute('aria-pressed', String(k === shopOwn)); own.append(b); }
+  sec.append(own);
   if (shopTab === 'c') sec.append(el('p', 'note', 'Asker, Doktor, Tamirci ve Nişancı ücretsiz. Kilitli sınıfları Tek başına modunda deneyebilirsin.'));
   const grid = el('div', 'item-grid' + (shopTab === 'c' ? ' wide' : ''));
-  const ids = Object.keys(ITEMS).filter((id) => id.startsWith(shopTab + '.') && !isFree(id) && !ITEMS[id].reward && (priceOf(id) != null || ITEMS[id].soon || owns(id)));
+  const ids = allIds(shopTab).filter((id) => shopOwn === 'all' || (shopOwn === 'yes' ? owns(id) : shopOwn === 'no' ? !owns(id) : !owns(id) && S && S.o && S.o[id]));
   ids.sort((a, b) => (owns(a) - owns(b)) || ((priceOf(a) || 9e9) - (priceOf(b) || 9e9)));
   for (const id of ids) grid.append(itemCard(id));
-  if (!ids.length) grid.append(el('p', 'note', 'Bu bölümde şu an satılık bir şey yok.'));
+  if (!ids.length) grid.append(el('p', 'empty-big', shopOwn === 'yes' ? 'Bu bölümden henüz bir şeyin yok.' : shopOwn === 'sale' ? 'Bu bölümde şu an indirim yok.' : shopOwn === 'no' ? 'Bu bölümdeki her şey sende!' : 'Bu bölümde şu an satılık bir şey yok.'));
   sec.append(grid);
 }
 function left(t) { const m = Math.max(0, (t - Date.now()) / 60000); return m > 1440 ? `${Math.ceil(m / 1440)} gün kaldı` : m > 60 ? `${Math.ceil(m / 60)} saat kaldı` : `${Math.ceil(m)} dk kaldı`; }
@@ -465,6 +473,8 @@ function itemCard(id, big, o = {}) {
   else if (!LIVE.shop) pr.append(el('b', 'soon', '…'));
   else if (price == null) pr.append(el('b', 'soon', 'Satışta değil'));
   else {
+    const was = LIVE.shop && LIVE.shop.o ? LIVE.shop.o[id] : 0;
+    if (was && was > price) { const o = el('s', 'ic-was', fmt(was)); pr.append(o); b.append(el('span', 'ic-sale', `-%${Math.round(100 - price * 100 / was)}`)); b.classList.add('on-sale'); }
     pr.append(gemAmt(price));
     if (LIVE.shop && LIVE.shop.lim[id]) b.append(el('span', 'ic-lim', 'Sınırlı · ' + left(LIVE.shop.lim[id])));
     if (ME.gems < price) pr.classList.add('poor');
@@ -478,16 +488,48 @@ function itemCard(id, big, o = {}) {
   return b;
 }
 function buyDlg(id, price) {
-  const it = ITEMS[id];
-  if (ME.gems < price) { H.ask('Elmasın yetmiyor', `${it.name} için ${fmt(price)} elmas gerekiyor, sende ${fmt(ME.gems)} var. Dalgaları temizleyerek ve günlük ödülle elmas kazanabilirsin.`, 'Tamam', () => {}); return; }
-  H.ask(`${it.name} alınsın mı?`, `${fmt(price)} elmas harcanacak. Kalan: ${fmt(ME.gems - price)} elmas.`, 'Satın al', async () => {
-    const j = await acctOp('buy', { id });
-    if (j.ok) {
-      H.toast(`${it.name} artık senin!`, 'gem'); gemBurst(); topBar();
-      const slot = SLOT_OF[id[0]];
-      if (slot) equip(slot.k, id); else dashGo(page);
-    } else H.toast({ gems: 'Elmasın yetmiyor.', owned: 'Bu zaten sende.', item: 'Bu eşya artık satışta değil.', slow: 'Biraz yavaş, birkaç saniye bekle.' }[j.reason] || 'Satın alınamadı. Tekrar dene.', 'bad');
-  });
+  const it = ITEMS[id], kind = id[0], slot = SLOT_OF[kind];
+  const dlg = $('#buy-dlg'), box = $('#buy-body');
+  const was = LIVE.shop && LIVE.shop.o ? LIVE.shop.o[id] : 0;
+  const draw = (state, msg) => {
+    box.replaceChildren();
+    const pv = el('div', `buy-prev r-${it.r}`); const card = itemCard(id, true, { equip: true }); card.disabled = true; pv.append(card);
+    box.append(pv);
+    const info = el('div', 'buy-info');
+    info.append(el('span', `buy-r r-${it.r}`, RARITY[it.r] || ''), el('h3', '', it.name));
+    if (kind === 'c' && CLASSES[it.cls]) info.append(el('p', 'dim', `${CLASSES[it.cls].desc} Yetenek: ${CLASSES[it.cls].ab.name}. Pasif: ${CLASSES[it.cls].pas.name}.`));
+    else if (slot) info.append(el('p', 'dim', `${slot.name} · aldıktan sonra Dolap'tan istediğin zaman değiştirebilirsin.`));
+    const rows = el('div', 'buy-rows');
+    const row = (l, v, cls) => { const r = el('div', 'buy-row' + (cls ? ' ' + cls : '')); r.append(el('span', '', l), v); rows.append(r); };
+    const pc = el('span', 'buy-price'); if (was > price) pc.append(el('s', 'ic-was', fmt(was))); pc.append(gemAmt(price));
+    row('Fiyat', pc);
+    row('Bakiyen', gemAmt(ME.gems));
+    if (state !== 'done') row('Sonra kalan', gemAmt(Math.max(0, ME.gems - price)), ME.gems < price ? 'bad' : '');
+    info.append(rows);
+    if (msg) info.append(el('p', state === 'err' ? 'msg' : 'note', msg));
+    const acts = el('div', 'buy-acts');
+    if (state === 'done') {
+      if (slot) acts.append(btn('btn primary', 'Hemen kuşan', () => { dlg.hidden = true; equip(slot.k, id); }));
+      acts.append(btn('btn ghost', 'Tamam', () => { dlg.hidden = true; dashGo(page); }));
+    } else if (ME.gems < price) {
+      acts.append(btn('btn primary', 'Elmas kazan', () => { dlg.hidden = true; dashGo('quests'); }), btn('btn ghost', 'Vazgeç', () => { dlg.hidden = true; }));
+      info.append(el('p', 'note', `${fmt(price - ME.gems)} elmas daha gerekiyor. Dalga temizle, günlük ödülü ve görevleri al.`));
+    } else {
+      const go = btn('btn primary big', '', async () => {
+        go.disabled = true; go.textContent = 'Satın alınıyor…';
+        const j = await acctOp('buy', { id });
+        if (j.ok) { gemBurst(); topBar(); draw('done', `${it.name} artık senin!`); dlg.querySelector('.card').classList.add('bought'); }
+        else draw('err', { gems: 'Elmasın yetmiyor.', owned: 'Bu zaten sende.', item: 'Bu eşya artık satışta değil.', slow: 'Biraz yavaş, birkaç saniye bekle.' }[j.reason] || 'Satın alınamadı. İnternetini kontrol edip tekrar dene.');
+      });
+      go.append(el('span', '', 'Satın al · '), gemAmt(price));
+      acts.append(go, btn('btn ghost', 'Vazgeç', () => { dlg.hidden = true; }));
+    }
+    info.append(acts);
+    box.append(info);
+  };
+  dlg.querySelector('.card').classList.remove('bought');
+  dlg.hidden = false;
+  draw('ask');
 }
 
 // ---------- friends and private messages ----------
@@ -826,6 +868,7 @@ export function dashInit(hooks) {
   $('#prof-close').onclick = () => { $('#prof-dlg').hidden = true; };
   $('#rep-close').onclick = () => { $('#rep-dlg').hidden = true; };
   $('#form-close').onclick = () => { $('#form-dlg').hidden = true; };
+  $('#buy-close').onclick = () => { $('#buy-dlg').hidden = true; };
   document.addEventListener('visibilitychange', () => { if (!document.hidden && page === 'home') heroStart(); });
   // friends' online status stays fresh while the panel is open
   setInterval(() => { if (ACCT && !document.hidden && !$('#dashpage').hidden && (page === 'home' || page === 'friends' || page === 'play')) refreshFriends(); }, 30000);

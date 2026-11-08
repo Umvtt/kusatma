@@ -44,11 +44,24 @@ function cleanShop(s) {
   for (const [k, v] of Object.entries(s.p || {})) if (ITEMS[k]) p[k] = Math.max(0, v | 0);
   const lim = {};
   for (const [k, v] of Object.entries(s.lim || {})) if (ITEMS[k]) lim[k] = +v || 0;
-  return { p, lim, feat: ITEMS[s.feat] ? s.feat : '', mul: [1, 1.5, 2, 3].includes(+s.mul) ? +s.mul : 1, until: +s.until || 0, saleAll: Math.max(0, Math.min(90, s.saleAll | 0)), saleUntil: +s.saleUntil || 0, login: s.login | 0, ren: s.ren | 0, cap: s.cap | 0 };
+  const o = {};
+  for (const [k, v] of Object.entries(s.o || {})) if (ITEMS[k]) o[k] = Math.max(0, v | 0);
+  return { p, o, lim, feat: ITEMS[s.feat] ? s.feat : '', mul: [1, 1.5, 2, 3].includes(+s.mul) ? +s.mul : 1, until: +s.until || 0, saleAll: Math.max(0, Math.min(90, s.saleAll | 0)), saleUntil: +s.saleUntil || 0, login: s.login | 0, ren: s.ren | 0, cap: s.cap | 0 };
 }
 try { const a = JSON.parse(localStorage.getItem('kusatma-hesap') || 'null'); if (a && /^[a-f0-9]{64}$/.test(a.tk)) ACCT = { tk: a.tk, name: String(a.name || '').slice(0, 16), id: String(a.id || '') }; } catch (e) { /* ignore */ }
 try { const b = localStorage.getItem(BAN_KEY); if (b !== null) LIVE.ban = b; } catch (e) { /* ignore */ }
 
+// what the player is on, for the owner's panel (no personal data: platform, browser, screen)
+const UA = navigator.userAgent || '';
+const DV = (() => {
+  const app = (UA.match(/KusatmaApp\/(\d+)/) || [])[1];
+  const p = /Android/i.test(UA) ? 'Android' : /iPhone|iPad|iPod/i.test(UA) ? 'iOS' : /Windows/i.test(UA) ? 'Windows' : /Mac OS X/i.test(UA) ? 'Mac' : /CrOS/i.test(UA) ? 'ChromeOS' : /Linux/i.test(UA) ? 'Linux' : 'Diğer';
+  const os = (UA.match(/Android [\d.]+/) || UA.match(/OS [\d_]+ like Mac/) || UA.match(/Windows NT [\d.]+/) || [''])[0].replace(/_/g, '.').replace(' like Mac', '');
+  const b = app ? 'Uygulama' : /Edg\//.test(UA) ? 'Edge ' + (UA.match(/Edg\/(\d+)/) || [])[1] : /OPR\//.test(UA) ? 'Opera' : /SamsungBrowser/.test(UA) ? 'Samsung' : /Firefox\//.test(UA) ? 'Firefox ' + (UA.match(/Firefox\/(\d+)/) || [])[1] : /Chrome\//.test(UA) ? 'Chrome ' + (UA.match(/Chrome\/(\d+)/) || [])[1] : /Safari\//.test(UA) ? 'Safari' : 'Tarayıcı';
+  const c = navigator.connection || {};
+  return { p, os, b, app: app | 0, w: screen.width | 0, h: screen.height | 0, dpr: window.devicePixelRatio || 1, tc: 'ontouchstart' in window ? 1 : 0, lang: navigator.language || '', mem: navigator.deviceMemory | 0, cpu: navigator.hardwareConcurrency | 0, net: c.effectiveType || '' };
+})();
+export const deviceLine = () => `${DV.p}${DV.os ? ' · ' + DV.os : ''} · ${DV.b}`;
 let ws = null, idx = 0, delay = 3000, last = '', H = null, ping = 0;
 
 const str = (v, n) => String(v == null ? '' : v).slice(0, n);
@@ -62,7 +75,7 @@ function send(o) { if (ws && ws.readyState === 1) try { ws.send(JSON.stringify(o
 
 function hi(force) {
   const s = H.state();
-  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '', bn: LIVE.ban !== null ? 1 : 0, pub: PUB ? 1 : 0, rn: str(s.rn, 24), mx: s.mx | 0, df: str(s.df, 12) };
+  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '', bn: LIVE.ban !== null ? 1 : 0, pub: PUB ? 1 : 0, dv: DV, rn: str(s.rn, 24), mx: s.mx | 0, df: str(s.df, 12) };
   const j = JSON.stringify(m);
   if (force || j !== last) { last = j; send(m); }
 }
@@ -78,7 +91,7 @@ function onData(raw) {
   else if (d.e === 'dmok') { const w = DMW.get('c' + (d.c | 0)); if (w) { DMW.delete('c' + (d.c | 0)); w(d); } }
   else if (d.e === 'lvl') { if (Array.isArray(d.L)) for (const r of d.L.slice(0, 20)) { ME.gems += r.g | 0; if (r.it && ITEMS[r.it] && !ME.own.includes(r.it)) ME.own.push(r.it); if (H.onRoad) H.onRoad(r.l | 0, r.g | 0, ITEMS[r.it] ? r.it : ''); } }
   else if (d.e === 'fr') { if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }
-  else if (d.e === 'msg') H.onMsg(str(d.text, 300));
+  else if (d.e === 'msg') H.onMsg(str(d.text, 300), str(d.title, 120));
   else if (d.e === 'kick') H.onKick(str(d.text, 200));
   else if (d.e === 'ban') { LIVE.ban = str(d.text, 120); try { localStorage.setItem(BAN_KEY, LIVE.ban); } catch (e) { /* ignore */ } H.onBan(); }
   else if (d.e === 'ev') H.onEv(d.k === 'boss' ? 'boss' : 'gold', d.n | 0, str(d.text, 120));
@@ -131,7 +144,7 @@ function keepAcct(a) {
   last = ''; if (H) hi(true);
 }
 export async function acctSign(op, name, pw) {
-  const j = await api('/kacct', { op, name, pw, dev });
+  const j = await api('/kacct', { op, name, pw, dev, p: deviceLine() });
   if (j.ok) { keepAcct({ tk: j.tk, name: j.name, id: j.id }); keepMe(j); }
   return j;
 }

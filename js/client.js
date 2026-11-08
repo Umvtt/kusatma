@@ -377,6 +377,11 @@ export class ClientGame {
 
     // who the camera follows
     if (S.inGame && S.alive) this.spectate = null;
+    else if (S.inGame && this.specStep) { // switch to the next / previous living teammate
+      const L = [...this.ps.entries()].filter(([pid, p]) => pid !== this.me && p.alive).map(([pid]) => pid);
+      if (L.length) { const i = L.indexOf(this.spectate); this.spectate = L[((i < 0 ? 0 : i + this.specStep) % L.length + L.length) % L.length]; }
+      this.specStep = 0;
+    }
     else if (S.inGame) {
       const cur = this.spectate != null ? this.ps.get(this.spectate) : null;
       if (!cur || !cur.alive) {

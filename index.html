@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=26">
-  <link rel="stylesheet" href="css/dash.css?v=26">
+  <link rel="stylesheet" href="css/style.css?v=27">
+  <link rel="stylesheet" href="css/dash.css?v=27">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -271,9 +271,13 @@
     </aside>
 
     <div id="dead" class="dead" hidden>
-      <strong>Düştün</strong>
-      <span id="dead-sub">Bir takım arkadaşın yanına gelirse seni kaldırır. Dalga bitince zaten geri döneceksin.</span>
-      <span id="dead-watch" class="dead-watch"></span>
+      <div class="dead-top"><strong>Düştün</strong><span id="dead-sub"></span></div>
+      <div class="spec" id="spec">
+        <button id="spec-prev" class="spec-btn" type="button" aria-label="Önceki oyuncu">‹</button>
+        <div class="spec-mid"><span class="eyebrow">İzliyorsun</span><b id="spec-name">—</b><span class="spec-hp"><i id="spec-hp"></i></span></div>
+        <button id="spec-next" class="spec-btn" type="button" aria-label="Sonraki oyuncu">›</button>
+      </div>
+      <div class="rev" id="rev" hidden><span id="dead-watch"></span><span class="rev-bar"><i id="rev-fill"></i></span></div>
     </div>
 
     <div id="banner" class="banner" hidden>
@@ -399,6 +403,23 @@
       <button id="rep-send" class="btn danger" type="button">Bildir</button>
     </div>
   </div>
+  <div id="getapp" class="getapp" hidden>
+    <div class="ga-in">
+      <img class="ga-icon" src="app/icon.png" alt="" width="96" height="96">
+      <p class="eyebrow">Android</p>
+      <h2 class="ga-h">Kuşatma uygulamasını indir</h2>
+      <ul class="ga-list"><li>Tam ekran, adres çubuğu yok</li><li>Tek dokunuşla açılır</li><li>Güncellemeler kendiliğinden gelir</li><li>Hesabın ve ilerlemen aynı kalır</li></ul>
+      <a id="ga-dl" class="btn primary big ga-btn" href="app/kusatma.apk" download>Uygulamayı indir</a>
+      <p class="ga-how">İndirince dosyayı aç ve <b>Yükle</b>'ye bas. Telefon sorarsa tarayıcına "bilinmeyen uygulamaları yükleme" izni ver.</p>
+      <button id="ga-skip" class="ga-skip" type="button">Şimdilik tarayıcıda oyna</button>
+    </div>
+  </div>
+  <div id="buy-dlg" class="confirm" hidden>
+    <div class="card settings-dlg buy-dlg" role="dialog" aria-modal="true" aria-label="Satın al">
+      <div class="card-head"><h3>Mağaza</h3><button id="buy-close" class="btn small" type="button">Kapat</button></div>
+      <div id="buy-body" class="buy-body"></div>
+    </div>
+  </div>
   <div id="form-dlg" class="confirm" hidden>
     <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="form-title">
       <div class="card-head"><h3 id="form-title"></h3><button id="form-close" class="btn small" type="button">Kapat</button></div>
@@ -412,6 +433,21 @@
   <div id="build" class="build" aria-label="Yapı numarası"></div>
 
   <script src="js/vendor/peerjs.min.js"></script>
-  <script type="module" src="js/main.js?v=26"></script>
+  <script>
+    // Older Android WebViews: fill in what the game needs, and if it still can't start, say why instead of a black screen.
+    if (!Element.prototype.replaceChildren) Element.prototype.replaceChildren = function () { while (this.firstChild) this.removeChild(this.firstChild); this.append.apply(this, arguments); };
+    window.__kErr = '';
+    window.addEventListener('error', function (e) { window.__kErr = window.__kErr || String(e.message || e); });
+    setTimeout(function () {
+      if (window.__kusatmaReady) return;
+      var d = document.createElement('div');
+      d.setAttribute('style', 'position:fixed;inset:0;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;background:#0d110f;color:#ece6d6;font:16px system-ui,sans-serif');
+      var old = !('noModule' in document.createElement('script'));
+      d.innerHTML = '<b style="font-size:22px">Oyun başlatılamadı</b><span style="color:#8f9a8e;max-width:34ch">' + (old ? 'Tarayıcın çok eski.' : 'Bir sorun oldu.') + ' Telefondaysan Play Store\'dan <b>Android System WebView</b> ve <b>Chrome</b>\'u güncelle, sonra tekrar aç.</span><button style="font:600 16px system-ui;padding:10px 24px;border:0;border-radius:10px;background:#ff6b2c;color:#1c0c03" onclick="location.reload()">Tekrar dene</button>';
+      var p = document.createElement('small'); p.style.color = '#5b665d'; p.textContent = window.__kErr; d.appendChild(p);
+      document.body.appendChild(d);
+    }, 9000);
+  </script>
+  <script type="module" src="js/main.js?v=27"></script>
 </body>
 </html>
