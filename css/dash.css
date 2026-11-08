@@ -287,7 +287,12 @@ li.on .fr-st { color: #43d17a; }
 .class-card[aria-checked="true"]::after { content: '✓'; position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 12px; box-shadow: 0 0 0 3px var(--bg); }
 .cd-lock { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 10px 12px; border-radius: 10px; background: rgba(91,227,255,.07); border: 1px solid rgba(91,227,255,.3); font-size: 13px; }
 .cd-lock .dim { flex-basis: 100%; }
-.menu-promo { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: linear-gradient(90deg, rgba(91,227,255,.12), rgba(91,227,255,.02)); border: 1px solid rgba(91,227,255,.3); font-size: 13px; color: #c9f6ff; }
+.menu-promo { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: linear-gradient(120deg, rgba(91,227,255,.14), rgba(91,227,255,.03)); border: 1px solid rgba(91,227,255,.3); }
+.menu-promo > div:nth-child(2) { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.menu-promo strong { font-size: 14px; color: #dff9ff; }
+.menu-promo span { font-size: 12.5px; color: #9fcfdc; line-height: 1.35; }
+.mp-ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 10px; background: rgba(91,227,255,.12); }
+.menu-promo .btn { flex: none; border-color: rgba(91,227,255,.45); color: #dff9ff; }
 
 /* phones and small windows: bottom tab bar like an app */
 .phone-only { display: none; }

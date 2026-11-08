@@ -4,6 +4,7 @@ import { HostNet, OfflineNet, ClientNet, cleanCode, addIce } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { Renderer, drawCharacter, drawWeaponPreview } from './render.js';
+import { startScene } from './scene.js';
 import { dashInit, dashShow, dashRefresh, dashTop, onFriends, onDm, onFr, gemIcon } from './dash.js';
 import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
@@ -48,6 +49,7 @@ function show(screen) {
   document.body.classList.toggle('playing', screen === 'game');
   $('#touch').hidden = !(IS_TOUCH && screen === 'game');
   updateRotate();
+  if (screen === 'menu' && sceneGo) sceneGo();
   if (screen !== 'game') { $('#board').hidden = true; if (S.game) { S.game.input.down = false; S.game.input.keys.clear(); } }
 }
 
@@ -1284,6 +1286,22 @@ function syncSettingsLabels() {
   $('#set-zoom-out').textContent = `%${$('#set-zoom').value}`;
 }
 $('#btn-settings').addEventListener('click', openSettings);
+// the main menu: a live battle behind it and the eight classes up front
+var sceneGo = null; // var: show() may run before this line
+sceneGo = startScene($('#menu-bg'));
+{
+  const box = $('#lp-classes');
+  for (const id of CLASS_ORDER) {
+    const c = CLASSES[id], d = el('div', 'lp-cls' + (FREE_CLS.includes(id) ? '' : ' paid'));
+    const cv = el('canvas'); cv.width = 104; cv.height = 104; cv.style.width = '52px'; cv.style.height = '52px';
+    const g = cv.getContext('2d'); g.scale(2, 2); g.translate(22, 29); g.scale(1.05, 1.05);
+    drawCharacter(g, id, '#ff8a3d', -0.6, 0, { alive: true });
+    d.append(cv, el('span', '', c.name));
+    d.title = `${c.name}: ${c.desc}${FREE_CLS.includes(id) ? '' : ' (elmasla açılır)'}`;
+    box.append(d);
+  }
+}
+$('#btn-promo').onclick = () => $('#btn-acct').click();
 $('#esc-settings').addEventListener('click', openSettings);
 $('#settings-close').addEventListener('click', () => { $('#settings').hidden = true; });
 $('#set-volume').addEventListener('input', (e) => { setSetting('volume', Number(e.target.value)); syncSettingsLabels(); });
@@ -1344,7 +1362,7 @@ function acctUi() {
   dpShow();
   $('#acct-txt').textContent = ACCT ? `Giriş yapıldı: ${ACCT.name}` : 'Hesap isteğe bağlı';
   $('#menu-promo').hidden = !!ACCT;
-  $('#btn-acct').textContent = ACCT ? 'Çıkış yap' : 'Giriş yap / Hesap oluştur';
+  $('#btn-acct').textContent = ACCT ? 'Çıkış yap' : 'Giriş yap';
   $('#name').readOnly = !!ACCT;
   if (ACCT) $('#name').value = ACCT.name;
 }
@@ -1370,6 +1388,7 @@ $('#acct-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') acctGo
 function dpShow() {
   const on = !!ACCT; document.body.classList.toggle('signed', on); $('#dashpage').hidden = !on;
   dashShow(on);
+  if (!on && sceneGo) sceneGo();
 }
 function roomItems(rooms, max) {
   if (!rooms) return [el('li', 'empty', 'Odalar yüklenemedi.')];
