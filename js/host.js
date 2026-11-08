@@ -40,6 +40,7 @@ export class HostGame {
     this.field = new Float32Array(GW * GH);
     this.mapPick = 'meydan'; // lobby choice, may be 'rastgele'
     this.diff = 'normal';
+    this.maxP = MAX_PLAYERS; // the host can set a lower limit when making the room
     this.theme = null;
     this.seed = 0;
     this.resetWorld();
@@ -78,7 +79,7 @@ export class HostGame {
   roster() {
     return {
       t: 'r', ph: this.phase, code: this.net.code || null, host: this.hostPid, succ: this.successor(),
-      map: this.mapPick, diff: this.diff, theme: this.theme, seed: this.seed,
+      map: this.mapPick, diff: this.diff, theme: this.theme, seed: this.seed, max: this.maxP,
       players: [...this.players.values()].map((p) => ({
         pid: p.pid, name: p.name, cls: p.cls, ready: p.ready, color: p.color, inGame: p.inGame || !!p.ghost, away: !!p.ghost,
       })),
@@ -146,7 +147,7 @@ export class HostGame {
           return;
         }
       }
-      if (this.players.size >= MAX_PLAYERS) { this.net.kick(pid, 'full'); return; }
+      if (this.players.size >= this.maxP) { this.net.kick(pid, 'full'); return; }
       this.net.markPlayer(pid);
       this.addPlayer(pid, cleanName(m.name, pid));
       return;

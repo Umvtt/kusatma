@@ -34,7 +34,7 @@
           <span>Takma adın</span>
           <input id="name" maxlength="16" autocomplete="off" spellcheck="false" placeholder="ör. Kartal">
         </label>
-        <div class="acct-row"><span id="acct-txt" class="note">Hesap isteğe bağlı</span><span class="acct-btns"><button id="btn-top" class="btn small ghost" type="button">Sıralama</button><button id="btn-acct" class="btn small" type="button">Giriş yap</button></span></div>
+        <div class="acct-row"><span id="acct-txt" class="note">Hesap isteğe bağlı</span><span class="acct-btns"><button id="btn-acct" class="btn small" type="button">Giriş yap</button></span></div>
         <button id="btn-create" class="btn primary big" type="button">Oda kur</button>
         <div class="divider"><span>ya da arkadaşının odasına katıl</span></div>
         <div class="join-row">
@@ -46,6 +46,7 @@
           <button id="btn-solo" class="btn ghost" type="button">Tek başına oyna</button>
           <button id="btn-settings" class="btn ghost" type="button">Ayarlar</button>
         </div>
+        <p id="menu-block" class="msg" role="alert" hidden></p>
         <p id="menu-msg" class="msg" role="status" hidden></p>
       </div>
     </div>
@@ -58,6 +59,52 @@
       <span><kbd>Enter</kbd> sohbet</span>
       <span><kbd>Esc</kbd> menü</span>
     </footer>
+  
+    <div id="dashpage" class="dashpage" hidden>
+      <header class="dp-top">
+        <span class="dp-logo">Kuşatma</span>
+        <div class="dp-user"><span class="dp-av" id="dp-av">K</span><span id="dp-name">Oyuncu</span><button id="dp-out" class="btn small ghost" type="button">Çıkış yap</button></div>
+      </header>
+      <div class="dp-body">
+        <nav class="dp-nav" role="tablist">
+          <button type="button" data-dp="home" aria-selected="true">Ana sayfa</button>
+          <button type="button" data-dp="rooms" aria-selected="false">Açık odalar</button>
+          <button type="button" data-dp="stats" aria-selected="false">İstatistiklerim</button>
+          <button type="button" data-dp="top" aria-selected="false">Sıralama</button>
+          <button type="button" id="dp-settings">Ayarlar</button>
+        </nav>
+        <main class="dp-main">
+          <p id="dp-block" class="msg" role="alert" hidden></p>
+          <p id="dp-msg" class="msg" role="status" hidden></p>
+          <section data-dpp="home">
+            <p class="eyebrow">Hoş geldin</p><h2 class="dp-h" id="dp-hi">Merhaba</h2>
+            <div class="dp-actions">
+              <button id="dp-create" class="dp-act primary" type="button"><strong>Oda kur</strong><span>Açık ya da gizli bir oda kur, takımını topla.</span></button>
+              <div class="dp-act"><strong>Koda katıl</strong><div class="join-row"><input id="dp-code" class="code-input" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ODA KODU"><button id="dp-join" class="btn" type="button">Katıl</button></div></div>
+              <button id="dp-solo" class="dp-act" type="button"><strong>Tek başına oyna</strong><span>Kimseyi beklemeden sürüye karşı dayan.</span></button>
+            </div>
+            <div class="dp-cols">
+              <div class="dp-card"><div class="dp-card-h"><h3>Açık odalar</h3><button class="btn small ghost" type="button" data-go="rooms">Tümü</button></div><ul class="dp-rooms" id="dp-rooms-mini"></ul></div>
+              <div class="dp-card"><div class="dp-card-h"><h3>İstatistiklerin</h3><button class="btn small ghost" type="button" data-go="stats">Detay</button></div><ul class="dp-stats" id="dp-stats-mini"></ul></div>
+            </div>
+          </section>
+          <section data-dpp="rooms" hidden>
+            <div class="dp-card-h"><h2 class="dp-h">Açık odalar</h2><button id="dp-refresh" class="btn small ghost" type="button">Yenile</button></div>
+            <p class="note">Hesabı olan oyuncuların açık olarak kurduğu odalar. Tek tıkla katıl.</p>
+            <ul class="dp-rooms" id="dp-rooms"></ul>
+          </section>
+          <section data-dpp="stats" hidden>
+            <h2 class="dp-h">İstatistiklerim</h2>
+            <ul class="dp-stats big" id="dp-stats"></ul>
+          </section>
+          <section data-dpp="top" hidden>
+            <h2 class="dp-h">Sıralama</h2>
+            <div class="top-cols"><div class="dp-card"><h3>En iyi dalga</h3><ol id="top-best" class="top-list"></ol></div><div class="dp-card"><h3>En çok öldürme</h3><ol id="top-kills" class="top-list"></ol></div></div>
+            <p id="top-msg" class="note"></p>
+          </section>
+        </main>
+      </div>
+    </div>
   </section>
 
   <!-- Lobi -->
@@ -275,18 +322,26 @@
   <div id="acct-dlg" class="confirm" hidden>
     <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="acct-title">
       <div class="card-head"><h3 id="acct-title">Hesap</h3><button id="acct-close" class="btn small" type="button">Kapat</button></div>
-      <p class="note">İsteğe bağlı. Hesap açınca adın sana ayrılır, başka kimse kullanamaz, ve sıralamada görünürsün.</p>
+      <p class="note">İsteğe bağlı. Hesap açınca adın sana ayrılır, başka kimse kullanamaz, ve kendi panelin açılır: açık odalar, istatistiklerin ve sıralama.</p>
       <label class="field" for="acct-name"><span>Ad</span><input id="acct-name" maxlength="16" autocomplete="username" spellcheck="false"></label>
       <label class="field" for="acct-pw"><span>Şifre (en az 6 karakter)</span><input id="acct-pw" type="password" maxlength="64" autocomplete="current-password"></label>
       <div class="row two"><button id="acct-login" class="btn primary" type="button">Giriş yap</button><button id="acct-reg" class="btn" type="button">Hesap aç</button></div>
       <p id="acct-msg" class="msg" role="status" hidden></p>
     </div>
   </div>
-  <div id="top-dlg" class="confirm" hidden>
-    <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="top-title">
-      <div class="card-head"><h3 id="top-title">Sıralama</h3><button id="top-close" class="btn small" type="button">Kapat</button></div>
-      <div class="top-cols"><div><p class="eyebrow">En iyi dalga</p><ol id="top-best" class="top-list"></ol></div><div><p class="eyebrow">En çok öldürme</p><ol id="top-kills" class="top-list"></ol></div></div>
-      <p id="top-msg" class="note"></p>
+  <div id="room-dlg" class="confirm" hidden>
+    <div class="card settings-dlg room-dlg" role="dialog" aria-modal="true" aria-labelledby="room-title">
+      <div class="card-head"><h3 id="room-title">Oda kur</h3><button id="room-close" class="btn small" type="button">Kapat</button></div>
+      <div class="vis-opts">
+        <button type="button" class="vis-opt" data-v="1"><strong>Açık oda</strong><span>Hesabı olan herkes panelindeki Açık odalar listesinde görür ve tek tıkla katılır.</span></button>
+        <button type="button" class="vis-opt" data-v="0"><strong>Gizli oda</strong><span>Sadece oda kodunu verdiğin kişiler katılabilir.</span></button>
+      </div>
+      <label id="room-name-row" class="field" for="room-name"><span>Oda adı (isteğe bağlı, açık listede görünür)</span><input id="room-name" maxlength="24" autocomplete="off" placeholder="ör. Gece nöbeti"></label>
+      <div class="room-set"><span class="eyebrow">Harita</span><div class="chip-row" id="room-map"></div></div>
+      <div class="room-set"><span class="eyebrow">Zorluk</span><div class="chip-row" id="room-diff"></div></div>
+      <div class="room-set"><span class="eyebrow">En fazla oyuncu</span><div class="chip-row" id="room-max"></div></div>
+      <p id="room-note" class="note"></p>
+      <button id="room-go" class="btn primary big" type="button">Odayı kur</button>
     </div>
   </div>
   <div id="settings" class="confirm" hidden>

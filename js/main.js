@@ -8,7 +8,7 @@ import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
-import { LIVE, ACCT, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, nameTaken } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -57,14 +57,16 @@ function toast(text, kind = '') {
 }
 
 function menuMsg(text, info = false) {
-  const m = $('#menu-msg');
-  m.hidden = !text;
-  m.textContent = text || '';
-  m.classList.toggle('info', info);
+  for (const id of ['#menu-msg', '#dp-msg']) {
+    const m = $(id);
+    m.hidden = !text;
+    m.textContent = text || '';
+    m.classList.toggle('info', info);
+  }
 }
 
 function busy(on) {
-  for (const id of ['#btn-create', '#btn-join', '#btn-solo']) $(id).disabled = on;
+  for (const id of ['#btn-create', '#btn-join', '#btn-solo', '#dp-create', '#dp-join', '#dp-solo']) $(id).disabled = on;
 }
 
 let confirmCb = null;
@@ -112,8 +114,8 @@ function startTicker() {
 function stopTicker() { if (S.ticker) S.ticker.stop(); S.ticker = null; }
 
 // ---------- starting and leaving ----------
-async function createRoom(offline) {
-  if (!offline && liveBlock()) { menuMsg(liveBlock()); return; }
+async function createRoom(offline, opts) {
+  if (!offline && liveBlock()) { blockUi(); menuMsg(''); return; }
   if (!offline && nameTaken($('#name').value)) { menuMsg(TAKEN); return; }
   const name = getName();
   menuMsg(offline ? '' : 'Oda kuruluyor…', true);
@@ -140,13 +142,19 @@ async function createRoom(offline) {
   net.onMsg = (pid, m) => S.host.onMsg(pid, m);
   net.onLeave = (pid) => S.host.playerLost(pid);
   S.host.addPlayer(1, name || 'Kurucu');
+  S.roomName = '';
+  if (opts) {
+    S.host.maxP = Math.max(2, Math.min(MAX_PLAYERS, opts.max | 0 || MAX_PLAYERS));
+    S.roomName = String(opts.name || '').trim().slice(0, 24);
+    send({ t: 'set', map: opts.map, diff: opts.diff });
+  }
   startTicker();
 }
 
 async function joinRoom() {
   const code = cleanCode($('#code').value);
   if (code.length !== CODE_LEN) { menuMsg('Oda kodu 6 karakter olmalı.'); $('#code').focus(); return; }
-  if (liveBlock()) { menuMsg(liveBlock()); return; }
+  if (liveBlock()) { blockUi(); menuMsg(''); return; }
   if (nameTaken($('#name').value)) { menuMsg(TAKEN); return; }
   const name = getName();
   menuMsg('Odaya bağlanılıyor…', true);
@@ -325,7 +333,7 @@ function renderLobby() {
   $('#code-box').classList.toggle('offline', !r.code);
   $('#lobby-eyebrow').textContent = r.code ? 'Lobi' : 'Tek kişilik oyun';
   $('#lobby-title').textContent = running ? 'Oyun sürüyor' : r.ph === 'over' ? 'Oyun bitti' : 'Takımını topla';
-  $('#player-count').textContent = `${r.players.length}/${MAX_PLAYERS}`;
+  $('#player-count').textContent = `${r.players.length}/${r.max || MAX_PLAYERS}`;
 
   const list = $('#player-list');
   list.replaceChildren();
@@ -875,7 +883,7 @@ window.addEventListener('keydown', () => sfx.unlock(), { capture: true });
 
 // ---------- menu ----------
 try { const saved = localStorage.getItem('kusatma-ad'); if (saved) $('#name').value = saved; } catch (e) { /* ignore */ }
-$('#btn-create').addEventListener('click', () => createRoom(false));
+$('#btn-create').addEventListener('click', () => roomDlg());
 $('#btn-solo').addEventListener('click', () => createRoom(true));
 $('#btn-join').addEventListener('click', joinRoom);
 $('#code').addEventListener('input', (e) => { const v = cleanCode(e.target.value); if (v !== e.target.value) e.target.value = v; });
@@ -1044,7 +1052,11 @@ show('menu');
 const TAKEN = 'Bu ad bir hesaba ait. Giriş yap ya da başka bir ad seç.';
 const ACCT_WHY = { name: 'Ad en az 3 harf olmalı.', pw: 'Şifre en az 6 karakter olmalı.', taken: 'Bu ad alınmış. Başka bir ad dene.', wrong: 'Ad ya da şifre yanlış.',
   slow: 'Çok fazla deneme oldu. 15 dakika sonra tekrar dene.', ban: 'Bu hesap engellendi.', net: 'Sunucuya ulaşılamadı. İnternetini kontrol et.' };
+// ban or maintenance: its own notice that always shows the current state
+function blockUi() { const t = liveBlock(); for (const id of ['#menu-block', '#dp-block']) { const m = $(id); m.hidden = !t; m.textContent = t; } }
 function acctUi() {
+  blockUi();
+  dpShow();
   $('#acct-txt').textContent = ACCT ? `Giriş yapıldı: ${ACCT.name}` : 'Hesap isteğe bağlı';
   $('#btn-acct').textContent = ACCT ? 'Çıkış yap' : 'Giriş yap';
   $('#name').readOnly = !!ACCT;
@@ -1068,15 +1080,92 @@ async function acctGo(op) {
 $('#acct-login').onclick = () => acctGo('login');
 $('#acct-reg').onclick = () => acctGo('reg');
 $('#acct-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') acctGo('login'); });
-$('#btn-top').onclick = async () => {
-  $('#top-dlg').hidden = false; $('#top-msg').textContent = 'Yükleniyor…'; $('#top-best').replaceChildren(); $('#top-kills').replaceChildren();
-  const j = await topGet();
-  if (!j.ok) { $('#top-msg').textContent = 'Sıralama yüklenemedi.'; return; }
-  const fill = (box, L, f) => { for (const r of L) { const li = el('li', '', r.name); li.append(el('span', '', f(r))); box.append(li); } };
-  fill($('#top-best'), j.top.best, (r) => `${r.best}. dalga`); fill($('#top-kills'), j.top.kills, (r) => `${r.kills} zombi`);
-  $('#top-msg').textContent = j.top.best.length ? 'Sadece hesabı olan oyuncular sıralamada görünür.' : 'Henüz kimse yok. Hesap aç ve bir oyun bitir, ilk sen ol!';
+// ---------- the signed-in player's full-page panel ----------
+let dpTab = 'home', dpT = 0;
+function dpShow() {
+  const on = !!ACCT; document.body.classList.toggle('signed', on); $('#dashpage').hidden = !on;
+  clearInterval(dpT); dpT = 0;
+  if (!on) return;
+  $('#dp-name').textContent = ACCT.name; $('#dp-av').textContent = ACCT.name.slice(0, 1).toLocaleUpperCase('tr');
+  $('#dp-hi').textContent = `Merhaba, ${ACCT.name}`;
+  dpStats(); dpLoad();
+  dpT = setInterval(() => { if (!document.hidden && S.screen === 'menu' && ACCT && (dpTab === 'home' || dpTab === 'rooms')) dpLoad(); }, 15000);
+}
+function dpStats() {
+  const rows = [[ME.best, 'en iyi dalga'], [ME.kills.toLocaleString('tr'), 'zombi öldürdün'], [ME.games, 'oyun bitirdin'], [ME.mins.toLocaleString('tr'), 'dakika oynadın']];
+  for (const id of ['#dp-stats-mini', '#dp-stats']) $(id).replaceChildren(...rows.map(([v, l]) => { const li = el('li'); li.append(el('strong', '', String(v)), el('span', '', l)); return li; }));
+}
+function roomItems(rooms, max) {
+  if (!rooms) return [el('li', 'empty', 'Odalar yüklenemedi.')];
+  if (!rooms.length) return [el('li', 'empty', 'Şu an açık oda yok. Bir oda kur, burada görünsün.')];
+  return rooms.slice(0, max).map((r) => {
+    const li = el('li'), b = el('button', 'btn small', 'Katıl'); b.type = 'button';
+    b.onclick = () => { $('#code').value = r.code; joinRoom(); };
+    li.append(el('span', 'rc', r.code), el('span', 'rh', r.rn || r.name), el('span', 'rm', `${r.rn ? r.name + ' · ' : ''}${r.n}/${r.mx || MAX_PLAYERS} · ${r.st === 'lobby' ? 'lobide' : `${r.wave}. dalga`}${r.diff ? ' · ' + ((DIFFS[r.diff] || {}).name || '') : ''}`), b);
+    if (r.n >= (r.mx || MAX_PLAYERS)) { b.disabled = true; b.textContent = 'Dolu'; }
+    return li;
+  });
+}
+async function dpLoad() {
+  if (dpTab === 'top') {
+    const j = await topGet(); const tb = $('#top-best'), tk = $('#top-kills');
+    if (!j.ok) { $('#top-msg').textContent = 'Sıralama yüklenemedi.'; return; }
+    const fill = (L, f) => L.map((r) => { const li = el('li', '', r.name); li.append(el('span', '', f(r))); return li; });
+    tb.replaceChildren(...fill(j.top.best, (r) => `${r.best}. dalga`)); tk.replaceChildren(...fill(j.top.kills, (r) => `${r.kills.toLocaleString('tr')} zombi`));
+    $('#top-msg').textContent = j.top.best.length ? '' : 'Henüz kimse yok. Bir oyun bitir, ilk sen ol!';
+    return;
+  }
+  if (dpTab === 'stats') { dpStats(); return; }
+  const j = await roomsGet(), rooms = j.ok ? j.rooms : null;
+  $('#dp-rooms-mini').replaceChildren(...roomItems(rooms, 4));
+  $('#dp-rooms').replaceChildren(...roomItems(rooms, 50));
+}
+function dpGo(t) {
+  dpTab = t;
+  for (const b of document.querySelectorAll('.dp-nav [data-dp]')) b.setAttribute('aria-selected', String(b.dataset.dp === t));
+  for (const p of document.querySelectorAll('[data-dpp]')) p.hidden = p.dataset.dpp !== t;
+  dpLoad();
+}
+for (const b of document.querySelectorAll('.dp-nav [data-dp]')) b.onclick = () => dpGo(b.dataset.dp);
+for (const b of document.querySelectorAll('[data-go]')) b.onclick = () => dpGo(b.dataset.go);
+$('#dp-settings').onclick = openSettings;
+$('#dp-refresh').onclick = dpLoad;
+$('#dp-out').onclick = () => $('#btn-acct').click();
+$('#dp-create').onclick = () => roomDlg();
+$('#dp-solo').onclick = () => createRoom(true);
+$('#dp-join').onclick = () => { $('#code').value = $('#dp-code').value; joinRoom(); };
+$('#dp-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#dp-join').click(); });
+
+// ---------- room settings popup: open (listed for signed-in players) or private ----------
+let roomVis = 0;
+function roomVisSet(v) { roomVis = v; for (const b of document.querySelectorAll('.vis-opt')) b.setAttribute('aria-pressed', String(+b.dataset.v === v)); }
+function chipRow(box, items, cur, onPick) {
+  box.replaceChildren(...items.map(([v, t]) => { const b = el('button', 'chip-opt', t); b.type = 'button'; b.setAttribute('aria-pressed', String(v === cur)); b.onclick = () => { for (const x of box.children) x.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-pressed', 'true'); onPick(v); }; return b; }));
+}
+const ROOM = { map: 'meydan', diff: 'normal', max: MAX_PLAYERS };
+try { Object.assign(ROOM, JSON.parse(localStorage.getItem('kusatma-oda') || '{}')); } catch (e) { /* ignore */ }
+function roomDlg() {
+  if (liveBlock()) { blockUi(); return; }
+  if (nameTaken($('#name').value)) { menuMsg(TAKEN); return; }
+  const pubOk = !!ACCT;
+  document.querySelector('.vis-opt[data-v="1"]').disabled = !pubOk;
+  roomVisSet(pubOk && PUB ? 1 : 0);
+  $('#room-note').textContent = pubOk ? 'İstersen sonradan oda kodunu da paylaşabilirsin.' : 'Açık oda kurmak için hesap gerekir. Ana menüden Giriş yap.';
+  chipRow($('#room-map'), [...MAP_ORDER.map((id) => [id, MAPS[id].name]), ['rastgele', 'Rastgele']], ROOM.map, (v) => { ROOM.map = v; });
+  chipRow($('#room-diff'), DIFF_ORDER.map((id) => [id, DIFFS[id].name]), ROOM.diff, (v) => { ROOM.diff = v; });
+  chipRow($('#room-max'), [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [MAX_PLAYERS, String(MAX_PLAYERS)]], ROOM.max, (v) => { ROOM.max = v; });
+  $('#room-name').value = ACCT ? (ROOM.name || '') : ''; $('#room-name-row').hidden = !ACCT;
+  $('#room-dlg').hidden = false;
+}
+for (const b of document.querySelectorAll('.vis-opt')) b.onclick = () => roomVisSet(+b.dataset.v);
+$('#room-close').onclick = () => { $('#room-dlg').hidden = true; };
+$('#room-go').onclick = () => {
+  $('#room-dlg').hidden = true;
+  ROOM.name = ACCT ? $('#room-name').value.trim().slice(0, 24) : '';
+  try { localStorage.setItem('kusatma-oda', JSON.stringify(ROOM)); } catch (e) { /* ignore */ }
+  setPub(!!ACCT && roomVis === 1);
+  createRoom(false, { map: ROOM.map, diff: ROOM.diff, max: ROOM.max, name: roomVis === 1 ? ROOM.name : '' });
 };
-$('#top-close').onclick = () => { $('#top-dlg').hidden = true; };
 acctUi();
 acctCheck().then(acctUi);
 
@@ -1109,9 +1198,12 @@ liveStart({
     wave: S.game ? S.game.wave || 0 : 0,
     n: S.roster ? S.roster.players.length : 0,
     cls: (myEntry() || {}).cls || '',
+    rn: S.role === 'host' ? S.roomName || '' : '',
+    mx: S.roster ? S.roster.max || MAX_PLAYERS : 0,
+    df: S.roster ? S.roster.diff || '' : '',
     ver: BUILD,
   }),
-  onCfg: () => { acctUi(); liveNews(); if (online() && LIVE.maint.on) leave(liveBlock()); },
+  onCfg: () => { acctUi(); liveNews(); if (online() && LIVE.maint.on) leave(''); },
   onMsg: (t) => liveNote('Yöneticiden mesaj', t),
   onKick: (t) => { if (online()) leave('Yönetici seni oyundan çıkardı.' + (t ? ' Sebep: ' + t : '')); else liveNote('Yönetici', t || 'Oyundan çıkarıldın.'); },
   onEv: (k, n, t) => {
@@ -1120,7 +1212,7 @@ liveStart({
   },
   detail: () => (S.host ? S.host.detail() : null),
   onGift: (name, n) => { if (S.host) S.host.adminGift(name, n); },
-  onBan: () => { if (online()) leave(liveBlock()); else menuMsg(liveBlock()); },
+  onBan: () => { blockUi(); if (online()) leave(''); },
 });
 
 // For automated tests only: open the page with ?debug to expose state.

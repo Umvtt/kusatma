@@ -18,6 +18,11 @@ try {
 
 export const LIVE = { news: { on: false, text: '' }, maint: { on: false, text: '' }, ban: null, names: [] };
 export let ACCT = null;
+export const ME = { best: 0, kills: 0, games: 0, mins: 0 };
+export let PUB = true;
+try { PUB = localStorage.getItem('kusatma-pub') !== '0'; } catch (e) { /* ignore */ }
+export function setPub(v) { PUB = !!v; try { localStorage.setItem('kusatma-pub', PUB ? '1' : '0'); } catch (e) { /* ignore */ } last = ''; if (H) hi(true); }
+const keepMe = (j) => { for (const k of Object.keys(ME)) ME[k] = Math.max(0, j[k] | 0); };
 try { const a = JSON.parse(localStorage.getItem('kusatma-hesap') || 'null'); if (a && /^[a-f0-9]{64}$/.test(a.tk)) ACCT = { tk: a.tk, name: String(a.name || '').slice(0, 16), id: String(a.id || '') }; } catch (e) { /* ignore */ }
 try { const b = localStorage.getItem(BAN_KEY); if (b !== null) LIVE.ban = b; } catch (e) { /* ignore */ }
 
@@ -34,7 +39,7 @@ function send(o) { if (ws && ws.readyState === 1) try { ws.send(JSON.stringify(o
 
 function hi(force) {
   const s = H.state();
-  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '' };
+  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '', bn: LIVE.ban !== null ? 1 : 0, pub: PUB ? 1 : 0, rn: str(s.rn, 24), mx: s.mx | 0, df: str(s.df, 12) };
   const j = JSON.stringify(m);
   if (force || j !== last) { last = j; send(m); }
 }
@@ -97,7 +102,7 @@ function keepAcct(a) {
 }
 export async function acctSign(op, name, pw) {
   const j = await api('/kacct', { op, name, pw, dev });
-  if (j.ok) keepAcct({ tk: j.tk, name: j.name, id: j.id });
+  if (j.ok) { keepAcct({ tk: j.tk, name: j.name, id: j.id }); keepMe(j); }
   return j;
 }
 export async function acctOut() { const a = ACCT; keepAcct(null); if (a) api('/kacct', { op: 'out', tk: a.tk }); }
@@ -105,10 +110,11 @@ export async function acctOut() { const a = ACCT; keepAcct(null); if (a) api('/k
 export async function acctCheck() {
   if (!ACCT) return;
   const j = await api('/kacct', { op: 'me', tk: ACCT.tk });
-  if (j.ok) { if (j.name !== ACCT.name) keepAcct({ tk: ACCT.tk, name: j.name, id: j.id }); }
+  if (j.ok) { keepMe(j); if (j.name !== ACCT.name) keepAcct({ tk: ACCT.tk, name: j.name, id: j.id }); }
   else if (j.reason === 'signin') keepAcct(null);
 }
 export const topGet = () => api('/ktop');
+export const roomsGet = () => api('/krooms');
 // someone else's account owns this name
 export function nameTaken(name) { const k = nkey(name); return !!k && LIVE.names.includes(k) && !(ACCT && nkey(ACCT.name) === k); }
 
