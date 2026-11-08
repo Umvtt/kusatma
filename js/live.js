@@ -40,6 +40,8 @@ function onData(raw) {
   else if (d.e === 'msg') H.onMsg(str(d.text, 300));
   else if (d.e === 'kick') H.onKick(str(d.text, 200));
   else if (d.e === 'ban') { LIVE.ban = str(d.text, 120); try { localStorage.setItem(BAN_KEY, LIVE.ban); } catch (e) { /* ignore */ } H.onBan(); }
+  else if (d.e === 'ev') H.onEv(d.k === 'boss' ? 'boss' : 'gold', d.n | 0, str(d.text, 120));
+  else if (d.e === 'watch') { const r = H.detail(); if (r) send({ e: 'rd', d: r }); }
   else if (d.e === 'unban') { LIVE.ban = null; try { localStorage.removeItem(BAN_KEY); } catch (e) { /* ignore */ } H.onCfg(); }
 }
 
@@ -55,7 +57,7 @@ function connect() {
 }
 function retry() { setTimeout(connect, delay); delay = Math.min(delay * 2, 60000); }
 
-// hooks: state() -> {name, room, mode, st, wave, n, ver}; onCfg(); onMsg(text); onKick(text); onBan()
+// hooks: state() -> {name, room, mode, st, wave, n, ver}; onCfg(); onMsg(text); onKick(text); onBan(); onEv(kind, n, text); detail()
 export function liveStart(hooks) {
   H = hooks;
   connect();
@@ -65,7 +67,7 @@ export function liveStart(hooks) {
 }
 
 // a finished game (only the host's report counts it as a game; everyone's counts for the best wave)
-export function liveStat(wave, host) { send({ e: 'stat', w: wave | 0, host: host ? 1 : 0 }); }
+export function liveStat(wave, host, kills) { send({ e: 'stat', w: wave | 0, host: host ? 1 : 0, k: kills | 0 }); }
 
 // why online play is closed right now, or '' when it's open
 export function liveBlock() {

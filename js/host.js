@@ -412,6 +412,7 @@ export class HostGame {
       for (let c = 0; c < count; c++) for (const t of kinds) this.queue.splice(Math.floor(this.queue.length * Math.min(0.9, 0.3 + 0.15 * i++)), 0, t);
       this.bossWave = kinds[0];
     }
+    if (this.pendBoss) { this.queue.splice(Math.floor(this.queue.length * 0.4), 0, this.pendBoss); this.pendBoss = 0; }
     this.spawnT = 0.5;
     for (const p of this.inGame()) p.shopReady = false;
     this.ev(['ws', w, this.bossWave]);
@@ -450,6 +451,27 @@ export class HostGame {
       .sort((a, b) => b.kills - a.kills);
     this.out({ t: 'o', wave: this.wave, P, time: Math.round(this.time), diff: this.diff, theme: this.theme });
     this.pushRoster();
+  }
+
+  // events sent from the owner's admin panel
+  adminEvent(k, n) {
+    if (k === 'gold') {
+      const g = Math.max(10, Math.min(5000, n | 0));
+      for (const p of this.inGame()) p.gold += g;
+      this.pushRoster();
+    } else if (k === 'boss') {
+      const t = BOSS_ORDER[Math.floor(Math.random() * BOSS_ORDER.length)];
+      if (this.phase === 'combat') this.spawnZombie(t); else this.pendBoss = t;
+    }
+  }
+
+  // a short summary of the room for the admin panel's room viewer
+  detail() {
+    return {
+      ph: this.phase, w: this.wave, z: this.zombies.filter((z) => !z.dead).length + (this.queue ? this.queue.length : 0),
+      diff: (DIFFS[this.diff] || {}).name || this.diff, map: (MAPS[this.theme || this.mapPick] || {}).name || 'Rastgele',
+      p: [...this.players.values()].map((p) => [p.name, (CLASSES[p.cls] || {}).name || '', p.inGame ? (p.alive ? 1 : 0) : 2, p.kills | 0, p.gold | 0]),
+    };
   }
 
   toLobby() {

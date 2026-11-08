@@ -272,7 +272,7 @@ function onMessage(m) {
       break;
     case 'r': onRoster(m); break;
     case 's': if (S.game) S.game.onSnap(m); break;
-    case 'o': S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host'); renderOver(); if (S.roster) route(); break;
+    case 'o': S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
     case 'bk': if (S.role === 'client' && m.s && typeof m.s === 'object') S.backup = m.s; break;
@@ -1070,6 +1070,11 @@ liveStart({
   onCfg: () => { liveNews(); if (online() && LIVE.maint.on) leave(liveBlock()); },
   onMsg: (t) => liveNote('Yöneticiden mesaj', t),
   onKick: (t) => { if (online()) leave('Yönetici seni oyundan çıkardı.' + (t ? ' Sebep: ' + t : '')); else liveNote('Yönetici', t || 'Oyundan çıkarıldın.'); },
+  onEv: (k, n, t) => {
+    if (S.host) S.host.adminEvent(k, n);
+    if (S.role) liveNote('Yönetici etkinliği', (k === 'boss' ? 'Bir boss yola çıktı!' : `Herkese +${Math.max(10, Math.min(5000, n))} altın!`) + (t ? ' ' + t : ''));
+  },
+  detail: () => (S.host ? S.host.detail() : null),
   onBan: () => { if (online()) leave(liveBlock()); else menuMsg(liveBlock()); },
 });
 
