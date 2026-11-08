@@ -43,10 +43,13 @@ Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, gece k
 | Alevci | Alev makinesi | **Alev Patlaması**: etraftakileri yakar | Alev tutuşturur, patlamalardan yarı hasar |
 | Bombacı | Bomba atar | **Mayın**: yere mayın bırakır | +2 el bombası, bombalar %30 sert |
 | İzci | Çift tabanca | **Depar**: 4 sn %60 daha hızlı | +%15 altın, uzaktan toplar, hızlı Dipçik |
+| Mühendis | Karabina | **Tamir Dronu**: arkadaşları iyileştirir, barikat ve taret onarır | İki saldırı dronu hep yanında uçar ve ateş eder |
+| Kimyager | Asit tabancası | **Zehir Bulutu**: nişan alınan yere büyük zehir bulutu | Mermiler zehirler; zehirli zombiler takımdan %20 fazla hasar alır |
+| Komutan | Ağır tabanca | **İkmal Sandığı**: yakındakilere can, altın ve 5 sn iki kat hasar | Yakınındaki herkes %10 sert vurur |
 
 Lobide bir sınıfa tıklayınca (ya da fareyle üstüne gelince) yandaki panel her şeyi gösterir: rolü, değerler, yetenek, pasif, yetenek ustalığı ve silah serisi. Kartlardaki renkli noktalar hangi takım arkadaşının o sınıfı seçtiğini gösterir.
 
-Asker, Doktor, Tamirci ve Nişancı ücretsizdir. Diğerleri elmasla açılır (İzci 450, Kalkancı 500, Alevci 700, Bombacı 800). Kilitli bir sınıfı **Tek başına** modda deneyebilirsin ama o oyun elmas kazandırmaz; odalarda yalnızca sahip olduğun sınıflar seçilir. Mühendis, Kimyager ve Komutan yakında geliyor.
+Asker, Doktor, Tamirci ve Nişancı ücretsizdir. Diğerleri elmasla açılır (İzci 450, Kalkancı 500, Alevci 700, Bombacı 800, Mühendis 1400, Kimyager 1500, Komutan 1800). Kilitli bir sınıfı **Tek başına** modda deneyebilirsin ama o oyun elmas kazandırmaz; odalarda yalnızca sahip olduğun sınıflar seçilir.
 
 ## Hesap, elmas ve mağaza
 
@@ -57,9 +60,16 @@ Hesap isteğe bağlıdır ama açınca oyun bir siteye dönüşür:
 - **Mağaza:** sınıflar, şapkalar, renkler, silah kaplamaları, çerçeveler, isim renkleri, unvanlar ve temalar. Bazen indirim, sınırlı süreli eşya ya da 2× elmas etkinliği olur.
 - **Profil ve dolap:** seviyen ve istatistiklerin; aldıklarını buradan giyersin. Başka oyuncular profiline bakabilir.
 - **Arkadaşlar:** ad ile istek gönder, kimin çevrimiçi olduğunu ve hangi odada oynadığını gör, tek tıkla katıl, özel mesaj at. Rahatsız eden birini bildirebilirsin.
+- **Görevler:** her gün üç görev (elmas ve XP), seviye yolu (her seviye elmas; 5, 10, 15, 20, 30, 40 ve 50. seviyelerde satılmayan unvan, çerçeve ve isim rengi) ve 33 başarım.
 - **Ayarlar:** tema, gizlilik (istekler, çevrimiçi görünme, odanı gösterme, sıralama), ad değiştirme (elmasla), şifre değiştirme, hesabı silme.
 
 Elmaslar sunucuda tutulur ve kontrol edilir; odadaki herkes, sunucunun imzaladığı bir "kart" sayesinde kimin hangi sınıfa ve eşyaya sahip olduğunu bilir.
+
+## Android uygulaması
+
+Android telefonda siteyi açınca üstte **Android uygulaması** düğmesi çıkar (ya da `https://umvtt.github.io/kusatma/app/kusatma.apk`). İndirip kur; tarayıcına "bilinmeyen uygulamaları yükle" izni vermen gerekebilir. Uygulama oyunu doğrudan siteden açar, bu yüzden her oyun güncellemesi uygulamaya da anında gelir; tekrar kurman gerekmez. Ana adrese ulaşılamazsa okul aynasını dener. Geri tuşu oyundaki Esc gibi çalışır.
+
+Uygulamanın kendisi değişirse (nadiren), uygulama `app/version.json` dosyasından yeni sürümü görüp indirmeyi önerir. Yeni APK'yı yapmak için `android/` klasöründe aynı imza anahtarıyla `gradle assembleRelease -PversionCode=<yeni numara>` çalıştırılır, çıkan dosya `app/kusatma.apk` olarak konur ve `app/version.json` içindeki `v` bir artırılır. İmza anahtarı depoda değildir; aynı anahtar olmadan yeni sürüm eskisinin üstüne kurulamaz.
 
 ## Haritalar
 
@@ -85,6 +95,11 @@ Zorluk seviyeleri: Kolay, Normal, Zor, Kâbus.
 | Patlayan | Yanına gelince patlar; öldürülünce de patlayıp yakındaki zombilere zarar verir (5. dalga) |
 | Kalkanlı | Önden gelen mermileri kalkanıyla durdurur. Yandan, arkadan, ateşle ya da patlamayla vur; ya da **Dipçik** ile kalkanını düşürüp birkaç saniye önden vur (6. dalga) |
 | Çağırıcı | Uzakta durup yeni zombiler çağırır. Önce onu indirin (8. dalga) |
+| Sıçrayıcı | Çömelir, sonra barikatların ve kasaların üstünden atlayıp yere çarpar (6. dalga) |
+| Hayalet | Yarı saydamdır; ara sıra duvarların içinden geçerek üstüne gelir (7. dalga) |
+| Doğurgan | Ölünce dört hızlı Sürüngen'e bölünür (8. dalga) |
+| Zırhlı | Zırhı kırılana kadar sıradan mermiler az işler. Delici mermi, ateş, patlama, asit ve Nişancı zırhı yok sayar (9. dalga) |
+| Şifacı | Geride durup etrafındaki zombileri iyileştirir. Önce onu indirin (10. dalga) |
 
 ### Bosslar
 

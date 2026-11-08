@@ -21,11 +21,11 @@ try {
 
 export const LIVE = { news: { on: false, text: '' }, maint: { on: false, text: '' }, ban: null, names: [], shop: null };
 export let ACCT = null;
-export const ME = { best: 0, kills: 0, games: 0, mins: 0, gems: 0, xp: 0, lvl: 1, lx: 0, ln: 100, own: [], eq: {}, set: { fr: 1, on: 1, room: 1 }, pass: '', dl: false, fq: [], un: 0, made: 0, hideLb: false, gd: 0, mute: 0 };
+export const ME = { qn: 0, best: 0, kills: 0, games: 0, mins: 0, gems: 0, xp: 0, lvl: 1, lx: 0, ln: 100, own: [], eq: {}, set: { fr: 1, on: 1, room: 1 }, pass: '', dl: false, fq: [], un: 0, made: 0, hideLb: false, gd: 0, mute: 0 };
 export let PUB = true;
 try { PUB = localStorage.getItem('kusatma-pub') !== '0'; } catch (e) { /* ignore */ }
 export function setPub(v) { PUB = !!v; try { localStorage.setItem('kusatma-pub', PUB ? '1' : '0'); } catch (e) { /* ignore */ } last = ''; if (H) hi(true); }
-const NUMS = ['best', 'kills', 'games', 'mins', 'gems', 'xp', 'lvl', 'lx', 'ln', 'made', 'un', 'gd', 'mute'];
+const NUMS = ['best', 'kills', 'games', 'mins', 'gems', 'xp', 'lvl', 'lx', 'ln', 'made', 'un', 'gd', 'mute', 'qn'];
 const keepMe = (j) => {
   for (const k of NUMS) if (k in j) ME[k] = Math.max(0, +j[k] || 0);
   if (Array.isArray(j.own)) ME.own = j.own.filter((x) => typeof x === 'string').slice(0, 300);
@@ -76,6 +76,7 @@ function onData(raw) {
   else if (d.e === 'dm') { if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
   else if (d.e === 'dmh') { const w = DMW.get(str(d.w, 12)); if (w) { DMW.delete(str(d.w, 12)); w(d.ok ? cleanMsgs(d.L) : null); } }
   else if (d.e === 'dmok') { const w = DMW.get('c' + (d.c | 0)); if (w) { DMW.delete('c' + (d.c | 0)); w(d); } }
+  else if (d.e === 'lvl') { if (Array.isArray(d.L)) for (const r of d.L.slice(0, 20)) { ME.gems += r.g | 0; if (r.it && ITEMS[r.it] && !ME.own.includes(r.it)) ME.own.push(r.it); if (H.onRoad) H.onRoad(r.l | 0, r.g | 0, ITEMS[r.it] ? r.it : ''); } }
   else if (d.e === 'fr') { if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }
   else if (d.e === 'msg') H.onMsg(str(d.text, 300));
   else if (d.e === 'kick') H.onKick(str(d.text, 200));
@@ -166,9 +167,12 @@ export async function acctOp(op, body) {
 export const owns = (id) => ME.own.includes(id) || (ITEMS[id] && ITEMS[id].free) || false;
 // a cleared wave in my own game: the server decides the gems
 let gid = '';
-export function liveGameEnd() { gid = ''; }
+export function liveGameEnd() { gid = ''; lastK = -1; }
+let lastK = -1;
+// kills when a wave starts: the next report counts only what was killed after this
+export function liveKills(k) { if (lastK < 0) lastK = k | 0; }
 export function liveGame() { if (gid) return; gid = Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => b.toString(16).padStart(2, '0')).join(''); }
-export function liveWave(w) { if (ACCT && gid) send({ e: 'gw', w: w | 0, g: gid }); }
+export function liveWave(w, kills) { if (!ACCT || !gid) return; const k = lastK < 0 ? 0 : Math.max(0, (kills | 0) - lastK); lastK = kills | 0; send({ e: 'gw', w: w | 0, g: gid, k }); }
 const cleanFl = (d) => ({
   L: (Array.isArray(d.L) ? d.L : []).slice(0, 200).map((f) => ({ id: str(f.id, 12), name: str(f.name, 16), lvl: f.lvl | 0, eq: cleanEq(f.eq), on: !!f.on, room: str(f.room, 6).replace(/[^A-Z0-9]/g, ''), st: str(f.st, 8), wave: f.wave | 0, solo: !!f.solo, last: +f.last || 0 })),
   q: (Array.isArray(d.q) ? d.q : []).slice(0, 50).map((q) => ({ id: str(q.id, 12), name: str(q.name, 16) })),

@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The workflow passes the version number in; the signing key comes from the repository's secrets.
+def appVersion = (project.findProperty('versionCode') ?: '1').toString().toInteger()
+def keystorePath = System.getenv('KEYSTORE_FILE')
+
+android {
+    namespace 'com.umvtt.kusatma'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.umvtt.kusatma'
+        minSdk 24
+        targetSdk 34
+        versionCode appVersion
+        versionName "1.${appVersion}"
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv('KEYSTORE_PASSWORD')
+                keyAlias 'kusatma'
+                keyPassword System.getenv('KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    buildFeatures { buildConfig true }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

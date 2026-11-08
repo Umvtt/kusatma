@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 9;
+export const VERSION = 10;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 23;
+export const BUILD = 24;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
@@ -45,7 +45,7 @@ export const PLAYER_COLORS = [
   '#b8f2e6', '#e9c46a', '#ff99c8', '#a0c4ff', '#caffbf',
 ];
 
-export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci'];
+export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci', 'muhendis', 'kimyager', 'komutan'];
 
 // kind: 'b' bullet, 'f' flame, 'g' grenade
 export const CLASSES = {
@@ -105,6 +105,28 @@ export const CLASSES = {
     pas: { name: 'Leşçi', desc: '+%15 altın, eşyaları uzaktan toplarsın, Dipçik iki kat hızlı dolar.' },
     bars: { can: 0.4, hiz: 1, hasar: 0.45 },
   },
+  muhendis: {
+    name: 'Mühendis', weapon: 'Karabina', tiers: ['Karabina', 'Lazer nişangahlı karabina', 'Plazma karabina'], desc: 'İki saldırı dronu hep yanında uçar. Takımı tamir eder.',
+    hp: 105, spd: 220, dmg: 14, rate: 6.5, spread: 0.05, bspd: 1150, life: 0.65, pellets: 1, pierce: 0, kind: 'b', gun: 28,
+    ab: { name: 'Tamir Dronu', desc: '10 saniye boyunca yakındaki arkadaşları iyileştiren, barikatları ve taretleri onaran bir dron gönderir.', cd: 22, dur: 10, heal: 7, r: 180 },
+    pas: { name: 'Dron pilotu', desc: 'İki küçük saldırı dronu etrafında uçar ve en yakın zombiye ateş eder. Silahın güçlendikçe dronlar da güçlenir.' },
+    drone: { dmg: 7, rate: 0.55, range: 380 },
+    bars: { can: 0.5, hiz: 0.6, hasar: 0.6 },
+  },
+  kimyager: {
+    name: 'Kimyager', weapon: 'Asit tabancası', tiers: ['Asit tabancası', 'Basınçlı asit tabancası', 'Aşındırıcı asit topu'], desc: 'Her mermi zehirler. Zehirli sürü takımın elinde erir.',
+    hp: 100, spd: 218, dmg: 16, rate: 5, spread: 0.06, bspd: 820, life: 0.75, pellets: 1, pierce: 1, kind: 'b', gun: 26,
+    ab: { name: 'Zehir Bulutu', desc: 'Nişan aldığın yere büyük bir zehir bulutu atar.', cd: 18, dur: 8, r: 150 },
+    pas: { name: 'Katalizör', desc: 'Mermilerin zehirler. Zehirlenen zombiler bütün takımdan %20 fazla hasar alır.' },
+    bars: { can: 0.45, hiz: 0.6, hasar: 0.55 },
+  },
+  komutan: {
+    name: 'Komutan', weapon: 'Ağır tabanca', tiers: ['Ağır tabanca', 'Magnum', 'Altın magnum'], desc: 'Takımı güçlendirir, ikmal sandığı çağırır.',
+    hp: 120, spd: 215, dmg: 40, rate: 3, spread: 0.02, bspd: 1400, life: 0.75, pellets: 1, pierce: 1, kind: 'b', gun: 22,
+    ab: { name: 'İkmal Sandığı', desc: 'Yanına bir ikmal sandığı düşer: yakındakiler iyileşir, altın alır ve 5 saniye iki kat hasar verir.', cd: 26, dur: 5, r: 200, heal: 30 },
+    pas: { name: 'Liderlik', desc: 'Yakınındaki arkadaşların (ve sen) %10 daha sert vurur.' },
+    bars: { can: 0.6, hiz: 0.55, hasar: 0.7 },
+  },
 };
 
 // Order matters: the snapshot sends the levels as an array in this order.
@@ -136,6 +158,9 @@ export const AB_UP = {
   alevci: ['Patlama alanı ve hasarı büyür', 'Patlama alanı ve hasarı daha da büyür', 'Patlama zombileri tutuşturur'],
   bombaci: ['Aynı anda bir mayın daha', 'Mayınlar %30 daha sert, alanı büyük', 'Mayınlar patlayınca üç küçük bomba saçar'],
   izci: ['Depar 1,5 sn uzar', 'Depar 1,5 sn daha uzar', 'Depar sırasında %60 az hasar, +%30 atış hızı'],
+  muhendis: ['Tamir dronu 3 sn uzar', 'Saldırı dronları %40 sert vurur', 'Üçüncü bir saldırı dronu'],
+  kimyager: ['Bulut büyür, 2 sn uzar', 'Bulut zombileri yavaşlatır', 'Bulut çok daha sert zehirler'],
+  komutan: ['Sandık daha çok iyileştirir ve altın verir', 'İki kat hasar 2 sn uzar', 'Sandık düşenleri de kaldırır'],
 };
 // How long a timed ability lasts with mastery level l.
 export function abDur(cls, l) {
@@ -144,6 +169,9 @@ export function abDur(cls, l) {
   const k = Math.min(2, l | 0);
   if (cls === 'asker') return d + 2 * k;
   if (cls === 'nisanci' || cls === 'kalkanci' || cls === 'izci') return d + 1.5 * k;
+  if (cls === 'muhendis') return d + (k >= 1 ? 3 : 0);
+  if (cls === 'kimyager') return d + (k >= 1 ? 2 : 0);
+  if (cls === 'komutan') return d + (k >= 2 ? 2 : 0);
   return d;
 }
 
@@ -325,6 +353,12 @@ export const ZTYPES = [
   { name: 'Çağırıcı', hp: 90, spd: 70, r: 16, dps: 8, gold: 25, col: '#7a5a8a', dark: '#352440' },
   { name: 'Kraliçe', hp: 1400, spd: 55, r: 36, dps: 30, gold: 150, col: '#8a9a2a', dark: '#3d4512', boss: true },
   { name: 'Koç', hp: 1800, spd: 72, r: 36, dps: 40, gold: 150, col: '#7a4a32', dark: '#36190f', boss: true },
+  { name: 'Hayalet', hp: 55, spd: 95, r: 14, dps: 11, gold: 14, col: '#b9c8d6', dark: '#5a6a7a' },
+  { name: 'Zırhlı', hp: 190, spd: 58, r: 19, dps: 20, gold: 22, col: '#6e7a5a', dark: '#2f3826' },
+  { name: 'Sıçrayıcı', hp: 60, spd: 88, r: 14, dps: 10, gold: 14, col: '#8f7a4a', dark: '#4a3c20' },
+  { name: 'Doğurgan', hp: 170, spd: 50, r: 22, dps: 14, gold: 20, col: '#9a8a5a', dark: '#544824' },
+  { name: 'Sürüngen', hp: 14, spd: 165, r: 9, dps: 6, gold: 2, col: '#7a9a5a', dark: '#3a4a26' },
+  { name: 'Şifacı', hp: 85, spd: 66, r: 15, dps: 5, gold: 22, col: '#6aa88a', dark: '#2a5040' },
 ];
 ZTYPES[3].boss = true;
 export const BOSS_ORDER = [3, 8, 9]; // Dev, Kraliçe, Koç, then repeat
@@ -340,7 +374,7 @@ export const zMaxHp = (t, wave, n, hm = 1) =>
   ZTYPES[t].hp * hm * (1 + (Math.max(1, wave) - 1) * 0.12) * (ZTYPES[t].boss ? 1 + 0.35 * (Math.max(1, n) - 1) : 1);
 
 // zombie states sent over the network
-export const ZS = { NORMAL: 0, WINDUP: 1, DASH: 2, SLAM: 3, SPIT: 4, FUSE: 5, SUMMON: 6 };
+export const ZS = { NORMAL: 0, WINDUP: 1, DASH: 2, SLAM: 3, SPIT: 4, FUSE: 5, SUMMON: 6, PHASE: 7, CROUCH: 8, LEAP: 9 };
 
 export const FIRST_BREAK = 8;
 export const BREAK_TIME = 25;

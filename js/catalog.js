@@ -22,9 +22,9 @@ export const ITEMS = {
   'c.kalkanci': { name: 'Kalkancı', r: 'r', cls: 'kalkanci' },
   'c.alevci': { name: 'Alevci', r: 'e', cls: 'alevci' },
   'c.bombaci': { name: 'Bombacı', r: 'e', cls: 'bombaci' },
-  'c.muhendis': { name: 'Mühendis', r: 'l', cls: 'muhendis', soon: true },
-  'c.kimyager': { name: 'Kimyager', r: 'l', cls: 'kimyager', soon: true },
-  'c.komutan': { name: 'Komutan', r: 'l', cls: 'komutan', soon: true },
+  'c.muhendis': { name: 'Mühendis', r: 'l', cls: 'muhendis' },
+  'c.kimyager': { name: 'Kimyager', r: 'l', cls: 'kimyager' },
+  'c.komutan': { name: 'Komutan', r: 'l', cls: 'komutan' },
   // colours
   'r.kan': { name: 'Kan kırmızısı', r: 'c', c: '#d61f3a' },
   'r.buz': { name: 'Buz mavisi', r: 'c', c: '#6fd8ff' },
@@ -72,6 +72,14 @@ export const ITEMS = {
   'u.avci': { name: 'Zombi Avcısı', r: 'r' },
   'u.kasap': { name: 'Kasap', r: 'e' },
   'u.efsane': { name: 'Efsane', r: 'l' },
+  // level road rewards: never sold, earned by levelling up
+  'u.er': { name: 'Er', r: 'c', reward: 5 },
+  'u.cavus': { name: 'Çavuş', r: 'r', reward: 10 },
+  'f.madalya': { name: 'Madalya', r: 'e', reward: 15, c: ['#ffe27a', '#c4182c'] },
+  'u.yuzbasi': { name: 'Yüzbaşı', r: 'e', reward: 20 },
+  'n.alev': { name: 'Alev', r: 'e', reward: 30, c: '#ff8a3d' },
+  'u.albay': { name: 'Albay', r: 'l', reward: 40 },
+  'u.general': { name: 'General', r: 'l', reward: 50 },
   // dashboard themes
   't.gece': { name: 'Gece', r: 'c', free: true },
   't.orman': { name: 'Orman', r: 'c', free: true },

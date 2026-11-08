@@ -189,10 +189,11 @@ function topBar() {
   const fq = ME.fq.length, un = ME.un | 0;
   for (const b of document.querySelectorAll('[data-badge="fr"]')) { b.textContent = fq + un ? String(fq + un) : ''; b.hidden = !(fq + un); }
   $('#dp-daily').classList.toggle('ready', !ME.dl);
+  for (const b of document.querySelectorAll('[data-badge="q"]')) { b.textContent = ME.qn ? String(ME.qn) : ''; b.hidden = !ME.qn; }
 }
 
 // ---------- pages ----------
-const PAGES = { home: homePage, play: playPage, profile: profilePage, locker: lockerPage, shop: shopPage, friends: friendsPage, top: topPage, account: accountPage };
+const PAGES = { quests: questsPage, home: homePage, play: playPage, profile: profilePage, locker: lockerPage, shop: shopPage, friends: friendsPage, top: topPage, account: accountPage };
 export function dashGo(p, arg) {
   if (!PAGES[p]) p = 'home';
   page = p;
@@ -265,6 +266,10 @@ function homePage(sec) {
   feat.append(itemCard(fid, true));
   row.append(daily, today, feat);
   sec.append(row);
+  const qc = card('Bugünün görevleri', btn('btn small ghost', 'Tümü', () => dashGo('quests')));
+  const ql = el('div', 'q-list'); ql.append(el('p', 'note', 'Yükleniyor…')); qc.append(ql);
+  sec.append(qc);
+  loadQuests().then((j) => { if (j) ql.replaceChildren(...j.q.map((q, i) => questRow(q, i, true))); else ql.replaceChildren(el('p', 'note', 'Görevler yüklenemedi.')); });
 
   const row2 = el('div', 'dp-cols');
   const rooms = card('Açık odalar', btn('btn small ghost', 'Tümü', () => dashGo('play')));
@@ -339,13 +344,14 @@ function profilePage(sec) {
   head(sec, 'Profil', 'Profilim', pa);
   const p = { name: ACCT.name, eq: ME.eq, lvl: ME.lvl, best: ME.best, kills: ME.kills, games: ME.games, mins: ME.mins, made: ME.made, on: true, ncls: CLASS_ORDER.filter((c) => FREE_CLS.includes(c) || ME.own.includes('c.' + c)).length };
   sec.append(profileView(p, true));
+  const qa = card('Görevler ve başarımlar', btn('btn small ghost', 'Aç', () => dashGo('quests'))); qa.append(el('p', 'note', 'Günlük görevler, seviye yolu ödülleri ve başarımlar.')); sec.append(qa);
   const xp = card('Seviye ilerlemesi');
   const bar = el('div', 'xpbar'); const f = el('i'); f.style.width = Math.round(100 * ME.lx / Math.max(1, ME.ln)) + '%'; bar.append(f);
   xp.append(bar, el('p', 'note', `Seviye ${ME.lvl + 1} için ${fmt(ME.ln - ME.lx)} XP kaldı. Her temizlenen dalga XP verir; zor dalgalar daha çok.`));
   sec.append(xp);
   const cc = card('Sınıfların', btn('btn small ghost', 'Mağaza', () => dashGo('shop', 'c')));
   const grid = el('div', 'cls-grid');
-  for (const c of [...CLASS_ORDER, 'muhendis', 'kimyager', 'komutan']) {
+  for (const c of CLASS_ORDER) {
     const id = 'c.' + c, have = FREE_CLS.includes(c) || ME.own.includes(id), it = ITEMS[id];
     const b = el('div', 'cls-chip' + (have ? '' : ' locked'));
     const cv = el('canvas'); drawClassPic(cv, c, 56);
@@ -400,7 +406,7 @@ function lockerPage(sec) {
     grid.append(b);
   }
   right.append(grid);
-  const more = Object.keys(ITEMS).filter((id) => id.startsWith(slot.p + '.') && !owns(id) && !isFree(id)).length;
+  const more = Object.keys(ITEMS).filter((id) => id.startsWith(slot.p + '.') && !owns(id) && !isFree(id) && !ITEMS[id].reward).length;
   if (more) right.append(btn('btn ghost', `Mağazada ${more} ${slot.name.toLowerCase()} daha`, () => dashGo('shop', slot.p)));
   box.append(left, right);
   sec.append(box);
@@ -431,7 +437,7 @@ function shopPage(sec, tab) {
   sec.append(tabs);
   if (shopTab === 'c') sec.append(el('p', 'note', 'Asker, Doktor, Tamirci ve Nişancı ücretsiz. Kilitli sınıfları Tek başına modunda deneyebilirsin.'));
   const grid = el('div', 'item-grid' + (shopTab === 'c' ? ' wide' : ''));
-  const ids = Object.keys(ITEMS).filter((id) => id.startsWith(shopTab + '.') && !isFree(id) && (priceOf(id) != null || ITEMS[id].soon || owns(id)));
+  const ids = Object.keys(ITEMS).filter((id) => id.startsWith(shopTab + '.') && !isFree(id) && !ITEMS[id].reward && (priceOf(id) != null || ITEMS[id].soon || owns(id)));
   ids.sort((a, b) => (owns(a) - owns(b)) || ((priceOf(a) || 9e9) - (priceOf(b) || 9e9)));
   for (const id of ids) grid.append(itemCard(id));
   if (!ids.length) grid.append(el('p', 'note', 'Bu bölümde şu an satılık bir şey yok.'));
@@ -648,6 +654,68 @@ function reportDlg(p) {
   };
 }
 
+// ---------- quests, achievements and the level road ----------
+const ACH_NAME = { k1: 'Avcı', k2: 'Kasap', k3: 'Katliam', k4: 'Kıyamet', b1: 'Hayatta kalan', b2: 'Dayanıklı', b3: 'Sabaha kadar', b4: 'Kuşatma bozan', b5: 'Yıkılmaz', b6: 'Efsane',
+  g1: 'İlk adım', g2: 'Alışkanlık', g3: 'Gedikli', g4: 'Müdavim', w1: 'Dalga kıran', w2: 'Dalga ustası', w3: 'Okyanus', o1: 'Dev avcısı', o2: 'Boss katili', o3: 'Boss kâbusu',
+  h1: 'Zorlu', h2: 'Kâbus gibi', c1: 'Takım oyuncusu', c2: 'Kardeşlik', l1: 'Çaylak', l2: 'Tecrübeli', l3: 'Usta', l4: 'Efsanevi', f1: 'Dost', f2: 'Kalabalık', s1: 'Alışverişçi', s2: 'Koleksiyoncu', s3: 'Hazine avcısı' };
+const ACH_DESC = { kills: (n) => `${fmt(n)} zombi öldür`, best: (n) => `Bir oyunda ${n}. dalgaya ulaş`, games: (n) => `${n} oyun bitir`, waves: (n) => `${fmt(n)} dalga temizle`, bosses: (n) => `${n} boss dalgası temizle`,
+  hard: (n) => `Zor ya da Kâbus'ta ${n} dalga temizle`, coop: (n) => `Arkadaşlarınla ${n} dalga temizle`, lvl: (n) => `Seviye ${n} ol`, friends: (n) => `${n} arkadaş edin`, own: (n) => `Mağazadan ${n} şey al` };
+const ACH_IC = { kills: '☠', best: '🌊', games: '🎮', waves: '🌊', bosses: '👹', hard: '🔥', coop: '🤝', lvl: '⭐', friends: '👥', own: '💎' };
+const questText = (q) => ({ kill: `${q.n} zombi öldür`, waves: `${q.n} dalga temizle`, reach: `Bir oyunda ${q.n}. dalgaya ulaş`, hard: `Zor ya da Kâbus'ta ${q.n} dalga temizle`,
+  boss: `${q.n} boss dalgası temizle`, cls: `${CLASSES[q.k] ? CLASSES[q.k].name : q.k} ile ${q.n} dalga temizle`, coop: `Başkalarıyla bir odada ${q.n} dalga temizle` }[q.t] || '');
+const QIC = { kill: '☠', waves: '🌊', reach: '📈', hard: '🔥', boss: '👹', cls: '🎖', coop: '🤝' };
+function untilMidnight() { const t = new Date(Date.now() + 3 * 36e5); const m = (24 * 60) - (t.getUTCHours() * 60 + t.getUTCMinutes()); return m >= 60 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${m} dk`; }
+let QD = null;
+async function loadQuests() { const j = await acctOp('quests'); if (j.ok) { QD = j; ME.qn = j.q.filter((q) => q.p >= q.n && !q.c).length + j.ach.filter((a) => a.done && !a.claimed).length; topBar(); } return j.ok ? j : null; }
+function questRow(q, i, compact) {
+  const done = q.p >= q.n, row = el('div', 'q-row' + (q.c ? ' claimed' : done ? ' done' : ''));
+  row.append(el('span', 'q-ic', QIC[q.t] || '•'));
+  const mid = el('div', 'q-mid'); mid.append(el('strong', '', questText(q)));
+  const bar = el('div', 'xpbar'); const f = el('i'); f.style.width = Math.round(100 * Math.min(1, q.p / q.n)) + '%'; bar.append(f);
+  mid.append(bar, el('span', 'dim', `${fmt(q.p)} / ${fmt(q.n)}`));
+  row.append(mid);
+  if (q.c) row.append(el('span', 'q-ok', 'Alındı ✓'));
+  else if (done) row.append(btn('btn primary small', `+${q.g}`, async (e) => { e.target.disabled = true; const j = await acctOp('qclaim', { i }); if (j.ok) { H.toast(`Görev tamam! +${j.g} elmas, +100 XP`, 'gem'); gemBurst(); ME.xp = j.xp || ME.xp; await loadQuests(); dashGo(page); } else H.toast('Alınamadı.', 'bad'); }));
+  else { const r = el('span', 'q-rew'); r.append(gemAmt(q.g)); if (!compact) r.append(el('span', 'dim', '+100 XP')); row.append(r); }
+  return row;
+}
+function questsPage(sec) {
+  head(sec, 'Görevler', 'Görevler ve başarımlar', el('span', 'dim', `Yeni görevlere ${untilMidnight()}`));
+  const qc = card('Günlük görevler'); qc.append(el('p', 'note', 'Her gün üç yeni görev. Dalgaları temizledikçe ilerler.'));
+  const qbox = el('div', 'q-list'); qbox.append(el('p', 'note', 'Yükleniyor…')); qc.append(qbox); sec.append(qc);
+  const rc = card('Seviye yolu'); const road = el('div', 'road'); rc.append(el('p', 'note', 'Her seviye elmas verir; bazı seviyeler satılmayan özel ödüller açar.'), road); sec.append(rc);
+  const ac = card('Başarımlar'); const abox = el('div', 'ach-grid'); ac.append(abox); sec.append(ac);
+  loadQuests().then((j) => {
+    if (!j) { qbox.replaceChildren(el('p', 'msg', 'Görevler yüklenemedi.')); return; }
+    qbox.replaceChildren(...j.q.map((q, i) => questRow(q, i)));
+    const L = j.lvl;
+    for (let l = 2; l <= 50; l++) {
+      const r = j.road[l]; if (!r) continue;
+      const n = el('div', 'road-n' + (l <= L ? ' got' : '') + (l === L + 1 ? ' next' : '') + (r.it ? ' big' : ''));
+      n.append(el('span', 'road-l', String(l)));
+      if (r.it && ITEMS[r.it]) { const it = ITEMS[r.it]; n.append(el('span', 'road-it', it.name)); n.title = `Seviye ${l}: ${it.name} (${RARITY[it.r]}) ve ${r.g} elmas`; }
+      else n.title = `Seviye ${l}: ${r.g} elmas`;
+      n.append(gemAmt(r.g, 'gem-amt sm'));
+      road.append(n);
+    }
+    setTimeout(() => { const nx = road.querySelector('.next'); if (nx) road.scrollLeft = nx.offsetLeft - road.clientWidth / 2; }, 50);
+    const got = j.ach.filter((a) => a.claimed).length;
+    ac.querySelector('h3').textContent = `Başarımlar · ${got}/${j.ach.length}`;
+    const order = j.ach.slice().sort((a, b) => ((b.done && !b.claimed) - (a.done && !a.claimed)) || (a.claimed - b.claimed));
+    abox.replaceChildren(...order.map((a) => {
+      const d = el('div', 'ach' + (a.claimed ? ' got' : a.done ? ' ready' : ''));
+      d.append(el('span', 'ach-ic', ACH_IC[a.k] || '★'));
+      const m = el('div', 'ach-m'); m.append(el('strong', '', ACH_NAME[a.id] || a.id), el('span', 'dim', ACH_DESC[a.k] ? ACH_DESC[a.k](a.n) : ''));
+      if (!a.claimed) { const bar = el('div', 'xpbar'); const f = el('i'); f.style.width = Math.round(100 * a.p / a.n) + '%'; bar.append(f); m.append(bar); }
+      d.append(m);
+      if (a.claimed) d.append(el('span', 'q-ok', '✓'));
+      else if (a.done) d.append(btn('btn primary small', `+${a.g}`, async (e) => { e.target.disabled = true; const r = await acctOp('aclaim', { id: a.id }); if (r.ok) { H.toast(`Başarım: ${ACH_NAME[a.id]}! +${r.g} elmas`, 'gem'); gemBurst(); dashGo('quests'); } else H.toast('Alınamadı.', 'bad'); }));
+      else d.append(gemAmt(a.g, 'gem-amt sm'));
+      return d;
+    }));
+  });
+}
+
 // ---------- leaderboard ----------
 let topTab = 'xp';
 function topPage(sec) {
@@ -714,6 +782,7 @@ function accountPage(sec) {
     if (j.ok) { H.toast('Şifren değişti.', 'good'); return ''; }
     return { wrong: 'Şu anki şifre yanlış.', pw: 'Yeni şifre en az 6 karakter olmalı.', slow: 'Çok fazla deneme. Sonra tekrar dene.' }[j.reason] || 'Değiştirilemedi.';
   }))));
+  if (/Android/i.test(navigator.userAgent) && !/KusatmaApp\//.test(navigator.userAgent)) { const a = el('a', 'btn small', 'İndir'); a.href = 'app/kusatma.apk'; a.download = ''; ac.append(row('Android uygulaması', 'Kuşatma\'yı telefonuna uygulama olarak kur. Güncellemeler kendiliğinden gelir.', a)); }
   ac.append(row('Oyun ayarları', 'Ses, karanlık, yakınlaştırma, ekran sarsıntısı.', btn('btn small', 'Aç', () => H.openSettings())));
   ac.append(row('Bağlantı testi', 'Oyuna bağlanamıyorsan nedenini bul.', btn('btn small', 'Başlat', () => H.openDiag())));
   ac.append(row('Çıkış yap', 'Bu cihazda hesabından çık.', btn('btn small ghost', 'Çıkış yap', () => H.signOut())));
@@ -769,4 +838,5 @@ export function dashShow(on) {
 }
 export function dashRefresh() { if (!ACCT || $('#dashpage').hidden) return; applyTheme(); topBar(); if (page !== 'locker') dashGo(page); }
 export function dashTop() { if (ACCT) topBar(); }
+export const dashPage = () => page;
 export { openProfile, acctCheck };

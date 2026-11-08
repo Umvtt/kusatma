@@ -598,6 +598,8 @@ function drawObstacle(g, o) {
 }
 
 function drawTurret(g, t) {
+  if (t.k === 1 || t.k === 2) { drawDrone(g, t); return; }
+  if (t.k === 3) { drawCrate(g, t); return; }
   g.save();
   g.translate(t.x, t.y);
   g.fillStyle = 'rgba(0,0,0,0.35)';
@@ -695,6 +697,11 @@ function drawZombie(g, z, time) {
     g.beginPath(); g.arc(0, 0, r + 8, 0, Math.PI * 2); g.fill();
   }
   if (z.t === 5 && z.st === ZS.FUSE) { const s = 1 + 0.12 * Math.sin(time * 40); g.scale(s, s); }
+  if (z.t === 10) g.globalAlpha *= z.st === ZS.PHASE ? 0.28 + 0.1 * Math.sin(time * 20) : 0.75 + 0.15 * Math.sin(time * 3 + z.id);
+  if (z.t === 12 && z.st === ZS.CROUCH) g.scale(1.15, 0.8);
+  if (z.t === 12 && z.st === ZS.LEAP) { const h = Math.sin(Math.PI * Math.min(1, (time - (z.leapT || time)) / 0.7)); g.translate(0, -h * 30); g.scale(1 + h * 0.35, 1 + h * 0.35); }
+  if (z.t === 15) { g.strokeStyle = `rgba(106,216,160,${0.25 + 0.15 * Math.sin(time * 3)})`; g.lineWidth = 2; g.setLineDash([4, 6]); g.beginPath(); g.arc(0, 0, 170, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); }
+  if (z.t === 13) { const s = 1 + 0.04 * Math.sin(time * 5 + z.id); g.scale(s, s); }
   if (z.t === 9) {
     g.fillStyle = 'rgba(229,72,77,0.13)';
     g.beginPath(); g.arc(0, 0, r + 10 + Math.sin(time * 5) * 3, 0, Math.PI * 2); g.fill();
@@ -739,6 +746,21 @@ function drawZombie(g, z, time) {
     g.fillStyle = z.st === ZS.FUSE && Math.sin(time * 30) > 0 ? '#fff2a8' : '#ffb347';
     for (const [px, py, pr] of [[-0.35, -0.35, 0.22], [-0.5, 0.25, 0.18], [0, 0.45, 0.2], [0.05, -0.55, 0.15]]) { g.beginPath(); g.arc(px * r, py * r, r * pr, 0, Math.PI * 2); g.fill(); }
   }
+  if (z.t === 11 && !(z.fl & 64)) { // armour plates
+    g.fillStyle = fl ? '#fff' : '#7d858c';
+    rr(g, -r * 0.55, -r * 0.8, r * 0.9, r * 1.6, 4); g.fill();
+    g.strokeStyle = '#3b4248'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = '#9aa3aa'; for (const y of [-0.45, 0, 0.45]) g.fillRect(-r * 0.4, y * r - 1, r * 0.6, 2);
+  }
+  if (z.t === 13) { // swollen, with the brood showing through
+    g.fillStyle = 'rgba(200,180,110,0.85)'; g.beginPath(); g.ellipse(-r * 0.2, 0, r * 0.7, r * 0.75, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(90,120,60,0.7)'; for (const [px, py] of [[-0.4, -0.3], [-0.1, 0.35], [-0.5, 0.25], [0, -0.35]]) { g.beginPath(); g.arc(px * r, py * r, r * 0.16, 0, Math.PI * 2); g.fill(); }
+  }
+  if (z.t === 15) { // healer: pale green robe with a glowing cross
+    g.fillStyle = '#244a3a'; g.beginPath(); g.ellipse(-r * 0.2, 0, r * 0.7, r * 0.95, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = `rgba(130,255,180,${0.6 + 0.4 * Math.sin(time * 4)})`; g.fillRect(-r * 0.35, -r * 0.1, r * 0.5, r * 0.2); g.fillRect(-r * 0.2, -r * 0.35, r * 0.2, r * 0.7);
+  }
+  if (z.t === 14) { g.fillStyle = 'rgba(0,0,0,0.25)'; for (const s of [-1, 1]) { g.fillRect(-r * 0.6, s * r * 0.9 - 1, r * 1.2, 2); } }
   if (z.t === 7) { // hooded caster with glowing hands
     g.fillStyle = '#2a1a34';
     g.beginPath(); g.ellipse(-r * 0.2, 0, r * 0.7, r * 0.95, 0, 0, Math.PI * 2); g.fill();
@@ -935,6 +957,11 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
     g.fillStyle = '#fff'; g.fillRect(-3, 7, 6, 6);
     g.fillStyle = '#e5484d'; g.fillRect(-0.8, 7.8, 1.6, 4.4); g.fillRect(-2.2, 9.2, 4.4, 1.6);
   }
+  if (cls === 'komutan') { // medals on the chest
+    g.fillStyle = '#ffd34d'; for (const y of [-5, -1, 3]) { g.beginPath(); g.arc(2, y, 1.6, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#c4182c'; g.fillRect(0.5, -8, 3, 2);
+  }
+  if (cls === 'kimyager') { g.fillStyle = 'rgba(157,255,107,0.5)'; g.fillRect(-6, -8, 3, 16); }
   if (cls === 'izci') {
     g.fillStyle = '#c0392b';
     g.beginPath(); g.ellipse(-3, 0, 5, 10, 0, 0, Math.PI * 2); g.fill();
@@ -973,6 +1000,11 @@ function drawBack(g, cls, color) {
       g.fillStyle = '#5a4630'; rr(g, -17, -7, 8, 14, 2); g.fill();
       g.fillStyle = '#4a5a2a'; for (const y of [-4, 0, 4]) { g.beginPath(); g.arc(-13, y, 2.4, 0, Math.PI * 2); g.fill(); } break;
     case 'izci': g.strokeStyle = '#c0392b'; g.lineWidth = 3; g.beginPath(); g.moveTo(-6, 0); g.quadraticCurveTo(-16, 4, -20, -2); g.stroke(); break;
+    case 'muhendis': g.fillStyle = '#3d4652'; rr(g, -19, -9, 10, 18, 3); g.fill(); g.fillStyle = '#7bdff2'; g.fillRect(-16, -5, 4, 3); g.fillRect(-16, 2, 4, 3);
+      g.strokeStyle = '#2a2f36'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-14, -9); g.lineTo(-14, -14); g.stroke(); g.fillStyle = '#ff5a5f'; g.beginPath(); g.arc(-14, -15, 1.6, 0, Math.PI * 2); g.fill(); break;
+    case 'kimyager': for (const s of [-1, 1]) { g.fillStyle = '#2f4a2a'; rr(g, -20, s * 5 - 4, 11, 8, 4); g.fill(); g.fillStyle = '#9dff6b'; g.fillRect(-18, s * 5 - 2, 7, 3); }
+      g.strokeStyle = '#2a3a28'; g.lineWidth = 2; g.beginPath(); g.moveTo(-10, -5); g.quadraticCurveTo(0, -14, 10, -4); g.stroke(); break;
+    case 'komutan': g.fillStyle = '#5a1e22'; g.beginPath(); g.moveTo(-6, -11); g.quadraticCurveTo(-22, -6, -20, 0); g.quadraticCurveTo(-22, 6, -6, 11); g.closePath(); g.fill(); break;
     default: break;
   }
   void color;
@@ -992,6 +1024,9 @@ function drawWeapon(g, cls, sk) {
     case 'alevci': g.fillStyle = '#2c2c2c'; g.fillRect(4, 1, 24, 6.5); g.fillStyle = '#b8352a'; g.fillRect(10, 7, 6, 4); g.fillStyle = '#ff9a3c'; g.fillRect(28, 2.5, 3, 3.5); break;
     case 'bombaci': g.fillStyle = '#3f4a2a'; g.fillRect(4, 0, 26, 9); g.fillStyle = '#1e2414'; g.beginPath(); g.arc(30, 4.5, 4.5, 0, Math.PI * 2); g.fill(); break;
     case 'izci': g.fillStyle = M; g.fillRect(12, -9, 13, 4); g.fillRect(12, 5, 13, 4); break;
+    case 'muhendis': g.fillStyle = W; g.fillRect(3, 2, 8, 5); g.fillStyle = M; g.fillRect(9, 1.5, 22, 5); g.fillStyle = '#7bdff2'; g.fillRect(14, 0, 6, 1.6); g.fillStyle = M; g.fillRect(14, 6, 3, 4); break;
+    case 'kimyager': g.fillStyle = M; g.fillRect(6, 1.5, 22, 5.5); g.fillStyle = '#4a7a3a'; g.beginPath(); g.arc(14, 9, 4, 0, Math.PI * 2); g.fill(); g.fillStyle = '#9dff6b'; g.beginPath(); g.arc(14, 9, 2.4, 0, Math.PI * 2); g.fill(); g.fillRect(26, 2.5, 3, 3.5); break;
+    case 'komutan': g.fillStyle = M; g.fillRect(10, 2, 15, 4.5); g.fillRect(12, 6, 3.5, 5); g.fillStyle = '#c9971b'; g.fillRect(10, 2, 4, 4.5); break;
     default: break;
   }
   if (sk) { // the skin's accent stripe along the gun
@@ -1061,8 +1096,44 @@ export function drawWeaponPreview(g, cls, wt, wp, w, h, wb = 0, time = 0) {
   g.restore();
 }
 
+// Mühendis drones: a small quadcopter (attack) or a white one with a cross and a healing ring (repair).
+function drawDrone(g, t) {
+  const now = performance.now() / 1000, rep = t.k === 2;
+  g.save();
+  g.translate(t.x, t.y);
+  g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(5, 14, 9, 5, 0, 0, Math.PI * 2); g.fill();
+  if (rep) {
+    const r = 180, pulse = (now * 0.8) % 1;
+    g.strokeStyle = `rgba(67,209,122,${0.35 * (1 - pulse)})`; g.lineWidth = 2;
+    g.beginPath(); g.arc(0, 0, r * pulse, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = 'rgba(67,209,122,0.18)'; g.setLineDash([6, 8]); g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+  }
+  g.rotate(t.a || 0);
+  g.strokeStyle = rep ? '#d8dcd8' : '#2a2f36'; g.lineWidth = 2;
+  for (const [x, y] of [[-6, -6], [6, -6], [-6, 6], [6, 6]]) {
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(x, y); g.stroke();
+    g.fillStyle = 'rgba(200,220,230,0.35)'; g.beginPath(); g.ellipse(x, y, 4.5, 4.5 * Math.abs(Math.sin(now * 40 + x)), 0, 0, Math.PI * 2); g.fill();
+  }
+  g.fillStyle = rep ? '#eef1ee' : '#3d4652'; g.beginPath(); g.arc(0, 0, 4.5, 0, Math.PI * 2); g.fill();
+  if (rep) { g.fillStyle = '#43d17a'; g.fillRect(-1, -3, 2, 6); g.fillRect(-3, -1, 6, 2); }
+  else { g.fillStyle = '#7bdff2'; g.fillRect(3, -1, 4, 2); }
+  g.restore();
+}
+
+// Komutan's supply crate, with a small parachute while it lands.
+function drawCrate(g, t) {
+  g.save(); g.translate(t.x, t.y);
+  const land = Math.max(0, (t.life || 0) - 5);
+  g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(-11, -8, 26, 22);
+  if (land > 0) { g.fillStyle = 'rgba(240,240,230,0.7)'; g.beginPath(); g.arc(0, -16 - land * 20, 16, Math.PI, 0); g.fill(); }
+  g.fillStyle = '#6b5232'; g.fillRect(-12, -12, 24, 24);
+  g.strokeStyle = '#3d2e1a'; g.lineWidth = 2; g.strokeRect(-12, -12, 24, 24);
+  g.fillStyle = '#ffd34d'; star(g, 0, 0, 7);
+  g.restore();
+}
+
 // Where each class's weapon ends and what height its barrel sits at (izci has two pistols).
-const MUZZLE = { asker: [34, 4], doktor: [26, 4], tamirci: [32, 4.2], nisanci: [42, 4.7], kalkanci: [36, 4], alevci: [31, 4.2], bombaci: [34, 4.5], izci: [25, -7, 7] };
+const MUZZLE = { asker: [34, 4], doktor: [26, 4], tamirci: [32, 4.2], nisanci: [42, 4.7], kalkanci: [36, 4], alevci: [31, 4.2], bombaci: [34, 4.5], izci: [25, -7, 7], muhendis: [32, 4], kimyager: [30, 4.2], komutan: [24, 4] };
 const PATH_COL = PATHS.map((p) => p.col);
 
 // Visible parts an upgraded weapon gets, different for each of the four paths; tier 2 adds more.
@@ -1169,7 +1240,7 @@ function drawArms(g, cls, dark) {
     hand(12, -7); hand(12, 7);
     return;
   }
-  const front = { asker: 22, doktor: 18, tamirci: 20, nisanci: 24, kalkanci: 16, alevci: 20, bombaci: 20 }[cls] || 20;
+  const front = { asker: 22, doktor: 18, tamirci: 20, nisanci: 24, kalkanci: 16, alevci: 20, bombaci: 20, muhendis: 20, kimyager: 18, komutan: 13 }[cls] || 20;
   g.beginPath(); g.moveTo(1, 12); g.lineTo(9, 5); g.moveTo(1, -12); g.lineTo(front, 3); g.stroke();
   hand(9, 5); hand(front, 3);
 }
@@ -1204,6 +1275,16 @@ function drawHead(g, cls, color) {
     case 'izci':
       g.fillStyle = '#c8b98a'; g.beginPath(); g.arc(-0.5, 0, 7.5, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#a8996a'; rr(g, 4, -5.5, 6, 11, 3); g.fill(); break;
+    case 'muhendis':
+      g.fillStyle = '#e8a33a'; g.beginPath(); g.arc(-0.5, 0, 8, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#2a2f36'; rr(g, 3, -6, 4, 12, 2); g.fill(); g.fillStyle = '#7bdff2'; g.fillRect(4, -5, 2, 4); g.fillRect(4, 1, 2, 4); break;
+    case 'kimyager':
+      g.fillStyle = '#3a4a36'; g.beginPath(); g.arc(-0.5, 0, 8, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#9dff6b'; g.globalAlpha *= 0.85; rr(g, 2, -5, 5, 10, 2); g.fill(); g.globalAlpha /= 0.85;
+      g.fillStyle = '#556052'; g.beginPath(); g.arc(7, 0, 3, 0, Math.PI * 2); g.fill(); break;
+    case 'komutan':
+      g.fillStyle = '#2f3a2a'; g.beginPath(); g.ellipse(0, 0, 8.5, 9, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#1a1f18'; g.fillRect(4, -7, 4, 14); g.fillStyle = '#ffd34d'; star(g, -1, 0, 3.2); break;
     default: break;
   }
 }

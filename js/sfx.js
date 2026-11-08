@@ -69,6 +69,7 @@ function tone(v, dur, f0, f1, type = 'sine', delay = 0) {
 const SHOT = {
   asker: [0.35, 0.09, 1800, 0.8], doktor: [0.25, 0.06, 2400, 0.8], tamirci: [0.55, 0.22, 900, 0.7],
   nisanci: [0.6, 0.3, 1200, 0.6], kalkanci: [0.3, 0.07, 1500, 0.8], izci: [0.3, 0.07, 2200, 0.9],
+  muhendis: [0.3, 0.08, 2000, 0.85], kimyager: [0.28, 0.12, 700, 0.5], komutan: [0.55, 0.16, 1100, 0.7],
 };
 
 export function shot(cls, x, y, own) {
@@ -105,6 +106,9 @@ export function ability(cls, x, y) {
     case 'tamirci': for (let i = 0; i < 3; i++) { burst(v * 0.6, 0.05, 2500, 4, 'bandpass'); tone(v * 0.4, 0.05, 700, 650, 'square', i * 0.09); } break; // clank
     case 'bombaci': tone(v * 0.6, 0.06, 1200, 1200, 'square'); tone(v * 0.6, 0.06, 1600, 1600, 'square', 0.12); break; // mine beep
     case 'alevci': burst(v * 1.2, 0.6, 600, 0.6); tone(v, 0.5, 90, 40, 'sawtooth'); break; // fire burst
+    case 'muhendis': tone(v * 0.6, 0.25, 600, 1400, 'sine'); tone(v * 0.4, 0.25, 900, 1800, 'triangle', 0.1); break; // drone launch
+    case 'kimyager': burst(v, 0.5, 400, 0.5, 'lowpass'); tone(v * 0.5, 0.35, 220, 90, 'sine'); break; // hiss
+    case 'komutan': tone(v * 0.6, 0.15, 500, 500, 'square'); tone(v * 0.6, 0.15, 750, 750, 'square', 0.15); tone(v * 0.6, 0.3, 1000, 1000, 'square', 0.3); break; // bugle
     default: tone(v, 0.3, 300, 900, 'triangle');
   }
 }
@@ -147,3 +151,6 @@ export function zap(x, y) { const v = vol(x, y, 0.16); if (v) { burst(v, 0.12, 4
 export function thunder(x, y) { const v = vol(x, y, 0.75); if (v) { burst(v, 0.9, 500, 0.6); burst(v * 0.7, 0.15, 5000, 3, 'bandpass'); tone(v * 0.6, 0.6, 90, 35, 'sawtooth'); } }
 export function siren(x, y) { const v = vol(null, null, 0.3); void x; void y; if (v) { tone(v, 0.7, 500, 900, 'triangle'); tone(v, 0.7, 900, 500, 'triangle', 0.7); tone(v, 0.7, 500, 900, 'triangle', 1.4); } }
 export function boomSmall(x, y) { const v = vol(x, y, 0.35); if (v) { burst(v, 0.3, 500, 0.6); tone(v * 0.6, 0.25, 160, 50, 'sine'); } }
+
+// a Mühendis drone's small laser shot
+export function droneShot(x, y) { const v = vol(x, y, 0.12); if (v) tone(v, 0.06, 2400, 1600, 'square'); }

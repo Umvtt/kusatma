@@ -718,3 +718,4 @@ body.touch .keys { display: none; }
   .shop-list .path-btn .ds { font-size: 10.5px; }
   .shop-list .paths:not(.branches) .path-btn .ds { display: none; }
 }
+a.btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }

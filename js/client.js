@@ -143,17 +143,19 @@ export class ClientGame {
         if (st === ZS.WINDUP || st === ZS.SLAM) sfx.growl(x, y);
         if (st === ZS.SPIT) sfx.spit(x, y);
       }
+      if (st === 9 && z.st !== 9) z.leapT = this.time;
       z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm);
       if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
     }
     for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
 
     const seenT = new Set();
-    for (const [id, x, y, a, life] of s.T) {
+    for (const [id, x, y, a, life, k] of s.T) {
       seenT.add(id);
       let t = this.ts.get(id);
-      if (!t) { t = { id, x, y, a }; this.ts.set(id, t); this.ring(x, y, '#ffd23f', 60); }
-      t.x = x; t.y = y; t.ta = a; t.life = life;
+      if (!t) { t = { id, x, y, a, k: k | 0 }; this.ts.set(id, t); if (!k) this.ring(x, y, '#ffd23f', 60); else if (k === 3) { this.ring(x, y, '#ffd34d', 120); sfx.heal(x, y); } else if (k === 2) this.ring(x, y, '#43d17a', 60); }
+      t.tx = x; t.ty = y; t.ta = a; t.life = life; t.k = k | 0;
+      if (!t.k || t.k === 3) { t.x = x; t.y = y; }
     }
     for (const id of [...this.ts.keys()]) if (!seenT.has(id)) this.ts.delete(id);
 
@@ -226,6 +228,8 @@ export class ClientGame {
         break;
       case 'sp': this.goo(ev[1], ev[2]); break;
       case 'ws': this.notices.push({ k: 'wave', w: ev[1], boss: ev[2] || 0 }); sfx.waveStart(); break;
+      case 'hz': this.ring(ev[1], ev[2], '#6ad8a0', 170); break;
+      case 'ab2': this.ring(ev[1], ev[2], '#d8d0b0', 40); sfx.turretShot(ev[1], ev[2]); break;
       case 'sm': this.ring(ev[1], ev[2], '#b07ad8', 90); this.light(ev[1], ev[2], 200, 0.5, '176,122,216'); sfx.summon(ev[1], ev[2]); break;
       case 'pk': {
         const [, pid, k, x, y, amount] = ev;
@@ -353,7 +357,7 @@ export class ClientGame {
       if (z.dying && this.time - z.dying > 1) { z.dying = 0; z.pend = []; }
       z.flash = Math.max(0, z.flash - dt);
     }
-    for (const t of this.ts.values()) t.a = lerpAngle(t.a, t.ta, kf);
+    for (const t of this.ts.values()) { t.a = lerpAngle(t.a, t.ta, kf); if (t.k === 1 || t.k === 2) { t.x += (t.tx - t.x) * Math.min(1, kf * 1.5); t.y += (t.ty - t.y) * Math.min(1, kf * 1.5); } }
     for (const q of this.spits.values()) { q.x += (q.tx - q.x) * kf; q.y += (q.ty - q.y) * kf; }
 
     this.updateParts(dt);
@@ -410,6 +414,7 @@ export class ClientGame {
       const crit = critP > 0 && Math.random() < critP;
       const b = this.makeBullet(c, mx, my, S.a, crit ? dmg * critX : dmg, crit && f.cap && f.crit ? 99 : pierce, true);
       if (crit) b.crit = true;
+      if (this.cls === 'kimyager' && !c.path) b.col = '#9dff6b';
       this.bullets.push(b);
     }
     if (c.heavy) this.shake = Math.min(8, this.shake + 1.5 * c.heavy);
@@ -433,6 +438,12 @@ export class ClientGame {
   }
 
   visualShot(pid, x, y, a) {
+    if (pid === -2) { // Mühendis drone
+      const c = { pellets: 1, spread: 0.02, bspd: 1500, life: 0.3, kind: 'b', gun: 8 };
+      const b = this.makeBullet(c, x, y, a, 0, 0, false); b.col = '#7bdff2'; b.w = 1.4; this.bullets.push(b);
+      sfx.droneShot(x, y);
+      return;
+    }
     if (pid === -1) {
       const c = { pellets: 1, spread: 0.03, bspd: 1300, life: 0.4, kind: 'b', gun: 20 };
       this.bullets.push(this.makeBullet(c, x, y, a, 0, 0, false));
@@ -689,7 +700,7 @@ export class ClientGame {
   }
 }
 
-export const AB_COL = { asker: '#ff6b2c', nisanci: '#7bdff2', izci: '#9ef01a', kalkanci: '#a0c4ff', doktor: '#43d17a', tamirci: '#ffd23f', alevci: '#ff6b2c', bombaci: '#ffb347' };
+export const AB_COL = { asker: '#ff6b2c', nisanci: '#7bdff2', izci: '#9ef01a', kalkanci: '#a0c4ff', doktor: '#43d17a', tamirci: '#ffd23f', alevci: '#ff6b2c', bombaci: '#ffb347', muhendis: '#7bdff2', kimyager: '#9dff6b', komutan: '#ffd34d' };
 
 function lerpAngle(a, b, k) {
   let d = b - a;

@@ -5,13 +5,14 @@ import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { Renderer, drawCharacter, drawWeaponPreview } from './render.js';
 import { startScene } from './scene.js';
+import { dashPage, dashGo } from './dash.js';
 import { dashInit, dashShow, dashRefresh, dashTop, onFriends, onDm, onFr, gemIcon } from './dash.js';
 import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -492,7 +493,7 @@ function buildClassCards() {
   }
 }
 
-const CLASS_ROLE = { asker: 'Saldırı', doktor: 'Destek', tamirci: 'Savunma', nisanci: 'Keskin nişancı', kalkanci: 'Tank', alevci: 'Yakın dövüş', bombaci: 'Alan hasarı', izci: 'Hız ve ganimet' };
+const CLASS_ROLE = { asker: 'Saldırı', doktor: 'Destek', tamirci: 'Savunma', nisanci: 'Keskin nişancı', kalkanci: 'Tank', alevci: 'Yakın dövüş', bombaci: 'Alan hasarı', izci: 'Hız ve ganimet', muhendis: 'Dron ve destek', kimyager: 'Zehir ve kontrol', komutan: 'Liderlik' };
 // The side panel with everything about one class: stats, ability, passive, mastery and weapons.
 const CLASS_TIPS = {
   asker: 'Her yere uyar. Canını yüksek tut, Disiplin hasarını artırır.',
@@ -503,6 +504,9 @@ const CLASS_TIPS = {
   alevci: 'Kalabalığın içine dal, alev her şeyi tutuşturur.',
   bombaci: 'Kalabalığa uzaktan ateş et, kaçarken arkana mayın bırak.',
   izci: 'Sürekli hareket et. Altınları ve eşyaları sen topla.',
+  muhendis: 'Dronların sen hareket ettikçe ateş eder. Tamir dronunu barikatların ve taretlerin yanına götür.',
+  kimyager: 'Önce zehirle, sonra takım eritsin. Bulutu dar geçitlere at.',
+  komutan: 'Takımın ortasında kal: liderliğin herkese hasar katar. Sandığı en zor anda çağır.',
 };
 function showClassDetail(id) {
   const box = $('#class-detail');
@@ -669,11 +673,12 @@ function notice(n) {
   const g = S.game;
   if (n.k === 'wave') {
     liveGame();
+    if (g.self) liveKills(g.self.kills);
     const boss = n.boss ? ZTYPES[n.boss].name : null;
     const tip = { 3: 'Yere vurmadan önce kırmızı halkadan çıkın.', 8: 'Asit yağdırır ve koşucu çağırır. Dağılın.', 9: 'Kırmızı çizgiden kaçın, sonra arkasından vurun.' }[n.boss];
     banner(boss ? `${boss} geliyor` : 'Sürü yaklaşıyor', `Dalga ${n.w}`, boss ? tip : 'Sırt sırta verin.');
   }
-  else if (n.k === 'clear') { const me = myEntry(); if (me && me.inGame) liveWave(g.wave); }
+  else if (n.k === 'clear') { const me = myEntry(); if (me && me.inGame) liveWave(g.wave, g.self.kills); }
   if (n.k === 'clear') banner('Dalga temizlendi', 'Mola', `Herkese +${n.bonus} altın. Cephanelikten yükseltme al.`);
   else if (n.k === 'down') toast(n.pid === S.me ? 'Düştün!' : `${g.nameOf(n.pid)} düştü!`, 'bad');
   else if (n.k === 'up') toast(`${g.nameOf(n.pid)} ayağa kalktı.`, 'good');
@@ -1302,6 +1307,18 @@ sceneGo = startScene($('#menu-bg'));
   }
 }
 $('#btn-promo').onclick = () => $('#btn-acct').click();
+// the Android app: a download button for Android browsers, and the back button inside the app
+const IN_APP = /KusatmaApp\//.test(navigator.userAgent);
+if (/Android/i.test(navigator.userAgent) && !IN_APP) $('#btn-apk').hidden = false;
+window.kusatmaBack = () => {
+  const open = [...document.querySelectorAll('.confirm')].find((d) => !d.hidden);
+  if (open) { open.hidden = true; return 'handled'; }
+  if (!$('#dm').hidden) { $('#dm').hidden = true; return 'handled'; }
+  if (S.screen === 'game') { if ($('#esc').hidden) openEsc(); else closeEsc(); return 'handled'; }
+  if (S.screen === 'lobby' || S.screen === 'over') { $('#btn-leave').click(); return 'handled'; }
+  if (ACCT && dashPage() !== 'home') { dashGo('home'); return 'handled'; }
+  return 'exit';
+};
 $('#esc-settings').addEventListener('click', openSettings);
 $('#settings-close').addEventListener('click', () => { $('#settings').hidden = true; });
 $('#set-volume').addEventListener('input', (e) => { setSetting('volume', Number(e.target.value)); syncSettingsLabels(); });
@@ -1521,7 +1538,8 @@ liveStart({
     dashTop();
     if (S.screen === 'game' || S.screen === 'lobby') gemPop(n, xp, cap);
   },
-  onLevel: (l) => toast(`Seviye atladın! Artık seviye ${l}.`, 'gem'),
+  onLevel: () => {},
+  onRoad: (l, gm, it) => { toast(`Seviye ${l}! +${gm} elmas${it ? ' · Ödül: ' + COS[it].name : ''}`, 'gem'); dashTop(); },
   onFriends: (d) => onFriends(d),
   onDm: (m) => onDm(m),
   onFr: (k, n) => onFr(k, n),
