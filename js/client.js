@@ -61,6 +61,8 @@ export class ClientGame {
     this.zaps = [];
     this.lobs = [];
     this.marks = [];
+    this.mev = null; // [kind, seconds left] of the running map event
+    this.planes = [];
     this.team = TEAM.map(() => 0);
     this.teamFund = TEAM.map(() => 0);
     this.teamCost = TEAM.map(() => 0);
@@ -80,7 +82,7 @@ export class ClientGame {
   reset() {
     this.zs.clear(); this.ts.clear(); this.spits.clear(); this.mines = []; this.items = []; this.texts = [];
     this.bullets = []; this.parts = []; this.rings = []; this.lights = []; this.fx.clear();
-    this.walls = []; this.zones = []; this.zaps = []; this.lobs = []; this.marks = [];
+    this.walls = []; this.zones = []; this.zaps = []; this.lobs = []; this.marks = []; this.mev = null; this.planes = [];
   }
 
   onSnap(s) {
@@ -160,6 +162,7 @@ export class ClientGame {
     for (const id of [...this.ts.keys()]) if (!seenT.has(id)) this.ts.delete(id);
 
     this.mines = s.M;
+    this.mev = Array.isArray(s.V) && typeof s.V[0] === 'string' ? s.V : null;
     this.items = s.I || [];
     this.walls = s.W || [];
     this.zones = s.F || [];
@@ -228,6 +231,8 @@ export class ClientGame {
         break;
       case 'sp': this.goo(ev[1], ev[2]); break;
       case 'ws': this.notices.push({ k: 'wave', w: ev[1], boss: ev[2] || 0 }); sfx.waveStart(); break;
+      case 'mv': if (ev[1]) { this.notices.push({ k: 'mev', ev: ev[1] }); sfx.waveStart(); } break;
+      case 'pl': this.planes.push({ x: ev[1], y: ev[2], a: ev[3] || 0, t: 0, max: 3.2 }); sfx.siren(ev[1], ev[2]); break;
       case 'hz': this.ring(ev[1], ev[2], '#6ad8a0', 170); break;
       case 'ab2': this.ring(ev[1], ev[2], '#d8d0b0', 40); sfx.turretShot(ev[1], ev[2]); break;
       case 'sm': this.ring(ev[1], ev[2], '#b07ad8', 90); this.light(ev[1], ev[2], 200, 0.5, '176,122,216'); sfx.summon(ev[1], ev[2]); break;
@@ -690,6 +695,8 @@ export class ClientGame {
     this.zaps = this.zaps.filter((z) => z.t < z.max);
     for (const l of this.lobs) l.t += dt;
     this.lobs = this.lobs.filter((l) => l.t < l.max);
+    for (const q of this.planes) q.t += dt;
+    this.planes = this.planes.filter((q) => q.t < q.max);
     for (const m of this.marks) m.t += dt;
     this.marks = this.marks.filter((m) => m.t < m.max);
     this.rings = this.rings.filter((r) => r.t < r.max);

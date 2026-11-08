@@ -1,18 +1,18 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
+import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode, addIce } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { Renderer, drawCharacter, drawWeaponPreview } from './render.js';
 import { startScene } from './scene.js';
 import { dashPage, dashGo } from './dash.js';
-import { dashInit, dashShow, dashRefresh, dashTop, onFriends, onDm, onFr, gemIcon } from './dash.js';
+import { dashInit, dashShow, dashRefresh, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar } from './dash.js';
 import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -142,6 +142,7 @@ async function createRoom(offline, opts) {
   S.role = 'host';
   S.net = net;
   S.host = new HostGame(net);
+  S.host.badWords = LIVE.filter;
   S.me = 1;
   S.game = new ClientGame(send, 1);
   S.host.local = onMessage;
@@ -153,7 +154,7 @@ async function createRoom(offline, opts) {
   if (opts) {
     S.host.maxP = Math.max(2, Math.min(MAX_PLAYERS, opts.max | 0 || MAX_PLAYERS));
     S.roomName = String(opts.name || '').trim().slice(0, 24);
-    send({ t: 'set', map: opts.map, diff: opts.diff });
+    send({ t: 'set', map: opts.map, diff: opts.diff, mode: opts.mode });
   }
   startTicker();
 }
@@ -292,7 +293,7 @@ function onMessage(m) {
       break;
     case 'r': onRoster(m); break;
     case 's': if (S.game) S.game.onSnap(m); break;
-    case 'o': liveGameEnd(); S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '' }); renderOver(); if (S.roster) route(); break;
+    case 'o': if (S.roster && m.P) m.tm = m.time; if (S.roster) recentAdd(S.roster.players.filter((p) => p.pid !== S.me)); liveGameEnd(); S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '', tm: m.time | 0, gm: S.roster ? S.roster.mode || 'normal' : 'normal', solo: S.role === 'host' && !online() ? 1 : 0 }); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
     case 'bk': if (S.role === 'client' && m.s && typeof m.s === 'object') S.backup = m.s; break;
@@ -343,6 +344,7 @@ function renderLobby() {
   $('#lobby-eyebrow').textContent = r.code ? 'Lobi' : 'Tek kişilik oyun';
   $('#lobby-title').textContent = running ? 'Oyun sürüyor' : r.ph === 'over' ? 'Oyun bitti' : 'Takımını topla';
   $('#player-count').textContent = `${r.players.length}/${r.max || MAX_PLAYERS}`;
+  $('#btn-invite').hidden = !(ACCT && r.code && online() && r.players.length < (r.max || MAX_PLAYERS));
 
   const list = $('#player-list');
   list.replaceChildren();
@@ -382,7 +384,7 @@ function renderLobby() {
   if (me && cl.dataset.color !== me.color) { cl.dataset.color = me.color; drawPreviews(me.color); }
   showClassDetail(null);
   for (const card of cl.children) {
-    const id = card.dataset.cls, on = me && id === me.cls, mine = ownsCls(ME.own, id), locked = !mine && !!r.code;
+    const id = card.dataset.cls, on = me && id === me.cls, mine = ownsCls(ME.own, id) || (r.mode === 'daily' && id === r.dly), locked = (!mine && !!r.code) || (r.mode === 'daily' && id !== r.dly);
     card.setAttribute('aria-checked', on ? 'true' : 'false');
     card.tabIndex = on ? 0 : -1;
     card.disabled = !!(me && me.inGame);
@@ -391,9 +393,11 @@ function renderLobby() {
     tag.replaceChildren();
     if (!mine) {
       const pr = LIVE.shop && LIVE.shop.p['c.' + id];
-      if (r.code) { tag.className = 'cls-tag lock'; tag.append(el('span', '', 'Kilitli')); if (pr) { tag.append(gemIcon(13), el('b', '', pr.toLocaleString('tr'))); } }
+      if (r.mode === 'daily') { tag.className = 'cls-tag lock'; tag.textContent = 'Bugün değil'; }
+      else if (r.code) { tag.className = 'cls-tag lock'; tag.append(el('span', '', 'Kilitli')); if (pr) { tag.append(gemIcon(13), el('b', '', pr.toLocaleString('tr'))); } }
       else { tag.className = 'cls-tag try'; tag.textContent = 'Deneme'; }
-    } else tag.className = 'cls-tag';
+    } else if (r.mode === 'daily' && id === r.dly) { tag.className = 'cls-tag try'; tag.textContent = 'Günün sınıfı'; }
+    else tag.className = 'cls-tag';
     const dots = card.querySelector('.cls-team');
     dots.replaceChildren(...r.players.filter((p) => p.cls === id).map((p) => { const d = el('i'); d.style.background = p.color; d.title = p.name; return d; }));
   }
@@ -443,11 +447,21 @@ function renderSettings(r, isHost) {
       b.addEventListener('click', () => send({ t: 'set', diff: id }));
       dl.append(b);
     }
+    const mo = $('#mode-list');
+    for (const id of MODE_ORDER) {
+      const b = el('button', '', MODES[id].name); b.type = 'button'; b.dataset.v = id; b.setAttribute('role', 'radio');
+      b.addEventListener('click', () => send({ t: 'set', mode: id }));
+      mo.append(b);
+    }
   }
-  for (const b of ml.children) { b.setAttribute('aria-checked', b.dataset.v === r.map ? 'true' : 'false'); b.disabled = !canEdit; }
-  for (const b of $('#diff-list').children) { b.setAttribute('aria-checked', b.dataset.v === r.diff ? 'true' : 'false'); b.disabled = !canEdit; }
+  const dly = r.mode === 'daily';
+  for (const b of ml.children) { b.setAttribute('aria-checked', b.dataset.v === r.map ? 'true' : 'false'); b.disabled = !canEdit || dly; }
+  for (const b of $('#diff-list').children) { b.setAttribute('aria-checked', b.dataset.v === r.diff ? 'true' : 'false'); b.disabled = !canEdit || dly; }
+  for (const b of $('#mode-list').children) { b.setAttribute('aria-checked', b.dataset.v === (r.mode || 'normal') ? 'true' : 'false'); b.disabled = !canEdit || dly; b.hidden = dly; }
+  $('#mode-h').textContent = dly ? 'Mod: ' + MODES.daily.name : 'Mod';
+  $('#mode-desc').textContent = dly ? `${MODES.daily.desc} Bugünün sınıfı: ${(CLASSES[r.dly] || {}).name || ''}.` : (MODES[r.mode] || MODES.normal).desc;
   $('#diff-desc').textContent = DIFFS[r.diff] ? DIFFS[r.diff].desc : '';
-  $('#map-desc').textContent = r.map === 'rastgele' ? 'Her oyunda dört haritadan biri seçilir.' : MAPS[r.map] ? MAPS[r.map].desc : '';
+  $('#map-desc').textContent = r.map === 'rastgele' ? 'Her oyunda haritalardan biri rastgele seçilir.' : MAPS[r.map] ? MAPS[r.map].desc : '';
 }
 
 function buildClassCards() {
@@ -477,6 +491,7 @@ function buildClassCards() {
     b.append(top, role, el('p', 'class-desc', c.desc), bars, ab, el('span', 'cls-team'));
     b.addEventListener('click', () => {
       S.hoverCls = null; showClassDetail(id);
+      if (b.classList.contains('locked') && S.roster && S.roster.mode === 'daily') { toast('Günün görevinde herkes aynı sınıfla oynar.'); return; }
       if (b.classList.contains('locked')) { toast(`${c.name} kilitli. ${ACCT ? 'Ana sayfadaki Mağaza\'dan elmasla açabilirsin.' : 'Hesap açıp elmas kazanarak açabilirsin.'} Tek başına modda deneyebilirsin.`); return; }
       send({ t: 'cls', c: id });
     });
@@ -671,6 +686,7 @@ function startLoop() {
 
 function notice(n) {
   const g = S.game;
+  if (n.k === 'mev' && MEV[n.ev]) { banner('Harita olayı', MEV[n.ev].name, MEV[n.ev].desc); return; }
   if (n.k === 'wave') {
     liveGame();
     if (g.self) liveKills(g.self.kills);
@@ -713,6 +729,14 @@ function updateHud() {
     $('#hud-wave').textContent = String(g.wave + 1);
     $('#hud-sub').textContent = `Dalga ${g.wave + 1} başlıyor: ${g.breakT} sn`;
   }
+
+  const md = S.roster && S.roster.mode && S.roster.mode !== 'normal' ? MODES[S.roster.mode] : null;
+  const mt = $('#hud-mode');
+  if (mt.hidden !== !md) mt.hidden = !md;
+  if (md && mt.textContent !== md.name) mt.textContent = md.name;
+  const mv = $('#hud-mev'), ev = g.mev && MEV[g.mev[0]];
+  if (mv.hidden !== !ev) mv.hidden = !ev;
+  if (ev) { const t = `${ev.name} · ${Math.ceil(g.mev[1])} sn`; if (mv.textContent !== t) mv.textContent = t; mv.dataset.k = g.mev[0]; }
 
   // team
   const team = $('#hud-team');
@@ -1451,6 +1475,7 @@ function roomItems(rooms, max) {
 dashInit({
   toast, ask, roomItems,
   solo: () => createRoom(true),
+  daily: () => createRoom(true, { mode: 'daily' }),
   roomDlg: () => roomDlg(),
   join: (code) => { $('#code').value = code; joinRoom(); },
   openSettings: () => openSettings(),
@@ -1493,7 +1518,7 @@ function roomVisSet(v) { roomVis = v; for (const b of document.querySelectorAll(
 function chipRow(box, items, cur, onPick) {
   box.replaceChildren(...items.map(([v, t]) => { const b = el('button', 'chip-opt', t); b.type = 'button'; b.setAttribute('aria-pressed', String(v === cur)); b.onclick = () => { for (const x of box.children) x.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-pressed', 'true'); onPick(v); }; return b; }));
 }
-const ROOM = { map: 'meydan', diff: 'normal', max: MAX_PLAYERS };
+const ROOM = { map: 'meydan', diff: 'normal', mode: 'normal', max: MAX_PLAYERS };
 try { Object.assign(ROOM, JSON.parse(localStorage.getItem('kusatma-oda') || '{}')); } catch (e) { /* ignore */ }
 function roomDlg() {
   if (liveBlock()) { blockUi(); return; }
@@ -1504,6 +1529,7 @@ function roomDlg() {
   $('#room-note').textContent = pubOk ? 'İstersen sonradan oda kodunu da paylaşabilirsin.' : 'Açık oda kurmak için hesap gerekir. Ana menüden Giriş yap.';
   chipRow($('#room-map'), [...MAP_ORDER.map((id) => [id, MAPS[id].name]), ['rastgele', 'Rastgele']], ROOM.map, (v) => { ROOM.map = v; });
   chipRow($('#room-diff'), DIFF_ORDER.map((id) => [id, DIFFS[id].name]), ROOM.diff, (v) => { ROOM.diff = v; });
+  chipRow($('#room-mode'), MODE_ORDER.map((id) => [id, MODES[id].name]), MODE_ORDER.includes(ROOM.mode) ? ROOM.mode : 'normal', (v) => { ROOM.mode = v; });
   chipRow($('#room-max'), [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [MAX_PLAYERS, String(MAX_PLAYERS)]], ROOM.max, (v) => { ROOM.max = v; });
   $('#room-name').value = ACCT ? (ROOM.name || '') : ''; $('#room-name-row').hidden = !ACCT;
   $('#room-dlg').hidden = false;
@@ -1515,7 +1541,7 @@ $('#room-go').onclick = () => {
   ROOM.name = ACCT ? $('#room-name').value.trim().slice(0, 24) : '';
   try { localStorage.setItem('kusatma-oda', JSON.stringify(ROOM)); } catch (e) { /* ignore */ }
   setPub(!!ACCT && roomVis === 1);
-  createRoom(false, { map: ROOM.map, diff: ROOM.diff, max: ROOM.max, name: roomVis === 1 ? ROOM.name : '' });
+  createRoom(false, { map: ROOM.map, diff: ROOM.diff, mode: MODE_ORDER.includes(ROOM.mode) ? ROOM.mode : 'normal', max: ROOM.max, name: roomVis === 1 ? ROOM.name : '' });
 };
 acctUi();
 acctCheck().then(() => { acctUi(); dashRefresh(); });
@@ -1528,6 +1554,39 @@ function liveNews() {
   b.textContent = LIVE.news.on ? LIVE.news.text : '';
   b.hidden = !(LIVE.news.on && LIVE.news.text);
 }
+// ---------- room invites: send to online friends, and the pop-up when a friend calls you ----------
+function invDraw() {
+  const ul = $('#inv-list'), L = frList().filter((f) => f.on);
+  const here = new Set((S.roster ? S.roster.players : []).map((p) => p.name));
+  ul.replaceChildren(...(L.length ? L.map((f) => {
+    const li = el('li'); const cv = el('canvas'); drawAvatar(cv, f.eq || {}, { size: 36 });
+    const tx = el('div'); tx.append(el('strong', '', f.name), el('span', '', f.room ? (f.room === (S.roster && S.roster.code) ? 'Bu odada' : 'Başka bir odada') : f.solo ? 'Tek başına oynuyor' : 'Menüde'));
+    const b = el('button', 'btn small', here.has(f.name) ? 'Odada' : 'Davet'); b.type = 'button'; b.disabled = here.has(f.name);
+    b.onclick = async () => { b.disabled = true; b.textContent = '…'; const j = await inviteSend(f.id); b.textContent = j.ok ? 'Gönderildi ✓' : 'Olmadı'; if (!j.ok) { b.disabled = false; toast({ off: `${f.name} şu an çevrimdışı.`, slow: 'Çok fazla davet. Biraz bekle.', room: 'Önce bir oda kur.' }[j.reason] || 'Davet gönderilemedi.', 'bad'); } };
+    li.append(cv, tx, b); return li;
+  }) : [el('li', 'empty', 'Şu an çevrimiçi arkadaşın yok.')]));
+}
+$('#btn-invite').onclick = () => { $('#inv-dlg').hidden = false; invDraw(); friendsGet().then((d) => { if (d) { onFriends(d); invDraw(); } }); };
+$('#inv-close').onclick = () => { $('#inv-dlg').hidden = true; };
+let invNow = null, invTimer = 0;
+function invIn(v) {
+  if (!v.room || (S.roster && S.roster.code === v.room)) return;
+  notify('inv', `${v.f} seni odasına çağırıyor`, v.rn ? `Oda: ${v.rn}` : `Oda kodu ${v.room}`);
+  invNow = v;
+  drawAvatar($('#inv-pop-av'), v.eq || {}, { size: 48 });
+  $('#inv-pop-t').textContent = `${v.f} seni odasına çağırıyor`;
+  $('#inv-pop-s').textContent = `${v.rn ? v.rn + ' · ' : ''}${v.n || 1}/${v.mx || MAX_PLAYERS} oyuncu${S.role ? ' · Katılırsan bu oyundan çıkarsın' : ''}`;
+  $('#inv-pop').hidden = false;
+  sfx.waveClear && sfx.waveClear();
+  clearTimeout(invTimer); invTimer = setTimeout(() => { $('#inv-pop').hidden = true; }, 30000);
+}
+$('#inv-no').onclick = () => { $('#inv-pop').hidden = true; invNow = null; };
+$('#inv-yes').onclick = () => {
+  $('#inv-pop').hidden = true; const v = invNow; invNow = null; if (!v) return;
+  if (S.role) leave('');
+  $('#code').value = v.room; setTimeout(joinRoom, S.role ? 300 : 0);
+};
+
 function liveNote(title, text) {
   let b = $('#live-note');
   if (!b) {
@@ -1553,14 +1612,18 @@ liveStart({
     rn: S.role === 'host' ? S.roomName || '' : '',
     mx: S.roster ? S.roster.max || MAX_PLAYERS : 0,
     df: S.roster ? S.roster.diff || '' : '',
+    gm: S.roster && S.roster.mode !== 'normal' ? S.roster.mode || '' : '',
     ver: BUILD,
   }),
-  onCfg: () => { acctUi(); dashTop(); liveNews(); if (online() && LIVE.maint.on) leave(''); },
-  onMsg: (t, title) => liveNote(title || 'Yöneticiden mesaj', t),
+  onCfg: () => { if (S.host) S.host.badWords = LIVE.filter; acctUi(); dashTop(); liveNews(); if (online() && LIVE.maint.on) leave(''); },
+  onMsg: (t, title) => { notify('msg', title || 'Yöneticiden mesaj', t); liveNote(title || 'Yöneticiden mesaj', t); },
   onKick: (t) => { if (online()) leave('Yönetici seni oyundan çıkardı.' + (t ? ' Sebep: ' + t : '')); else liveNote('Yönetici', t || 'Oyundan çıkarıldın.'); },
-  onEv: (k, n, t) => {
-    if (S.host) S.host.adminEvent(k, n);
-    if (S.role) liveNote('Yönetici etkinliği', (k === 'boss' ? 'Bir boss yola çıktı!' : `Herkese +${Math.max(10, Math.min(5000, n))} altın!`) + (t ? ' ' + t : ''));
+  onEv: (k, n, t, x) => {
+    if (S.host) S.host.adminEvent(k, n, x || {});
+    if (!S.role) return;
+    const who = x && x.who ? `${x.who} için ` : 'Herkese ';
+    const msg = { boss: 'Bir boss yola çıktı!', gold: `${who}+${Math.max(10, Math.min(5000, n))} altın!`, horde: 'Yönetici bir sürü gönderdi!', zombie: 'Yönetici zombi gönderdi!', mev: '', item: `${who}eşya geldi: ${(GEAR[x && x.i] || {}).name || 'eşya'} ×${Math.max(1, n | 0)}` }[k];
+    if (msg) liveNote('Yönetici etkinliği', msg + (t ? ' ' + t : ''));
   },
   detail: () => (S.host ? S.host.detail() : null),
   onGift: (name, n) => { if (S.host) S.host.adminGift(name, n); },
@@ -1570,12 +1633,13 @@ liveStart({
     if (S.screen === 'game' || S.screen === 'lobby') gemPop(n, xp, cap);
   },
   onLevel: () => {},
-  onRoad: (l, gm, it) => { toast(`Seviye ${l}! +${gm} elmas${it ? ' · Ödül: ' + COS[it].name : ''}`, 'gem'); dashTop(); },
-  onFriends: (d) => onFriends(d),
-  onDm: (m) => onDm(m),
-  onFr: (k, n) => onFr(k, n),
+  onRoad: (l, gm, it) => { toast(`Seviye ${l}! +${gm} elmas${it ? ' · Ödül: ' + COS[it].name : ''}`, 'gem'); notify('lvl', `Seviye ${l}!`, `+${gm} elmas${it ? ' · Ödül: ' + COS[it].name : ''}`, 'quests'); dashTop(); },
+  onInv: (v) => invIn(v),
+  onFriends: (d) => { onFriends(d); if (!$('#inv-dlg').hidden) invDraw(); },
+  onDm: (m) => { if ($('#dm').hidden) notify('dm', `${m.n} sana yazdı`, m.x, 'friends'); onDm(m); },
+  onFr: (k, n) => { notify('fr', k === 'acc' ? `${n} isteğini kabul etti` : `${n} arkadaşlık isteği gönderdi`, '', 'friends'); onFr(k, n); },
   onAcct: () => dashRefresh(),
-  onGift2: (L) => { for (const g of L) toast(`Hediye: +${g.n} elmas${g.text ? ' · ' + g.text : ''}`, 'gem'); },
+  onGift2: (L) => { for (const g of L) { toast(`Hediye: +${g.n} elmas${g.text ? ' · ' + g.text : ''}`, 'gem'); notify('gift', `Hediye: +${g.n} elmas`, g.text || ''); } },
 });
 // gems from a cleared wave: a small pop under the wave banner
 function gemPop(n, xp, cap) {

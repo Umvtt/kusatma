@@ -10,6 +10,7 @@ export const SLOTS = [
   { k: 'nc', p: 'n', name: 'İsim rengi', none: 'Beyaz' },
   { k: 'ttl', p: 'u', name: 'Unvan', none: 'Unvansız' },
   { k: 'thm', p: 't', name: 'Tema', none: 'Gece' },
+  { k: 'pet', p: 'p', name: 'Evcil hayvan', none: 'Yok' },
 ];
 export const SLOT_OF = Object.fromEntries(SLOTS.map((s) => [s.p, s]));
 
@@ -80,6 +81,22 @@ export const ITEMS = {
   'n.alev': { name: 'Alev', r: 'e', reward: 30, c: '#ff8a3d' },
   'u.albay': { name: 'Albay', r: 'l', reward: 40 },
   'u.general': { name: 'General', r: 'l', reward: 50 },
+  // pets: follow their owner around in battle, looks only
+  'p.kopek': { name: 'Köpek', r: 'c', c: '#b07a45' },
+  'p.kedi': { name: 'Kedi', r: 'c', c: '#e0a050' },
+  'p.karga': { name: 'Karga', r: 'r', c: '#2b2f3a' },
+  'p.tilki': { name: 'Tilki', r: 'r', c: '#e06a2c' },
+  'p.robot': { name: 'Mini robot', r: 'e', c: '#8fa3b8' },
+  'p.ejder': { name: 'Yavru ejder', r: 'l', c: '#4fbf6a' },
+  // season pass rewards: never sold
+  'p.serce': { name: 'Serçe', r: 'r', c: '#9c7b55', season: 'f' },
+  'p.kurt': { name: 'Kurt', r: 'l', c: '#9aa3ad', season: 'p' },
+  'h.kask': { name: 'Gazi kaskı', r: 'e', season: 'p' },
+  'w.gazi': { name: 'Gazi', r: 'e', m: '#4b5320', w: '#6b4a2b', s: '#d9c27a', glow: '#d9c27a', season: 'p' },
+  'f.sezon': { name: 'Kış nişanı', r: 'l', c: ['#e8f6ff', '#3a7bd5'], season: 'p' },
+  'n.buz': { name: 'Buz', r: 'e', c: '#9fe3ff', season: 'p' },
+  'r.zumrut': { name: 'Zümrüt', r: 'r', c: '#1fa67a', season: 'f' },
+  'u.gazi': { name: 'Kuşatma Gazisi', r: 'e', season: 'f' },
   // dashboard themes
   't.gece': { name: 'Gece', r: 'c', free: true },
   't.orman': { name: 'Orman', r: 'c', free: true },
@@ -120,3 +137,8 @@ export function cleanEq(e) {
   return out;
 }
 export const ownsCls = (own, cls) => FREE_CLS.includes(cls) || (Array.isArray(own) && own.includes('c.' + cls));
+
+const NK = { '0': 'o', '1': 'i', l: 'i', '|': 'i', '!': 'i', '3': 'e', '4': 'a', '@': 'a', '5': 's', $: 's', '7': 't', '8': 'b', '9': 'g', 'ı': 'i', 'ğ': 'g', 'ş': 's', 'ç': 'c', 'ö': 'o', 'ü': 'u' };
+// names: same rule as the server: case, spaces, accents, look-alikes and repeated letters don't make a new name
+export const nkey = (n) => [...String(n || '').toLowerCase().normalize('NFKD')].map((c) => NK[c] || c).join('').replace(/[^a-z0-9]/g, '').replace(/(.)\1+/g, '$1');
+

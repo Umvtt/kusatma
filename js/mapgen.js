@@ -93,6 +93,32 @@ export function generateMap(theme, seed) {
     tries(80, () => { const w = between(50, 95), h = between(45, 80); place([{ x: rx(w), y: ry(h), w, h, k: 'kaya' }], 80); });
     tries(60, () => { const side = R() < 0.5, l = between(110, 170); const w = side ? l : 28, h = side ? 28 : l; place([{ x: rx(w), y: ry(h), w, h, k: 'kutuk' }], 80); });
     tries(520, () => { const s = between(30, 48); place([{ x: rx(s), y: ry(s), w: s, h: s, k: 'agac' }], 66); });
+  } else if (theme === 'liman') {
+    // the sea along the top edge, a quay, rows of containers, cranes' legs, forklifts and mooring posts
+    obs.push({ x: 0, y: 0, w: WORLD_W, h: 360, k: 'su' });
+    decor.push({ k: 'quay', x: 0, y: 360, w: WORLD_W, h: 70 });
+    for (const y of [CY - 40, CY + 900]) decor.push({ k: 'rail', x: 0, y, w: WORLD_W, h: 40 });
+    tries(24, () => { const x = rx(30); place([{ x, y: 440, w: 30, h: 30, k: 'baba' }], 110); });
+    tries(90, () => { // container stacks: 1-3 boxes in a row
+      const side = R() < 0.6, n = 1 + Math.floor(R() * 3), L = 230, W = 84, c = pick(['#8e3b2e', '#2f5a8a', '#3d7a4a', '#c07a2a', '#6b6f75', '#7a2e5a']);
+      const x = rx(side ? L : W * n + 6 * n), y = between(470, WORLD_H - EDGE - (side ? W * n + 6 * n : L));
+      const parts = [];
+      for (let i = 0; i < n; i++) parts.push(side ? { x, y: y + i * (W + 6), w: L, h: W, k: 'konteyner', c } : { x: x + i * (W + 6), y, w: W, h: L, k: 'konteyner', c });
+      place(parts, 95);
+    });
+    tries(16, () => { const x = rx(240), y = between(480, WORLD_H - 300); place([{ x, y, w: 34, h: 34, k: 'beton' }, { x: x + 206, y, w: 34, h: 34, k: 'beton' }, { x, y: y + 180, w: 34, h: 34, k: 'beton' }, { x: x + 206, y: y + 180, w: 34, h: 34, k: 'beton' }], 100); });
+    tries(40, () => { const side = R() < 0.5; const w = side ? 76 : 44, h = side ? 44 : 76; place([{ x: rx(w), y: between(470, WORLD_H - 120), w, h, k: 'forklift' }], 80); });
+    tries(70, () => place([{ x: rx(56), y: between(470, WORLD_H - 80), w: 56, h: 40, k: 'kasa' }], 80));
+  } else if (theme === 'kar') {
+    // a snowed-in village: houses, pine trees, fences, drifts and a frozen pond in the middle
+    decor.push({ k: 'snow', x: 0, y: 0, w: WORLD_W, h: WORLD_H });
+    decor.push({ k: 'pond', x: CX + 900, y: CY - 600, r: 330 });
+    tries(8, () => { decor.push({ k: 'snowpath', x1: R() * WORLD_W, y1: R() * WORLD_H, x2: CX + (R() - 0.5) * 200, y2: CY + (R() - 0.5) * 200 }); });
+    tries(26, () => { const w = between(180, 260), h = between(140, 200); place([{ x: rx(w), y: ry(h), w, h, k: 'bina', c: pick(['#6b4a2b', '#5a3f28', '#7a5536']), cabin: true, snowy: true }], 140); });
+    tries(80, () => { const long = R() < 0.5, l = between(160, 300); const w = long ? l : 26, h = long ? 26 : l; place([{ x: rx(w), y: ry(h), w, h, k: 'cit', wood: true }], 90); });
+    tries(260, () => { const s = between(34, 52); place([{ x: rx(s), y: ry(s), w: s, h: s, k: 'cam' }], 70); });
+    tries(70, () => { const w = between(70, 130), h = between(50, 80); place([{ x: rx(w), y: ry(h), w, h, k: 'kar' }], 80); });
+    tries(20, () => place([{ x: rx(44), y: ry(44), w: 44, h: 44, k: 'kuyu' }], 120));
   }
   return { theme, seed, obstacles: obs, decor };
 }

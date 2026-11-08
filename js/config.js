@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 10;
+export const VERSION = 11;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 27;
+export const BUILD = 28;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
@@ -23,15 +23,45 @@ export function areaFor(n) {
   return { w: 1800 + k * 180, h: 1200 + k * 120 };
 }
 
-export const MAP_ORDER = ['meydan', 'benzinlik', 'hastane', 'orman'];
+export const MAP_ORDER = ['meydan', 'benzinlik', 'hastane', 'orman', 'liman', 'kar'];
 export const MAPS = {
   meydan: { name: 'Meydan', desc: 'Beton bloklar ve kasalarla dolu terk edilmiş bir şehir meydanı.' },
   benzinlik: { name: 'Benzinlik', desc: 'Yol kenarı, terk edilmiş arabalar, pompalar ve küçük dükkanlar.' },
   hastane: { name: 'Hastane Bahçesi', desc: 'Çitler, ambulanslar ve hastane binaları arasında dar yollar.' },
   orman: { name: 'Orman', desc: 'Sık ağaçlar, kayalar ve devrilmiş kütükler. Görüş kısa.' },
+  liman: { name: 'Liman', desc: 'Konteyner yığınları arasında dar koridorlar. Bir yanı deniz.' },
+  kar: { name: 'Kış Köyü', desc: 'Karla kaplı evler, çamlar ve kar yığınları. Donmuş göl açık alan.' },
 };
 
 export const DIFF_ORDER = ['kolay', 'normal', 'zor', 'kabus'];
+
+// game modes: the room's host picks one in the lobby; the daily challenge has its own button
+export const MODES = {
+  normal: { name: 'Klasik', desc: 'Dalgalar arasında mola, her 5 dalgada bir boss.' },
+  endless: { name: 'Hayatta Kalma', desc: '5. dalgadan sonra mola yok ve zombiler daha sık gelir. Kendi sıralaması var.' },
+  boss: { name: 'Boss Akını', desc: 'Her dalgada boss gelir, sıradan zombi azdır. Elmaslar 1,5 kat.' },
+  hc: { name: 'Tek Can', desc: 'Düşen kalkamaz, dalga bitince de dönmez. Elmaslar 2 kat.' },
+  daily: { name: 'Günün Görevi', desc: 'Herkese aynı harita, sınıf ve zorluk. Günün ilk denemesi sıralamaya girer.' },
+};
+export const MODE_ORDER = ['normal', 'endless', 'boss', 'hc'];
+// the day in Turkey, the same day the server uses
+export const tday = (t = Date.now()) => new Date(t + 3 * 36e5).toISOString().slice(0, 10);
+// the daily challenge's rules come from the date alone, so every player and the server agree on them
+export function dailyRules(day = tday()) {
+  let h = 7;
+  for (const c of 'kd' + day) h = (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0;
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0; h ^= h >>> 16; h >>>= 0;
+  return { day, map: ['meydan', 'benzinlik', 'hastane', 'orman', 'liman', 'kar'][h % 6], cls: CLASS_ORDER_D[(h >>> 3) % 11], diff: ['normal', 'zor'][(h >>> 7) % 2], seed: h & 0x7fffffff };
+}
+const CLASS_ORDER_D = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci', 'muhendis', 'kimyager', 'komutan'];
+// map events that can hit in the middle of a wave
+export const MEV = {
+  dark: { name: 'Karartma', desc: 'Işıklar söndü. Fenerin dışında hiçbir şey görünmüyor.', dur: 22 },
+  drop: { name: 'İkmal uçağı', desc: 'Bir uçak malzeme attı. Kutuları topla!', dur: 6 },
+  horde: { name: 'Sürü akını', desc: 'Koşucu sürüsü geliyor. Sırt sırta verin!', dur: 15 },
+  moon: { name: 'Kanlı ay', desc: 'Zombiler hızlandı ama düşürdükleri altın iki katı.', dur: 25 },
+};
+export const MEV_ORDER = ['dark', 'drop', 'horde', 'moon'];
 export const DIFFS = {
   kolay: { name: 'Kolay', desc: 'Zombiler daha zayıf ve az.', hp: 0.75, dmg: 0.7, count: 0.8, spd: 0.95, gold: 1.2 },
   normal: { name: 'Normal', desc: 'Dengeli bir kuşatma.', hp: 1, dmg: 1, count: 1, spd: 1, gold: 1 },

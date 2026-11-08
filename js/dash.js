@@ -1,16 +1,19 @@
 // The signed-in player's home: a full website around the game (home, play, profile and wardrobe, gem shop,
 // friends and private messages, leaderboard, account settings and themes). Text from the server only ever goes
 // into textContent.
-import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, roomsGet, acctCheck } from './live.js';
+import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, dailyGet, roomsGet, acctCheck } from './live.js';
 import { ITEMS, SLOTS, SLOT_OF, RARITY, FREE_CLS, isFree, titleOf } from './catalog.js';
-import { CLASSES, CLASS_ORDER, DIFFS, MAX_PLAYERS, BUILD } from './config.js';
-import { drawCharacter } from './render.js';
+import { CLASSES, CLASS_ORDER, DIFFS, MAPS, MAX_PLAYERS, BUILD, dailyRules } from './config.js';
+import { drawCharacter, drawPet } from './render.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const btn = (cls, text, fn) => { const b = el('button', cls, text); b.type = 'button'; if (fn) b.onclick = fn; return b; };
 const fmt = (n) => Math.round(n).toLocaleString('tr');
 let H = null;
+// a window opened on top of another must sit above it
+let topZ = 30;
+const front = (d) => { d.style.zIndex = String(++topZ); };
 let page = 'home';
 
 // ---------- small pieces ----------
@@ -56,6 +59,7 @@ export function drawAvatar(cv, eq, opts = {}) {
   const k = S / (opts.zoom || 58); g.translate(r - 6 * k, r + 1 * k); g.scale(k, k);
   drawCharacter(g, opts.cls || 'asker', colorOf(eq), opts.angle != null ? opts.angle : -0.55, opts.walk || 0, { alive: true, hat: eq && eq.hat, wsk: eq && eq.wsk, time: opts.time || 0 });
   g.restore();
+  if (eq && eq.pet && S >= 56 && !opts.noPet) { g.save(); const pk = S / 70; g.translate(r + S * 0.24, r + S * 0.26); g.scale(pk * 1.6, pk * 1.6); drawPet(g, eq.pet, 0, 0, -2.4, opts.time || 0, 0, true); g.restore(); }
   const gr = g.createLinearGradient(0, 0, S, S);
   gr.addColorStop(0, fr.c[0]); gr.addColorStop(1, fr.c[1]);
   g.strokeStyle = gr; g.lineWidth = Math.max(2.5, S / 16);
@@ -190,10 +194,13 @@ function topBar() {
   for (const b of document.querySelectorAll('[data-badge="fr"]')) { b.textContent = fq + un ? String(fq + un) : ''; b.hidden = !(fq + un); }
   $('#dp-daily').classList.toggle('ready', !ME.dl);
   for (const b of document.querySelectorAll('[data-badge="q"]')) { b.textContent = ME.qn ? String(ME.qn) : ''; b.hidden = !ME.qn; }
+  const sp = ME.spn | 0;
+  for (const b of document.querySelectorAll('[data-badge="sp"]')) { b.textContent = sp ? String(sp) : ''; b.hidden = !sp; }
+  bellBadge();
 }
 
 // ---------- pages ----------
-const PAGES = { quests: questsPage, home: homePage, play: playPage, profile: profilePage, locker: lockerPage, shop: shopPage, friends: friendsPage, top: topPage, account: accountPage };
+const PAGES = { season: seasonPage, quests: questsPage, home: homePage, play: playPage, profile: profilePage, locker: lockerPage, shop: shopPage, friends: friendsPage, top: topPage, account: accountPage };
 export function dashGo(p, arg) {
   if (!PAGES[p]) p = 'home';
   page = p;
@@ -234,6 +241,7 @@ function homePage(sec) {
   txt.append(acts);
   heroBox.append(cv, txt);
   sec.append(heroBox);
+  sec.append(dailyCard());
 
   // friends strip
   const fr = card('Arkadaşlar', btn('btn small ghost', 'Tümü', () => dashGo('friends')));
@@ -281,6 +289,161 @@ function homePage(sec) {
   sec.append(row2);
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
+// the daily challenge: the same map, class and difficulty for everyone today
+function dailyCard() {
+  const R = dailyRules(), done = !!ME.dc;
+  const c = el('div', 'dp-card daily-ch');
+  const l = el('div', 'dc-l');
+  l.append(el('p', 'eyebrow', 'Günün görevi'), el('h3', '', `${MAPS[R.map].name} · ${CLASSES[R.cls].name} · ${DIFFS[R.diff].name}`));
+  l.append(el('p', 'dim', done ? `Bugünkü denemen: ${ME.dc.w}. dalga, ${fmt(ME.dc.k)} zombi. Yeni denemeler sıralamaya girmez.` : 'Herkes aynı harita ve sınıfla oynar. Günün ilk denemesi sıralamaya girer. İlk 10 ertesi gün elmas kazanır.'));
+  const acts = el('div', 'row');
+  acts.append(btn('btn primary', done ? 'Yine oyna' : 'Göreve başla', () => H.daily()));
+  const prize = el('span', 'dc-prize'); acts.append(prize);
+  l.append(acts);
+  const r = el('ol', 'dc-top'); r.append(el('li', 'empty', 'Yükleniyor…'));
+  c.append(l, r);
+  dailyGet().then((j) => {
+    if (!j.ok) { r.replaceChildren(el('li', 'empty', 'Sıralama yüklenemedi.')); return; }
+    r.replaceChildren(...(j.top.length ? j.top.slice(0, 5).map((x, i) => { const li = el('li', x.id === ACCT.id ? 'me' : ''); li.append(el('span', 'rk', String(i + 1)), nameEl(x.name, x.eq || {}), el('span', 'tv', `${x.w}. dalga`)); return li; }) : [el('li', 'empty', 'Bugün henüz kimse oynamadı. İlk sen ol!')]));
+    const yi = (j.y || []).findIndex((x) => x.id === ACCT.id);
+    if (yi >= 0 && ME.dcc !== j.yday) {
+      const b = btn('btn gem-btn', '', async () => {
+        b.disabled = true; const k = await acctOp('dcp');
+        if (k.ok) { ME.dcc = j.yday; H.toast(`Dünkü görevde ${k.rank}. oldun: +${k.n} elmas!`, 'gem'); gemBurst(); b.remove(); topBar(); }
+        else { b.disabled = false; H.toast(k.reason === 'done' ? 'Bu ödülü zaten aldın.' : 'Ödül alınamadı.', 'bad'); }
+      });
+      b.append(document.createTextNode(`Dün ${yi + 1}. oldun · `), gemIcon(14), el('b', '', '+' + (j.prize[yi] || 0)));
+      prize.append(b);
+    }
+  });
+  return c;
+}
+// a pet on its own little canvas, turning slowly
+function petCanvas(id, S) {
+  const cv = el('canvas', 'pet-cv'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = S * dpr; cv.height = S * dpr; cv.style.width = S + 'px'; cv.style.height = S + 'px';
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const bg = g.createRadialGradient(S / 2, S / 2, 4, S / 2, S / 2, S / 2); bg.addColorStop(0, 'rgba(255,255,255,.08)'); bg.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = bg; g.fillRect(0, 0, S, S);
+  g.save(); g.translate(S / 2, S / 2 + 2); const k = S / 34; g.scale(k, k); drawPet(g, id, 0, 0, -Math.PI / 2 + 0.35, 1.2, 0, true); g.restore();
+  return cv;
+}
+
+// ---------- season pass ----------
+let SP = null;
+const spItem = (r) => (r.i ? r.i : null);
+function seasonCell(r, st, onClaim) {
+  const c = el('button', 'sp-cell ' + st); c.type = 'button';
+  if (r.i && ITEMS[r.i]) {
+    const it = ITEMS[r.i]; c.classList.add('r-' + it.r);
+    const pv = el('div', 'sp-ic');
+    if (r.i[0] === 'p') pv.append(petCanvas(r.i, 46));
+    else if ('hrwf'.includes(r.i[0])) { const cv = el('canvas'); drawAvatar(cv, Object.assign({}, ME.eq, { [SLOT_OF[r.i[0]].k]: r.i }), { size: 46, noPet: true }); pv.append(cv); }
+    else if (r.i[0] === 'n') pv.append(nameEl('Aa', { nc: r.i }, 'span', 'nm'));
+    else pv.append(el('span', 'sp-ttl', '“' + it.name + '”'));
+    c.append(pv, el('span', 'sp-n', it.name));
+  } else { const pv = el('div', 'sp-ic'); pv.append(gemIcon(26)); c.append(pv, el('span', 'sp-n', '+' + fmt(r.g || 0))); }
+  if (st === 'got') c.append(el('span', 'sp-st', '✓'));
+  if (st === 'lock') c.append(el('span', 'sp-st', '🔒'));
+  if (st === 'ready') c.onclick = onClaim; else c.disabled = st !== 'ready';
+  return c;
+}
+function seasonPage(sec) {
+  head(sec, 'Sezon kartı', 'Yükleniyor…');
+  const body = el('div', 'sp-body'); body.append(el('p', 'note', 'Yükleniyor…')); sec.append(body);
+  acctOp('sp').then((j) => { if (j.ok) { SP = j; ME.spn = j.n; topBar(); if (page === 'season') drawSeason(sec, body); } else body.replaceChildren(el('p', 'note', 'Sezon bilgisi yüklenemedi.')); });
+}
+async function spClaim(t, tr) {
+  const j = await acctOp('spcl', t ? { t, tr } : {});
+  if (!j.ok) { H.toast(j.reason === 'none' ? 'Alınacak ödül yok.' : 'Ödül alınamadı.', 'bad'); return; }
+  SP = j; ME.gems = j.gems; ME.spn = j.n;
+  if (j.got && j.got.length) { for (const id of j.got) if (!ME.own.includes(id)) ME.own.push(id); if (j.pass) ME.pass = j.pass; }
+  const parts = []; if (j.g) parts.push(`+${fmt(j.g)} elmas`); for (const id of j.got || []) parts.push(ITEMS[id] ? ITEMS[id].name : id);
+  H.toast('Sezon ödülü: ' + parts.join(', '), 'gem'); gemBurst(); topBar();
+  if (page === 'season') dashGo('season');
+}
+function drawSeason(sec, body) {
+  const j = SP;
+  sec.querySelector('.dp-h').textContent = j.name;
+  const days = Math.max(0, Math.ceil((j.end - Date.now()) / 864e5));
+  const top = el('div', 'sp-top');
+  const prog = el('div', 'sp-prog');
+  const inTier = j.tier >= 30 ? j.per : j.x - j.tier * j.per;
+  const bar = el('div', 'xpbar'); const f = el('i'); f.style.width = Math.round(100 * inTier / j.per) + '%'; bar.append(f);
+  prog.append(el('div', 'sp-tier', String(j.tier)), el('div', 'sp-pt'));
+  prog.lastChild.append(el('strong', '', j.tier >= 30 ? 'Son kademe!' : `Kademe ${j.tier} / 30`), bar, el('span', 'dim', j.tier >= 30 ? `${fmt(j.x)} sezon XP` : `Sonraki kademe: ${fmt(inTier)} / ${fmt(j.per)} XP · Oynadıkça XP kazanırsın`));
+  top.append(prog, el('span', 'sp-left', `${days} gün kaldı`));
+  const acts = el('div', 'row');
+  if (j.n) acts.append(btn('btn primary', `Hepsini al (${j.n})`, () => spClaim(0)));
+  top.append(acts);
+  const nodes = [top];
+  if (!j.prem) {
+    const pc = el('div', 'sp-prem');
+    const t = el('div'); t.append(el('strong', '', 'Premium sezon kartı'), el('span', 'dim', 'Premium yolun bütün ödülleri: Kurt evcil hayvanı, Gazi kaskı, Gazi silah kaplaması, Kış nişanı çerçevesi, Buz isim rengi ve kademelerde 100–200 elmas. Geçmiş kademelerin ödülleri de hemen açılır.'));
+    const b = btn('btn gem-btn primary', '', () => {
+      formDlg('Premium sezon kartı', [], `${fmt(j.price)} elmas harcanacak. Bu ay sonuna kadar geçerli. Bakiyen: ${fmt(ME.gems)} elmas.`, 'Satın al', async () => {
+        const k = await acctOp('spbuy');
+        if (k.ok) { SP = k; ME.gems = k.gems; ME.spn = k.n; H.toast('Premium sezon kartı açıldı!', 'gem'); gemBurst(); topBar(); dashGo('season'); return ''; }
+        return k.reason === 'gems' ? `Yeterli elmasın yok (${fmt(k.gems || ME.gems)} / ${fmt(j.price)}).` : k.reason === 'owned' ? 'Zaten sende.' : 'Satın alınamadı.';
+      });
+    });
+    b.append(document.createTextNode('Aç · '), gemIcon(15), el('b', '', fmt(j.price)));
+    if (ME.gems < j.price) b.classList.add('poor');
+    pc.append(t, b); nodes.push(pc);
+  }
+  const track = el('div', 'sp-track');
+  const lab = el('div', 'sp-col sp-lab'); lab.append(el('span', 'sp-tn', ''), el('span', 'sp-lf', 'Ücretsiz'), el('span', 'sp-lp', 'Premium'));
+  track.append(lab);
+  for (let t = 1; t <= 30; t++) {
+    const T = j.tiers[t - 1], col = el('div', 'sp-col' + (t <= j.tier ? ' done' : '') + (t === j.tier + 1 ? ' next' : ''));
+    col.append(el('span', 'sp-tn', String(t)));
+    const stF = j.cf.includes(t) ? 'got' : t <= j.tier ? 'ready' : 'future';
+    const stP = j.cp.includes(t) ? 'got' : !j.prem ? 'lock' : t <= j.tier ? 'ready' : 'future';
+    col.append(seasonCell(T.f, stF, () => spClaim(t, 'f')), seasonCell(T.p, stP, () => spClaim(t, 'p')));
+    track.append(col);
+  }
+  nodes.push(track, el('p', 'note', 'Her oyunda kazandığın XP sezon kartını da doldurur. Sezon ayın son günü biter; alınmamış ödüller kaybolur.'));
+  body.replaceChildren(...nodes);
+  const nx = track.querySelector('.next') || track.querySelector('.sp-col:last-child');
+  if (nx) track.scrollLeft = Math.max(0, nx.offsetLeft - track.clientWidth / 2);
+}
+
+// ---------- notifications: kept on this device only ----------
+const BKEY = () => 'kusatma-bildirim-' + (ACCT ? ACCT.id : '');
+function bellGet() { try { const L = JSON.parse(localStorage.getItem(BKEY()) || '[]'); return Array.isArray(L) ? L : []; } catch (e) { return []; } }
+function bellSet(L) { try { localStorage.setItem(BKEY(), JSON.stringify(L.slice(0, 40))); } catch (e) { /* ignore */ } }
+export function notify(k, title, text, go) {
+  if (!ACCT) return;
+  const L = bellGet(); L.unshift({ t: Date.now(), k: String(k).slice(0, 8), title: String(title || '').slice(0, 80), text: String(text || '').slice(0, 200), go: go ? String(go).slice(0, 40) : '', u: 1 });
+  bellSet(L); bellBadge(); if (!$('#bell-pop').hidden) bellDraw();
+}
+function bellBadge() { const n = bellGet().filter((x) => x.u).length; for (const b of document.querySelectorAll('[data-badge="bell"]')) { b.textContent = n ? String(Math.min(99, n)) : ''; b.hidden = !n; } }
+const BELL_IC = { gift: '🎁', fr: '👥', dm: '✉', inv: '📨', lvl: '⭐', gem: '💎', msg: '📢', sp: '🛡' };
+function bellDraw() {
+  const L = bellGet(), ul = $('#bell-list');
+  ul.replaceChildren(...(L.length ? L.map((x) => {
+    const li = el('li', x.u ? 'new' : ''); const b = btn('bell-row', '', () => { $('#bell-pop').hidden = true; $('#dp-bell').setAttribute('aria-expanded', 'false'); if (x.go) { const [p, a] = x.go.split(':'); dashGo(p, a); } });
+    const tx = el('div'); tx.append(el('strong', '', x.title)); if (x.text) tx.append(el('span', '', x.text)); tx.append(el('small', '', ago(x.t)));
+    b.append(el('span', 'bell-ic', BELL_IC[x.k] || '•'), tx); li.append(b); return li;
+  }) : [el('li', 'empty', 'Henüz bildirim yok.')]));
+}
+function bellToggle() {
+  const p = $('#bell-pop'), open = p.hidden;
+  p.hidden = !open; $('#dp-bell').setAttribute('aria-expanded', String(open));
+  if (open) { bellDraw(); front(p); const L = bellGet(); for (const x of L) x.u = 0; bellSet(L); bellBadge(); }
+}
+
+// ---------- people you played with recently (this device) ----------
+const RKEY = () => 'kusatma-son-' + (ACCT ? ACCT.id : '');
+export function recentAdd(list) {
+  if (!ACCT) return;
+  let L = []; try { L = JSON.parse(localStorage.getItem(RKEY()) || '[]'); if (!Array.isArray(L)) L = []; } catch (e) { L = []; }
+  const now = Date.now();
+  for (const p of list) { if (!p || !p.name || p.name === ACCT.name) continue; L = L.filter((x) => x.name !== p.name); L.unshift({ name: String(p.name).slice(0, 16), eq: p.eq || {}, acct: p.acct ? 1 : 0, t: now }); }
+  try { localStorage.setItem(RKEY(), JSON.stringify(L.slice(0, 20))); } catch (e) { /* ignore */ }
+}
+function recentGet() { try { const L = JSON.parse(localStorage.getItem(RKEY()) || '[]'); return Array.isArray(L) ? L : []; } catch (e) { return []; } }
+
 function statList() {
   const ul = el('ul', 'dp-stats');
   for (const [v, l] of [[ME.best, 'en iyi dalga'], [fmt(ME.kills), 'zombi'], [ME.games, 'oyun'], [fmt(ME.mins), 'dakika']]) { const li = el('li'); li.append(el('strong', '', String(v)), el('span', '', l)); ul.append(li); }
@@ -308,6 +471,7 @@ function playPage(sec) {
   const a3 = btn('dp-act', ''); a3.append(el('strong', '', 'Tek başına oyna'), el('span', '', 'Kilitli sınıfları da deneyebilirsin (elmas kazandırmaz).')); a3.onclick = () => H.solo();
   acts.append(a1, a2, a3);
   sec.append(acts);
+  sec.append(dailyCard());
   const fc = card('Oyundaki arkadaşların');
   const fl = el('ul', 'dp-rooms'); fl.id = 'play-fr'; fl.append(el('li', 'empty', 'Yükleniyor…')); fc.append(fl);
   sec.append(fc);
@@ -421,7 +585,7 @@ async function equip(slot, id) {
 }
 
 // ---------- the gem shop ----------
-const SHOP_TABS = [['c', 'Sınıflar'], ['h', 'Şapkalar'], ['r', 'Renkler'], ['w', 'Silah'], ['f', 'Çerçeve'], ['n', 'İsim rengi'], ['u', 'Unvan'], ['t', 'Tema']];
+const SHOP_TABS = [['c', 'Sınıflar'], ['p', 'Evcil'], ['h', 'Şapkalar'], ['r', 'Renkler'], ['w', 'Silah'], ['f', 'Çerçeve'], ['n', 'İsim rengi'], ['u', 'Unvan'], ['t', 'Tema']];
 let shopTab = 'c', shopOwn = 'all';
 const priceOf = (id) => (LIVE.shop && LIVE.shop.p[id] != null ? LIVE.shop.p[id] : null);
 function shopPage(sec, tab) {
@@ -463,6 +627,7 @@ function itemCard(id, big, o = {}) {
   else if (kind === 'n') { const n = nameEl(ACCT.name, { nc: id }, 'span', 'nm big'); pv.append(n); }
   else if (kind === 'u') { pv.append(el('span', 'ttl-prev', it.name)); }
   else if (kind === 't') { const sw = el('div', 'theme-sw'); sw.dataset.theme = id.slice(2); pv.append(sw); }
+  else if (kind === 'p') { pv.append(petCanvas(id, big ? 110 : 84)); }
   b.append(pv);
   b.append(el('span', 'ic-r', RARITY[it.r] || ''), el('span', 'ic-name', it.name));
   if (kind === 'c' && CLASSES[it.cls]) b.append(el('span', 'ic-desc', `${CLASSES[it.cls].ab.name} · ${CLASSES[it.cls].pas.name}`));
@@ -471,6 +636,8 @@ function itemCard(id, big, o = {}) {
   if (have) pr.append(el('b', 'own', 'Sahipsin'));
   else if (it.soon) pr.append(el('b', 'soon', 'Yakında'));
   else if (!LIVE.shop) pr.append(el('b', 'soon', '…'));
+  else if (it.season) pr.append(el('b', 'soon', it.season === 'p' ? 'Premium sezon ödülü' : 'Sezon ödülü'));
+  else if (it.reward) pr.append(el('b', 'soon', `${it.reward}. seviye ödülü`));
   else if (price == null) pr.append(el('b', 'soon', 'Satışta değil'));
   else {
     const was = LIVE.shop && LIVE.shop.o ? LIVE.shop.o[id] : 0;
@@ -528,17 +695,18 @@ function buyDlg(id, price) {
     box.append(info);
   };
   dlg.querySelector('.card').classList.remove('bought');
-  dlg.hidden = false;
+  dlg.hidden = false; front(dlg);
   draw('ask');
 }
 
 // ---------- friends and private messages ----------
 let FR = { L: [], q: [], un: {} }, frTab = 'list';
+export const frList = () => FR.L;
 function friendsPage(sec, arg) {
   if (arg === 'add') frTab = 'add';
   head(sec, 'Arkadaşlar', 'Arkadaşların');
   const tabs = el('div', 'seg-tabs');
-  for (const [k, n] of [['list', `Arkadaşlar (${FR.L.length})`], ['req', `İstekler${FR.q.length ? ' (' + FR.q.length + ')' : ''}`], ['add', 'Arkadaş ekle']]) {
+  for (const [k, n] of [['list', `Arkadaşlar (${FR.L.length})`], ['req', `İstekler${FR.q.length ? ' (' + FR.q.length + ')' : ''}`], ['recent', 'Son oynadıkların'], ['add', 'Arkadaş ekle']]) {
     const b = btn('', n, () => { frTab = k; dashGo('friends'); }); b.setAttribute('aria-selected', String(k === frTab)); tabs.append(b);
   }
   sec.append(tabs);
@@ -549,6 +717,25 @@ function friendsPage(sec, arg) {
 function drawFriends() {
   const box = $('#fr-box'); if (!box) return;
   box.replaceChildren();
+  if (frTab === 'recent') {
+    const L = recentGet(), c = card('Son oynadıkların');
+    const ul = el('ul', 'fr-list');
+    if (!L.length) ul.append(el('li', 'empty', 'Biriyle oynadığında burada görünür.'));
+    for (const r of L) {
+      const li = el('li', 'fr-row'); li.append(avatar(r.eq || {}, 40));
+      const tx = el('div', 'fr-tx'); tx.append(nameEl(r.name, r.eq || {}), el('span', 'dim', ago(r.t) + (r.acct ? '' : ' · hesapsız')));
+      li.append(tx);
+      const acts = el('div', 'fr-acts');
+      if (r.acct) {
+        acts.append(btn('btn small ghost', 'Profil', () => openProfile({ name: r.name })));
+        if (!FR.L.some((f) => f.name === r.name)) acts.append(btn('btn small', 'Ekle', async (e) => { e.target.disabled = true; const j = await acctOp('fadd', { name: r.name }); H.toast(j.ok ? (j.now ? `${r.name} ile artık arkadaşsınız!` : 'İstek gönderildi.') : 'Gönderilemedi.', j.ok ? 'good' : 'bad'); }));
+      }
+      li.append(acts); ul.append(li);
+    }
+    c.append(ul, el('p', 'note', 'Bu liste sadece bu cihazda tutulur.'));
+    box.append(c);
+    return;
+  }
   if (frTab === 'add') {
     const c = card('Ad ile ekle');
     const row = el('div', 'join-row'); const inp = el('input', 'field-in'); inp.maxLength = 16; inp.placeholder = 'Oyuncu adı'; inp.autocomplete = 'off';
@@ -665,7 +852,7 @@ export function onFr(k, n) { H.toast(k === 'acc' ? `${n} arkadaşlık isteğini 
 // someone's public profile
 async function openProfile(q) {
   const dlg = $('#prof-dlg'), body = $('#prof-body');
-  dlg.hidden = false; body.replaceChildren(el('p', 'note', 'Yükleniyor…'));
+  dlg.hidden = false; front(dlg); body.replaceChildren(el('p', 'note', 'Yükleniyor…'));
   const j = await acctOp('prof', q);
   if (!j.ok) { body.replaceChildren(el('p', 'msg', j.reason === 'gone' ? 'Bu oyuncu bulunamadı.' : 'Profil yüklenemedi.')); return; }
   const p = j.p;
@@ -682,7 +869,8 @@ async function openProfile(q) {
   body.append(acts);
 }
 function reportDlg(p) {
-  const dlg = $('#rep-dlg'); dlg.hidden = false;
+  $('#prof-dlg').hidden = true;
+  const dlg = $('#rep-dlg'); dlg.hidden = false; front(dlg);
   $('#rep-who').textContent = p.name;
   $('#rep-x').value = '';
   const opts = $('#rep-why'); let why = 'isim';
@@ -763,19 +951,19 @@ let topTab = 'xp';
 function topPage(sec) {
   head(sec, 'Sıralama', 'En iyiler');
   const tabs = el('div', 'seg-tabs');
-  for (const [k, n] of [['xp', 'Seviye'], ['best', 'En iyi dalga'], ['kills', 'En çok öldürme']]) { const b = btn('', n, () => { topTab = k; dashGo('top'); }); b.setAttribute('aria-selected', String(k === topTab)); tabs.append(b); }
+  for (const [k, n] of [['xp', 'Seviye'], ['best', 'En iyi dalga'], ['end', 'Hayatta Kalma'], ['daily', 'Günün görevi'], ['kills', 'En çok öldürme']]) { const b = btn('', n, () => { topTab = k; dashGo('top'); }); b.setAttribute('aria-selected', String(k === topTab)); tabs.append(b); }
   sec.append(tabs);
   const ol = el('ol', 'top-rows'); ol.append(el('li', 'empty', 'Yükleniyor…'));
   sec.append(ol);
-  topGet().then((j) => {
+  (topTab === 'daily' ? dailyGet() : topGet()).then((j) => {
     if (!j.ok) { ol.replaceChildren(el('li', 'empty', 'Sıralama yüklenemedi.')); return; }
-    const L = (j.top[topTab] || []);
+    const L = topTab === 'daily' ? j.top : (j.top[topTab] || []);
     if (!L.length) { ol.replaceChildren(el('li', 'empty', 'Henüz kimse yok. Bir oyun bitir, ilk sen ol!')); return; }
     ol.replaceChildren(...L.map((r, i) => {
       const li = el('li', i < 3 ? 'podium p' + (i + 1) : '');
       const b = btn('top-row', '', () => openProfile({ name: r.name }));
-      b.append(el('span', 'rk', String(i + 1)), avatar(r.eq || {}, 36), nameEl(r.name, r.eq || {}), lvlBadge(r.lvl || 1),
-        el('span', 'tv', topTab === 'xp' ? `Seviye ${r.lvl || 1}` : topTab === 'best' ? `${r.best}. dalga` : `${fmt(r.kills)} zombi`));
+      b.append(el('span', 'rk', String(i + 1)), avatar(r.eq || {}, 36), nameEl(r.name, r.eq || {}), topTab === 'daily' ? el('span') : lvlBadge(r.lvl || 1),
+        el('span', 'tv', topTab === 'xp' ? `Seviye ${r.lvl || 1}` : topTab === 'best' ? `${r.best}. dalga` : topTab === 'end' ? `${r.end}. dalga` : topTab === 'daily' ? `${r.w}. dalga · ${fmt(r.k)} zombi` : `${fmt(r.kills)} zombi`));
       li.append(b); return li;
     }));
   });
@@ -840,11 +1028,11 @@ function accountPage(sec) {
   sec.append(el('p', 'set-build', `Kuşatma · Yapı ${BUILD}`));
 }
 function formDlg(title, fields, note, go, fn) {
-  const dlg = $('#form-dlg'); dlg.hidden = false;
+  const dlg = $('#form-dlg'); dlg.hidden = false; front(dlg);
   $('#form-title').textContent = title; $('#form-note').textContent = note; $('#form-go').textContent = go;
   const box = $('#form-fields'), msg = $('#form-msg'); msg.hidden = true;
   box.replaceChildren(...fields.map(([k, label, type]) => { const l = el('label', 'field'); const i = el('input'); i.type = type; i.name = k; i.maxLength = type === 'password' ? 64 : 16; i.autocomplete = type === 'password' ? 'current-password' : 'off'; l.append(el('span', '', label), i); return l; }));
-  box.querySelector('input').focus();
+  const fi = box.querySelector('input'); if (fi) fi.focus(); else $('#form-go').focus();
   $('#form-go').onclick = async () => {
     const v = {}; for (const i of box.querySelectorAll('input')) v[i.name] = i.value;
     $('#form-go').disabled = true;
@@ -861,6 +1049,9 @@ export function dashInit(hooks) {
   $('#dp-gems').onclick = () => dashGo('shop');
   $('#dp-daily').onclick = async () => { if (ME.dl) { H.toast('Bugünkü ödülü aldın. Yarın tekrar gel!'); return; } await claimDaily(); if (page === 'home') dashGo('home'); };
   $('#dp-me').onclick = () => dashGo('profile');
+  $('#dp-bell').onclick = (e) => { e.stopPropagation(); bellToggle(); };
+  $('#bell-clear').onclick = (e) => { e.stopPropagation(); bellSet([]); bellDraw(); bellBadge(); };
+  document.addEventListener('click', (e) => { const p = $('#bell-pop'); if (!p.hidden && !p.contains(e.target)) { p.hidden = true; $('#dp-bell').setAttribute('aria-expanded', 'false'); } });
   $('#dp-search').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.value.trim()) { openProfile({ name: e.target.value.trim() }); e.target.value = ''; } });
   $('#dm-close').onclick = () => { $('#dm').hidden = true; dmWith = null; };
   $('#dm-send').onclick = sendDm;

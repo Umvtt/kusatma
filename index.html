@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=27">
-  <link rel="stylesheet" href="css/dash.css?v=27">
+  <link rel="stylesheet" href="css/style.css?v=28">
+  <link rel="stylesheet" href="css/dash.css?v=28">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -77,16 +77,19 @@
         <label class="dp-search"><span class="sr-only">Oyuncu ara</span><input id="dp-search" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Oyuncu ara"></label>
         <div class="dp-user">
           <button id="dp-daily" class="dp-icon" type="button" title="Günlük ödül" aria-label="Günlük ödül"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20 7h-2.2A3 3 0 0 0 12 4.8 3 3 0 0 0 6.2 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1Zm-6-1a1 1 0 1 1 1 1h-2a1 1 0 0 1 1-1Zm-5 0a1 1 0 0 1 1 1H8a1 1 0 0 1 1-1Zm2 14H6v-8h5Zm0-10H5V9h6Zm2-1h6v1h-6Zm5 11h-5v-8h5Z"/></svg><i class="dot"></i></button>
+          <button id="dp-bell" class="dp-icon" type="button" title="Bildirimler" aria-label="Bildirimler" aria-expanded="false"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.4-2h-4.8a2.5 2.5 0 0 0 2.4 2Zm7-6V11a7 7 0 0 0-5.5-6.8V3a1.5 1.5 0 0 0-3 0v1.2A7 7 0 0 0 5 11v5l-2 2v1h18v-1Z"/></svg><span class="badge" data-badge="bell" hidden></span></button>
           <button class="dp-icon" type="button" data-dp="friends" title="Arkadaşlar" aria-label="Arkadaşlar"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0-6a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm7.5 6.5a3.5 3.5 0 1 0 0-7 1 1 0 0 0 0 2 1.5 1.5 0 0 1 0 3 1 1 0 0 0 0 2ZM9 13c-3.9 0-7 2.2-7 5v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2c0-2.8-3.1-5-7-5Zm5 6H4v-1c0-1.5 2.2-3 5-3s5 1.5 5 3Zm4-6a1 1 0 0 0 0 2c1.8.3 3 1.4 3 2.5V19h-1a1 1 0 0 0 0 2h2a1 1 0 0 0 1-1v-2.5c0-2.2-2-4-5-4.5Z"/></svg><span class="badge" data-badge="fr" hidden></span></button>
           <button id="dp-gems" class="dp-gems" type="button" title="Elmas mağazası"></button>
           <button id="dp-me" class="dp-me" type="button" title="Profilim"><canvas id="dp-av-cv" width="36" height="36" aria-hidden="true"></canvas><span class="dp-me-t"><span id="dp-name"></span><span class="dp-me-l"><span id="dp-lvl"></span><span class="xpbar mini"><i id="dp-xpbar"></i></span></span></span></button>
         </div>
       </header>
+      <div id="bell-pop" class="bell-pop" hidden><div class="bell-h"><strong>Bildirimler</strong><button id="bell-clear" class="btn small ghost" type="button">Temizle</button></div><ul id="bell-list" class="bell-list"></ul></div>
       <div class="dp-body">
         <nav class="dp-nav" aria-label="Panel">
           <button type="button" data-dp="home" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/></svg><span>Ana sayfa</span></button>
           <button type="button" data-dp="play" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg><span>Oyna</span></button>
           <button type="button" data-dp="quests" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v4a5 5 0 0 1-10 0zM5 4H2v2a4 4 0 0 0 4 4M19 4h3v2a4 4 0 0 1-4 4M10 14h4v3h3v4H7v-4h3z"/></svg><span>Görevler</span><span class="badge" data-badge="q" hidden></span></button>
+          <button type="button" data-dp="season" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5zm0 5 1.5 3 3.3.5-2.4 2.3.6 3.2L12 14.5 9 16l.6-3.2-2.4-2.3 3.3-.5z"/></svg><span>Sezon</span><span class="badge" data-badge="sp" hidden></span></button>
           <button type="button" data-dp="shop" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 9l9 13 9-13z"/></svg><span>Mağaza</span></button>
           <button type="button" data-dp="friends" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M1 21c0-4 4-6 8-6s8 2 8 6z"/><circle cx="17.5" cy="8.5" r="3"/></svg><span>Arkadaşlar</span><span class="badge" data-badge="fr" hidden></span></button>
           <button type="button" data-dp="profile" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M3 22c0-5 4-8 9-8s9 3 9 8z"/></svg><span>Profil</span></button>
@@ -127,7 +130,7 @@
         <section class="card players-card" aria-labelledby="players-h">
           <div class="card-head">
             <h3 id="players-h">Oyuncular</h3>
-            <span id="player-count" class="count">1/15</span>
+            <span class="row"><button id="btn-invite" class="btn small" type="button" hidden>Davet et</button><span id="player-count" class="count">1/15</span></span>
           </div>
           <ul id="player-list" class="player-list"></ul>
         </section>
@@ -142,6 +145,9 @@
           <div class="card-head sub-head"><h3 id="diff-h">Zorluk</h3></div>
           <div id="diff-list" class="seg" role="radiogroup" aria-labelledby="diff-h"></div>
           <p id="diff-desc" class="note"></p>
+          <div class="card-head sub-head"><h3 id="mode-h">Mod</h3></div>
+          <div id="mode-list" class="seg mode-seg" role="radiogroup" aria-labelledby="mode-h"></div>
+          <p id="mode-desc" class="note"></p>
         </section>
         </div>
 
@@ -173,6 +179,8 @@
         <span class="eyebrow" id="hud-phase">Dalga</span>
         <strong id="hud-wave">1</strong>
         <span id="hud-sub" class="hud-sub">Kalan zombi: 0</span>
+        <span id="hud-mode" class="mode-tag" hidden></span>
+        <span id="hud-mev" class="mev-chip" hidden></span>
       </div>
       <ul id="hud-team" class="team"></ul>
     </div>
@@ -350,10 +358,23 @@
       <label id="room-name-row" class="field" for="room-name"><span>Oda adı (isteğe bağlı, açık listede görünür)</span><input id="room-name" maxlength="24" autocomplete="off" placeholder="ör. Gece nöbeti"></label>
       <div class="room-set"><span class="eyebrow">Harita</span><div class="chip-row" id="room-map"></div></div>
       <div class="room-set"><span class="eyebrow">Zorluk</span><div class="chip-row" id="room-diff"></div></div>
+      <div class="room-set"><span class="eyebrow">Mod</span><div class="chip-row" id="room-mode"></div></div>
       <div class="room-set"><span class="eyebrow">En fazla oyuncu</span><div class="chip-row" id="room-max"></div></div>
       <p id="room-note" class="note"></p>
       <button id="room-go" class="btn primary big" type="button">Odayı kur</button>
     </div>
+  </div>
+  <div id="inv-dlg" class="confirm" hidden>
+    <div class="card settings-dlg inv-dlg" role="dialog" aria-modal="true" aria-labelledby="inv-title">
+      <div class="card-head"><h3 id="inv-title">Arkadaşını davet et</h3><button id="inv-close" class="btn small" type="button">Kapat</button></div>
+      <ul id="inv-list" class="inv-list"></ul>
+      <p class="note">Sadece çevrimiçi arkadaşların davet edilebilir. Davet ettiğin kişiye bir pencere açılır, tek tıkla odana gelir.</p>
+    </div>
+  </div>
+  <div id="inv-pop" class="inv-pop" role="alertdialog" aria-labelledby="inv-pop-t" hidden>
+    <canvas id="inv-pop-av" width="48" height="48" aria-hidden="true"></canvas>
+    <div><strong id="inv-pop-t"></strong><span id="inv-pop-s"></span></div>
+    <div class="row"><button id="inv-no" class="btn small ghost" type="button">Reddet</button><button id="inv-yes" class="btn small primary" type="button">Katıl</button></div>
   </div>
   <div id="diag-dlg" class="confirm" hidden>
     <div class="card settings-dlg diag-dlg" role="dialog" aria-modal="true" aria-labelledby="diag-title">
@@ -448,6 +469,6 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="module" src="js/main.js?v=27"></script>
+  <script type="module" src="js/main.js?v=28"></script>
 </body>
 </html>

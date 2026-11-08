@@ -1,4 +1,5 @@
-import { ITEMS, cleanEq } from './catalog.js';
+import { ITEMS, cleanEq, nkey } from './catalog.js';
+export { nkey };
 // Live link to the owner's server: news, maintenance, messages, kicks and bans from the admin panel,
 // plus who is online and how far games get. Tries each address in turn (some networks block one of them).
 let ADDRS = ['wss://ironfield-api.umvtt.deno.net', 'wss://ironfield-codes.umvtt.workers.dev', 'wss://ironfield-api.pages.dev'];
@@ -6,10 +7,6 @@ let ADDRS = ['wss://ironfield-api.umvtt.deno.net', 'wss://ironfield-codes.umvtt.
 try { const t = new URLSearchParams(location.search).get('api'); if (t && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /^ws:\/\/(localhost|127\.0\.0\.1):\d+$/.test(t)) ADDRS = [t]; } catch (e) { /* ignore */ }
 const BAN_KEY = 'kusatma-ban';
 const HTTP = ADDRS.map((a) => a.replace(/^ws(s?):/, 'http$1:'));
-const NK = { '0': 'o', '1': 'i', l: 'i', '|': 'i', '!': 'i', '3': 'e', '4': 'a', '@': 'a', '5': 's', $: 's', '7': 't', '8': 'b', '9': 'g', 'ı': 'i', 'ğ': 'g', 'ş': 's', 'ç': 'c', 'ö': 'o', 'ü': 'u' };
-// same rule as the server: case, spaces, accents, look-alikes and repeated letters don't make a new name
-export const nkey = (n) => [...String(n || '').toLowerCase().normalize('NFKD')].map((c) => NK[c] || c).join('').replace(/[^a-z0-9]/g, '').replace(/(.)\1+/g, '$1');
-
 let dev = '';
 try {
   dev = localStorage.getItem('kusatma-cihaz') || '';
@@ -19,13 +16,13 @@ try {
   }
 } catch (e) { dev = dev || 'f'.repeat(16); }
 
-export const LIVE = { news: { on: false, text: '' }, maint: { on: false, text: '' }, ban: null, names: [], shop: null };
+export const LIVE = { news: { on: false, text: '' }, maint: { on: false, text: '' }, ban: null, names: [], shop: null, filter: [] };
 export let ACCT = null;
 export const ME = { qn: 0, best: 0, kills: 0, games: 0, mins: 0, gems: 0, xp: 0, lvl: 1, lx: 0, ln: 100, own: [], eq: {}, set: { fr: 1, on: 1, room: 1 }, pass: '', dl: false, fq: [], un: 0, made: 0, hideLb: false, gd: 0, mute: 0 };
 export let PUB = true;
 try { PUB = localStorage.getItem('kusatma-pub') !== '0'; } catch (e) { /* ignore */ }
 export function setPub(v) { PUB = !!v; try { localStorage.setItem('kusatma-pub', PUB ? '1' : '0'); } catch (e) { /* ignore */ } last = ''; if (H) hi(true); }
-const NUMS = ['best', 'kills', 'games', 'mins', 'gems', 'xp', 'lvl', 'lx', 'ln', 'made', 'un', 'gd', 'mute', 'qn'];
+const NUMS = ['spn', 'best', 'kills', 'games', 'mins', 'gems', 'xp', 'lvl', 'lx', 'ln', 'made', 'un', 'gd', 'mute', 'qn'];
 const keepMe = (j) => {
   for (const k of NUMS) if (k in j) ME[k] = Math.max(0, +j[k] || 0);
   if (Array.isArray(j.own)) ME.own = j.own.filter((x) => typeof x === 'string').slice(0, 300);
@@ -33,6 +30,9 @@ const keepMe = (j) => {
   if (j.set && typeof j.set === 'object') ME.set = { fr: j.set.fr ? 1 : 0, on: j.set.on ? 1 : 0, room: j.set.room ? 1 : 0 };
   if (typeof j.pass === 'string') ME.pass = j.pass.slice(0, 4000);
   if ('dl' in j) ME.dl = !!j.dl;
+  if ('dc' in j) ME.dc = j.dc && typeof j.dc === 'object' ? { w: Math.max(0, j.dc.w | 0), k: Math.max(0, j.dc.k | 0) } : null;
+  if ('dcc' in j) ME.dcc = String(j.dcc || '').slice(0, 10);
+  if ('end' in j) ME.end = Math.max(0, j.end | 0);
   if ('hideLb' in j) ME.hideLb = !!j.hideLb;
   if (Array.isArray(j.fq)) ME.fq = j.fq.slice(0, 50).map((q) => ({ id: str(q.id, 12), name: str(q.name, 16) }));
   if (j.shop) LIVE.shop = cleanShop(j.shop);
@@ -75,7 +75,7 @@ function send(o) { if (ws && ws.readyState === 1) try { ws.send(JSON.stringify(o
 
 function hi(force) {
   const s = H.state();
-  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '', bn: LIVE.ban !== null ? 1 : 0, pub: PUB ? 1 : 0, dv: DV, rn: str(s.rn, 24), mx: s.mx | 0, df: str(s.df, 12) };
+  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '', bn: LIVE.ban !== null ? 1 : 0, pub: PUB ? 1 : 0, dv: DV, rn: str(s.rn, 24), mx: s.mx | 0, df: str(s.df, 12), gm: str(s.gm, 8) };
   const j = JSON.stringify(m);
   if (force || j !== last) { last = j; send(m); }
 }
@@ -83,18 +83,20 @@ function hi(force) {
 function onData(raw) {
   let d; try { d = JSON.parse(raw); } catch (e) { return; }
   if (!d || typeof d !== 'object') return;
-  if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; if (d.cfg && d.cfg.shop) LIVE.shop = cleanShop(d.cfg.shop); H.onCfg(); }
+  if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; LIVE.filter = Array.isArray(d.cfg && d.cfg.filter) ? d.cfg.filter.slice(0, 400).map((x) => str(x, 24)).filter(Boolean) : []; if (d.cfg && d.cfg.shop) LIVE.shop = cleanShop(d.cfg.shop); H.onCfg(); }
   else if (d.e === 'gem') { const n = Math.max(0, d.n | 0); ME.gems += n; ME.gd += n; addXp(Math.max(0, d.xp | 0)); if (H.onGem) H.onGem(n, d.xp | 0, !!d.cap); }
   else if (d.e === 'fl') { if (H.onFriends) H.onFriends(cleanFl(d)); }
   else if (d.e === 'dm') { if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
   else if (d.e === 'dmh') { const w = DMW.get(str(d.w, 12)); if (w) { DMW.delete(str(d.w, 12)); w(d.ok ? cleanMsgs(d.L) : null); } }
   else if (d.e === 'dmok') { const w = DMW.get('c' + (d.c | 0)); if (w) { DMW.delete('c' + (d.c | 0)); w(d); } }
   else if (d.e === 'lvl') { if (Array.isArray(d.L)) for (const r of d.L.slice(0, 20)) { ME.gems += r.g | 0; if (r.it && ITEMS[r.it] && !ME.own.includes(r.it)) ME.own.push(r.it); if (H.onRoad) H.onRoad(r.l | 0, r.g | 0, ITEMS[r.it] ? r.it : ''); } }
+  else if (d.e === 'inv') { if (H.onInv) H.onInv({ fid: str(d.fid, 12), f: str(d.f, 16), room: str(d.room, 6).toUpperCase().replace(/[^A-Z0-9]/g, ''), rn: str(d.rn, 24), n: d.n | 0, mx: d.mx | 0, eq: d.eq && typeof d.eq === 'object' ? cleanEq(d.eq) : {} }); }
+  else if (d.e === 'invok') { const w = DMW.get('i' + str(d.to, 12)); if (w) { DMW.delete('i' + str(d.to, 12)); w(d); } }
   else if (d.e === 'fr') { if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }
   else if (d.e === 'msg') H.onMsg(str(d.text, 300), str(d.title, 120));
   else if (d.e === 'kick') H.onKick(str(d.text, 200));
   else if (d.e === 'ban') { LIVE.ban = str(d.text, 120); try { localStorage.setItem(BAN_KEY, LIVE.ban); } catch (e) { /* ignore */ } H.onBan(); }
-  else if (d.e === 'ev') H.onEv(d.k === 'boss' ? 'boss' : 'gold', d.n | 0, str(d.text, 120));
+  else if (d.e === 'ev') H.onEv(['boss', 'gold', 'horde', 'mev', 'item', 'zombie'].includes(d.k) ? d.k : 'gold', d.n | 0, str(d.text, 120), { who: str(d.who, 16), i: d.i | 0, t: d.t | 0, q: str(d.q, 8) });
   else if (d.e === 'gift') H.onGift(str(d.name, 16), d.n | 0);
   else if (d.e === 'acct') acctCheck().then(() => { H.onCfg(); if (H.onAcct) H.onAcct(); });
   else if (d.e === 'watch') { const r = H.detail(); if (r) send({ e: 'rd', d: r }); }
@@ -159,6 +161,13 @@ export async function acctCheck() {
   return j;
 }
 export const topGet = () => api('/ktop');
+export const dailyGet = () => api('/kdaily');
+// invite an online friend into the room this player is in (the server checks both sides)
+export function inviteSend(to) {
+  if (!sockOk()) return Promise.resolve({ ok: false, reason: 'net' });
+  to = str(to, 12);
+  return new Promise((res) => { DMW.set('i' + to, res); send({ e: 'inv', to }); setTimeout(() => { if (DMW.get('i' + to) === res) { DMW.delete('i' + to); res({ ok: false, reason: 'net' }); } }, 8000); });
+}
 // ---------- account v2: gems, shop, friends, messages ----------
 function addXp(x) { ME.xp += x; ME.lx += x; while (ME.lx >= ME.ln && ME.lvl < 100) { ME.lx -= ME.ln; ME.lvl++; ME.ln = 100 + 40 * (ME.lvl - 1); if (H && H.onLevel) H.onLevel(ME.lvl); } }
 export async function acctOp(op, body) {
