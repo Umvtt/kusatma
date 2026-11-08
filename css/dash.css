@@ -327,7 +327,9 @@ li.on .fr-st { color: #43d17a; }
 /* phones and small windows: bottom tab bar like an app */
 .phone-only { display: none; }
 .prof-head-acts { display: flex; flex-wrap: wrap; gap: 8px; }
-body.signed .build { display: none; }
+body.signed .build { z-index: 41; }
+@media (max-width: 880px), (max-height: 520px) { .build { display: none; } }
+.set-build { margin: 4px 0 0; font-size: 12px; color: var(--dim); text-align: center; }
 @media (max-width: 880px) {
   .phone-only { display: inline-flex; }
   .dp-nav button[data-dp="top"], .dp-nav button[data-dp="account"] { display: none; }

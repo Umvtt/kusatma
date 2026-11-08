@@ -1366,6 +1366,7 @@ function updateRotate() {
 window.addEventListener('resize', updateRotate);
 
 $('#build').textContent = `Yapı ${BUILD}`;
+$('#set-build').textContent = `Kuşatma · Yapı ${BUILD}`;
 show('menu');
 
 // ---------- optional accounts and the leaderboard ----------

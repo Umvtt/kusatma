@@ -3,7 +3,7 @@
 // into textContent.
 import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, roomsGet, acctCheck } from './live.js';
 import { ITEMS, SLOTS, SLOT_OF, RARITY, FREE_CLS, isFree, titleOf } from './catalog.js';
-import { CLASSES, CLASS_ORDER, DIFFS, MAX_PLAYERS } from './config.js';
+import { CLASSES, CLASS_ORDER, DIFFS, MAX_PLAYERS, BUILD } from './config.js';
 import { drawCharacter } from './render.js';
 
 const $ = (s) => document.querySelector(s);
@@ -795,6 +795,7 @@ function accountPage(sec) {
     return j.reason === 'wrong' ? 'Şifre yanlış.' : 'Silinemedi.';
   }))));
   sec.append(dz);
+  sec.append(el('p', 'set-build', `Kuşatma · Yapı ${BUILD}`));
 }
 function formDlg(title, fields, note, go, fn) {
   const dlg = $('#form-dlg'); dlg.hidden = false;
