@@ -34,7 +34,7 @@ function send(o) { if (ws && ws.readyState === 1) try { ws.send(JSON.stringify(o
 
 function hi(force) {
   const s = H.state();
-  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, tk: ACCT ? ACCT.tk : '' };
+  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '' };
   const j = JSON.stringify(m);
   if (force || j !== last) { last = j; send(m); }
 }
@@ -47,6 +47,8 @@ function onData(raw) {
   else if (d.e === 'kick') H.onKick(str(d.text, 200));
   else if (d.e === 'ban') { LIVE.ban = str(d.text, 120); try { localStorage.setItem(BAN_KEY, LIVE.ban); } catch (e) { /* ignore */ } H.onBan(); }
   else if (d.e === 'ev') H.onEv(d.k === 'boss' ? 'boss' : 'gold', d.n | 0, str(d.text, 120));
+  else if (d.e === 'gift') H.onGift(str(d.name, 16), d.n | 0);
+  else if (d.e === 'acct') acctCheck().then(() => H.onCfg());
   else if (d.e === 'watch') { const r = H.detail(); if (r) send({ e: 'rd', d: r }); }
   else if (d.e === 'unban') { LIVE.ban = null; try { localStorage.removeItem(BAN_KEY); } catch (e) { /* ignore */ } H.onCfg(); }
 }
@@ -111,7 +113,7 @@ export const topGet = () => api('/ktop');
 export function nameTaken(name) { const k = nkey(name); return !!k && LIVE.names.includes(k) && !(ACCT && nkey(ACCT.name) === k); }
 
 // a finished game (only the host's report counts it as a game; everyone's counts for the best wave)
-export function liveStat(wave, host, kills) { send({ e: 'stat', w: wave | 0, host: host ? 1 : 0, k: kills | 0 }); }
+export function liveStat(wave, host, kills, extra) { send(Object.assign({ e: 'stat', w: wave | 0, host: host ? 1 : 0, k: kills | 0 }, extra || {})); }
 
 // why online play is closed right now, or '' when it's open
 export function liveBlock() {

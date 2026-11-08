@@ -465,6 +465,16 @@ export class HostGame {
     }
   }
 
+  // a gold gift from the owner to one player, found by name
+  adminGift(name, n) {
+    const g = Math.max(10, Math.min(5000, n | 0));
+    const p = [...this.players.values()].find((x) => x.name === name);
+    if (!p) return false;
+    p.gold = (p.gold || 0) + g;
+    this.pushRoster();
+    return true;
+  }
+
   // a short summary of the room for the admin panel's room viewer
   detail() {
     return {
