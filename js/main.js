@@ -1058,7 +1058,7 @@ function acctUi() {
   blockUi();
   dpShow();
   $('#acct-txt').textContent = ACCT ? `Giriş yapıldı: ${ACCT.name}` : 'Hesap isteğe bağlı';
-  $('#btn-acct').textContent = ACCT ? 'Çıkış yap' : 'Giriş yap';
+  $('#btn-acct').textContent = ACCT ? 'Çıkış yap' : 'Giriş yap / Hesap oluştur';
   $('#name').readOnly = !!ACCT;
   if (ACCT) $('#name').value = ACCT.name;
 }
@@ -1071,11 +1071,11 @@ $('#acct-close').onclick = () => { $('#acct-dlg').hidden = true; };
 async function acctGo(op) {
   const name = $('#acct-name').value.trim(), pw = $('#acct-pw').value;
   for (const b of ['#acct-login', '#acct-reg']) $(b).disabled = true;
-  acctMsg(op === 'reg' ? 'Hesap açılıyor…' : 'Giriş yapılıyor…', true);
+  acctMsg(op === 'reg' ? 'Hesap oluşturuluyor…' : 'Giriş yapılıyor…', true);
   const j = await acctSign(op, name, pw);
   for (const b of ['#acct-login', '#acct-reg']) $(b).disabled = false;
   if (!j.ok) { acctMsg(ACCT_WHY[j.reason] || 'Bir sorun oldu. Tekrar dene.'); return; }
-  $('#acct-dlg').hidden = true; acctUi(); toast(op === 'reg' ? `Hesabın açıldı. Hoş geldin, ${j.name}!` : `Hoş geldin, ${j.name}!`, 'good');
+  $('#acct-dlg').hidden = true; acctUi(); toast(op === 'reg' ? `Hesabın oluşturuldu. Hoş geldin, ${j.name}!` : `Hoş geldin, ${j.name}!`, 'good');
 }
 $('#acct-login').onclick = () => acctGo('login');
 $('#acct-reg').onclick = () => acctGo('reg');

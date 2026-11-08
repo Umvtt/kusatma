@@ -34,7 +34,7 @@
           <span>Takma adın</span>
           <input id="name" maxlength="16" autocomplete="off" spellcheck="false" placeholder="ör. Kartal">
         </label>
-        <div class="acct-row"><span id="acct-txt" class="note">Hesap isteğe bağlı</span><span class="acct-btns"><button id="btn-acct" class="btn small" type="button">Giriş yap</button></span></div>
+        <div class="acct-row"><span id="acct-txt" class="note">Hesap isteğe bağlı</span><span class="acct-btns"><button id="btn-acct" class="btn small" type="button">Giriş yap / Hesap oluştur</button></span></div>
         <button id="btn-create" class="btn primary big" type="button">Oda kur</button>
         <div class="divider"><span>ya da arkadaşının odasına katıl</span></div>
         <div class="join-row">
@@ -321,11 +321,11 @@
 
   <div id="acct-dlg" class="confirm" hidden>
     <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="acct-title">
-      <div class="card-head"><h3 id="acct-title">Hesap</h3><button id="acct-close" class="btn small" type="button">Kapat</button></div>
-      <p class="note">İsteğe bağlı. Hesap açınca adın sana ayrılır, başka kimse kullanamaz, ve kendi panelin açılır: açık odalar, istatistiklerin ve sıralama.</p>
+      <div class="card-head"><h3 id="acct-title">Giriş yap / Hesap oluştur</h3><button id="acct-close" class="btn small" type="button">Kapat</button></div>
+      <p class="note">İsteğe bağlı. Hesabın varsa giriş yap, yoksa ad ve şifre seçip hesap oluştur. Hesap oluşturunca adın sana ayrılır, başka kimse kullanamaz, ve kendi panelin açılır: açık odalar, istatistiklerin ve sıralama.</p>
       <label class="field" for="acct-name"><span>Ad</span><input id="acct-name" maxlength="16" autocomplete="username" spellcheck="false"></label>
       <label class="field" for="acct-pw"><span>Şifre (en az 6 karakter)</span><input id="acct-pw" type="password" maxlength="64" autocomplete="current-password"></label>
-      <div class="row two"><button id="acct-login" class="btn primary" type="button">Giriş yap</button><button id="acct-reg" class="btn" type="button">Hesap aç</button></div>
+      <div class="row two"><button id="acct-login" class="btn primary" type="button">Giriş yap</button><button id="acct-reg" class="btn" type="button">Hesap oluştur</button></div>
       <p id="acct-msg" class="msg" role="status" hidden></p>
     </div>
   </div>
