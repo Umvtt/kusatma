@@ -2,6 +2,7 @@
 import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp } from './config.js';
 import { WORLD, obstaclesIn } from './world.js';
 import { SETTINGS } from './settings.js';
+import { ITEMS as COS } from './catalog.js';
 
 const DECAL_SCALE = 0.5;
 const MINI_W = 180;
@@ -863,7 +864,8 @@ function drawPlayer(g, game, pid, p, info, alive) {
     }
   }
   g.scale(1.15, 1.15);
-  drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time });
+  const eq = (info && info.eq) || {};
+  drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time, hat: eq.hat, wsk: eq.wsk });
   g.restore();
 }
 
@@ -942,7 +944,7 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
   const thrust = opts.bash > 0 ? Math.sin((1 - opts.bash / 0.25) * Math.PI) * 9 : 0;
   g.save();
   if (thrust) g.translate(thrust, 0);
-  drawWeapon(g, cls);
+  drawWeapon(g, cls, COS[opts.wsk]);
   if (opts.wt) drawWeaponMod(g, cls, opts.wt, opts.wp || 1, opts.time || 0, opts.wb || 0);
   drawArms(g, cls, dark);
   g.restore();
@@ -950,7 +952,7 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
   // head and headgear
   g.fillStyle = SKIN;
   g.beginPath(); g.arc(1, 0, 6.5, 0, Math.PI * 2); g.fill();
-  drawHead(g, cls, color);
+  if (opts.hat && alive) drawHat(g, opts.hat, color, opts.time || 0); else drawHead(g, cls, color);
   g.restore();
 }
 
@@ -976,8 +978,8 @@ function drawBack(g, cls, color) {
   void color;
 }
 
-function drawWeapon(g, cls) {
-  const M = '#191c19', W = '#6b4a2b';
+function drawWeapon(g, cls, sk) {
+  const M = sk ? sk.m : '#191c19', W = sk ? sk.w : '#6b4a2b';
   switch (cls) {
     case 'asker': g.fillStyle = M; g.fillRect(6, 1.5, 28, 5); g.fillRect(14, 6, 4, 5); g.fillStyle = '#2a2f2a'; g.fillRect(2, 2, 6, 4); break;
     case 'doktor': g.fillStyle = M; g.fillRect(6, 1.5, 20, 5); g.fillRect(12, 6, 3, 6); break;
@@ -991,6 +993,56 @@ function drawWeapon(g, cls) {
     case 'bombaci': g.fillStyle = '#3f4a2a'; g.fillRect(4, 0, 26, 9); g.fillStyle = '#1e2414'; g.beginPath(); g.arc(30, 4.5, 4.5, 0, Math.PI * 2); g.fill(); break;
     case 'izci': g.fillStyle = M; g.fillRect(12, -9, 13, 4); g.fillRect(12, 5, 13, 4); break;
     default: break;
+  }
+  if (sk) { // the skin's accent stripe along the gun
+    g.fillStyle = sk.s;
+    if (cls === 'izci') { g.fillRect(14, -8, 9, 1.3); g.fillRect(14, 6, 9, 1.3); } else g.fillRect(10, 3.2, 16, 1.4);
+    if (sk.glow) { g.globalAlpha *= 0.35; g.fillRect(9, 2.2, 18, 3.4); g.globalAlpha /= 0.35; }
+  }
+}
+
+// Shop hats, seen from above (the character faces +x).
+function drawHat(g, id, color, time) {
+  const C = (c) => { g.fillStyle = c; }, O = (x, y, r) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+  switch (id) {
+    case 'h.bere': C('#7a2532'); O(-0.5, 0, 8.2); C('#9c3342'); O(-1.5, 0, 5); C('#5e1a25'); g.fillRect(-1, -8, 2, 16); break;
+    case 'h.kulaklik':
+      g.strokeStyle = '#1d1f24'; g.lineWidth = 2.6; g.beginPath(); g.arc(0, 0, 7.5, -Math.PI / 2 - 0.2, Math.PI / 2 + 0.2, true); g.stroke();
+      C('#2a2d33'); for (const s of [-1, 1]) { g.beginPath(); g.ellipse(0.5, s * 7.5, 3.6, 2.6, 0, 0, Math.PI * 2); g.fill(); }
+      C(color); for (const s of [-1, 1]) O(0.5, s * 7.5, 1.3); break;
+    case 'h.bandana':
+      C('#c0392b'); O(0, 0, 7.6); C('#e8e2d0'); for (const [x, y] of [[-2, -3], [2, 2], [-3, 3], [3, -3]]) O(x, y, 0.9);
+      C('#a32d22'); g.beginPath(); g.moveTo(-7, -1.5); g.lineTo(-13, -4 + Math.sin(time * 8)); g.lineTo(-12, 0); g.lineTo(-13, 4 + Math.sin(time * 8 + 1)); g.lineTo(-7, 1.5); g.fill(); break;
+    case 'h.ninja':
+      g.strokeStyle = '#111'; g.lineWidth = 3.2; g.beginPath(); g.arc(1, 0, 6.6, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = '#d61f3a'; g.lineWidth = 2; g.beginPath(); g.moveTo(-6, 0); g.quadraticCurveTo(-13, -3 + Math.sin(time * 9) * 2, -19, -1); g.moveTo(-6, 1); g.quadraticCurveTo(-13, 5 + Math.sin(time * 9 + 1) * 2, -18, 5); g.stroke(); break;
+    case 'h.sef':
+      C('#f4f2ec'); for (const [x, y] of [[-2, -3], [-2, 3], [2, 0], [-4, 0], [0, -4], [0, 4]]) O(x, y, 4.3);
+      g.strokeStyle = 'rgba(0,0,0,0.15)'; g.lineWidth = 1; g.beginPath(); g.arc(-1, 0, 8.5, 0, Math.PI * 2); g.stroke(); break;
+    case 'h.kovboy':
+      C('#6b4a2b'); g.beginPath(); g.ellipse(0, 0, 11, 13, 0, 0, Math.PI * 2); g.fill();
+      C('#8a6238'); g.beginPath(); g.ellipse(-0.5, 0, 6.5, 7.2, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#3a2614'; g.lineWidth = 1.6; g.beginPath(); g.ellipse(-0.5, 0, 7, 7.7, 0, 0, Math.PI * 2); g.stroke();
+      C('#5a3c20'); g.fillRect(-1, -6, 2, 12); break;
+    case 'h.viking':
+      C('#e8e1cf'); for (const s of [-1, 1]) { g.beginPath(); g.moveTo(-1, s * 6); g.quadraticCurveTo(2, s * 13, 7, s * 15); g.quadraticCurveTo(1, s * 11, 2, s * 6); g.fill(); }
+      C('#8a8f96'); O(0, 0, 8); C('#6d7279'); g.fillRect(-8, -1.2, 16, 2.4); g.fillRect(-1.2, -8, 2.4, 16);
+      C('#c9971b'); for (const [x, y] of [[4, 4], [-4, 4], [4, -4], [-4, -4]]) O(x, y, 1.1); break;
+    case 'h.tac':
+      C('#c9971b'); O(0, 0, 8.4); C('#ffe27a'); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a - 0.3) * 6.5, Math.sin(a - 0.3) * 6.5); g.lineTo(Math.cos(a) * 10.5, Math.sin(a) * 10.5); g.lineTo(Math.cos(a + 0.3) * 6.5, Math.sin(a + 0.3) * 6.5); g.fill(); }
+      C('#7a0f1c'); O(0, 0, 3.5); C('#e33'); O(5.2, 0, 1.4); C('#3df'); O(-5.2, 0, 1.4); break;
+    case 'h.hale':
+      drawHead(g, 'asker', color);
+      g.strokeStyle = `rgba(255,232,140,${0.75 + 0.25 * Math.sin(time * 4)})`; g.lineWidth = 2.4; g.beginPath(); g.ellipse(-3, 0, 9, 10, 0, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = 'rgba(255,232,140,0.25)'; g.lineWidth = 6; g.stroke(); break;
+    case 'h.kabak':
+      C('#e07b1a'); for (const y of [-4, 0, 4]) { g.beginPath(); g.ellipse(0, y, 8.5, 4.6, 0, 0, Math.PI * 2); g.fill(); }
+      g.strokeStyle = '#a3510c'; g.lineWidth = 1; for (const y of [-2, 2]) { g.beginPath(); g.moveTo(-8, y); g.lineTo(8, y); g.stroke(); }
+      C('#3f6b1e'); g.fillRect(-2, -1, 4, 2); C('#ffd34d'); g.beginPath(); g.moveTo(6, -3); g.lineTo(8.5, -1.5); g.lineTo(6, 0); g.fill(); break;
+    case 'h.noel':
+      C('#c4182c'); O(0, 0, 7.8); g.beginPath(); g.moveTo(-3, -5); g.quadraticCurveTo(-12, -2, -15, 4); g.lineTo(-3, 5); g.fill();
+      C('#f4f2ec'); O(-15, 4, 3); g.strokeStyle = '#f4f2ec'; g.lineWidth = 2.6; g.beginPath(); g.arc(0, 0, 7.8, 0, Math.PI * 2); g.stroke(); break;
+    default: drawHead(g, 'asker', color);
   }
 }
 
@@ -1183,7 +1235,8 @@ function drawTag(g, p, info, isMe) {
   g.textAlign = 'center';
   g.fillStyle = 'rgba(0,0,0,0.75)';
   g.fillText(info.name, p.x + 1, y - 5);
-  g.fillStyle = p.alive ? (isMe ? '#ffffff' : info.color) : '#9aa39a';
+  const nc = info.eq && COS[info.eq.nc] ? COS[info.eq.nc].c : null;
+  g.fillStyle = !p.alive ? '#9aa39a' : nc === 'rainbow' ? `hsl(${(performance.now() / 8) % 360},90%,65%)` : nc || (isMe ? '#ffffff' : info.color);
   g.fillText(info.name, p.x, y - 6);
   if (p.wt > 0) { // weapon level badge after the name
     const tw = g.measureText(info.name).width;

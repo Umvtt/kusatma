@@ -4,11 +4,13 @@ import { HostNet, OfflineNet, ClientNet, cleanCode, addIce } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { Renderer, drawCharacter, drawWeaponPreview } from './render.js';
+import { dashInit, dashShow, dashRefresh, dashTop, onFriends, onDm, onFr, gemIcon } from './dash.js';
+import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -66,7 +68,8 @@ function menuMsg(text, info = false) {
 }
 
 function busy(on) {
-  for (const id of ['#btn-create', '#btn-join', '#btn-solo', '#dp-create', '#dp-join', '#dp-solo']) $(id).disabled = on;
+  for (const id of ['#btn-create', '#btn-join', '#btn-solo']) $(id).disabled = on;
+  for (const b of document.querySelectorAll('#dashpage .play-btn, #dashpage .dp-act')) b.disabled = on;
 }
 
 let confirmCb = null;
@@ -142,6 +145,7 @@ async function createRoom(offline, opts) {
   net.onMsg = (pid, m) => S.host.onMsg(pid, m);
   net.onLeave = (pid) => S.host.playerLost(pid);
   S.host.addPlayer(1, name || 'Kurucu');
+  if (ACCT && ME.pass) S.host.setPass(1, ME.pass);
   S.roomName = '';
   if (opts) {
     S.host.maxP = Math.max(2, Math.min(MAX_PLAYERS, opts.max | 0 || MAX_PLAYERS));
@@ -179,11 +183,12 @@ async function joinRoom() {
   net.onMsg = onMessage;
   net.onClose = hostLost;
   S.name = name;
-  net.send({ t: 'hello', v: VERSION, name });
+  net.send({ t: 'hello', v: VERSION, name, ps: ACCT ? ME.pass : '' });
   startTicker();
 }
 
 function leave(reason) {
+  liveGameEnd();
   closeEsc(true);
   closeChat();
   $('#chat-log').replaceChildren();
@@ -237,7 +242,7 @@ async function reconnect(code, canTakeOver) {
       net.onMsg = onMessage;
       net.onClose = hostLost;
       S.rejoining = false;
-      net.send({ t: 'hello', v: VERSION, name: S.name || '', rejoin: { pid: S.me, tok: S.tok } });
+      net.send({ t: 'hello', v: VERSION, name: S.name || '', rejoin: { pid: S.me, tok: S.tok }, ps: ACCT ? ME.pass : '' });
       toast('Yeniden bağlandın.', 'good');
       return;
     }
@@ -284,7 +289,7 @@ function onMessage(m) {
       break;
     case 'r': onRoster(m); break;
     case 's': if (S.game) S.game.onSnap(m); break;
-    case 'o': S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '' }); renderOver(); if (S.roster) route(); break;
+    case 'o': liveGameEnd(); S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '' }); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
     case 'bk': if (S.role === 'client' && m.s && typeof m.s === 'object') S.backup = m.s; break;
@@ -342,7 +347,12 @@ function renderLobby() {
     const li = el('li', 'player' + (p.pid === S.me ? ' me' : ''));
     const dot = el('span', 'dot'); dot.style.background = p.color;
     const nm = el('div', 'p-name');
-    nm.append(el('b', '', p.name + (p.pid === S.me ? ' (sen)' : '')), el('small', '', CLASSES[p.cls].name));
+    const pn = el('b', '', p.name + (p.pid === S.me ? ' (sen)' : ''));
+    const nc = p.eq && COS[p.eq.nc] ? COS[p.eq.nc].c : null;
+    if (nc === 'rainbow') pn.classList.add('rainbow'); else if (nc) pn.style.color = nc;
+    if (p.lvl) pn.prepend(el('span', 'lvl-b', String(p.lvl)));
+    const tt = titleOf(p.eq);
+    nm.append(pn, el('small', '', CLASSES[p.cls].name + (tt ? ' · ' + tt : '')));
     let chip;
     if (p.away) chip = el('span', 'chip', 'Bağlanıyor');
     else if (p.pid === r.host) chip = el('span', 'chip host', 'Kurucu');
@@ -369,10 +379,20 @@ function renderLobby() {
   if (me && cl.dataset.color !== me.color) { cl.dataset.color = me.color; drawPreviews(me.color); }
   showClassDetail(null);
   for (const card of cl.children) {
-    const on = me && card.dataset.cls === me.cls;
+    const id = card.dataset.cls, on = me && id === me.cls, mine = ownsCls(ME.own, id), locked = !mine && !!r.code;
     card.setAttribute('aria-checked', on ? 'true' : 'false');
     card.tabIndex = on ? 0 : -1;
     card.disabled = !!(me && me.inGame);
+    card.classList.toggle('locked', locked);
+    const tag = card.querySelector('.cls-tag');
+    tag.replaceChildren();
+    if (!mine) {
+      const pr = LIVE.shop && LIVE.shop.p['c.' + id];
+      if (r.code) { tag.className = 'cls-tag lock'; tag.append(el('span', '', 'Kilitli')); if (pr) { tag.append(gemIcon(13), el('b', '', pr.toLocaleString('tr'))); } }
+      else { tag.className = 'cls-tag try'; tag.textContent = 'Deneme'; }
+    } else tag.className = 'cls-tag';
+    const dots = card.querySelector('.cls-team');
+    dots.replaceChildren(...r.players.filter((p) => p.cls === id).map((p) => { const d = el('i'); d.style.background = p.color; d.title = p.name; return d; }));
   }
 
   const btn = $('#btn-ready');
@@ -449,8 +469,14 @@ function buildClassCards() {
     }
     const ab = el('div', 'ability');
     ab.append(el('b', '', c.ab.name + ': '), document.createTextNode(c.ab.desc));
-    b.append(top, el('p', 'class-desc', c.desc), bars, ab);
-    b.addEventListener('click', () => { S.hoverCls = null; send({ t: 'cls', c: id }); showClassDetail(id); });
+    top.append(el('span', 'cls-tag'));
+    const role = el('span', 'cls-role', CLASS_ROLE[id] || '');
+    b.append(top, role, el('p', 'class-desc', c.desc), bars, ab, el('span', 'cls-team'));
+    b.addEventListener('click', () => {
+      S.hoverCls = null; showClassDetail(id);
+      if (b.classList.contains('locked')) { toast(`${c.name} kilitli. ${ACCT ? 'Ana sayfadaki Mağaza\'dan elmasla açabilirsin.' : 'Hesap açıp elmas kazanarak açabilirsin.'} Tek başına modda deneyebilirsin.`); return; }
+      send({ t: 'cls', c: id });
+    });
     b.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { S.hoverCls = id; showClassDetail(id); } });
     b.addEventListener('pointerleave', () => { if (S.hoverCls === id) { S.hoverCls = null; showClassDetail(null); } });
     b.addEventListener('keydown', (e) => {
@@ -464,6 +490,7 @@ function buildClassCards() {
   }
 }
 
+const CLASS_ROLE = { asker: 'Saldırı', doktor: 'Destek', tamirci: 'Savunma', nisanci: 'Keskin nişancı', kalkanci: 'Tank', alevci: 'Yakın dövüş', bombaci: 'Alan hasarı', izci: 'Hız ve ganimet' };
 // The side panel with everything about one class: stats, ability, passive, mastery and weapons.
 const CLASS_TIPS = {
   asker: 'Her yere uyar. Canını yüksek tut, Disiplin hasarını artırır.',
@@ -481,16 +508,16 @@ function showClassDetail(id) {
   const me = myEntry();
   const cls = id || S.hoverCls || (me ? me.cls : 'asker');
   const color = me ? me.color : '#ff8a3d';
-  const sig = cls + color;
+  const sig = cls + color + ME.own.length + (S.roster && S.roster.code ? 1 : 0) + JSON.stringify(ME.eq);
   if (box.dataset.sig === sig) return;
   box.dataset.sig = sig;
   const c = CLASSES[cls];
   const head = el('div', 'cd-head');
   const cv = el('canvas', 'cd-pic'); cv.width = 176; cv.height = 176;
   const g = cv.getContext('2d'); g.translate(70, 96); g.scale(2.8, 2.8);
-  drawCharacter(g, cls, color, -0.6, 0, { alive: true });
+  drawCharacter(g, cls, color, -0.6, 0, { alive: true, hat: ME.eq.hat, wsk: ME.eq.wsk });
   const t = el('div', 'cd-title');
-  t.append(el('span', 'eyebrow', 'Sınıf'), el('strong', '', c.name), el('span', 'cd-weapon', c.tiers.join(' → ')));
+  t.append(el('span', 'eyebrow', CLASS_ROLE[cls] || 'Sınıf'), el('strong', '', c.name), el('span', 'cd-weapon', c.tiers.join(' → ')));
   head.append(cv, t);
   const stats = el('div', 'cd-stats');
   const dps = Math.round(c.dmg * c.rate * c.pellets);
@@ -508,7 +535,15 @@ function showClassDetail(id) {
   const mast = el('ol', 'cd-mast');
   AB_UP[cls].forEach((x) => mast.append(el('li', '', x)));
   const abInfo = `${c.ab.desc} Bekleme ${c.ab.cd} sn.`;
-  box.replaceChildren(head, el('p', 'cd-desc', c.desc), stats,
+  const lockNote = [];
+  if (!ownsCls(ME.own, cls)) {
+    const pr = LIVE.shop && LIVE.shop.p['c.' + cls], n = el('div', 'cd-lock');
+    n.append(el('strong', '', S.roster && !S.roster.code ? 'Deneme: bu oyunda elmas kazandırmaz' : 'Kilitli sınıf'));
+    if (pr) { const g = el('span', 'gem-amt'); g.append(gemIcon(14), el('b', '', pr.toLocaleString('tr'))); n.append(g); }
+    n.append(el('span', 'dim', ACCT ? 'Ana sayfadaki Mağaza\'dan açabilirsin.' : 'Hesap aç, oynayarak elmas kazan, sınıfı aç.'));
+    lockNote.push(n);
+  }
+  box.replaceChildren(head, ...lockNote, el('p', 'cd-desc', c.desc), stats,
     sec('Yetenek · Boşluk', c.ab.name, abInfo),
     sec('Pasif', c.pas.name, c.pas.desc),
     sec('Yetenek ustalığı (cephanelikte)', '', '', mast),
@@ -524,7 +559,7 @@ function drawPreviews(color) {
     g.clearRect(0, 0, cv.width, cv.height);
     g.translate(50, 72);
     g.scale(2.05, 2.05);
-    drawCharacter(g, card.dataset.cls, color || '#ff8a3d', -0.6, 0, { alive: true });
+    drawCharacter(g, card.dataset.cls, color || '#ff8a3d', -0.6, 0, { alive: true, hat: ME.eq.hat, wsk: ME.eq.wsk });
   }
 }
 
@@ -631,11 +666,13 @@ function startLoop() {
 function notice(n) {
   const g = S.game;
   if (n.k === 'wave') {
+    liveGame();
     const boss = n.boss ? ZTYPES[n.boss].name : null;
     const tip = { 3: 'Yere vurmadan önce kırmızı halkadan çıkın.', 8: 'Asit yağdırır ve koşucu çağırır. Dağılın.', 9: 'Kırmızı çizgiden kaçın, sonra arkasından vurun.' }[n.boss];
     banner(boss ? `${boss} geliyor` : 'Sürü yaklaşıyor', `Dalga ${n.w}`, boss ? tip : 'Sırt sırta verin.');
   }
-  else if (n.k === 'clear') banner('Dalga temizlendi', 'Mola', `Herkese +${n.bonus} altın. Cephanelikten yükseltme al.`);
+  else if (n.k === 'clear') { const me = myEntry(); if (me && me.inGame) liveWave(g.wave); }
+  if (n.k === 'clear') banner('Dalga temizlendi', 'Mola', `Herkese +${n.bonus} altın. Cephanelikten yükseltme al.`);
   else if (n.k === 'down') toast(n.pid === S.me ? 'Düştün!' : `${g.nameOf(n.pid)} düştü!`, 'bad');
   else if (n.k === 'up') toast(`${g.nameOf(n.pid)} ayağa kalktı.`, 'good');
   else if (n.k === 'revived') toast('Ayağa kalktın!', 'good');
@@ -1142,7 +1179,7 @@ $('#name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createRoo
 const hashCode = cleanCode(location.hash.slice(1));
 if (hashCode.length === CODE_LEN) { $('#code').value = hashCode; menuMsg('Takma adını yaz ve “Katıl”a bas.', true); }
 
-if (IS_TOUCH && !hashCode) menuMsg('Telefonda: sol çubukla yürü, sağ çubukla nişan al ve ateş et.', true);
+if (IS_TOUCH && !hashCode) { const m = $('#menu-msg'); m.textContent = 'Telefonda: sol çubukla yürü, sağ çubukla nişan al ve ateş et.'; m.classList.add('info'); m.hidden = false; }
 
 // ---------- Esc menu (pauses solo games) ----------
 function openEsc() {
@@ -1306,6 +1343,7 @@ function acctUi() {
   blockUi();
   dpShow();
   $('#acct-txt').textContent = ACCT ? `Giriş yapıldı: ${ACCT.name}` : 'Hesap isteğe bağlı';
+  $('#menu-promo').hidden = !!ACCT;
   $('#btn-acct').textContent = ACCT ? 'Çıkış yap' : 'Giriş yap / Hesap oluştur';
   $('#name').readOnly = !!ACCT;
   if (ACCT) $('#name').value = ACCT.name;
@@ -1328,20 +1366,10 @@ async function acctGo(op) {
 $('#acct-login').onclick = () => acctGo('login');
 $('#acct-reg').onclick = () => acctGo('reg');
 $('#acct-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') acctGo('login'); });
-// ---------- the signed-in player's full-page panel ----------
-let dpTab = 'home', dpT = 0;
+// ---------- the signed-in player's full-page panel (js/dash.js) ----------
 function dpShow() {
   const on = !!ACCT; document.body.classList.toggle('signed', on); $('#dashpage').hidden = !on;
-  clearInterval(dpT); dpT = 0;
-  if (!on) return;
-  $('#dp-name').textContent = ACCT.name; $('#dp-av').textContent = ACCT.name.slice(0, 1).toLocaleUpperCase('tr');
-  $('#dp-hi').textContent = `Merhaba, ${ACCT.name}`;
-  dpStats(); dpLoad();
-  dpT = setInterval(() => { if (!document.hidden && S.screen === 'menu' && ACCT && (dpTab === 'home' || dpTab === 'rooms')) dpLoad(); }, 15000);
-}
-function dpStats() {
-  const rows = [[ME.best, 'en iyi dalga'], [ME.kills.toLocaleString('tr'), 'zombi öldürdün'], [ME.games, 'oyun bitirdin'], [ME.mins.toLocaleString('tr'), 'dakika oynadın']];
-  for (const id of ['#dp-stats-mini', '#dp-stats']) $(id).replaceChildren(...rows.map(([v, l]) => { const li = el('li'); li.append(el('strong', '', String(v)), el('span', '', l)); return li; }));
+  dashShow(on);
 }
 function roomItems(rooms, max) {
   if (!rooms) return [el('li', 'empty', 'Odalar yüklenemedi.')];
@@ -1354,35 +1382,17 @@ function roomItems(rooms, max) {
     return li;
   });
 }
-async function dpLoad() {
-  if (dpTab === 'top') {
-    const j = await topGet(); const tb = $('#top-best'), tk = $('#top-kills');
-    if (!j.ok) { $('#top-msg').textContent = 'Sıralama yüklenemedi.'; return; }
-    const fill = (L, f) => L.map((r) => { const li = el('li', '', r.name); li.append(el('span', '', f(r))); return li; });
-    tb.replaceChildren(...fill(j.top.best, (r) => `${r.best}. dalga`)); tk.replaceChildren(...fill(j.top.kills, (r) => `${r.kills.toLocaleString('tr')} zombi`));
-    $('#top-msg').textContent = j.top.best.length ? '' : 'Henüz kimse yok. Bir oyun bitir, ilk sen ol!';
-    return;
-  }
-  if (dpTab === 'stats') { dpStats(); return; }
-  const j = await roomsGet(), rooms = j.ok ? j.rooms : null;
-  $('#dp-rooms-mini').replaceChildren(...roomItems(rooms, 4));
-  $('#dp-rooms').replaceChildren(...roomItems(rooms, 50));
-}
-function dpGo(t) {
-  dpTab = t;
-  for (const b of document.querySelectorAll('.dp-nav [data-dp]')) b.setAttribute('aria-selected', String(b.dataset.dp === t));
-  for (const p of document.querySelectorAll('[data-dpp]')) p.hidden = p.dataset.dpp !== t;
-  dpLoad();
-}
-for (const b of document.querySelectorAll('.dp-nav [data-dp]')) b.onclick = () => dpGo(b.dataset.dp);
-for (const b of document.querySelectorAll('[data-go]')) b.onclick = () => dpGo(b.dataset.go);
-$('#dp-settings').onclick = openSettings;
-$('#dp-refresh').onclick = dpLoad;
-$('#dp-out').onclick = () => $('#btn-acct').click();
-$('#dp-create').onclick = () => roomDlg();
-$('#dp-solo').onclick = () => createRoom(true);
-$('#dp-join').onclick = () => { $('#code').value = $('#dp-code').value; joinRoom(); };
-$('#dp-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#dp-join').click(); });
+dashInit({
+  toast, ask, roomItems,
+  solo: () => createRoom(true),
+  roomDlg: () => roomDlg(),
+  join: (code) => { $('#code').value = code; joinRoom(); },
+  openSettings: () => openSettings(),
+  openDiag: () => openDiag(),
+  signOut: () => $('#btn-acct').click(),
+  signedOut: async () => { await acctOut(); acctUi(); },
+  refresh: () => { acctUi(); dashRefresh(); },
+});
 
 // ---------- connection test ----------
 let diagText = '';
@@ -1407,7 +1417,6 @@ async function openDiag() {
   $('#diag-copy').disabled = false; $('#diag-again').disabled = false;
 }
 $('#settings-diag').onclick = openDiag;
-$('#dp-diag').onclick = openDiag;
 $('#diag-again').onclick = openDiag;
 $('#diag-close').onclick = () => { $('#diag-dlg').hidden = true; };
 $('#diag-copy').onclick = async () => { try { await navigator.clipboard.writeText(diagText); toast('Rapor kopyalandı', 'good'); } catch (e) { toast('Kopyalanamadı', 'bad'); } };
@@ -1443,7 +1452,7 @@ $('#room-go').onclick = () => {
   createRoom(false, { map: ROOM.map, diff: ROOM.diff, max: ROOM.max, name: roomVis === 1 ? ROOM.name : '' });
 };
 acctUi();
-acctCheck().then(acctUi);
+acctCheck().then(() => { acctUi(); dashRefresh(); });
 
 // ---------- live link to the owner's server ----------
 const online = () => S.role && S.net && !(S.net instanceof OfflineNet);
@@ -1479,7 +1488,7 @@ liveStart({
     df: S.roster ? S.roster.diff || '' : '',
     ver: BUILD,
   }),
-  onCfg: () => { acctUi(); liveNews(); if (online() && LIVE.maint.on) leave(''); },
+  onCfg: () => { acctUi(); dashTop(); liveNews(); if (online() && LIVE.maint.on) leave(''); },
   onMsg: (t) => liveNote('Yöneticiden mesaj', t),
   onKick: (t) => { if (online()) leave('Yönetici seni oyundan çıkardı.' + (t ? ' Sebep: ' + t : '')); else liveNote('Yönetici', t || 'Oyundan çıkarıldın.'); },
   onEv: (k, n, t) => {
@@ -1489,7 +1498,24 @@ liveStart({
   detail: () => (S.host ? S.host.detail() : null),
   onGift: (name, n) => { if (S.host) S.host.adminGift(name, n); },
   onBan: () => { blockUi(); if (online()) leave(''); },
+  onGem: (n, xp, cap) => {
+    dashTop();
+    if (S.screen === 'game' || S.screen === 'lobby') gemPop(n, xp, cap);
+  },
+  onLevel: (l) => toast(`Seviye atladın! Artık seviye ${l}.`, 'gem'),
+  onFriends: (d) => onFriends(d),
+  onDm: (m) => onDm(m),
+  onFr: (k, n) => onFr(k, n),
+  onAcct: () => dashRefresh(),
+  onGift2: (L) => { for (const g of L) toast(`Hediye: +${g.n} elmas${g.text ? ' · ' + g.text : ''}`, 'gem'); },
 });
+// gems from a cleared wave: a small pop under the wave banner
+function gemPop(n, xp, cap) {
+  const b = el('div', 'gem-pop');
+  b.append(gemIcon(18), el('b', '', n ? `+${n}` : '+0'), el('span', '', `+${xp} XP${cap ? ' · günlük sınır doldu' : ''}`));
+  document.body.append(b);
+  setTimeout(() => b.remove(), 3200);
+}
 
 // For automated tests only: open the page with ?debug to expose state.
 if (new URLSearchParams(location.search).has('debug')) window.__kusatma = S;

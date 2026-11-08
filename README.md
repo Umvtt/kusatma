@@ -44,7 +44,22 @@ Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, gece k
 | Bombacı | Bomba atar | **Mayın**: yere mayın bırakır | +2 el bombası, bombalar %30 sert |
 | İzci | Çift tabanca | **Depar**: 4 sn %60 daha hızlı | +%15 altın, uzaktan toplar, hızlı Dipçik |
 
-Lobide bir sınıfa tıklayınca (ya da fareyle üstüne gelince) yandaki panel her şeyi gösterir: değerler, yetenek, pasif, yetenek ustalığı ve silah serisi.
+Lobide bir sınıfa tıklayınca (ya da fareyle üstüne gelince) yandaki panel her şeyi gösterir: rolü, değerler, yetenek, pasif, yetenek ustalığı ve silah serisi. Kartlardaki renkli noktalar hangi takım arkadaşının o sınıfı seçtiğini gösterir.
+
+Asker, Doktor, Tamirci ve Nişancı ücretsizdir. Diğerleri elmasla açılır (İzci 450, Kalkancı 500, Alevci 700, Bombacı 800). Kilitli bir sınıfı **Tek başına** modda deneyebilirsin ama o oyun elmas kazandırmaz; odalarda yalnızca sahip olduğun sınıflar seçilir. Mühendis, Kimyager ve Komutan yakında geliyor.
+
+## Hesap, elmas ve mağaza
+
+Hesap isteğe bağlıdır ama açınca oyun bir siteye dönüşür:
+
+- **Ana sayfa:** seviyen, günlük ödül, bugün kazandığın elmas, arkadaşların, öne çıkan eşya, açık odalar.
+- **Elmas:** temizlediğin her dalga elmas ve XP verir. Geç dalgalar, zor modlar ve bosslar daha çok verir; günde en çok 400 elmas kazanılır. Her gün bir de günlük ödül var.
+- **Mağaza:** sınıflar, şapkalar, renkler, silah kaplamaları, çerçeveler, isim renkleri, unvanlar ve temalar. Bazen indirim, sınırlı süreli eşya ya da 2× elmas etkinliği olur.
+- **Profil ve dolap:** seviyen ve istatistiklerin; aldıklarını buradan giyersin. Başka oyuncular profiline bakabilir.
+- **Arkadaşlar:** ad ile istek gönder, kimin çevrimiçi olduğunu ve hangi odada oynadığını gör, tek tıkla katıl, özel mesaj at. Rahatsız eden birini bildirebilirsin.
+- **Ayarlar:** tema, gizlilik (istekler, çevrimiçi görünme, odanı gösterme, sıralama), ad değiştirme (elmasla), şifre değiştirme, hesabı silme.
+
+Elmaslar sunucuda tutulur ve kontrol edilir; odadaki herkes, sunucunun imzaladığı bir "kart" sayesinde kimin hangi sınıfa ve eşyaya sahip olduğunu bilir.
 
 ## Haritalar
 

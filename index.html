@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/dash.css">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -34,6 +35,7 @@
           <span>Takma adın</span>
           <input id="name" maxlength="16" autocomplete="off" spellcheck="false" placeholder="ör. Kartal">
         </label>
+        <p class="menu-promo" id="menu-promo">Hesap aç: oynadıkça elmas kazan, yeni sınıflar ve kostümler aç, arkadaş ekle.</p>
         <div class="acct-row"><span id="acct-txt" class="note">Hesap isteğe bağlı</span><span class="acct-btns"><button id="btn-acct" class="btn small" type="button">Giriş yap / Hesap oluştur</button></span></div>
         <button id="btn-create" class="btn primary big" type="button">Oda kur</button>
         <div class="divider"><span>ya da arkadaşının odasına katıl</span></div>
@@ -60,51 +62,38 @@
       <span><kbd>Esc</kbd> menü</span>
     </footer>
   
-    <div id="dashpage" class="dashpage" hidden>
+    <div id="dashpage" class="dashpage" data-theme="gece" hidden>
       <header class="dp-top">
         <span class="dp-logo">Kuşatma</span>
-        <div class="dp-user"><span class="dp-av" id="dp-av">K</span><span id="dp-name">Oyuncu</span><button id="dp-out" class="btn small ghost" type="button">Çıkış yap</button></div>
+        <label class="dp-search"><span class="sr-only">Oyuncu ara</span><input id="dp-search" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Oyuncu ara"></label>
+        <div class="dp-user">
+          <button id="dp-daily" class="dp-icon" type="button" title="Günlük ödül" aria-label="Günlük ödül"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20 7h-2.2A3 3 0 0 0 12 4.8 3 3 0 0 0 6.2 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1Zm-6-1a1 1 0 1 1 1 1h-2a1 1 0 0 1 1-1Zm-5 0a1 1 0 0 1 1 1H8a1 1 0 0 1 1-1Zm2 14H6v-8h5Zm0-10H5V9h6Zm2-1h6v1h-6Zm5 11h-5v-8h5Z"/></svg><i class="dot"></i></button>
+          <button class="dp-icon" type="button" data-dp="friends" title="Arkadaşlar" aria-label="Arkadaşlar"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0-6a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm7.5 6.5a3.5 3.5 0 1 0 0-7 1 1 0 0 0 0 2 1.5 1.5 0 0 1 0 3 1 1 0 0 0 0 2ZM9 13c-3.9 0-7 2.2-7 5v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2c0-2.8-3.1-5-7-5Zm5 6H4v-1c0-1.5 2.2-3 5-3s5 1.5 5 3Zm4-6a1 1 0 0 0 0 2c1.8.3 3 1.4 3 2.5V19h-1a1 1 0 0 0 0 2h2a1 1 0 0 0 1-1v-2.5c0-2.2-2-4-5-4.5Z"/></svg><span class="badge" data-badge="fr" hidden></span></button>
+          <button id="dp-gems" class="dp-gems" type="button" title="Elmas mağazası"></button>
+          <button id="dp-me" class="dp-me" type="button" title="Profilim"><canvas id="dp-av-cv" width="36" height="36" aria-hidden="true"></canvas><span class="dp-me-t"><span id="dp-name"></span><span class="dp-me-l"><span id="dp-lvl"></span><span class="xpbar mini"><i id="dp-xpbar"></i></span></span></span></button>
+        </div>
       </header>
       <div class="dp-body">
-        <nav class="dp-nav" role="tablist">
-          <button type="button" data-dp="home" aria-selected="true">Ana sayfa</button>
-          <button type="button" data-dp="rooms" aria-selected="false">Açık odalar</button>
-          <button type="button" data-dp="stats" aria-selected="false">İstatistiklerim</button>
-          <button type="button" data-dp="top" aria-selected="false">Sıralama</button>
-          <button type="button" id="dp-diag">Bağlantı testi</button>
-          <button type="button" id="dp-settings">Ayarlar</button>
+        <nav class="dp-nav" aria-label="Panel">
+          <button type="button" data-dp="home" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/></svg><span>Ana sayfa</span></button>
+          <button type="button" data-dp="play" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg><span>Oyna</span></button>
+          <button type="button" data-dp="shop" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 9l9 13 9-13z"/></svg><span>Mağaza</span></button>
+          <button type="button" data-dp="friends" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M1 21c0-4 4-6 8-6s8 2 8 6z"/><circle cx="17.5" cy="8.5" r="3"/></svg><span>Arkadaşlar</span><span class="badge" data-badge="fr" hidden></span></button>
+          <button type="button" data-dp="profile" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M3 22c0-5 4-8 9-8s9 3 9 8z"/></svg><span>Profil</span></button>
+          <button type="button" data-dp="top" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V11h5v10zm6.5 0V4h5v17zM16 21v-7h5v7z"/></svg><span>Sıralama</span></button>
+          <button type="button" data-dp="account" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1L11 21h4l.4-2.7a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg><span>Ayarlar</span></button>
         </nav>
         <main class="dp-main">
           <p id="dp-block" class="msg" role="alert" hidden></p>
           <p id="dp-msg" class="msg" role="status" hidden></p>
-          <section data-dpp="home">
-            <p class="eyebrow">Hoş geldin</p><h2 class="dp-h" id="dp-hi">Merhaba</h2>
-            <div class="dp-actions">
-              <button id="dp-create" class="dp-act primary" type="button"><strong>Oda kur</strong><span>Açık ya da gizli bir oda kur, takımını topla.</span></button>
-              <div class="dp-act"><strong>Koda katıl</strong><div class="join-row"><input id="dp-code" class="code-input" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ODA KODU"><button id="dp-join" class="btn" type="button">Katıl</button></div></div>
-              <button id="dp-solo" class="dp-act" type="button"><strong>Tek başına oyna</strong><span>Kimseyi beklemeden sürüye karşı dayan.</span></button>
-            </div>
-            <div class="dp-cols">
-              <div class="dp-card"><div class="dp-card-h"><h3>Açık odalar</h3><button class="btn small ghost" type="button" data-go="rooms">Tümü</button></div><ul class="dp-rooms" id="dp-rooms-mini"></ul></div>
-              <div class="dp-card"><div class="dp-card-h"><h3>İstatistiklerin</h3><button class="btn small ghost" type="button" data-go="stats">Detay</button></div><ul class="dp-stats" id="dp-stats-mini"></ul></div>
-            </div>
-          </section>
-          <section data-dpp="rooms" hidden>
-            <div class="dp-card-h"><h2 class="dp-h">Açık odalar</h2><button id="dp-refresh" class="btn small ghost" type="button">Yenile</button></div>
-            <p class="note">Hesabı olan oyuncuların açık olarak kurduğu odalar. Tek tıkla katıl.</p>
-            <ul class="dp-rooms" id="dp-rooms"></ul>
-          </section>
-          <section data-dpp="stats" hidden>
-            <h2 class="dp-h">İstatistiklerim</h2>
-            <ul class="dp-stats big" id="dp-stats"></ul>
-          </section>
-          <section data-dpp="top" hidden>
-            <h2 class="dp-h">Sıralama</h2>
-            <div class="top-cols"><div class="dp-card"><h3>En iyi dalga</h3><ol id="top-best" class="top-list"></ol></div><div class="dp-card"><h3>En çok öldürme</h3><ol id="top-kills" class="top-list"></ol></div></div>
-            <p id="top-msg" class="note"></p>
-          </section>
+          <div id="dp-page"></div>
         </main>
       </div>
+      <aside id="dm" class="dm" hidden aria-label="Mesajlar">
+        <div class="dm-head"><canvas id="dm-av" width="36" height="36" aria-hidden="true"></canvas><span class="dm-who"><span id="dm-name"></span><span id="dm-st" class="dim"></span></span><button id="dm-close" class="btn small ghost" type="button">Kapat</button></div>
+        <div id="dm-log" class="dm-log" aria-live="polite"></div>
+        <div class="dm-foot"><input id="dm-in" maxlength="200" autocomplete="off" placeholder="Mesaj yaz…"><button id="dm-send" class="btn primary" type="button">Gönder</button></div>
+      </aside>
     </div>
   </section>
 
@@ -330,7 +319,7 @@
   <div id="acct-dlg" class="confirm" hidden>
     <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="acct-title">
       <div class="card-head"><h3 id="acct-title">Giriş yap / Hesap oluştur</h3><button id="acct-close" class="btn small" type="button">Kapat</button></div>
-      <p class="note">İsteğe bağlı. Hesabın varsa giriş yap, yoksa ad ve şifre seçip hesap oluştur. Hesap oluşturunca adın sana ayrılır, başka kimse kullanamaz, ve kendi panelin açılır: açık odalar, istatistiklerin ve sıralama.</p>
+      <p class="note">İsteğe bağlı. Hesabın varsa giriş yap, yoksa ad ve şifre seçip hesap oluştur. Hesap oluşturunca adın sana ayrılır ve kendi sayfan açılır: oynadıkça elmas kazanır, yeni sınıflar ve kostümler açar, arkadaş ekleyip mesajlaşırsın.</p>
       <label class="field" for="acct-name"><span>Ad</span><input id="acct-name" maxlength="16" autocomplete="username" spellcheck="false"></label>
       <label class="field" for="acct-pw"><span>Şifre (en az 6 karakter)</span><input id="acct-pw" type="password" maxlength="64" autocomplete="current-password"></label>
       <div class="row two"><button id="acct-login" class="btn primary" type="button">Giriş yap</button><button id="acct-reg" class="btn" type="button">Hesap oluştur</button></div>
@@ -384,6 +373,30 @@
   </div>
   <div id="rotate" class="rotate" hidden><strong>Telefonunu yan çevir</strong><span>Kuşatma yatay ekranda oynanır.</span></div>
 
+  <div id="prof-dlg" class="confirm" hidden>
+    <div class="card settings-dlg prof-dlg" role="dialog" aria-modal="true" aria-label="Oyuncu profili">
+      <div class="card-head"><h3>Profil</h3><button id="prof-close" class="btn small" type="button">Kapat</button></div>
+      <div id="prof-body"></div>
+    </div>
+  </div>
+  <div id="rep-dlg" class="confirm" hidden>
+    <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="rep-title">
+      <div class="card-head"><h3 id="rep-title">Bildir: <span id="rep-who"></span></h3><button id="rep-close" class="btn small" type="button">Kapat</button></div>
+      <p class="note">Bildirimini yalnızca yönetici görür. Arkadaşınsa son mesajlarınız da eklenir.</p>
+      <div id="rep-why" class="chips"></div>
+      <label class="field"><span>Ne oldu? (isteğe bağlı)</span><input id="rep-x" maxlength="300" autocomplete="off"></label>
+      <button id="rep-send" class="btn danger" type="button">Bildir</button>
+    </div>
+  </div>
+  <div id="form-dlg" class="confirm" hidden>
+    <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="form-title">
+      <div class="card-head"><h3 id="form-title"></h3><button id="form-close" class="btn small" type="button">Kapat</button></div>
+      <div id="form-fields"></div>
+      <p id="form-note" class="note"></p>
+      <p id="form-msg" class="msg" role="status" hidden></p>
+      <button id="form-go" class="btn primary" type="button"></button>
+    </div>
+  </div>
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="build" class="build" aria-label="Yapı numarası"></div>
 

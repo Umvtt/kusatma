@@ -1,8 +1,11 @@
+import { ITEMS, cleanEq } from './catalog.js';
 // Live link to the owner's server: news, maintenance, messages, kicks and bans from the admin panel,
 // plus who is online and how far games get. Tries each address in turn (some networks block one of them).
-const ADDRS = ['wss://ironfield-api.umvtt.deno.net', 'wss://ironfield-codes.umvtt.workers.dev', 'wss://ironfield-api.pages.dev'];
+let ADDRS = ['wss://ironfield-api.umvtt.deno.net', 'wss://ironfield-codes.umvtt.workers.dev', 'wss://ironfield-api.pages.dev'];
+// local tests only: point the game at a test server
+try { const t = new URLSearchParams(location.search).get('api'); if (t && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /^ws:\/\/(localhost|127\.0\.0\.1):\d+$/.test(t)) ADDRS = [t]; } catch (e) { /* ignore */ }
 const BAN_KEY = 'kusatma-ban';
-const HTTP = ADDRS.map((a) => a.replace(/^wss:/, 'https:'));
+const HTTP = ADDRS.map((a) => a.replace(/^ws(s?):/, 'http$1:'));
 const NK = { '0': 'o', '1': 'i', l: 'i', '|': 'i', '!': 'i', '3': 'e', '4': 'a', '@': 'a', '5': 's', $: 's', '7': 't', '8': 'b', '9': 'g', 'ı': 'i', 'ğ': 'g', 'ş': 's', 'ç': 'c', 'ö': 'o', 'ü': 'u' };
 // same rule as the server: case, spaces, accents, look-alikes and repeated letters don't make a new name
 export const nkey = (n) => [...String(n || '').toLowerCase().normalize('NFKD')].map((c) => NK[c] || c).join('').replace(/[^a-z0-9]/g, '').replace(/(.)\1+/g, '$1');
@@ -16,13 +19,33 @@ try {
   }
 } catch (e) { dev = dev || 'f'.repeat(16); }
 
-export const LIVE = { news: { on: false, text: '' }, maint: { on: false, text: '' }, ban: null, names: [] };
+export const LIVE = { news: { on: false, text: '' }, maint: { on: false, text: '' }, ban: null, names: [], shop: null };
 export let ACCT = null;
-export const ME = { best: 0, kills: 0, games: 0, mins: 0 };
+export const ME = { best: 0, kills: 0, games: 0, mins: 0, gems: 0, xp: 0, lvl: 1, lx: 0, ln: 100, own: [], eq: {}, set: { fr: 1, on: 1, room: 1 }, pass: '', dl: false, fq: [], un: 0, made: 0, hideLb: false, gd: 0, mute: 0 };
 export let PUB = true;
 try { PUB = localStorage.getItem('kusatma-pub') !== '0'; } catch (e) { /* ignore */ }
 export function setPub(v) { PUB = !!v; try { localStorage.setItem('kusatma-pub', PUB ? '1' : '0'); } catch (e) { /* ignore */ } last = ''; if (H) hi(true); }
-const keepMe = (j) => { for (const k of Object.keys(ME)) ME[k] = Math.max(0, j[k] | 0); };
+const NUMS = ['best', 'kills', 'games', 'mins', 'gems', 'xp', 'lvl', 'lx', 'ln', 'made', 'un', 'gd', 'mute'];
+const keepMe = (j) => {
+  for (const k of NUMS) if (k in j) ME[k] = Math.max(0, +j[k] || 0);
+  if (Array.isArray(j.own)) ME.own = j.own.filter((x) => typeof x === 'string').slice(0, 300);
+  if (j.eq && typeof j.eq === 'object') ME.eq = cleanEq(j.eq);
+  if (j.set && typeof j.set === 'object') ME.set = { fr: j.set.fr ? 1 : 0, on: j.set.on ? 1 : 0, room: j.set.room ? 1 : 0 };
+  if (typeof j.pass === 'string') ME.pass = j.pass.slice(0, 4000);
+  if ('dl' in j) ME.dl = !!j.dl;
+  if ('hideLb' in j) ME.hideLb = !!j.hideLb;
+  if (Array.isArray(j.fq)) ME.fq = j.fq.slice(0, 50).map((q) => ({ id: str(q.id, 12), name: str(q.name, 16) }));
+  if (j.shop) LIVE.shop = cleanShop(j.shop);
+  try { localStorage.setItem('kusatma-ben', JSON.stringify(ME)); } catch (e) { /* ignore */ }
+};
+function cleanShop(s) {
+  if (!s || typeof s !== 'object') return null;
+  const p = {};
+  for (const [k, v] of Object.entries(s.p || {})) if (ITEMS[k]) p[k] = Math.max(0, v | 0);
+  const lim = {};
+  for (const [k, v] of Object.entries(s.lim || {})) if (ITEMS[k]) lim[k] = +v || 0;
+  return { p, lim, feat: ITEMS[s.feat] ? s.feat : '', mul: [1, 1.5, 2, 3].includes(+s.mul) ? +s.mul : 1, until: +s.until || 0, saleAll: Math.max(0, Math.min(90, s.saleAll | 0)), saleUntil: +s.saleUntil || 0, login: s.login | 0, ren: s.ren | 0, cap: s.cap | 0 };
+}
 try { const a = JSON.parse(localStorage.getItem('kusatma-hesap') || 'null'); if (a && /^[a-f0-9]{64}$/.test(a.tk)) ACCT = { tk: a.tk, name: String(a.name || '').slice(0, 16), id: String(a.id || '') }; } catch (e) { /* ignore */ }
 try { const b = localStorage.getItem(BAN_KEY); if (b !== null) LIVE.ban = b; } catch (e) { /* ignore */ }
 
@@ -47,13 +70,19 @@ function hi(force) {
 function onData(raw) {
   let d; try { d = JSON.parse(raw); } catch (e) { return; }
   if (!d || typeof d !== 'object') return;
-  if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; H.onCfg(); }
+  if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; if (d.cfg && d.cfg.shop) LIVE.shop = cleanShop(d.cfg.shop); H.onCfg(); }
+  else if (d.e === 'gem') { const n = Math.max(0, d.n | 0); ME.gems += n; ME.gd += n; addXp(Math.max(0, d.xp | 0)); if (H.onGem) H.onGem(n, d.xp | 0, !!d.cap); }
+  else if (d.e === 'fl') { if (H.onFriends) H.onFriends(cleanFl(d)); }
+  else if (d.e === 'dm') { if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
+  else if (d.e === 'dmh') { const w = DMW.get(str(d.w, 12)); if (w) { DMW.delete(str(d.w, 12)); w(d.ok ? cleanMsgs(d.L) : null); } }
+  else if (d.e === 'dmok') { const w = DMW.get('c' + (d.c | 0)); if (w) { DMW.delete('c' + (d.c | 0)); w(d); } }
+  else if (d.e === 'fr') { if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }
   else if (d.e === 'msg') H.onMsg(str(d.text, 300));
   else if (d.e === 'kick') H.onKick(str(d.text, 200));
   else if (d.e === 'ban') { LIVE.ban = str(d.text, 120); try { localStorage.setItem(BAN_KEY, LIVE.ban); } catch (e) { /* ignore */ } H.onBan(); }
   else if (d.e === 'ev') H.onEv(d.k === 'boss' ? 'boss' : 'gold', d.n | 0, str(d.text, 120));
   else if (d.e === 'gift') H.onGift(str(d.name, 16), d.n | 0);
-  else if (d.e === 'acct') acctCheck().then(() => H.onCfg());
+  else if (d.e === 'acct') acctCheck().then(() => { H.onCfg(); if (H.onAcct) H.onAcct(); });
   else if (d.e === 'watch') { const r = H.detail(); if (r) send({ e: 'rd', d: r }); }
   else if (d.e === 'unban') { LIVE.ban = null; try { localStorage.removeItem(BAN_KEY); } catch (e) { /* ignore */ } H.onCfg(); }
 }
@@ -106,14 +135,63 @@ export async function acctSign(op, name, pw) {
   return j;
 }
 export async function acctOut() { const a = ACCT; keepAcct(null); if (a) api('/kacct', { op: 'out', tk: a.tk }); }
+try { const m = JSON.parse(localStorage.getItem('kusatma-ben') || 'null'); if (m && ACCT) keepMe(m); } catch (e) { /* ignore */ }
 // on start: a session the owner reset or deleted signs out; a name change on the server comes back
 export async function acctCheck() {
   if (!ACCT) return;
   const j = await api('/kacct', { op: 'me', tk: ACCT.tk });
-  if (j.ok) { keepMe(j); if (j.name !== ACCT.name) keepAcct({ tk: ACCT.tk, name: j.name, id: j.id }); }
+  if (j.ok) { keepMe(j); if (j.name !== ACCT.name) keepAcct({ tk: ACCT.tk, name: j.name, id: j.id }); if (j.gift && j.gift.length && H && H.onGift2) H.onGift2(j.gift); }
   else if (j.reason === 'signin') keepAcct(null);
+  return j;
 }
 export const topGet = () => api('/ktop');
+// ---------- account v2: gems, shop, friends, messages ----------
+function addXp(x) { ME.xp += x; ME.lx += x; while (ME.lx >= ME.ln && ME.lvl < 100) { ME.lx -= ME.ln; ME.lvl++; ME.ln = 100 + 40 * (ME.lvl - 1); if (H && H.onLevel) H.onLevel(ME.lvl); } }
+export async function acctOp(op, body) {
+  if (!ACCT) return { ok: false, reason: 'signin' };
+  const j = await api('/kacct', Object.assign({ op, tk: ACCT.tk }, body || {}));
+  if (j.reason === 'signin') { keepAcct(null); if (H) H.onCfg(); }
+  if (j.ok) {
+    if ('gems' in j) ME.gems = Math.max(0, j.gems | 0);
+    if (Array.isArray(j.own)) ME.own = j.own;
+    if (j.eq) ME.eq = cleanEq(j.eq);
+    if (typeof j.pass === 'string') ME.pass = j.pass;
+    if (j.set) ME.set = j.set;
+    if ('hideLb' in j) ME.hideLb = !!j.hideLb;
+    if (op === 'ren' && j.name) keepAcct({ tk: ACCT.tk, name: j.name, id: ACCT.id });
+    try { localStorage.setItem('kusatma-ben', JSON.stringify(ME)); } catch (e) { /* ignore */ }
+  }
+  return j;
+}
+export const owns = (id) => ME.own.includes(id) || (ITEMS[id] && ITEMS[id].free) || false;
+// a cleared wave in my own game: the server decides the gems
+let gid = '';
+export function liveGameEnd() { gid = ''; }
+export function liveGame() { if (gid) return; gid = Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => b.toString(16).padStart(2, '0')).join(''); }
+export function liveWave(w) { if (ACCT && gid) send({ e: 'gw', w: w | 0, g: gid }); }
+const cleanFl = (d) => ({
+  L: (Array.isArray(d.L) ? d.L : []).slice(0, 200).map((f) => ({ id: str(f.id, 12), name: str(f.name, 16), lvl: f.lvl | 0, eq: cleanEq(f.eq), on: !!f.on, room: str(f.room, 6).replace(/[^A-Z0-9]/g, ''), st: str(f.st, 8), wave: f.wave | 0, solo: !!f.solo, last: +f.last || 0 })),
+  q: (Array.isArray(d.q) ? d.q : []).slice(0, 50).map((q) => ({ id: str(q.id, 12), name: str(q.name, 16) })),
+  un: Object.fromEntries(Object.entries(d.un && typeof d.un === 'object' ? d.un : {}).slice(0, 200).map(([k, v]) => [str(k, 12), v | 0])),
+});
+const cleanMsgs = (L) => (Array.isArray(L) ? L : []).slice(-50).map((m) => ({ f: str(m.f, 12), x: str(m.x, 200), t: +m.t || 0 }));
+const DMW = new Map();
+let dmc = 0;
+const sockOk = () => !!(ws && ws.readyState === 1);
+// friends and messages go over the live socket when it's open (cheaper for the server), else over HTTP
+export async function friendsGet() {
+  if (sockOk()) { send({ e: 'fl' }); return null; }
+  const j = await acctOp('flist');
+  return j.ok ? cleanFl(j) : null;
+}
+export function dmHistory(w) {
+  if (sockOk()) return new Promise((res) => { DMW.set(w, res); send({ e: 'dmh', w }); setTimeout(() => { if (DMW.get(w) === res) { DMW.delete(w); res(null); } }, 8000); });
+  return acctOp('dmh', { w }).then((j) => (j.ok ? cleanMsgs(j.L) : null));
+}
+export function dmSend(to, x) {
+  if (sockOk()) { const c = ++dmc; return new Promise((res) => { DMW.set('c' + c, res); send({ e: 'dm', to, x, c }); setTimeout(() => { if (DMW.get('c' + c) === res) { DMW.delete('c' + c); res({ ok: false, reason: 'net' }); } }, 8000); }); }
+  return acctOp('dm', { to, x });
+}
 export const roomsGet = () => api('/krooms');
 let turnP = null, turnIce = [];
 // relay details from our server; waits at most 2.5 s so a slow network never holds up making or joining a room

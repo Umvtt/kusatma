@@ -9,6 +9,8 @@ import {
 } from './config.js';
 import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldDir, fieldAhead, fieldAt, outOfMap, GW, GH } from './world.js';
 import { generateMap } from './mapgen.js';
+import { ITEMS as COS, checkPass, ownsCls } from './catalog.js';
+import { nkey } from './live.js';
 
 const num = (v) => typeof v === 'number' && Number.isFinite(v);
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -98,6 +100,7 @@ export class HostGame {
       map: this.mapPick, diff: this.diff, theme: this.theme, seed: this.seed, max: this.maxP,
       players: [...this.players.values()].map((p) => ({
         pid: p.pid, name: p.name, cls: p.cls, ready: p.ready, color: p.color, inGame: p.inGame || !!p.ghost, away: !!p.ghost,
+        eq: p.eq || {}, lvl: p.lvl || 0, acct: p.acct ? 1 : 0,
       })),
     };
   }
@@ -118,6 +121,17 @@ export class HostGame {
     const tok = token();
     this.players.set(pid, { pid, name, cls: 'asker', ready: false, color, inGame: false, sp: 0, tok });
     this.sendTo(pid, { t: 'w', pid, tok });
+    this.pushRoster();
+  }
+
+  // A signed-in player's pass (signed by the server): what they own decides their classes and looks in this room.
+  async setPass(pid, pass) {
+    const info = await checkPass(pass);
+    const p = this.players.get(pid);
+    if (!p || !info || nkey(info.name) !== nkey(p.name)) return;
+    p.own = info.own; p.eq = info.eq; p.lvl = info.lvl; p.acct = info.id;
+    const want = info.eq.col && COS[info.eq.col] ? COS[info.eq.col].c : null;
+    if (want && ![...this.players.values()].some((q) => q !== p && q.color === want)) p.color = want;
     this.pushRoster();
   }
 
@@ -166,12 +180,13 @@ export class HostGame {
       if (this.players.size >= this.maxP) { this.net.kick(pid, 'full'); return; }
       this.net.markPlayer(pid);
       this.addPlayer(pid, cleanName(m.name, pid));
+      if (typeof m.ps === 'string') this.setPass(pid, m.ps);
       return;
     }
     const isHost = pid === this.hostPid;
     switch (m.t) {
       case 'cls':
-        if (!p.inGame && typeof m.c === 'string' && Object.prototype.hasOwnProperty.call(CLASSES, m.c)) {
+        if (!p.inGame && typeof m.c === 'string' && Object.prototype.hasOwnProperty.call(CLASSES, m.c) && (this.net.code == null || ownsCls(p.own, m.c))) {
           p.cls = m.c; this.pushRoster();
         }
         break;
