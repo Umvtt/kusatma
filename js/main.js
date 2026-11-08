@@ -8,7 +8,7 @@ import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
-import { LIVE, liveStart, liveStat, liveBlock } from './live.js';
+import { LIVE, ACCT, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, nameTaken } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -80,6 +80,7 @@ $('#confirm-no').addEventListener('click', () => { $('#confirm').hidden = true; 
 $('#confirm-yes').addEventListener('click', () => { $('#confirm').hidden = true; const cb = confirmCb; confirmCb = null; if (cb) cb(); });
 
 function getName() {
+  if (ACCT) $('#name').value = ACCT.name;
   const n = cleanName($('#name').value, '');
   try { localStorage.setItem('kusatma-ad', $('#name').value.trim()); } catch (e) { /* ignore */ }
   return n === 'Oyuncu ' ? '' : n;
@@ -113,6 +114,7 @@ function stopTicker() { if (S.ticker) S.ticker.stop(); S.ticker = null; }
 // ---------- starting and leaving ----------
 async function createRoom(offline) {
   if (!offline && liveBlock()) { menuMsg(liveBlock()); return; }
+  if (!offline && nameTaken($('#name').value)) { menuMsg(TAKEN); return; }
   const name = getName();
   menuMsg(offline ? '' : 'Oda kuruluyor…', true);
   busy(true);
@@ -145,6 +147,7 @@ async function joinRoom() {
   const code = cleanCode($('#code').value);
   if (code.length !== CODE_LEN) { menuMsg('Oda kodu 6 karakter olmalı.'); $('#code').focus(); return; }
   if (liveBlock()) { menuMsg(liveBlock()); return; }
+  if (nameTaken($('#name').value)) { menuMsg(TAKEN); return; }
   const name = getName();
   menuMsg('Odaya bağlanılıyor…', true);
   busy(true);
@@ -1036,6 +1039,46 @@ window.addEventListener('resize', updateRotate);
 
 $('#build').textContent = `Yapı ${BUILD}`;
 show('menu');
+
+// ---------- optional accounts and the leaderboard ----------
+const TAKEN = 'Bu ad bir hesaba ait. Giriş yap ya da başka bir ad seç.';
+const ACCT_WHY = { name: 'Ad en az 3 harf olmalı.', pw: 'Şifre en az 6 karakter olmalı.', taken: 'Bu ad alınmış. Başka bir ad dene.', wrong: 'Ad ya da şifre yanlış.',
+  slow: 'Çok fazla deneme oldu. 15 dakika sonra tekrar dene.', ban: 'Bu hesap engellendi.', net: 'Sunucuya ulaşılamadı. İnternetini kontrol et.' };
+function acctUi() {
+  $('#acct-txt').textContent = ACCT ? `Giriş yapıldı: ${ACCT.name}` : 'Hesap isteğe bağlı';
+  $('#btn-acct').textContent = ACCT ? 'Çıkış yap' : 'Giriş yap';
+  $('#name').readOnly = !!ACCT;
+  if (ACCT) $('#name').value = ACCT.name;
+}
+function acctMsg(t, info) { const m = $('#acct-msg'); m.hidden = !t; m.textContent = t || ''; m.classList.toggle('info', !!info); }
+$('#btn-acct').onclick = () => {
+  if (ACCT) { ask('Çıkış yap', 'Bu cihazda hesabından çıkılsın mı? İstediğin zaman tekrar girebilirsin.', 'Çıkış yap', async () => { await acctOut(); acctUi(); }); return; }
+  $('#acct-name').value = $('#name').value.trim(); $('#acct-pw').value = ''; acctMsg(''); $('#acct-dlg').hidden = false; ($('#acct-name').value ? $('#acct-pw') : $('#acct-name')).focus();
+};
+$('#acct-close').onclick = () => { $('#acct-dlg').hidden = true; };
+async function acctGo(op) {
+  const name = $('#acct-name').value.trim(), pw = $('#acct-pw').value;
+  for (const b of ['#acct-login', '#acct-reg']) $(b).disabled = true;
+  acctMsg(op === 'reg' ? 'Hesap açılıyor…' : 'Giriş yapılıyor…', true);
+  const j = await acctSign(op, name, pw);
+  for (const b of ['#acct-login', '#acct-reg']) $(b).disabled = false;
+  if (!j.ok) { acctMsg(ACCT_WHY[j.reason] || 'Bir sorun oldu. Tekrar dene.'); return; }
+  $('#acct-dlg').hidden = true; acctUi(); toast(op === 'reg' ? `Hesabın açıldı. Hoş geldin, ${j.name}!` : `Hoş geldin, ${j.name}!`, 'good');
+}
+$('#acct-login').onclick = () => acctGo('login');
+$('#acct-reg').onclick = () => acctGo('reg');
+$('#acct-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') acctGo('login'); });
+$('#btn-top').onclick = async () => {
+  $('#top-dlg').hidden = false; $('#top-msg').textContent = 'Yükleniyor…'; $('#top-best').replaceChildren(); $('#top-kills').replaceChildren();
+  const j = await topGet();
+  if (!j.ok) { $('#top-msg').textContent = 'Sıralama yüklenemedi.'; return; }
+  const fill = (box, L, f) => { for (const r of L) { const li = el('li', '', r.name); li.append(el('span', '', f(r))); box.append(li); } };
+  fill($('#top-best'), j.top.best, (r) => `${r.best}. dalga`); fill($('#top-kills'), j.top.kills, (r) => `${r.kills} zombi`);
+  $('#top-msg').textContent = j.top.best.length ? 'Sadece hesabı olan oyuncular sıralamada görünür.' : 'Henüz kimse yok. Hesap aç ve bir oyun bitir, ilk sen ol!';
+};
+$('#top-close').onclick = () => { $('#top-dlg').hidden = true; };
+acctUi();
+acctCheck().then(acctUi);
 
 // ---------- live link to the owner's server ----------
 const online = () => S.role && S.net && !(S.net instanceof OfflineNet);

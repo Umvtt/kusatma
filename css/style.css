@@ -501,6 +501,17 @@ body.touch .shop { top: 60px; bottom: auto; right: 8px; width: min(320px, 46%); 
   .toast { animation: none; }
 }
 
+/* ---------- accounts and leaderboard ---------- */
+.acct-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: -4px; }
+.acct-row .note { font-size: 13px; }
+.acct-btns { display: flex; gap: 6px; }
+#acct-dlg .settings-dlg, #top-dlg .settings-dlg { display: flex; flex-direction: column; gap: 12px; }
+.top-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.top-list { margin: 6px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.top-list li span { color: var(--dim); font-variant-numeric: tabular-nums; margin-left: 6px; }
+@media (max-width: 480px) { .top-cols { grid-template-columns: 1fr; } }
+input[readonly] { opacity: .75; }
+
 /* ---------- messages from the owner's server ---------- */
 .live-news { margin: 0 0 4px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--panel-2); font-size: 14px; }
 .live-note { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 90; width: min(440px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
