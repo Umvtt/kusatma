@@ -518,3 +518,19 @@ input[readonly] { opacity: .75; }
   padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); box-shadow: 0 12px 30px rgba(0,0,0,.5); }
 .live-note p { margin: 0; overflow-wrap: anywhere; }
 .live-note[hidden], .live-news[hidden] { display: none; }
+
+/* break-time shop on small screens: the ability buttons step aside and the list gets the room */
+body.touch:has(#shop:not([hidden])) .t-ability, body.touch:has(#shop:not([hidden])) .t-bash { visibility: hidden; }
+@media (max-height: 520px) and (orientation: landscape) {
+  body.touch .shop { padding: 10px 12px; gap: 6px; max-height: calc(100% - 66px); }
+  .shop-head .eyebrow, #shop-ready-count { display: none; }
+  .shop-head h3 { font-size: 18px; margin-top: 0; }
+  .shop-timer strong { font-size: 22px; }
+  .shop-gold { font-size: 13px; }
+  .shop-gold strong { font-size: 15px; }
+  .shop .btn.primary { padding-block: 8px; }
+}
+@media (max-height: 620px) {
+  .hud-br .hint { display: none; }
+  body:not(.touch) .shop { top: 118px; max-height: calc(100% - 216px); }
+}
