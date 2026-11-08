@@ -71,6 +71,7 @@
           <button type="button" data-dp="rooms" aria-selected="false">Açık odalar</button>
           <button type="button" data-dp="stats" aria-selected="false">İstatistiklerim</button>
           <button type="button" data-dp="top" aria-selected="false">Sıralama</button>
+          <button type="button" id="dp-diag">Bağlantı testi</button>
           <button type="button" id="dp-settings">Ayarlar</button>
         </nav>
         <main class="dp-main">
@@ -344,6 +345,14 @@
       <button id="room-go" class="btn primary big" type="button">Odayı kur</button>
     </div>
   </div>
+  <div id="diag-dlg" class="confirm" hidden>
+    <div class="card settings-dlg diag-dlg" role="dialog" aria-modal="true" aria-labelledby="diag-title">
+      <div class="card-head"><h3 id="diag-title">Bağlantı testi</h3><button id="diag-close" class="btn small" type="button">Kapat</button></div>
+      <ul id="diag-list" class="diag-list"></ul>
+      <p id="diag-sum" class="note"></p>
+      <div class="row end"><button id="diag-copy" class="btn small ghost" type="button" disabled>Raporu kopyala</button><button id="diag-again" class="btn small" type="button" disabled>Tekrar dene</button></div>
+    </div>
+  </div>
   <div id="settings" class="confirm" hidden>
     <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="card-head"><h3 id="settings-title">Ayarlar</h3><button id="settings-close" class="btn small" type="button">Kapat</button></div>
@@ -353,7 +362,7 @@
       <label class="set-check" for="set-shake"><input id="set-shake" type="checkbox"><span>Ekran sarsıntısı</span></label>
       <label class="set-check" for="set-dmgnums"><input id="set-dmgnums" type="checkbox"><span>Hasar sayıları</span></label>
       <label class="set-check" for="set-lead"><input id="set-lead" type="checkbox"><span>Kamera nişan yönüne kaysın</span></label>
-      <div class="row end"><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div>
+      <div class="row end"><button id="settings-diag" class="btn ghost small" type="button">Bağlantı testi</button><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div>
     </div>
   </div>
 

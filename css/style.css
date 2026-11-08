@@ -606,3 +606,16 @@ button.dp-act:hover { border-color: #3d4b42; transform: translateY(-2px); }
 .chip-opt:hover { color: var(--text); }
 .chip-opt[aria-pressed="true"] { border-color: var(--accent); color: var(--text); background: rgba(255,107,44,.1); }
 @media (max-height: 520px) and (orientation: landscape) { .room-dlg { gap: 8px; } .vis-opt span { display: none; } .vis-opts { flex-direction: row; } .vis-opt { flex: 1; } }
+
+/* ---------- connection test ---------- */
+.diag-dlg { display: flex; flex-direction: column; gap: 12px; max-width: 520px; max-height: calc(100% - 24px); overflow-y: auto; }
+.diag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.diag-list li { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); font-size: 14px; animation: dpIn .2s ease; }
+.diag-list .ic { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--line); color: var(--dim); }
+.diag-list li.ok .ic { background: rgba(67,209,122,.18); color: var(--heal); }
+.diag-list li.bad .ic { background: rgba(229,72,77,.18); color: var(--danger); }
+.diag-list li.warn .ic { background: rgba(245,197,66,.18); color: var(--gold); }
+.diag-list li.run .ic::after { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--dim); border-top-color: transparent; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.diag-list .dt { color: var(--dim); font-size: 12px; }
+.diag-list .dv { color: var(--dim); font-size: 12px; text-align: right; }

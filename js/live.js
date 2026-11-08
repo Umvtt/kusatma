@@ -115,14 +115,52 @@ export async function acctCheck() {
 }
 export const topGet = () => api('/ktop');
 export const roomsGet = () => api('/krooms');
-let turnP = null;
+let turnP = null, turnIce = [];
 // relay details from our server; waits at most 2.5 s so a slow network never holds up making or joining a room
 export function turnReady(add) {
-  if (!turnP) turnP = api('/turn').then((j) => { if (j && j.ok) add(j.ice); }).catch(() => {});
+  if (!turnP) turnP = api('/turn').then((j) => { if (j && j.ok) { turnIce = j.ice; add(j.ice); } }).catch(() => {});
   return Promise.race([turnP, new Promise((r) => setTimeout(r, 2500))]);
 }
 // someone else's account owns this name
 export function nameTaken(name) { const k = nkey(name); return !!k && LIVE.names.includes(k) && !(ACCT && nkey(ACCT.name) === k); }
+
+// ---------- connection test: cheap checks only (a ping the server answers without touching its database) ----------
+export async function diagRun(step) {
+  const out = [];
+  const add = (r) => { out.push(r); step(out); };
+  add({ k: 'net', t: 'İnternet', s: navigator.onLine ? 'ok' : 'bad', v: navigator.onLine ? 'bağlı' : 'bağlı değil' });
+  for (const [i, base] of HTTP.entries()) {
+    const name = ['Sunucu (Deno)', 'Sunucu (Workers)', 'Sunucu (Pages)'][i] || base;
+    const t0 = performance.now();
+    try {
+      const ac = new AbortController(), to = setTimeout(() => ac.abort(), 6000);
+      const r = await fetch(base + '/ping', { cache: 'no-store', signal: ac.signal }); clearTimeout(to);
+      const j = await r.json();
+      add({ k: 'api' + i, t: name, s: j.ok ? 'ok' : 'bad', v: j.ok ? Math.round(performance.now() - t0) + ' ms' : 'hata ' + r.status });
+    } catch (e) { add({ k: 'api' + i, t: name, s: 'bad', v: e.name === 'AbortError' ? 'zaman aşımı' : 'ulaşılamadı' }); }
+  }
+  const wsOk = !!(ws && ws.readyState === 1);
+  add({ k: 'live', t: 'Canlı bağlantı (haberler, mesajlar)', s: wsOk ? 'ok' : 'warn', v: wsOk ? ['Deno', 'Workers', 'Pages'][idx] || 'açık' : 'kapalı, tekrar deneniyor' });
+  const t1 = performance.now();
+  try {
+    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 6000);
+    const r = await fetch('https://0.peerjs.com/peerjs/id?ts=' + Date.now(), { cache: 'no-store', signal: ac.signal }); clearTimeout(to);
+    add({ k: 'peer', t: 'Oda servisi (oda kodları)', s: r.ok ? 'ok' : 'bad', v: r.ok ? Math.round(performance.now() - t1) + ' ms' : 'hata ' + r.status });
+  } catch (e) { add({ k: 'peer', t: 'Oda servisi (oda kodları)', s: 'bad', v: 'ulaşılamadı' }); }
+  const gather = (servers, want, ms) => new Promise((res) => {
+    let pc; try { pc = new RTCPeerConnection({ iceServers: servers, iceTransportPolicy: want === 'relay' ? 'relay' : 'all' }); } catch (e) { res(false); return; }
+    const done = (v) => { try { pc.close(); } catch (e) { /* ignore */ } res(v); };
+    const to = setTimeout(() => done(false), ms);
+    pc.onicecandidate = (e) => { if (e.candidate && e.candidate.candidate.includes(' typ ' + want + ' ')) { clearTimeout(to); done(true); } };
+    pc.createDataChannel('t'); pc.createOffer().then((o) => pc.setLocalDescription(o)).catch(() => done(false));
+  });
+  const direct = await gather([{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }], 'srflx', 5000);
+  add({ k: 'stun', t: 'Doğrudan bağlantı', s: direct ? 'ok' : 'warn', v: direct ? 'mümkün' : 'ağın engelliyor, aktarma kullanılacak' });
+  if (!turnIce.length) { try { const j = await api('/turn'); if (j && j.ok) turnIce = j.ice; } catch (e) { /* ignore */ } }
+  const relay = turnIce.length ? await gather(turnIce, 'relay', 7000) : false;
+  add({ k: 'turn', t: 'Aktarma sunucusu (TURN)', s: relay ? 'ok' : 'bad', v: relay ? 'çalışıyor' : turnIce.length ? 'ulaşılamadı' : 'bilgi alınamadı' });
+  return out;
+}
 
 // a finished game (only the host's report counts it as a game; everyone's counts for the best wave)
 export function liveStat(wave, host, kills, extra) { send(Object.assign({ e: 'stat', w: wave | 0, host: host ? 1 : 0, k: kills | 0 }, extra || {})); }

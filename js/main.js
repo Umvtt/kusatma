@@ -8,7 +8,7 @@ import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -1052,7 +1052,7 @@ show('menu');
 // ---------- optional accounts and the leaderboard ----------
 const TAKEN = 'Bu ad bir hesaba ait. Giriş yap ya da başka bir ad seç.';
 const ACCT_WHY = { name: 'Ad en az 3 harf olmalı.', pw: 'Şifre en az 6 karakter olmalı.', taken: 'Bu ad alınmış. Başka bir ad dene.', wrong: 'Ad ya da şifre yanlış.',
-  slow: 'Çok fazla deneme oldu. 15 dakika sonra tekrar dene.', ban: 'Bu hesap engellendi.', net: 'Sunucuya ulaşılamadı. İnternetini kontrol et.' };
+  slow: 'Çok fazla deneme oldu. Birkaç dakika bekleyip tekrar dene.', ban: 'Bu hesap engellendi.', net: 'Sunucuya ulaşılamadı. İnternetini kontrol et.' };
 // ban or maintenance: its own notice that always shows the current state
 function blockUi() { const t = liveBlock(); for (const id of ['#menu-block', '#dp-block']) { const m = $(id); m.hidden = !t; m.textContent = t; } }
 function acctUi() {
@@ -1136,6 +1136,34 @@ $('#dp-create').onclick = () => roomDlg();
 $('#dp-solo').onclick = () => createRoom(true);
 $('#dp-join').onclick = () => { $('#code').value = $('#dp-code').value; joinRoom(); };
 $('#dp-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#dp-join').click(); });
+
+// ---------- connection test ----------
+let diagText = '';
+async function openDiag() {
+  $('#settings').hidden = true; $('#diag-dlg').hidden = false;
+  $('#diag-copy').disabled = true; $('#diag-again').disabled = true; $('#diag-sum').textContent = 'Test ediliyor…';
+  const list = $('#diag-list'); list.replaceChildren();
+  const ICON = { ok: '✓', bad: '✕', warn: '!' };
+  const draw = (rows) => {
+    list.replaceChildren(...rows.map((r) => { const li = el('li', r.s); li.append(el('span', 'ic', ICON[r.s] || ''), el('span', '', r.t), el('span', 'dv', r.v)); return li; }));
+    const run = el('li', 'run'); run.append(el('span', 'ic'), el('span', 'dt', 'Sıradaki kontrol…'), el('span', 'dv', '')); list.append(run);
+  };
+  const rows = await diagRun(draw);
+  list.replaceChildren(...rows.map((r) => { const li = el('li', r.s); li.append(el('span', 'ic', ICON[r.s] || ''), el('span', '', r.t), el('span', 'dv', r.v)); return li; }));
+  const bad = rows.filter((r) => r.s === 'bad'), apiOk = rows.some((r) => r.k.startsWith('api') && r.s === 'ok');
+  $('#diag-sum').textContent = !bad.length ? 'Her şey çalışıyor.'
+    : !apiOk ? 'Sunuculara ulaşılamıyor. İnternetini ya da ağının engellerini kontrol et; okul ağındaysan okul aynasını dene.'
+    : bad.some((r) => r.k === 'peer') ? 'Oda servisine ulaşılamıyor; oda kurup katılmak çalışmayabilir.'
+    : bad.some((r) => r.k === 'turn') && rows.some((r) => r.k === 'stun' && r.s !== 'ok') ? 'Ağın hem doğrudan bağlantıyı hem aktarmayı engelliyor; başka bir ağdan dene.'
+    : 'Sunuculardan biri yanıt vermedi ama diğerleri çalışıyor, oyun yedek adresi kullanır.';
+  diagText = `Kuşatma bağlantı testi · Yapı ${BUILD} · ${new Date().toLocaleString('tr')}\n` + rows.map((r) => `${ICON[r.s] || '·'} ${r.t}: ${r.v}`).join('\n') + `\n${navigator.userAgent}`;
+  $('#diag-copy').disabled = false; $('#diag-again').disabled = false;
+}
+$('#settings-diag').onclick = openDiag;
+$('#dp-diag').onclick = openDiag;
+$('#diag-again').onclick = openDiag;
+$('#diag-close').onclick = () => { $('#diag-dlg').hidden = true; };
+$('#diag-copy').onclick = async () => { try { await navigator.clipboard.writeText(diagText); toast('Rapor kopyalandı', 'good'); } catch (e) { toast('Kopyalanamadı', 'bad'); } };
 
 // ---------- room settings popup: open (listed for signed-in players) or private ----------
 let roomVis = 0;
