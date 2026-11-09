@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=35">
-  <link rel="stylesheet" href="css/dash.css?v=35">
+  <link rel="stylesheet" href="css/style.css?v=36">
+  <link rel="stylesheet" href="css/dash.css?v=36">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -128,7 +128,7 @@
       <nav class="lobby-tabs" role="tablist" aria-label="Lobi">
         <button type="button" role="tab" data-lt="cls" aria-selected="true">Sınıf</button>
         <button type="button" role="tab" data-lt="set" aria-selected="false">Harita ve mod</button>
-        <button type="button" role="tab" data-lt="pl" aria-selected="false">Oyuncular <span id="lt-n" class="lt-n">1</span></button>
+        <button type="button" role="tab" data-lt="pl" aria-selected="false">Oyuncular ve sohbet <span id="lt-n" class="lt-n">1</span></button>
       </nav>
 
       <div class="lobby-grid">
@@ -139,6 +139,7 @@
             <span class="row"><button id="btn-invite" class="btn small" type="button" hidden>Davet et</button><span id="player-count" class="count">1/15</span></span>
           </div>
           <ul id="player-list" class="player-list"></ul>
+          <div class="lchat" id="lchat"><ul class="lchat-log" id="lchat-log" aria-live="polite"></ul><div class="lchat-row"><input id="lchat-in" maxlength="100" autocomplete="off" spellcheck="false" enterkeyhint="send" placeholder="Lobiye mesaj yaz"><button id="lchat-go" class="btn small" type="button">Gönder</button></div></div>
         </section>
 
         <section class="card settings-card" aria-labelledby="game-settings-h">
@@ -229,7 +230,7 @@
     <div class="chat" id="chat">
       <ul id="chat-log" class="chat-log" aria-live="polite"></ul>
       <label class="sr-only" for="chat-input">Sohbet mesajı</label>
-      <input id="chat-input" class="chat-input" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Mesaj yaz, Enter ile gönder · Esc ile vazgeç" hidden>
+      <div class="chat-row" id="chat-row" hidden><input id="chat-input" class="chat-input" maxlength="100" autocomplete="off" spellcheck="false" enterkeyhint="send" placeholder="Mesaj yaz, Enter ile gönder · Esc ile vazgeç"><button id="chat-send" class="btn small primary" type="button">Gönder</button><button id="chat-x" class="btn small" type="button">Kapat</button></div>
     </div>
 
     <div id="esc" class="esc" hidden>
@@ -294,6 +295,7 @@
       </div>
       <p class="shop-gold"><span class="coin" aria-hidden="true"></span> <strong id="shop-gold">0</strong> altın</p>
       <div id="shop-tabs" class="shop-tabs" role="tablist" aria-label="Cephanelik"></div>
+      <button id="shop-heal" class="shop-heal" type="button"><span class="sh-t"><b>Sargı</b><span>Canını tamamen doldurur</span></span><span class="cost"><span class="coin" aria-hidden="true"></span><b id="shop-heal-c"></b></span></button>
       <ul id="shop-list" class="shop-list"></ul>
       <button id="btn-shop-ready" class="btn primary" type="button">Hazırım</button>
       <p id="shop-ready-count" class="note center"></p>
@@ -369,7 +371,7 @@
     <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="acct-title">
       <div class="card-head"><h3 id="acct-title">Giriş yap / Hesap oluştur</h3><button id="acct-close" class="btn small" type="button">Kapat</button></div>
       <p class="note">İsteğe bağlı. Hesabın varsa giriş yap, yoksa ad ve şifre seçip hesap oluştur. Hesap oluşturunca adın sana ayrılır ve kendi sayfan açılır: oynadıkça elmas kazanır, yeni sınıflar ve kostümler açar, arkadaş ekleyip mesajlaşırsın.</p>
-      <label class="field" for="acct-name"><span>Ad (A-Z harf ve rakam)</span><input id="acct-name" maxlength="16" autocomplete="username" spellcheck="false"></label>
+      <label class="field" for="acct-name"><span>Ad (6–16 karakter, A-Z harf ve rakam)</span><input id="acct-name" maxlength="16" autocomplete="username" spellcheck="false"></label>
       <label class="field" for="acct-pw"><span>Şifre (en az 6 karakter)</span><input id="acct-pw" type="password" maxlength="64" autocomplete="current-password"></label>
       <div class="row two"><button id="acct-login" class="btn primary" type="button">Giriş yap</button><button id="acct-reg" class="btn" type="button">Hesap oluştur</button></div>
       <p id="acct-msg" class="msg" role="status" hidden></p>
@@ -443,6 +445,7 @@
     <div id="t-gear" class="t-gear-row" hidden></div>
     <button id="t-menu" class="t-btn t-pause" type="button">Menü</button>
     <button id="t-board" class="t-btn t-score" type="button">Skor</button>
+    <button id="t-chat" class="t-btn t-chat" type="button">Sohbet</button>
   </div>
   <div id="rotate" class="rotate" hidden><strong>Telefonunu yan çevir</strong><span>Kuşatma yatay ekranda oynanır.</span></div>
 
@@ -506,7 +509,7 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=35","./js/client.js":"./js/client.js?v=35","./js/config.js":"./js/config.js?v=35","./js/dash.js":"./js/dash.js?v=35","./js/host.js":"./js/host.js?v=35","./js/live.js":"./js/live.js?v=35","./js/mapgen.js":"./js/mapgen.js?v=35","./js/net.js":"./js/net.js?v=35","./js/render.js":"./js/render.js?v=35","./js/scene.js":"./js/scene.js?v=35","./js/settings.js":"./js/settings.js?v=35","./js/sfx.js":"./js/sfx.js?v=35","./js/world.js":"./js/world.js?v=35"}}</script>
-  <script type="module" src="js/main.js?v=35"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=36","./js/client.js":"./js/client.js?v=36","./js/config.js":"./js/config.js?v=36","./js/dash.js":"./js/dash.js?v=36","./js/host.js":"./js/host.js?v=36","./js/live.js":"./js/live.js?v=36","./js/mapgen.js":"./js/mapgen.js?v=36","./js/net.js":"./js/net.js?v=36","./js/render.js":"./js/render.js?v=36","./js/scene.js":"./js/scene.js?v=36","./js/settings.js":"./js/settings.js?v=36","./js/sfx.js":"./js/sfx.js?v=36","./js/world.js":"./js/world.js?v=36"}}</script>
+  <script type="module" src="js/main.js?v=36"></script>
 </body>
 </html>

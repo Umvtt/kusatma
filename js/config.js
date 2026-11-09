@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 13;
+export const VERSION = 14;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 35;
+export const BUILD = 36;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
@@ -41,6 +41,7 @@ export const MODES = {
   endless: { name: 'Hayatta Kalma', desc: '5. dalgadan sonra mola yok ve zombiler daha sık gelir. Kendi sıralaması var.' },
   boss: { name: 'Boss Akını', desc: 'Her dalgada boss gelir, sıradan zombi azdır. Elmaslar 1,5 kat.' },
   hc: { name: 'Tek Can', desc: 'Düşen kalkamaz, dalga bitince de dönmez. Elmaslar 2 kat.' },
+  sandbox: { name: 'Deneme Alanı', desc: 'Tek başına her sınıfı dene. Elmas, XP ve görev ilerlemesi vermez.' },
   daily: { name: 'Günün Görevi', desc: 'Herkese aynı harita, sınıf ve zorluk. Günün ilk denemesi sıralamaya girer.' },
 };
 export const MODE_ORDER = ['normal', 'endless', 'boss', 'hc'];
@@ -469,13 +470,16 @@ export const ZTYPES = [
 ];
 ZTYPES[3].boss = true;
 export const BOSS_ORDER = [3, 8, 9, 19, 20]; // Dev, Kraliçe, Koç, Dev Hurda, Cadı, then repeat
+// build 36: bosses are tougher (1.8x health; the host also gives them 1.4x damage and 35% faster attacks)
+for (const t of BOSS_ORDER) { ZTYPES[t].boss = true; ZTYPES[t].hp = Math.round(ZTYPES[t].hp * 1.8); }
+export const BOSS_DMG = 1.4, BOSS_CD = 1.35;
 // elite zombies: one random power each
 export const ELITE = ['', 'Hızlı', 'Patlayıcı', 'Yenilenen', 'Zırhlı'];
 export const isBoss = (t) => !!(ZTYPES[t] && ZTYPES[t].boss);
 // Charging zombies: the İri and the Koç boss.
 export const CHARGE = {
   2: { spd: 420, dur: 0.85, wind: 0.7, cd: 4.5, min: 130, max: 380, dmg: 22, kb: 560 },
-  9: { spd: 560, dur: 1.0, wind: 0.55, cd: 2.5, min: 140, max: 560, dmg: 35, kb: 700 },
+  9: { spd: 560, dur: 1.0, wind: 0.55, cd: 2.5, min: 140, max: 560, dmg: 49, kb: 700 },
 };
 // Front arc (radians either side of facing) a Kalkanlı blocks bullets in.
 export const SHIELD_ARC = 1.15;

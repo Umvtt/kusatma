@@ -530,3 +530,24 @@ body.signed .build { z-index: 41; }
 .ic-prev { grid-template-columns: minmax(0, 1fr); width: 100%; }
 .ic-prev > .ban-prev { justify-self: stretch; width: auto; min-width: 120px; height: 72px; }
 .q-headx { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* spin wheel: prize chips and the prize window */
+.spin-prizes { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 6px; }
+.sp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--t-line); font-size: 12px; background: rgba(255,255,255,.03); }
+.sp-chip.gem { border-color: rgba(91,227,255,.35); } .sp-chip.xp { border-color: rgba(255,211,77,.35); } .sp-chip.item { border-color: rgba(200,140,255,.4); }
+.spin-pop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: rgba(0,0,0,.6); padding: 16px; animation: secIn .15s ease; }
+.spin-box { width: min(360px, 100%); align-items: center; text-align: center; padding: 24px 22px; }
+.spin-ic { width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 2px; margin: 6px auto 2px; background: radial-gradient(circle, rgba(91,227,255,.18), transparent 70%); animation: spinPop .5s cubic-bezier(.3,1.6,.5,1); }
+.spin-ic b { font: 800 26px var(--display, inherit); } .spin-ic.xp { background: radial-gradient(circle, rgba(255,211,77,.2), transparent 70%); } .spin-ic.xp span { color: #ffd34d; font-weight: 700; }
+.spin-ic.item { background: radial-gradient(circle, rgba(200,140,255,.22), transparent 70%); } .spin-it { font: 700 16px var(--display, inherit); padding: 0 8px; }
+.spin-box h3 { margin: 4px 0 0; font-size: 18px; } .spin-bal { display: inline-flex; align-items: center; gap: 5px; margin: 0; }
+.spin-acts { justify-content: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+@keyframes spinPop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .spin-ic, .spin-pop { animation: none; } }
+
+.streak-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.sc-d { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 8px; border: 1px solid var(--t-line); background: rgba(255,255,255,.02); font-size: 11px; min-width: 0; }
+.sc-d .sc-n { color: var(--dim); font-size: 10px; white-space: nowrap; } .sc-d b { font-size: 12px; }
+.sc-d.got { background: rgba(91,227,255,.1); border-color: rgba(91,227,255,.35); opacity: .75; }
+.sc-d.now { border-color: var(--t-a); box-shadow: 0 0 0 1px var(--t-a) inset; }
+.sc-d.big { background: linear-gradient(180deg, rgba(255,211,77,.14), transparent); }

@@ -1,7 +1,8 @@
 // What every player's browser runs (the host included): own movement and shooting,
 // smoothing of what the host sends, and visual effects.
 import { CX, CY, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS, BASH, bashCd, newLv, lvObj, GEAR, GEAR_RANGE, TEAM, abDur, PATHS } from './config.js';
-import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds } from './world.js';
+import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds, WORLD } from './world.js';
+const BOUNDS = () => WORLD.bounds;
 import * as sfx from './sfx.js';
 import { SETTINGS } from './settings.js';
 
@@ -143,7 +144,13 @@ export class ClientGame {
     if (!seenP.has(this.me)) this.self.inGame = false;
 
     const seenZ = new Set();
-    for (const [id, t, x, y, hp, st, cdir, sface, fl] of s.Z) {
+    for (const e of s.Z) {
+      if (e.length === 3) { // unchanged since last time: only where it is now
+        const z = this.zs.get(e[0]);
+        if (z) { z.tx = e[1]; z.ty = e[2]; } else if (!this.zrAsk || this.time - this.zrAsk > 1) { this.zrAsk = this.time; this.send({ t: 'zr' }); }
+        continue;
+      }
+      const [id, t, x, y, hp, st, cdir, sface, fl] = e;
       seenZ.add(id);
       let z = this.zs.get(id);
       if (!z) {
@@ -169,7 +176,8 @@ export class ClientGame {
       z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm) * ((fl >> 8) & 7 ? 2.5 : 1);
       if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
     }
-    for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
+    if (s.zd) { for (const id of s.ZD || []) this.zs.delete(id); }
+    else for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
 
     const seenT = new Set();
     for (const [id, x, y, a, life, k, hp] of s.T) {
@@ -181,6 +189,7 @@ export class ClientGame {
     }
     for (const id of [...this.ts.keys()]) if (!seenT.has(id)) this.ts.delete(id);
 
+    if (Array.isArray(s.ZF)) { this.zf = s.ZF; this.zfAt = this.time; } else if (!this.zfAt || this.time - this.zfAt > 2) this.zf = null;
     this.mines = s.M;
     this.mev = Array.isArray(s.V) && typeof s.V[0] === 'string' ? s.V : null;
     this.items = s.I || [];
@@ -327,6 +336,7 @@ export class ClientGame {
         if (d < min && d > 0.01) { S.x += (dx / d) * (min - d) * 0.6; S.y += (dy / d) * (min - d) * 0.6; }
       }
       resolveCircle(S, PLAYER_R);
+      { const B = BOUNDS(); if (B) { S.x = Math.max(B.x0 + PLAYER_R, Math.min(B.x1 - PLAYER_R, S.x)); S.y = Math.max(B.y0 + PLAYER_R, Math.min(B.y1 - PLAYER_R, S.y)); } }
       if (meP) meP.walk += Math.hypot(S.x - bx, S.y - by);
       if (this.input.taim != null) S.a = this.touch ? this.aimAssist(S, this.input.taim) : this.input.taim;
       else if (len > 0 && this.touch) S.a = Math.atan2(my, mx); // no aim stick: face where you walk
@@ -414,13 +424,14 @@ export class ClientGame {
     }
 
     // who the camera follows
+    const watching = S.inGame || this.watcher;
     if (S.inGame && S.alive) this.spectate = null;
-    else if (S.inGame && this.specStep) { // switch to the next / previous living teammate
+    else if (watching && this.specStep) { // switch to the next / previous living teammate
       const L = [...this.ps.entries()].filter(([pid, p]) => pid !== this.me && p.alive).map(([pid]) => pid);
       if (L.length) { const i = L.indexOf(this.spectate); this.spectate = L[((i < 0 ? 0 : i + this.specStep) % L.length + L.length) % L.length]; }
       this.specStep = 0;
     }
-    else if (S.inGame) {
+    else if (watching) {
       const cur = this.spectate != null ? this.ps.get(this.spectate) : null;
       if (!cur || !cur.alive) {
         const next = [...this.ps.entries()].find(([pid, p]) => pid !== this.me && p.alive);

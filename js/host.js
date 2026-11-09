@@ -2,7 +2,7 @@
 // Every incoming message is checked for shape and size so bad data can't crash the game.
 import {
   WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS,
-  CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC,
+  CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD,
   WEAPON_COST, ITEMS, BASH, WMAX, PATH_N, BRANCH_SWAP, weaponSpent, weaponOf,
   newLv, lvArr, AB_COST, abDur, GEAR, GEAR_RANGE, TEAM, teamCost, TEAM_CHUNK, gearCost, gearMax, bashCd,
   FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, SPECIAL, SPECIAL_K, MODE_ORDER, dailyRules, MEV, MEV_ORDER,
@@ -96,7 +96,38 @@ export class HostGame {
     const l = this.local;
     if (l) queueMicrotask(() => l(msg));
   }
-  out(msg) { this.net.broadcast(msg); this.deliverLocal(msg); }
+  out(msg) { this.net.broadcast(msg); this.deliverLocal(msg); if (this.spec && this.spec.count) this.spec.send(msg); }
+  // snapshots go to each guest with only the zombies near them (bosses always), plus a coarse map of the rest
+  // for the minimap every few snapshots; a guest whose link is backed up skips a snapshot instead of falling behind
+  sendSnaps() {
+    const s = this.snapshot();
+    this.deliverLocal(s);
+    if (this.spec && this.spec.count && (this.snapN & 1)) this.spec.send(s); // hidden spectators: the whole picture, 7 times a second
+    if (!this.net.sendSnap) { this.net.broadcast(s); return; }
+    this.snapN = (this.snapN || 0) + 1;
+    const far = this.snapN % 4 === 0 ? s.Z.map((z) => [z[1], z[2] >> 3, z[3] >> 3]) : null;
+    const R2 = 1800 * 1800, N2 = 1000 * 1000, odd = this.snapN & 1;
+    for (const p of this.players.values()) {
+      if (p.pid === this.hostPid || !this.net.canSnap(p.pid)) continue;
+      const full = !p.inGame || !p.alive, sent = p.zsent || (p.zsent = new Map()), keep = new Set(), Z = [];
+      for (const z of s.Z) {
+        const boss = isBoss(z[1]), d2 = (z[2] - p.x) ** 2 + (z[3] - p.y) ** 2;
+        if (!full && !boss && d2 >= R2) continue;
+        keep.add(z[0]);
+        const key = z[4] + ',' + z[5] + ',' + z[6] + ',' + z[7] + ',' + z[8], prev = sent.get(z[0]);
+        if (prev !== key) { Z.push(z); sent.set(z[0], key); }
+        else if (boss || d2 < N2 || odd) Z.push([z[0], z[2], z[3]]); // far, unchanged zombies move every other snapshot
+      }
+      const ZD = [];
+      for (const id of sent.keys()) if (!keep.has(id)) { ZD.push(id); sent.delete(id); }
+      const m = Object.assign({}, s, { Z, ZD, zd: 1 });
+      if (far && !full) m.ZF = far;
+      this.net.sendSnap(p.pid, m);
+    }
+  }
+  // a guest that lost track asks for everything again
+  resyncZ(p) { if (p) p.zsent = null; }
+
   sendTo(pid, msg) { if (pid === this.hostPid) this.deliverLocal(msg); else this.net.send(pid, msg); }
   ev(e) { if (this.events.length < 220) this.events.push(e); }
 
@@ -112,6 +143,8 @@ export class HostGame {
   }
   pushRoster() { this.out(this.roster()); }
 
+  // the host can start once at least 75% of the other players are ready
+  readyOk() { const o = [...this.players.values()].filter((p) => p.pid !== this.hostPid && !p.ghost); return !o.length || o.filter((p) => p.ready).length >= Math.ceil(o.length * 0.75); }
   inGame() { return [...this.players.values()].filter((p) => p.inGame); }
 
   // Who takes over if this host leaves: the connected player who joined first.
@@ -122,6 +155,7 @@ export class HostGame {
   }
 
   addPlayer(pid, name) {
+    { const old = this.players.get(pid); if (old) old.zsent = null; }
     const used = new Set([...this.players.values()].map((p) => p.color));
     const color = PLAYER_COLORS.find((c) => !used.has(c)) || PLAYER_COLORS[pid % PLAYER_COLORS.length];
     const tok = token();
@@ -183,7 +217,10 @@ export class HostGame {
           return;
         }
       }
-      if (this.players.size >= this.maxP) { this.net.kick(pid, 'full'); return; }
+      // someone who dropped and comes back with the same name takes their old place; a full room makes room by dropping the oldest dropped player
+      { const nm = nkey(cleanName(m.name, pid)), same = [...this.players.values()].find((q) => q.ghost && nkey(q.name) === nm); if (same) this.removePlayer(same.pid); }
+      if ([...this.players.values()].filter((q) => !q.ghost).length >= this.maxP) { this.net.kick(pid, 'full'); return; }
+      if (this.players.size >= this.maxP) { const g = [...this.players.values()].filter((q) => q.ghost).sort((a, b) => a.ghostAt - b.ghostAt)[0]; if (g) this.removePlayer(g.pid); }
       this.net.markPlayer(pid);
       this.addPlayer(pid, cleanName(m.name, pid));
       if (typeof m.ps === 'string') this.setPass(pid, m.ps);
@@ -192,10 +229,11 @@ export class HostGame {
     const isHost = pid === this.hostPid;
     switch (m.t) {
       case 'cls':
-        if (!p.inGame && typeof m.c === 'string' && Object.prototype.hasOwnProperty.call(CLASSES, m.c) && (this.net.code == null || ownsCls(p.own, m.c)) && !(this.daily && m.c !== this.daily.cls)) {
+        if (!p.inGame && typeof m.c === 'string' && Object.prototype.hasOwnProperty.call(CLASSES, m.c) && ((this.net.code == null && this.mode === 'sandbox') || ownsCls(p.own, m.c)) && !(this.daily && m.c !== this.daily.cls)) {
           p.cls = m.c; this.pushRoster();
         }
         break;
+      case 'zr': this.resyncZ(p); break;
       case 'ready':
         if (this.phase === 'lobby') { p.ready = !!m.r; this.pushRoster(); }
         else if ((this.phase === 'combat' || this.phase === 'break') && !p.inGame) { this.enter(p); this.pushRoster(); }
@@ -206,12 +244,17 @@ export class HostGame {
       case 'bash': this.onBash(p, m); break;
       case 'buy': this.onBuy(p, m); break;
       case 'use': this.onUse(p, m); break;
-      case 'start': if (isHost && this.phase === 'lobby') this.start(); break;
+      case 'start': if (isHost && this.phase === 'lobby' && this.readyOk()) this.start(); break;
+      case 'bye': if (!isHost) { this.removePlayer(pid); this.net.kick(pid, 'left'); } break;
       case 'set':
         if (isHost && this.phase === 'lobby') {
           if (typeof m.map === 'string' && (m.map === 'rastgele' || Object.prototype.hasOwnProperty.call(MAPS, m.map))) this.mapPick = m.map;
           if (typeof m.diff === 'string' && Object.prototype.hasOwnProperty.call(DIFFS, m.diff)) this.diff = m.diff;
-          if (typeof m.mode === 'string' && MODE_ORDER.includes(m.mode)) { this.mode = m.mode; this.daily = null; }
+          if (typeof m.mode === 'string' && (MODE_ORDER.includes(m.mode) || (m.mode === 'sandbox' && this.net.code == null))) {
+            this.mode = m.mode; this.daily = null;
+            // leaving the test area: classes you don't own go back to Asker
+            if (m.mode !== 'sandbox') for (const q of this.players.values()) if (!ownsCls(q.own, q.cls)) q.cls = 'asker';
+          }
           // the daily challenge is solo only; its map, class and difficulty come from the date
           if (m.mode === 'daily' && this.net.code == null) {
             this.mode = 'daily'; this.daily = dailyRules(); this.mapPick = this.daily.map; this.diff = this.daily.diff;
@@ -758,6 +801,7 @@ export class HostGame {
 
   // ---------- game flow ----------
   start() {
+    for (const q of this.players.values()) q.zsent = null;
     this.resetWorld();
     this.theme = this.mapPick === 'rastgele' ? MAP_ORDER[Math.floor(Math.random() * MAP_ORDER.length)] : this.mapPick;
     this.seed = (Math.random() * 2 ** 31) | 0;
@@ -995,7 +1039,7 @@ export class HostGame {
     this.snapAcc += dt;
     if (this.snapAcc >= 1 / SNAP_RATE) {
       this.snapAcc = 0;
-      this.out(this.snapshot());
+      this.sendSnaps();
       this.shots = [];
       this.events = [];
     }
@@ -1003,11 +1047,15 @@ export class HostGame {
 
   growBounds(dt) {
     const a = areaFor(this.areaN);
-    const t = { x0: CX - a.w / 2, y0: CY - a.h / 2, x1: CX + a.w / 2, y1: CY + a.h / 2 };
-    const step = 70 * dt; // pixels per second on each side
-    const b = this.bounds;
-    const go = (v, to, dir) => (dir < 0 ? Math.max(to, v - step) : Math.min(to, v + step));
-    b.x0 = go(b.x0, t.x0, -1); b.y0 = go(b.y0, t.y0, -1); b.x1 = go(b.x1, t.x1, 1); b.y1 = go(b.y1, t.y1, 1);
+    // the arena slowly breathes and wanders (a few minutes per cycle, about 20 px a second), so the map never feels static
+    const T = this.time, sc = 1 + 0.16 * Math.sin(T / 37) * Math.min(1, T / 90), w = a.w * sc, h = a.h * sc;
+    const mx = Math.max(0, (WORLD_W - w) / 2 - 80), my = Math.max(0, (WORLD_H - h) / 2 - 80);
+    const cx = CX + Math.sin(T / 53) * Math.min(420, mx) * Math.min(1, T / 120), cy = CY + Math.cos(T / 71) * Math.min(300, my) * Math.min(1, T / 120);
+    const t = { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 };
+    const b = this.bounds, grow = (b.x1 - b.x0) < w - 150 || (b.y1 - b.y0) < h - 150;
+    const step = (grow ? 70 : 22) * dt; // grows quickly when players join, otherwise drifts slowly
+    const go = (v, to) => (v < to ? Math.min(to, v + step) : Math.max(to, v - step));
+    b.x0 = go(b.x0, t.x0); b.y0 = go(b.y0, t.y0); b.x1 = go(b.x1, t.x1); b.y1 = go(b.y1, t.y1);
     setBounds(b.x0, b.y0, b.x1, b.y1);
   }
 
@@ -1018,6 +1066,7 @@ export class HostGame {
       this.breakT -= dt;
       this.updateTurrets(dt);
       this.updateWalls(dt);
+      this.updateItems(dt, true);
       if (this.breakT <= 0) this.startWave();
       return;
     }
@@ -1030,6 +1079,7 @@ export class HostGame {
     this.updateRevives(dt);
     this.updateRegen(dt);
     this.updateZombies(dt);
+    this.curBoss = false;
     this.updateSpits(dt);
     this.updateTurrets(dt);
     this.updateMines(dt);
@@ -1043,7 +1093,7 @@ export class HostGame {
         c.t -= dt; if (c.t > 0) continue;
         this.ev(['sl', Math.round(c.x), Math.round(c.y), 90]);
         for (const t of this.turrets) if (t.hp != null && Math.hypot(t.x - c.x, t.y - c.y) < 100) t.hp -= 300;
-        for (const q of this.inGame()) if (q.alive && Math.hypot(q.x - c.x, q.y - c.y) < 90) { this.hurt(q, 38); this.knock(q, c.x, c.y, 520); }
+        for (const q of this.inGame()) if (q.alive && Math.hypot(q.x - c.x, q.y - c.y) < 90) { this.hurt(q, 38 * BOSS_DMG); this.knock(q, c.x, c.y, 520); }
       }
       this.cars = this.cars.filter((c) => c.t > 0);
     }
@@ -1152,6 +1202,7 @@ export class HostGame {
   hurt(p, dmg) {
     if (!p.alive) return;
     const sprint = p.cls === 'izci' && (p.lv.ab | 0) >= 3 && this.time < p.abUntil;
+    if (this.curBoss) dmg *= BOSS_DMG;
     p.hp -= dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1) * this.pc(p).st.armor * (sprint ? 0.4 : 1);
     if (p.hp <= 0) this.down(p);
   }
@@ -1218,7 +1269,8 @@ export class HostGame {
       const z = zs[zi];
       if (z.dead) continue;
       const T = ZTYPES[z.t];
-      z.cd -= dt; z.cd2 -= dt;
+      this.curBoss = isBoss(z.t);
+      z.cd -= dt * (this.curBoss ? BOSS_CD : 1); z.cd2 -= dt;
       // a zombie that has gone nowhere for 6 s while no player can see it comes back in from the edge
       z.chkT = (z.chkT || 0) + dt;
       if (z.chkT >= 1) {
@@ -1516,7 +1568,7 @@ export class HostGame {
 
   spit(z, a, spd) {
     const r = ZTYPES[z.t].r;
-    this.spits.push({ id: this.nextId++, x: z.x + Math.cos(a) * r, y: z.y + Math.sin(a) * r, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, life: 2.2 });
+    this.spits.push({ id: this.nextId++, x: z.x + Math.cos(a) * r, y: z.y + Math.sin(a) * r, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, life: 2.2, boss: isBoss(z.t) });
   }
 
   // A Patlayan bursts: hurts nearby players and other zombies. byPlayer: who killed it, if anyone.
@@ -1567,7 +1619,7 @@ export class HostGame {
       s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
       if (s.life <= 0 || pointInObstacle(s.x, s.y) || outOfMap(s.x, s.y)) { s.life = 0; this.ev(['sp', Math.round(s.x), Math.round(s.y)]); continue; }
       for (const p of players) {
-        if (Math.hypot(p.x - s.x, p.y - s.y) < PLAYER_R + 8) { this.hurt(p, 14); s.life = 0; this.ev(['sp', Math.round(s.x), Math.round(s.y)]); break; }
+        if (Math.hypot(p.x - s.x, p.y - s.y) < PLAYER_R + 8) { this.hurt(p, s.boss ? 14 * BOSS_DMG : 14); s.life = 0; this.ev(['sp', Math.round(s.x), Math.round(s.y)]); break; }
       }
     }
     this.spits = this.spits.filter((s) => s.life > 0);
@@ -1727,10 +1779,10 @@ export class HostGame {
     this.items.push({ id: this.nextId++, k, x: Math.round(x), y: Math.round(y), life: 25 });
   }
 
-  updateItems(dt) {
+  updateItems(dt, paused) {
     const players = this.inGame().filter((p) => p.alive);
     for (const it of this.items) {
-      it.life -= dt;
+      if (!paused) it.life -= dt;
       for (const p of players) {
         const st = this.pc(p).st;
         if (Math.hypot(p.x - it.x, p.y - it.y) > PLAYER_R + 18 + 45 * st.mag) continue;

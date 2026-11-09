@@ -1,6 +1,6 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
 import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
-import { HostNet, OfflineNet, ClientNet, cleanCode, addIce } from './net.js';
+import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { Renderer, drawCharacter, drawWeaponPreview } from './render.js';
@@ -88,7 +88,7 @@ $('#confirm-no').addEventListener('click', () => { $('#confirm').hidden = true; 
 $('#confirm-yes').addEventListener('click', () => { $('#confirm').hidden = true; const cb = confirmCb; confirmCb = null; if (cb) cb(); });
 
 // new names: English letters and digits only (old saved names and accounts keep theirs)
-const NAME_OK = /^[A-Za-z0-9]{3,16}$/;
+const NAME_OK = /^[A-Za-z0-9]{6,16}$/;
 const asciiName = (v) => v.replace(/[çÇğĞıİöÖşŞüÜ]/g, (c) => ({ ç: 'c', Ç: 'C', ğ: 'g', Ğ: 'G', ı: 'i', İ: 'I', ö: 'o', Ö: 'O', ş: 's', Ş: 'S', ü: 'u', Ü: 'U' })[c]).replace(/[^A-Za-z0-9]/g, '').slice(0, 16);
 $('#name').addEventListener('input', (e) => { const i = e.target, v = asciiName(i.value); if (v !== i.value) i.value = v; });
 function getName() {
@@ -198,17 +198,19 @@ async function joinRoom() {
 }
 
 function leave(reason) {
+  if (S.host && S.host.spec) { S.host.spec.destroy(); S.host.spec = null; }
   liveGameEnd();
   closeEsc(true);
   closeChat();
-  $('#chat-log').replaceChildren();
+  $('#chat-log').replaceChildren(); $('#lchat-log').replaceChildren();
   stopTicker();
   cancelAnimationFrame(S.raf);
   S.raf = 0;
   if (S.net) {
     const n = S.net; S.net = null; n.onClose = null; n.onMsg = null;
     // a leaving host hands the game over first, so the room lives on
-    if (S.role === 'host' && S.host && n.code) { S.host.sendBackup(); setTimeout(() => n.destroy(), 400); } else n.destroy();
+    if (S.role === 'host' && S.host && n.code) { S.host.sendBackup(); setTimeout(() => n.destroy(), 400); }
+    else { try { n.send({ t: 'bye' }); } catch (e) { /* ignore */ } setTimeout(() => n.destroy(), 300); } // tell the host at once, so our place frees up
   }
   S.host = null; S.game = null; S.role = null; S.me = null; S.roster = null; S.over = null; S.shopBuilt = false;
   S.backup = null; S.tok = null; S.rejoining = false;
@@ -299,7 +301,7 @@ function onMessage(m) {
       break;
     case 'r': onRoster(m); break;
     case 's': if (S.game) S.game.onSnap(m); break;
-    case 'o': if (S.roster && m.P) m.tm = m.time; if (S.roster) recentAdd(S.roster.players.filter((p) => p.pid !== S.me)); liveGameEnd(); S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '', tm: m.time | 0, gm: S.roster ? S.roster.mode || 'normal' : 'normal', solo: S.role === 'host' && !online() ? 1 : 0 }); renderOver(); if (S.roster) route(); break;
+    case 'o': if (S.role === 'spec') { S.over = m; break; } if (S.roster && m.P) m.tm = m.time; if (S.roster) recentAdd(S.roster.players.filter((p) => p.pid !== S.me)); liveGameEnd(); S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '', tm: m.time | 0, gm: S.roster ? S.roster.mode || 'normal' : 'normal', solo: S.role === 'host' && !online() ? 1 : 0 }); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
     case 'bk': if (S.role === 'client' && m.s && typeof m.s === 'object') S.backup = m.s; break;
@@ -319,7 +321,7 @@ function onRoster(m) {
   if (m.ph === 'lobby' && prevPhase && prevPhase !== 'lobby') { renderer.clearDecals(); S.over = null; }
   if ((m.ph === 'break' || m.ph === 'combat') && prevPhase === 'lobby') { renderer.clearDecals(); if (S.game) S.game.reset(); }
   route();
-  renderLobby();
+  if (S.role !== 'spec') renderLobby();
 }
 
 function myEntry() { return S.roster ? S.roster.players.find((p) => p.pid === S.me) : null; }
@@ -327,6 +329,11 @@ function myEntry() { return S.roster ? S.roster.players.find((p) => p.pid === S.
 function route() {
   const r = S.roster;
   if (!r) return;
+  if (S.role === 'spec') { // the owner watching unseen
+    if (r.ph === 'combat' || r.ph === 'break') { if (S.screen !== 'game') { show('game'); startLoop(); } }
+    else { show('menu'); menuMsg(r.ph === 'over' ? 'Oyun bitti.' : 'Oyuncular lobide. Oyun başlayınca görüntü gelecek.', true); }
+    return;
+  }
   const me = myEntry();
   if (r.ph === 'over' && S.over && me && me.inGame) { show('over'); return; }
   if ((r.ph === 'combat' || r.ph === 'break') && me && me.inGame) {
@@ -355,6 +362,7 @@ function renderLobby() {
   const list = $('#player-list');
   list.replaceChildren();
   $('#lt-n').textContent = String(r.players.length);
+  $('#lchat').hidden = !r.code; $('#t-chat').hidden = !r.code;
   for (const p of r.players) {
     const li = el('li', 'player' + (p.pid === S.me ? ' me' : ''));
     let dot = el('span', 'dot'); dot.style.background = p.color;
@@ -393,7 +401,7 @@ function renderLobby() {
   if (me && cl.dataset.color !== me.color) { cl.dataset.color = me.color; drawPreviews(me.color); }
   showClassDetail(null);
   for (const card of cl.children) {
-    const id = card.dataset.cls, on = me && id === me.cls, mine = ownsCls(ME.own, id) || (r.mode === 'daily' && id === r.dly), locked = (!mine && !!r.code) || (r.mode === 'daily' && id !== r.dly);
+    const id = card.dataset.cls, on = me && id === me.cls, mine = ownsCls(ME.own, id) || (r.mode === 'daily' && id === r.dly), locked = (!mine && r.mode !== 'sandbox') || (r.mode === 'daily' && id !== r.dly);
     card.setAttribute('aria-checked', on ? 'true' : 'false');
     card.tabIndex = on ? 0 : -1;
     card.disabled = !!(me && me.inGame);
@@ -403,7 +411,7 @@ function renderLobby() {
     if (!mine) {
       const pr = LIVE.shop && LIVE.shop.p['c.' + id];
       if (r.mode === 'daily') { tag.className = 'cls-tag lock'; tag.textContent = 'Bugün değil'; }
-      else if (r.code) { tag.className = 'cls-tag lock'; tag.append(el('span', '', 'Kilitli')); if (pr) { tag.append(gemIcon(13), el('b', '', pr.toLocaleString('tr'))); } }
+      else if (r.mode !== 'sandbox') { tag.className = 'cls-tag lock'; tag.append(el('span', '', 'Kilitli')); if (pr) { tag.append(gemIcon(13), el('b', '', pr.toLocaleString('tr'))); } }
       else { tag.className = 'cls-tag try'; tag.textContent = 'Deneme'; }
     } else if (r.mode === 'daily' && id === r.dly) { tag.className = 'cls-tag try'; tag.textContent = 'Günün sınıfı'; }
     else tag.className = 'cls-tag';
@@ -424,12 +432,12 @@ function renderLobby() {
     btn.disabled = !isHost;
     note.textContent = 'Önceki oyun bitti.';
   } else if (isHost) {
-    const ready = others.filter((p) => p.ready).length;
+    const ready = others.filter((p) => p.ready).length, need = Math.ceil(others.length * 0.75);
     btn.textContent = 'Oyunu başlat';
-    btn.disabled = false;
+    btn.disabled = others.length > 0 && ready < need;
     btn.classList.remove('on');
     note.textContent = !r.code ? 'Hazır olduğunda başlat. Dalgalar arasında yükseltme alabilirsin.'
-      : others.length ? `${ready}/${others.length} oyuncu hazır. Herkes hazır olmasa da başlatabilirsin.`
+      : others.length ? (ready >= need ? `${ready}/${others.length} oyuncu hazır. Başlatabilirsin.` : `${ready}/${others.length} oyuncu hazır. Başlatmak için en az ${need} kişi hazır olmalı.`)
       : 'Henüz kimse katılmadı. Kodu paylaş ya da tek başına başlat.';
   } else {
     btn.textContent = me && me.ready ? 'Hazırım ✓' : 'Hazırım';
@@ -457,7 +465,7 @@ function renderSettings(r, isHost) {
       dl.append(b);
     }
     const mo = $('#mode-list');
-    for (const id of MODE_ORDER) {
+    for (const id of MODE_ORDER.concat('sandbox')) {
       const b = el('button', '', MODES[id].name); b.type = 'button'; b.dataset.v = id; b.setAttribute('role', 'radio');
       b.addEventListener('click', () => send({ t: 'set', mode: id }));
       mo.append(b);
@@ -466,7 +474,7 @@ function renderSettings(r, isHost) {
   const dly = r.mode === 'daily';
   for (const b of ml.children) { b.setAttribute('aria-checked', b.dataset.v === r.map ? 'true' : 'false'); b.disabled = !canEdit || dly; }
   for (const b of $('#diff-list').children) { b.setAttribute('aria-checked', b.dataset.v === r.diff ? 'true' : 'false'); b.disabled = !canEdit || dly; }
-  for (const b of $('#mode-list').children) { b.setAttribute('aria-checked', b.dataset.v === (r.mode || 'normal') ? 'true' : 'false'); b.disabled = !canEdit || dly; b.hidden = dly; }
+  for (const b of $('#mode-list').children) { b.setAttribute('aria-checked', b.dataset.v === (r.mode || 'normal') ? 'true' : 'false'); b.disabled = !canEdit || dly; b.hidden = dly || (b.dataset.v === 'sandbox' && !!r.code); }
   $('#mode-h').textContent = dly ? 'Mod: ' + MODES.daily.name : 'Mod';
   $('#mode-desc').textContent = dly ? `${MODES.daily.desc} Bugünün sınıfı: ${(CLASSES[r.dly] || {}).name || ''}.` : (MODES[r.mode] || MODES.normal).desc;
   $('#diff-desc').textContent = DIFFS[r.diff] ? DIFFS[r.diff].desc : '';
@@ -570,9 +578,9 @@ function showClassDetail(id) {
   const lockNote = [];
   if (!ownsCls(ME.own, cls)) {
     const pr = LIVE.shop && LIVE.shop.p['c.' + cls], n = el('div', 'cd-lock');
-    n.append(el('strong', '', S.roster && !S.roster.code ? 'Deneme: bu oyunda elmas kazandırmaz' : 'Kilitli sınıf'));
+    n.append(el('strong', '', S.roster && S.roster.mode === 'sandbox' ? 'Deneme alanında serbest' : 'Kilitli sınıf'));
     if (pr) { const g = el('span', 'gem-amt'); g.append(gemIcon(14), el('b', '', pr.toLocaleString('tr'))); n.append(g); }
-    n.append(el('span', 'dim', ACCT ? 'Ana sayfadaki Mağaza\'dan açabilirsin.' : 'Hesap aç, oynayarak elmas kazan, sınıfı aç.'));
+    n.append(el('span', 'dim', (ACCT ? 'Ana sayfadaki Mağaza\'dan açabilirsin.' : 'Hesap aç, oynayarak elmas kazan, sınıfı aç.') + (S.roster && !S.roster.code && S.roster.mode !== 'sandbox' ? ' Denemek için Mod: Deneme Alanı.' : '')));
     lockNote.push(n);
   }
   box.replaceChildren(head, ...lockNote, el('p', 'cd-desc', c.desc), stats,
@@ -1116,8 +1124,6 @@ function buildUpTab(list, g) {
     return { cost, maxed, lv, can: !maxed && alive() && gold() >= cost };
   }, 'ability-up');
   void abRow;
-  shopRow(list, 'Sargı', 'Canını tamamen doldurur', 0, () => send({ t: 'buy', k: 'heal' }),
-    () => ({ cost: HEAL_COST, can: alive() && g.self.hp < g.self.maxHp && gold() >= HEAL_COST }));
 }
 
 function buildGearTab(list, g) {
@@ -1185,8 +1191,10 @@ function shopKey(n) {
 
 $('#shop-close').addEventListener('click', () => { S.armoryOpen = false; updateShop(); });
 $('#btn-armory').addEventListener('click', () => { S.armoryOpen = true; S.shopSig = ''; updateShop(); });
+$('#shop-heal').addEventListener('click', () => { if (!$('#shop-heal').disabled) { send({ t: 'buy', k: 'heal' }); sfx.buy(); } });
 function updateShop() {
   const g = S.game;
+  { const h = $('#shop-heal'), s2 = g.self, full = s2.hp >= s2.maxHp; $('#shop-heal-c').textContent = String(HEAL_COST); h.disabled = !s2.alive || full || s2.gold < HEAL_COST; h.classList.toggle('full', full); h.title = full ? 'Canın zaten dolu' : ''; }
   const brk = g.phase === 'break' && g.self.inGame, touch = document.body.classList.contains('touch');
   // phones: the armory opens full screen at the start of each break; closing it leaves a button on the screen
   if (brk && !S.wasBreak) S.armoryOpen = true;
@@ -1439,20 +1447,27 @@ $('#esc-diag').addEventListener('click', () => { openDiag(); });
 // ---------- chat ----------
 function openChat() {
   const inp = $('#chat-input');
-  S.game.input.keys.clear(); S.game.input.down = false;
-  inp.hidden = false; $('#chat').classList.add('open');
+  if (S.game) { S.game.input.keys.clear(); S.game.input.down = false; }
+  $('#chat-row').hidden = false; $('#chat').classList.add('open');
+  const log = $('#chat-log'); log.scrollTop = log.scrollHeight;
   inp.focus();
 }
 function closeChat() {
   const inp = $('#chat-input');
-  inp.value = ''; inp.hidden = true; inp.blur();
+  inp.value = ''; $('#chat-row').hidden = true; inp.blur();
   $('#chat').classList.remove('open');
 }
+function chatSend(inp) { const t = inp.value.trim(); if (t) send({ t: 'chat', m: t }); inp.value = ''; }
 $('#chat-input').addEventListener('keydown', (e) => {
   e.stopPropagation();
-  if (e.key === 'Enter') { const t = e.target.value.trim(); if (t) send({ t: 'chat', m: t }); closeChat(); }
+  if (e.key === 'Enter') { chatSend(e.target); closeChat(); }
   else if (e.key === 'Escape') closeChat();
 });
+$('#chat-send').addEventListener('click', () => { chatSend($('#chat-input')); closeChat(); });
+$('#chat-x').addEventListener('click', closeChat);
+$('#t-chat').addEventListener('click', () => { if ($('#chat').classList.contains('open')) closeChat(); else openChat(); });
+$('#lchat-in').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') chatSend(e.target); });
+$('#lchat-go').addEventListener('click', () => { chatSend($('#lchat-in')); $('#lchat-in').focus(); });
 function addChat(pid, text) {
   if (typeof text !== 'string') return;
   const info = S.roster && S.roster.players.find((p) => p.pid === pid);
@@ -1463,8 +1478,13 @@ function addChat(pid, text) {
   const log = $('#chat-log');
   log.append(li);
   setTimeout(() => li.classList.add('old'), 7000); // fades away; shown again only while the chat is open
-  while (log.children.length > 20) log.firstChild.remove();
-  if (S.screen !== 'game') toast(`${info ? info.name : 'Biri'}: ${text}`);
+  while (log.children.length > 40) log.firstChild.remove();
+  log.scrollTop = log.scrollHeight;
+  // the lobby keeps its own copy, so people can talk while picking classes
+  const ll = $('#lchat-log'), l2 = li.cloneNode(true); l2.classList.remove('old'); ll.append(l2);
+  while (ll.children.length > 40) ll.firstChild.remove();
+  ll.scrollTop = ll.scrollHeight;
+  if (S.screen !== 'game' && S.screen !== 'lobby') toast(`${info ? info.name : 'Biri'}: ${text}`);
 }
 
 // ---------- best wave, kept in this browser ----------
@@ -1598,7 +1618,7 @@ show('menu');
 
 // ---------- optional accounts and the leaderboard ----------
 const TAKEN = 'Bu ad bir hesaba ait. Giriş yap ya da başka bir ad seç.';
-const ACCT_WHY = { name: 'Ad en az 3 harf olmalı.', chars: 'Adda sadece İngilizce harf (A-Z) ve rakam olabilir.', pw: 'Şifre en az 6 karakter olmalı.', taken: 'Bu ad alınmış. Başka bir ad dene.', wrong: 'Ad ya da şifre yanlış.',
+const ACCT_WHY = { name: 'Ad en az 6, en fazla 16 karakter olmalı.', chars: 'Ad 6–16 karakter olmalı; sadece İngilizce harf (A-Z) ve rakam.', pw: 'Şifre en az 6 karakter olmalı.', taken: 'Bu ad alınmış. Başka bir ad dene.', wrong: 'Ad ya da şifre yanlış.',
   slow: 'Çok fazla deneme oldu. Birkaç dakika bekleyip tekrar dene.', ban: 'Bu hesap engellendi.', net: 'Sunucuya ulaşılamadı. İnternetini kontrol et.' };
 // ban or maintenance: its own notice that always shows the current state
 function blockUi() { const t = liveBlock(); for (const id of ['#menu-block', '#dp-block']) { const m = $(id); m.hidden = !t; m.textContent = t; } }
@@ -1619,7 +1639,7 @@ $('#btn-acct').onclick = () => {
 $('#acct-close').onclick = () => { $('#acct-dlg').hidden = true; };
 async function acctGo(op) {
   const name = $('#acct-name').value.trim(), pw = $('#acct-pw').value;
-  if (op === 'reg' && !NAME_OK.test(name)) { acctMsg(name.length < 3 ? ACCT_WHY.name : ACCT_WHY.chars); return; }
+  if (op === 'reg' && !NAME_OK.test(name)) { acctMsg(name.length < 6 ? ACCT_WHY.name : ACCT_WHY.chars); return; }
   for (const b of ['#acct-login', '#acct-reg']) $(b).disabled = true;
   acctMsg(op === 'reg' ? 'Hesap oluşturuluyor…' : 'Giriş yapılıyor…', true);
   const j = await acctSign(op, name, pw);
@@ -1775,7 +1795,22 @@ function liveNote(title, text) {
   b.hidden = false;
   clearTimeout(liveNote.t); liveNote.t = setTimeout(() => { b.hidden = true; }, 15000);
 }
-liveStart({
+// ?spec=<peer>&k=<key>: the owner's hidden spectator view (opened from the panel); it never joins the live list
+const WATCH = (() => { const q = new URLSearchParams(location.search), id = q.get('spec'), k = q.get('k'); return id && k && /^[a-z0-9-]{8,64}$/.test(id) && /^[A-Za-z0-9]{4,24}$/.test(k) ? { id, k } : null; })();
+async function watchStart(w) {
+  document.body.classList.add('watching'); document.body.classList.remove('signed');
+  $('#getapp').hidden = true; $('#dashpage').hidden = true;
+  show('menu'); menuMsg('İzleme bağlantısı kuruluyor…', true);
+  const net = new ClientNet();
+  try { await turnReady(addIce); await net.connect('', 20000, w.id); } catch (e) { menuMsg('Oyuna bağlanılamadı. Oyun bitmiş olabilir.'); return; }
+  S.role = 'spec'; S.net = net; S.me = 0;
+  S.game = new ClientGame(() => {}, 0); S.game.watcher = true; S.game.self.alive = false;
+  net.onMsg = onMessage; net.onClose = () => { stopTicker(); cancelAnimationFrame(S.raf); S.raf = 0; S.role = null; show('menu'); menuMsg('Oyun bitti ya da bağlantı koptu.'); };
+  net.send({ t: 'spec', k: w.k });
+  startTicker();
+}
+if (WATCH) watchStart(WATCH);
+if (!WATCH) liveStart({
   state: () => ({
     name: (S.roster && S.me && myEntry() ? myEntry().name : '') || $('#name').value.trim(),
     room: online() && S.roster ? S.roster.code || '' : '',
@@ -1801,6 +1836,13 @@ liveStart({
     if (msg) liveNote('Yönetici etkinliği', msg + (t ? ' ' + t : ''));
   },
   detail: () => (S.host ? S.host.detail() : null),
+  // the owner's panel asks to watch this game unseen: open a spectator door (solo games too) and say where it is
+  onSpec: async (k) => {
+    const h = S.host; if (!h) return '';
+    if (!h.spec) { h.spec = new SpecHost(); h.spec.onJoin = (c) => { h.spec.sendTo(c, h.roster()); if (h.phase === 'combat' || h.phase === 'break') h.spec.sendTo(c, h.snapshot()); }; }
+    h.spec.keys.add(k); if (h.spec.keys.size > 20) h.spec.keys.delete(h.spec.keys.values().next().value);
+    return h.spec.open();
+  },
   onGift: (name, n) => { if (S.host) S.host.adminGift(name, n); },
   onBan: () => { blockUi(); if (online()) leave(''); },
   onGem: (n, xp, cap) => {

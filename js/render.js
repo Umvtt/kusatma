@@ -441,7 +441,8 @@ export class Renderer {
     g.save(); g.beginPath(); g.rect(x0, y0, w, h); g.clip();
     g.fillStyle = 'rgba(236,230,214,0.16)';
     for (const o of new Set(obstaclesIn(B.x0, B.y0, B.x1, B.y1))) g.fillRect(mx(o.x), my(o.y), Math.max(1, o.w * s), Math.max(1, o.h * s));
-    for (const z of game.zs.values()) {
+    if (game.zf) for (const [t, x8, y8] of game.zf) { g.fillStyle = isBoss(t) ? '#ff6b2c' : '#e5484d'; const sz = isBoss(t) ? 5 : 2; g.fillRect(mx(x8 * 8) - sz / 2, my(y8 * 8) - sz / 2, sz, sz); }
+    else for (const z of game.zs.values()) {
       g.fillStyle = isBoss(z.t) ? '#ff6b2c' : z.t === 4 ? '#b5d43a' : z.t === 7 ? '#c08ae0' : '#e5484d';
       const sz = isBoss(z.t) ? 5 : z.t === 2 || z.t === 6 ? 3 : 2;
       g.fillRect(mx(z.x) - sz / 2, my(z.y) - sz / 2, sz, sz);
@@ -729,8 +730,15 @@ function drawObstacle(g, o) {
 function drawTurret(g, t) {
   if (t.k === 1 || t.k === 2) { drawDrone(g, t); return; }
   if (t.k === 3) { drawCrate(g, t); return; }
-  if (t.k === 4) { drawCoil(g, t); turretHp(g, t); return; }
-  drawTurretBody(g, t); turretHp(g, t);
+  if (t.k === 4) { rangeRing(g, t.x, t.y, CLASSES.tesla.ab.r || 260, '120,200,255'); drawCoil(g, t); turretHp(g, t); return; }
+  rangeRing(g, t.x, t.y, CLASSES.tamirci.ab.range || 420, '255,210,63'); drawTurretBody(g, t); turretHp(g, t);
+}
+// a faint circle showing how far a turret or coil reaches
+function rangeRing(g, x, y, r, rgb) {
+  g.save(); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+  g.fillStyle = `rgba(${rgb},0.035)`; g.fill();
+  g.setLineDash([10, 10]); g.lineWidth = 1.5; g.strokeStyle = `rgba(${rgb},0.16)`; g.stroke();
+  g.restore();
 }
 // a small health bar under a turret or coil once zombies start clawing it
 function turretHp(g, t) {

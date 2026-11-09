@@ -131,6 +131,20 @@ export class HostNet {
     for (const part of pack(msg)) { try { i.conn.send(part); } catch (e) { /* closed mid-send */ } }
   }
 
+  // snapshots: dropped for a guest whose channel is still busy with earlier data, so lag never piles up
+  canSnap(pid) {
+    const i = this.conns.get(pid);
+    if (!i || !i.player || !i.conn.open) return false;
+    const dc = i.conn.dataChannel;
+    if ((dc && dc.bufferedAmount > 64000) || i.conn.bufferSize > 0) { i.skipped = (i.skipped || 0) + 1; return false; }
+    return true;
+  }
+  sendSnap(pid, msg) {
+    const i = this.conns.get(pid);
+    if (!i || !i.conn.open) return;
+    for (const part of pack(msg)) { try { i.conn.send(part); } catch (e) { /* closed mid-send */ } }
+  }
+
   broadcast(msg) {
     let parts = null;
     for (const i of this.conns.values()) {
@@ -215,7 +229,7 @@ export class ClientNet {
     try { return JSON.parse(P.d.join('')); } catch (e) { return null; }
   }
 
-  connect(code, waitMs = 15000) {
+  connect(code, waitMs = 15000, rawId = '') {
     if (!peerAvailable()) return Promise.reject(new Error('peerjs-missing'));
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -229,7 +243,7 @@ export class ClientNet {
       };
       const timer = setTimeout(() => fail('timeout'), waitMs);
       peer.on('open', () => {
-        const conn = peer.connect(PREFIX + code.toLowerCase(), { reliable: true, serialization: 'json' });
+        const conn = peer.connect(rawId || PREFIX + code.toLowerCase(), { reliable: true, serialization: 'json' });
         this.conn = conn;
         conn.on('open', () => { if (settled) return; settled = true; clearTimeout(timer); this.last = performance.now(); resolve(); });
         conn.on('data', (d) => {
@@ -267,4 +281,48 @@ export class ClientNet {
     try { if (this.conn) this.conn.close(); } catch (e) { /* ignore */ }
     try { if (this.peer) this.peer.destroy(); } catch (e) { /* ignore */ }
   }
+}
+
+// The owner's hidden spectators: a separate peer the game opens only when the panel asks (solo games too).
+// Spectators are never players: not in the roster, not counted, invisible to everyone in the game.
+export class SpecHost {
+  constructor() { this.keys = new Set(); this.conns = new Set(); this.peer = null; this.id = ''; this.onJoin = null; this.idleT = 0; }
+  open() {
+    if (this.id) return Promise.resolve(this.id);
+    if (!peerAvailable()) return Promise.reject(new Error('peerjs-missing'));
+    return new Promise((resolve, reject) => {
+      const id = PREFIX + 'v' + (makeCode() + makeCode()).toLowerCase();
+      const peer = new Peer(id, peerOpts());
+      this.peer = peer;
+      const t = setTimeout(() => reject(new Error('timeout')), 15000);
+      peer.on('open', () => {
+        clearTimeout(t); this.id = id; resolve(id);
+        // keep spectators' links warm, and close the door when nobody has watched for 3 minutes
+        let idle = 0;
+        this.ping = setInterval(() => { for (const c of this.conns) { try { if (c.open) c.send({ t: 'p' }); } catch (e) { /* ignore */ } } idle = this.conns.size ? 0 : idle + 2; if (idle >= 180) this.destroy(); }, 2000);
+      });
+      peer.on('error', (e) => { if (!this.id) { clearTimeout(t); reject(e); } });
+      peer.on('connection', (c) => {
+        c.on('data', (d) => {
+          if (c.ok) return; // spectators only listen
+          if (d && d.t === 'spec' && this.keys.has(d.k)) { c.ok = true; this.conns.add(c); if (this.onJoin) this.onJoin(c); } else { try { c.close(); } catch (e) { /* ignore */ } }
+        });
+        const gone = () => this.conns.delete(c);
+        c.on('close', gone); c.on('error', gone);
+      });
+    });
+  }
+  get count() { return this.conns.size; }
+  sendTo(c, msg) { if (!c.open) return; for (const p of pack(msg)) { try { c.send(p); } catch (e) { /* ignore */ } } }
+  send(msg) {
+    let parts = null;
+    for (const c of this.conns) {
+      if (!c.open) continue;
+      const dc = c.dataChannel;
+      if (msg.t === 's' && dc && dc.bufferedAmount > 96000) continue;
+      if (!parts) parts = pack(msg);
+      for (const p of parts) { try { c.send(p); } catch (e) { /* ignore */ } }
+    }
+  }
+  destroy() { clearInterval(this.ping); try { if (this.peer) this.peer.destroy(); } catch (e) { /* ignore */ } this.conns.clear(); this.id = ''; this.peer = null; }
 }

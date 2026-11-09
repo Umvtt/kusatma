@@ -30,6 +30,7 @@ const keepMe = (j) => {
   if (j.set && typeof j.set === 'object') ME.set = { fr: j.set.fr ? 1 : 0, on: j.set.on ? 1 : 0, room: j.set.room ? 1 : 0 };
   if (typeof j.pass === 'string') ME.pass = j.pass.slice(0, 4000);
   if ('dl' in j) ME.dl = !!j.dl;
+  ME.ls = Math.max(0, Math.min(7, j.ls | 0)); if (Array.isArray(j.lsm) && j.lsm.length === 7) ME.lsm = j.lsm.map((x) => +x || 1);
   if ('bio' in j) ME.bio = String(j.bio || '').slice(0, 120);
   if (Array.isArray(j.show)) ME.show = j.show.map((x) => String(x).slice(0, 4)).slice(0, 3);
   if (j.spin && typeof j.spin === 'object') ME.spin = { free: !!j.spin.free, n: Math.max(0, j.spin.n | 0) };
@@ -103,6 +104,7 @@ function onData(raw) {
   else if (d.e === 'gift') H.onGift(str(d.name, 16), d.n | 0);
   else if (d.e === 'acct') acctCheck().then(() => { H.onCfg(); if (H.onAcct) H.onAcct(); });
   else if (d.e === 'watch') { const r = H.detail(); if (r) send({ e: 'rd', d: r }); }
+  else if (d.e === 'spec') { const k = str(d.k, 24); if (k && H.onSpec) H.onSpec(k).then((id) => { if (id) send({ e: 'specok', k, id: str(id, 64) }); }).catch(() => {}); }
   else if (d.e === 'unban') { LIVE.ban = null; try { localStorage.removeItem(BAN_KEY); } catch (e) { /* ignore */ } H.onCfg(); }
 }
 

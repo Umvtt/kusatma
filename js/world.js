@@ -121,44 +121,46 @@ export const cellOf = (x, y) => clamp(Math.floor(y / CELL), 0, GH - 1) * GW + cl
 const NB = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
 
 // Distance (in cells) from every cell to the nearest source point, going around walls and staying inside the bounds.
+// typed-array binary heap, reused between calls (no allocations while the field is built)
+const HK = new Float64Array(GW * GH * 4), HV = new Int32Array(GW * GH * 4);
+const NBX = Int8Array.from(NB.map((n) => n[0])), NBY = Int8Array.from(NB.map((n) => n[1])), NBC = Float64Array.from(NB.map((n) => n[2]));
 export function buildField(sources, out) {
   out.fill(Infinity);
   const B = WORLD.bounds;
-  const gx0 = Math.floor(B.x0 / CELL), gx1 = Math.ceil(B.x1 / CELL) - 1, gy0 = Math.floor(B.y0 / CELL), gy1 = Math.ceil(B.y1 / CELL) - 1;
-  const heap = [];
+  const gx0 = Math.max(0, Math.floor(B.x0 / CELL)), gx1 = Math.min(GW - 1, Math.ceil(B.x1 / CELL) - 1), gy0 = Math.max(0, Math.floor(B.y0 / CELL)), gy1 = Math.min(GH - 1, Math.ceil(B.y1 / CELL) - 1);
+  let n = 0;
   const push = (i, d) => {
-    heap.push([d, i]);
-    let k = heap.length - 1;
-    while (k > 0) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break; [heap[p], heap[k]] = [heap[k], heap[p]]; k = p; }
-  };
-  const pop = () => {
-    const top = heap[0], last = heap.pop();
-    if (heap.length) {
-      heap[0] = last;
-      let k = 0;
-      for (;;) {
-        const l = 2 * k + 1, r = l + 1;
-        let m = k;
-        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
-        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
-        if (m === k) break;
-        [heap[m], heap[k]] = [heap[k], heap[m]]; k = m;
-      }
-    }
-    return top;
+    if (n >= HK.length) return;
+    let k = n++;
+    while (k > 0) { const p = (k - 1) >> 1; if (HK[p] <= d) break; HK[k] = HK[p]; HV[k] = HV[p]; k = p; }
+    HK[k] = d; HV[k] = i;
   };
   for (const s of sources) { const i = cellOf(s.x, s.y); if (out[i] !== 0) { out[i] = 0; push(i, 0); } }
-  while (heap.length) {
-    const [d, i] = pop();
+  while (n > 0) {
+    const d = HK[0], i = HV[0];
+    // pop: move the last item down from the top
+    n--;
+    if (n > 0) {
+      const ld = HK[n], li = HV[n];
+      let k = 0;
+      for (;;) {
+        const l = 2 * k + 1;
+        if (l >= n) break;
+        const r = l + 1, m = r < n && HK[r] < HK[l] ? r : l;
+        if (HK[m] >= ld) break;
+        HK[k] = HK[m]; HV[k] = HV[m]; k = m;
+      }
+      HK[k] = ld; HV[k] = li;
+    }
     if (d > out[i]) continue;
     const cx = i % GW, cy = (i - cx) / GW;
-    for (const [ox, oy, c] of NB) {
-      const nx = cx + ox, ny = cy + oy;
+    for (let q = 0; q < 8; q++) {
+      const ox = NBX[q], oy = NBY[q], nx = cx + ox, ny = cy + oy;
       if (nx < gx0 || ny < gy0 || nx > gx1 || ny > gy1) continue;
       const j = ny * GW + nx;
       if (BLOCKED[j]) continue;
       if (ox && oy && (BLOCKED[cy * GW + nx] || BLOCKED[ny * GW + cx])) continue; // no corner cutting
-      const nd = d + c;
+      const nd = d + NBC[q];
       if (nd < out[j]) { out[j] = nd; push(j, nd); }
     }
   }

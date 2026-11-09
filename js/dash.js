@@ -261,11 +261,16 @@ function homePage(sec) {
   const dl = el('div', 'daily');
   dl.append(el('div', 'daily-gem'));
   dl.firstChild.append(gemIcon(40));
-  const dt = el('div'); dt.append(el('strong', '', ME.dl ? 'Bugünkü ödülü aldın' : `+${LIVE.shop ? LIVE.shop.login : 20} elmas seni bekliyor`), el('span', 'dim', ME.dl ? 'Yarın tekrar gel.' : 'Her gün bir kez.'));
+  // 7-day login streak: claimed days are filled, today is highlighted, day 7 pays the most
+  const base = LIVE.shop ? LIVE.shop.login : 20, mul = ME.lsm || [1, 1.25, 1.5, 2, 2.5, 3, 7];
+  const done = ME.ls | 0, todayN = ME.dl ? done : (done % 7) + 1;
+  const dt = el('div'); dt.append(el('strong', '', ME.dl ? `Seri: ${done}. gün alındı` : `${todayN}. gün: +${fmt(Math.round(base * mul[todayN - 1]))} elmas seni bekliyor`), el('span', 'dim', ME.dl ? 'Yarın gel, seri devam etsin.' : 'Bir gün kaçırırsan seri baştan başlar.'));
   dl.append(dt);
+  const cal = el('div', 'streak-cal');
+  for (let i = 1; i <= 7; i++) { const d = el('div', 'sc-d' + (i <= (ME.dl ? done : todayN - 1) ? ' got' : '') + (i === todayN && !ME.dl ? ' now' : '') + (i === 7 ? ' big' : '')); d.append(el('span', 'sc-n', i + '. gün'), gemIcon(i === 7 ? 18 : 13), el('b', '', fmt(Math.round(base * mul[i - 1])))); cal.append(d); }
   const db = btn('btn primary', ME.dl ? 'Alındı ✓' : 'Al', async () => { db.disabled = true; await claimDaily(); dashGo('home'); });
   db.disabled = ME.dl;
-  daily.append(dl, db);
+  daily.append(dl, cal, db);
   // today's gems
   const today = card('Bugün kazandığın');
   const cap = (LIVE.shop && LIVE.shop.cap) || 400;
@@ -293,7 +298,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Görevler ve sezonda tek tuşla Hepsini al.', 'Sınıf kartlarında isimler artık kartın dışına taşmıyor.', 'Mağazada afiş önizlemeleri düzeldi.', 'Uygulama bir daha güncelleme istemeyecek; oyun her açılışta kendiliğinden güncel.', 'Telefonda nişan yardımı (Ayarlar → Nişan yardımı).'];
+const WHATS_NEW = ['Çok oyunculuda gecikme büyük ölçüde azaldı.', 'Bosslar çok daha güçlü; tek kişilikte de elmas (co-op\'un %75\'i), sınıflar Deneme Alanı modunda denenir.', 'Lobide ve telefonda sohbet, giriş serisi takvimi, şans çarkı ödül penceresi.', 'Harita yavaşça büyüyüp küçülür ve kayar; taret ve bobinin menzili görünür.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -369,13 +374,32 @@ function drawWheel(cv, rot) {
   g.fillStyle = '#ff6b2c'; g.beginPath(); g.moveTo(S / 2 - 10, 2); g.lineTo(S / 2 + 10, 2); g.lineTo(S / 2, 22); g.closePath(); g.fill();
 }
 let spinRot = 0;
+// the prize window after a spin: a big icon, what you got, your balance and the next spin
+function spinPop(j, what, again) {
+  const old = document.querySelector('.spin-pop'); if (old) old.remove();
+  const bg = el('div', 'spin-pop'), box = el('div', 'spin-box dp-card'), ic = el('div', 'spin-ic');
+  if (j.it && ITEMS[j.it]) { const it = ITEMS[j.it]; ic.append(el('span', 'spin-it', it.name)); ic.classList.add('item'); }
+  else if (j.x) { ic.append(el('b', '', '+' + fmt(j.x)), el('span', '', 'XP')); ic.classList.add('xp'); }
+  else { ic.append(gemIcon(54), el('b', '', '+' + fmt(j.g))); ic.classList.add('gem'); }
+  const bal = el('p', 'spin-bal'); bal.append(document.createTextNode('Bakiyen: '), gemIcon(15), el('b', '', fmt(ME.gems)));
+  const s = ME.spin || {}, max = LIVE.shop && LIVE.shop.spinMax != null ? LIVE.shop.spinMax : 5;
+  const left = Math.max(0, max - (s.n | 0));
+  const acts = el('div', 'row spin-acts');
+  const close = btn('btn', 'Kapat', () => bg.remove());
+  acts.append(close);
+  if (left > 0 && !again.disabled) { const a = btn('btn primary', '', () => { bg.remove(); again.click(); }); a.append(document.createTextNode('Tekrar çevir · '), gemIcon(14), el('b', '', fmt(LIVE.shop && LIVE.shop.spinP != null ? LIVE.shop.spinP : 100))); acts.append(a); }
+  box.append(el('p', 'eyebrow', 'Şans çarkı'), ic, el('h3', '', what), bal, el('p', 'dim', left > 0 ? `Bugün ${left} çevirme hakkın kaldı.` : 'Bugünlük çevirmelerin bitti. Yarın ücretsiz çevirme yenilenir.'), acts);
+  bg.append(box); bg.addEventListener('click', (e) => { if (e.target === bg) bg.remove(); });
+  document.body.append(bg); close.focus();
+}
 function spinCard() {
   const c = el('div', 'dp-card spin-card'), cv = el('canvas', 'wheel');
   const t = el('div', 'spin-t');
   const sp = ME.spin || { free: true, n: 0 }, sh = LIVE.shop || {}, price = sh.spinP == null ? 100 : sh.spinP, max = sh.spinMax == null ? 5 : sh.spinMax;
   const hd = el('h3', '', sp.free ? 'Bugünkü ücretsiz çevirmen hazır!' : 'Bugünkü ücretsiz çevirmeni kullandın');
   t.append(el('p', 'eyebrow', 'Şans çarkı'), hd,
-    el('p', 'dim', `Elmas, XP ya da sadece çarktan çıkan bir unvan ve çerçeve. Ekstra çevirme ${price} elmas (günde en çok ${max}).`));
+    el('p', 'dim', `Ekstra çevirme ${price} elmas (günde en çok ${max}).`));
+  { const pr = el('div', 'spin-prizes'); for (const [v, k] of SPIN) { const c2 = el('span', 'sp-chip ' + k); if (k === 'gem') c2.append(gemIcon(13), el('b', '', v)); else c2.append(el('b', '', v)); pr.append(c2); } t.append(pr); }
   const b = btn('btn primary' + (sp.free ? '' : ' gem-btn'), '');
   const label = () => { b.replaceChildren(); const s = ME.spin || sp; hd.textContent = s.free ? 'Bugünkü ücretsiz çevirmen hazır!' : (s.n | 0) >= max ? 'Bugünlük çevirmelerin bitti' : 'Ücretsiz çevirmeni kullandın'; if (s.free) b.textContent = 'Ücretsiz çevir'; else if ((s.n | 0) >= max) { b.textContent = 'Yarın tekrar gel'; b.disabled = true; } else { b.append(document.createTextNode('Tekrar çevir · '), gemIcon(14), el('b', '', fmt(price))); } };
   label();
@@ -394,7 +418,7 @@ function spinCard() {
       if (k < 1) { requestAnimationFrame(step); return; }
       spinRot = to % (Math.PI * 2);
       const what = j.it ? `${ITEMS[j.it] ? ITEMS[j.it].name : j.it} kazandın!` : j.x ? `+${j.x} XP kazandın!` : `+${fmt(j.g)} elmas kazandın!`;
-      H.toast('Şans çarkı: ' + what, 'gem'); notify('gem', 'Şans çarkı', what); if (j.g) gemBurst(); topBar(); b.disabled = false; label();
+      notify('gem', 'Şans çarkı', what); if (j.g) gemBurst(); topBar(); b.disabled = false; label(); spinPop(j, what, b);
     };
     requestAnimationFrame(step);
   };
@@ -537,7 +561,7 @@ function statList() {
 }
 async function claimDaily() {
   const j = await acctOp('daily');
-  if (j.ok) { ME.dl = true; ME.gd += 0; H.toast(`+${j.n} elmas! Yarın yine gel.`, 'gem'); gemBurst(); }
+  if (j.ok) { ME.dl = true; ME.ls = j.day | 0 || ME.ls; H.toast(`Seri ${j.day || 1}. gün: +${j.n} elmas! Yarın yine gel.`, 'gem'); gemBurst(); }
   else if (j.reason === 'done') { ME.dl = true; H.toast('Bugünkü ödülü zaten aldın.'); }
   else H.toast('Ödül alınamadı. İnternetini kontrol et.', 'bad');
   topBar();
@@ -562,7 +586,8 @@ function playPage(sec) {
   const fl = el('ul', 'dp-rooms'); fl.id = 'play-fr'; fl.append(el('li', 'empty', 'Yükleniyor…')); fc.append(fl);
   sec.append(fc);
   friendsGet().then((d) => { if (d) onFriends(d); });
-  const rc = card('Açık odalar', btn('btn small ghost', 'Yenile', () => load()));
+  const rb = btn('btn small ghost', 'Yenile', () => { if (rb.disabled) return; rb.disabled = true; load(); setTimeout(() => { rb.disabled = false; }, 5000); }); // at most once every 5 s
+  const rc = card('Açık odalar', rb);
   const ul = el('ul', 'dp-rooms'); rc.append(el('p', 'note', 'Hesabı olan oyuncuların açık kurduğu odalar.'), ul);
   sec.append(rc);
   const load = () => roomsGet().then((j) => ul.replaceChildren(...H.roomItems(j.ok ? j.rooms : null, 50)));
@@ -1133,10 +1158,10 @@ function accountPage(sec) {
   const row = (label, hint, b) => { const r = el('div', 'acc-row'); const t = el('span'); t.append(el('strong', '', label), el('span', 'dim', hint)); r.append(t, b); return r; };
   const renCost = LIVE.shop ? LIVE.shop.ren : 500;
   ac.append(row('Adını değiştir', `Yeni ad ${renCost} elmas. Şu an: ${ACCT.name}`, btn('btn small', 'Değiştir', () => formDlg('Adını değiştir', [['name', 'Yeni ad', 'text']], `${renCost} elmas harcanacak.`, 'Değiştir', async (v) => {
-    if (!/^[A-Za-z0-9]{3,16}$/.test(v.name.trim())) return v.name.trim().length < 3 ? 'Ad en az 3 harf olmalı.' : 'Adda sadece İngilizce harf (A-Z) ve rakam olabilir.';
+    if (!/^[A-Za-z0-9]{6,16}$/.test(v.name.trim())) return v.name.trim().length < 6 ? 'Ad en az 6, en fazla 16 karakter olmalı.' : 'Ad 6–16 karakter olmalı; sadece İngilizce harf (A-Z) ve rakam.';
     const j = await acctOp('ren', { name: v.name.trim() });
     if (j.ok) { H.toast('Adın değişti.', 'good'); H.refresh(); return ''; }
-    return { name: 'Ad en az 3 harf olmalı.', chars: 'Adda sadece İngilizce harf (A-Z) ve rakam olabilir.', taken: 'Bu ad alınmış.', gems: 'Elmasın yetmiyor.', slow: 'Bugün yeterince denedin.' }[j.reason] || 'Değiştirilemedi.';
+    return { name: 'Ad en az 6, en fazla 16 karakter olmalı.', chars: 'Ad 6–16 karakter olmalı; sadece İngilizce harf (A-Z) ve rakam.', taken: 'Bu ad alınmış.', gems: 'Elmasın yetmiyor.', slow: 'Bugün yeterince denedin.' }[j.reason] || 'Değiştirilemedi.';
   }))));
   ac.append(row('Şifreni değiştir', 'Diğer cihazlardaki oturumlar kapanır.', btn('btn small', 'Değiştir', () => formDlg('Şifreni değiştir', [['old', 'Şu anki şifre', 'password'], ['pw', 'Yeni şifre (en az 6)', 'password']], '', 'Değiştir', async (v) => {
     const j = await acctOp('pw', v);
