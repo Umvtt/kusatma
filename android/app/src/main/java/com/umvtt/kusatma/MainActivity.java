@@ -170,7 +170,7 @@ public class MainActivity extends Activity {
         });
 
         load();
-        checkForNewApp();
+        // no update prompts: the game itself always comes fresh from the site, so the app never needs reinstalling
     }
 
     private View buildSplash() {

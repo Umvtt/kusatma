@@ -205,6 +205,7 @@ export function dashGo(p, arg) {
   if (!PAGES[p]) p = 'home';
   page = p;
   for (const b of document.querySelectorAll('[data-dp]')) b.setAttribute('aria-selected', String(b.dataset.dp === p || ((p === 'locker' || ((p === 'top' || p === 'account') && innerWidth <= 880)) && b.dataset.dp === 'profile')));
+  if (!ACCT) return;
   const main = $('#dp-page');
   main.replaceChildren();
   main.scrollTop = 0;
@@ -292,7 +293,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Telefonda nişan yardımı: nişan çubuğu en yakın zombiye hafifçe çekilir (Ayarlar → Nişan yardımı).', 'Ayarlar penceresi yenilendi: iki bölüm, açma kapama düğmeleri, telefona sığıyor.', 'Taret ve Tesla bobini artık kırılabiliyor; zombiler üstüne yürürse yıkılır.', 'Oyun sonunda kazandığın elmas, seviye ve sezon kademesi; leş akışı ve seri yazıları.'];
+const WHATS_NEW = ['Görevler ve sezonda tek tuşla Hepsini al.', 'Sınıf kartlarında isimler artık kartın dışına taşmıyor.', 'Mağazada afiş önizlemeleri düzeldi.', 'Uygulama bir daha güncelleme istemeyecek; oyun her açılışta kendiliğinden güncel.', 'Telefonda nişan yardımı (Ayarlar → Nişan yardımı).'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -325,8 +326,8 @@ function dailyCard() {
   c.append(l, r);
   dailyGet().then((j) => {
     if (!j.ok) { r.replaceChildren(el('li', 'empty', 'Sıralama yüklenemedi.')); return; }
-    r.replaceChildren(...(j.top.length ? j.top.slice(0, 5).map((x, i) => { const li = el('li', x.id === ACCT.id ? 'me' : ''); li.append(el('span', 'rk', String(i + 1)), nameEl(x.name, x.eq || {}), el('span', 'tv', `${x.w}. dalga`)); return li; }) : [el('li', 'empty', 'Bugün henüz kimse oynamadı. İlk sen ol!')]));
-    const yi = (j.y || []).findIndex((x) => x.id === ACCT.id);
+    r.replaceChildren(...(j.top.length ? j.top.slice(0, 5).map((x, i) => { const li = el('li', ACCT && x.id === ACCT.id ? 'me' : ''); li.append(el('span', 'rk', String(i + 1)), nameEl(x.name, x.eq || {}), el('span', 'tv', `${x.w}. dalga`)); return li; }) : [el('li', 'empty', 'Bugün henüz kimse oynamadı. İlk sen ol!')]));
+    const yi = (j.y || []).findIndex((x) => ACCT && x.id === ACCT.id);
     if (yi >= 0 && ME.dcc !== j.yday) {
       const b = btn('btn gem-btn', '', async () => {
         b.disabled = true; const k = await acctOp('dcp');
@@ -459,7 +460,7 @@ function drawSeason(sec, body) {
   prog.lastChild.append(el('strong', '', j.tier >= 30 ? 'Son kademe!' : `Kademe ${j.tier} / 30`), bar, el('span', 'dim', j.tier >= 30 ? `${fmt(j.x)} sezon XP` : `Sonraki kademe: ${fmt(inTier)} / ${fmt(j.per)} XP · Oynadıkça XP kazanırsın`));
   top.append(prog, el('span', 'sp-left', `${days} gün kaldı`));
   const acts = el('div', 'row');
-  if (j.n) acts.append(btn('btn primary', `Hepsini al (${j.n})`, () => spClaim(0)));
+  { const b = btn('btn primary', j.n ? `Hepsini al (${j.n})` : 'Hepsini al', () => spClaim(0)); b.disabled = !j.n; if (!j.n) b.title = 'Alınacak ödül yok'; acts.append(b); }
   top.append(acts);
   const nodes = [top];
   if (!j.prem) {
@@ -1026,8 +1027,18 @@ function questRow(q, i, compact) {
   else { const r = el('span', 'q-rew'); r.append(gemAmt(q.g)); if (!compact) r.append(el('span', 'dim', '+100 XP')); row.append(r); }
   return row;
 }
+// claim every finished quest and achievement in one go
+async function claimAll(b) {
+  if (!QD) return; b.disabled = true; let g = 0, n = 0;
+  for (let i = 0; i < QD.q.length; i++) { const q = QD.q[i]; if (q.p >= q.n && !q.c) { const j = await acctOp('qclaim', { i }); if (j.ok) { g += j.g | 0; n++; } } }
+  for (const a of QD.ach) if (a.done && !a.claimed) { const r = await acctOp('aclaim', { id: a.id }); if (r.ok) { g += r.g | 0; n++; } }
+  if (n) { H.toast(`${n} ödül alındı: +${fmt(g)} elmas`, 'gem'); gemBurst(); } else H.toast('Alınamadı.', 'bad');
+  await loadQuests(); dashGo('quests');
+}
 function questsPage(sec) {
-  head(sec, 'Görevler', 'Görevler ve başarımlar', el('span', 'dim', `Yeni görevlere ${untilMidnight()}`));
+  const hx = el('div', 'q-headx'); const allBtn = btn('btn primary', 'Hepsini al', () => claimAll(allBtn)); allBtn.disabled = true;
+  hx.append(el('span', 'dim', `Yeni görevlere ${untilMidnight()}`), allBtn);
+  head(sec, 'Görevler', 'Görevler ve başarımlar', hx);
   const qc = card('Günlük görevler'); qc.append(el('p', 'note', 'Her gün üç yeni görev. Dalgaları temizledikçe ilerler.'));
   const qbox = el('div', 'q-list'); qbox.append(el('p', 'note', 'Yükleniyor…')); qc.append(qbox); sec.append(qc);
   const rc = card('Seviye yolu'); const road = el('div', 'road'); rc.append(el('p', 'note', 'Her seviye elmas verir; bazı seviyeler satılmayan özel ödüller açar.'), road); sec.append(rc);
@@ -1035,6 +1046,8 @@ function questsPage(sec) {
   loadQuests().then((j) => {
     if (!j) { qbox.replaceChildren(el('p', 'msg', 'Görevler yüklenemedi.')); return; }
     qbox.replaceChildren(...j.q.map((q, i) => questRow(q, i)));
+    const ready = j.q.filter((q) => q.p >= q.n && !q.c).length + j.ach.filter((a) => a.done && !a.claimed).length;
+    if (ready) { allBtn.disabled = false; allBtn.textContent = `Hepsini al (${ready})`; }
     const L = j.lvl;
     for (let l = 2; l <= 50; l++) {
       const r = j.road[l]; if (!r) continue;

@@ -1075,3 +1075,12 @@ body.touch .streak { top: 30%; } body.touch .streak strong { font-size: 22px; }
 .esc-keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; }
 .esc-keys li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .set-q .q-seg { grid-column: 1 / -1; }
+/* class cards: the name never spills out; narrow cards stack the picture over the name */
+.class-card { container-type: inline-size; min-width: 0; }
+.class-title { flex: 1 1 auto; }
+.class-name { font-size: clamp(14px, 11cqi, 19px); overflow-wrap: anywhere; }
+.class-weapon { font-size: clamp(10px, 6.2cqi, 12px); overflow-wrap: anywhere; }
+@container (max-width: 205px) {
+  .class-top { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .class-name { font-size: clamp(14px, 12.5cqi, 19px); }
+}
