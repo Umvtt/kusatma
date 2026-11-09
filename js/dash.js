@@ -512,7 +512,17 @@ function drawSeason(sec, body) {
     col.append(seasonCell(T.f, stF, () => spClaim(t, 'f')), seasonCell(T.p, stP, () => spClaim(t, 'p')));
     track.append(col);
   }
-  nodes.push(track, el('p', 'note', 'Her oyunda kazandığın XP sezon kartını da doldurur. Sezon ayın son günü biter; alınmamış ödüller kaybolur.'));
+  // the track scrolls with arrows, drag or the wheel; no browser scrollbar
+  const wrap = el('div', 'sp-wrap'), mv = (d) => track.scrollBy({ left: d * track.clientWidth * 0.8, behavior: 'smooth' });
+  const pb = btn('sp-arrow l', '‹', () => mv(-1)), nb = btn('sp-arrow r', '›', () => mv(1));
+  pb.setAttribute('aria-label', 'Önceki kademeler'); nb.setAttribute('aria-label', 'Sonraki kademeler');
+  const edge = () => { wrap.classList.toggle('at-l', track.scrollLeft < 8); wrap.classList.toggle('at-r', track.scrollLeft > track.scrollWidth - track.clientWidth - 8); };
+  track.addEventListener('scroll', edge, { passive: true }); setTimeout(edge, 60);
+  track.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { track.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+  { let dx = null, sl = 0; track.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' || e.target.closest('button')) return; dx = e.clientX; sl = track.scrollLeft; track.classList.add('drag'); });
+    addEventListener('pointermove', (e) => { if (dx != null) track.scrollLeft = sl - (e.clientX - dx); }); addEventListener('pointerup', () => { dx = null; track.classList.remove('drag'); }); }
+  wrap.append(track, pb, nb);
+  nodes.push(wrap, el('p', 'note', 'Her oyunda kazandığın XP sezon kartını da doldurur. Sezon ayın son günü biter; alınmamış ödüller kaybolur.'));
   body.replaceChildren(...nodes);
   const nx = track.querySelector('.next') || track.querySelector('.sp-col:last-child');
   if (nx) track.scrollLeft = Math.max(0, nx.offsetLeft - track.clientWidth / 2);
