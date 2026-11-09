@@ -22,7 +22,7 @@ export const ME = { qn: 0, best: 0, kills: 0, games: 0, mins: 0, gems: 0, xp: 0,
 export let PUB = true;
 try { PUB = localStorage.getItem('kusatma-pub') !== '0'; } catch (e) { /* ignore */ }
 export function setPub(v) { PUB = !!v; try { localStorage.setItem('kusatma-pub', PUB ? '1' : '0'); } catch (e) { /* ignore */ } last = ''; if (H) hi(true); }
-const NUMS = ['spn', 'best', 'kills', 'games', 'mins', 'gems', 'xp', 'lvl', 'lx', 'ln', 'made', 'un', 'gd', 'mute', 'qn'];
+const NUMS = ['spn', 'spt', 'best', 'kills', 'games', 'mins', 'gems', 'xp', 'lvl', 'lx', 'ln', 'made', 'un', 'gd', 'mute', 'qn'];
 const keepMe = (j) => {
   for (const k of NUMS) if (k in j) ME[k] = Math.max(0, +j[k] || 0);
   if (Array.isArray(j.own)) ME.own = j.own.filter((x) => typeof x === 'string').slice(0, 300);
@@ -30,6 +30,9 @@ const keepMe = (j) => {
   if (j.set && typeof j.set === 'object') ME.set = { fr: j.set.fr ? 1 : 0, on: j.set.on ? 1 : 0, room: j.set.room ? 1 : 0 };
   if (typeof j.pass === 'string') ME.pass = j.pass.slice(0, 4000);
   if ('dl' in j) ME.dl = !!j.dl;
+  if ('bio' in j) ME.bio = String(j.bio || '').slice(0, 120);
+  if (Array.isArray(j.show)) ME.show = j.show.map((x) => String(x).slice(0, 4)).slice(0, 3);
+  if (j.spin && typeof j.spin === 'object') ME.spin = { free: !!j.spin.free, n: Math.max(0, j.spin.n | 0) };
   if ('dc' in j) ME.dc = j.dc && typeof j.dc === 'object' ? { w: Math.max(0, j.dc.w | 0), k: Math.max(0, j.dc.k | 0) } : null;
   if ('dcc' in j) ME.dcc = String(j.dcc || '').slice(0, 10);
   if ('end' in j) ME.end = Math.max(0, j.end | 0);
@@ -46,7 +49,7 @@ function cleanShop(s) {
   for (const [k, v] of Object.entries(s.lim || {})) if (ITEMS[k]) lim[k] = +v || 0;
   const o = {};
   for (const [k, v] of Object.entries(s.o || {})) if (ITEMS[k]) o[k] = Math.max(0, v | 0);
-  return { p, o, lim, feat: ITEMS[s.feat] ? s.feat : '', mul: [1, 1.5, 2, 3].includes(+s.mul) ? +s.mul : 1, until: +s.until || 0, saleAll: Math.max(0, Math.min(90, s.saleAll | 0)), saleUntil: +s.saleUntil || 0, login: s.login | 0, ren: s.ren | 0, cap: s.cap | 0 };
+  return { p, o, lim, feat: ITEMS[s.feat] ? s.feat : '', mul: [1, 1.5, 2, 3].includes(+s.mul) ? +s.mul : 1, until: +s.until || 0, saleAll: Math.max(0, Math.min(90, s.saleAll | 0)), saleUntil: +s.saleUntil || 0, login: s.login | 0, ren: s.ren | 0, cap: s.cap | 0, spinP: s.spinP == null ? 100 : Math.max(0, s.spinP | 0), spinMax: s.spinMax == null ? 5 : Math.max(0, s.spinMax | 0) };
 }
 try { const a = JSON.parse(localStorage.getItem('kusatma-hesap') || 'null'); if (a && /^[a-f0-9]{64}$/.test(a.tk)) ACCT = { tk: a.tk, name: String(a.name || '').slice(0, 16), id: String(a.id || '') }; } catch (e) { /* ignore */ }
 try { const b = localStorage.getItem(BAN_KEY); if (b !== null) LIVE.ban = b; } catch (e) { /* ignore */ }

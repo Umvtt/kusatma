@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=28">
-  <link rel="stylesheet" href="css/dash.css?v=28">
+  <link rel="stylesheet" href="css/style.css?v=29">
+  <link rel="stylesheet" href="css/dash.css?v=29">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -226,6 +226,7 @@
 
     <div id="esc" class="esc" hidden>
       <div class="card esc-card" role="dialog" aria-modal="true" aria-labelledby="esc-title">
+        <div class="esc-l">
         <p class="eyebrow" id="esc-eyebrow">Menü</p>
         <h3 id="esc-title">Oyun sürüyor</h3>
         <p class="note" id="esc-note">Çok oyunculu oyunda oyun arka planda devam eder.</p>
@@ -235,6 +236,16 @@
             <strong id="esc-code-val" class="room-code">······</strong>
           </div>
           <button id="esc-copy" class="btn small" type="button">Kodu kopyala</button>
+        </div>
+        <div class="esc-room" id="esc-room"></div>
+        <div class="esc-sec" id="esc-me-sec"><span class="eyebrow">Hesabın</span><div class="esc-me" id="esc-me"></div></div>
+        <div class="esc-sec"><span class="eyebrow">Bu oyun</span><div class="esc-stats" id="esc-stats"></div></div>
+        </div>
+        <div class="esc-r">
+        <div class="esc-quick" id="esc-quick">
+          <button id="esc-invite" class="btn small" type="button">Arkadaş davet et</button>
+          <button id="esc-chat" class="btn small" type="button">Sohbet</button>
+          <button id="esc-diag" class="btn small" type="button">Bağlantı testi</button>
         </div>
         <div class="esc-actions">
           <button id="esc-resume" class="btn primary" type="button">Oyuna dön</button>
@@ -255,6 +266,7 @@
           <li><kbd>M</kbd> ses</li>
           <li><kbd>Esc</kbd> menü</li>
         </ul>
+        </div>
       </div>
     </div>
 
@@ -469,6 +481,6 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="module" src="js/main.js?v=28"></script>
+  <script type="module" src="js/main.js?v=29"></script>
 </body>
 </html>

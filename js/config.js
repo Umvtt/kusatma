@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 11;
+export const VERSION = 12;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 28;
+export const BUILD = 29;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
@@ -75,7 +75,7 @@ export const PLAYER_COLORS = [
   '#b8f2e6', '#e9c46a', '#ff99c8', '#a0c4ff', '#caffbf',
 ];
 
-export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci', 'muhendis', 'kimyager', 'komutan'];
+export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci', 'muhendis', 'kimyager', 'komutan', 'tesla', 'avci'];
 
 // kind: 'b' bullet, 'f' flame, 'g' grenade
 export const CLASSES = {
@@ -157,6 +157,22 @@ export const CLASSES = {
     pas: { name: 'Liderlik', desc: 'Yakınındaki arkadaşların (ve sen) %10 daha sert vurur.' },
     bars: { can: 0.6, hiz: 0.55, hasar: 0.7 },
   },
+  tesla: {
+    name: 'Tesla', weapon: 'Tesla tabancası', tiers: ['Tesla tabancası', 'Bobinli tesla', 'Yıldırım topu'], desc: 'Her vuruş yakındaki zombilere sıçrar. Sürüyü elektrikle biçer.',
+    hp: 105, spd: 215, dmg: 18, rate: 6, spread: 0.05, bspd: 1350, life: 0.55, pellets: 1, pierce: 0, kind: 'b', gun: 26,
+    ab: { name: 'Tesla Bobini', desc: 'Yere bir bobin dikersin: 12 saniye boyunca yakındaki zombileri zincirleme çarpar.', cd: 22, dur: 12, r: 260 },
+    look: 'arc',
+    pas: { name: 'Aşırı gerilim', desc: 'Her vuruşun iki zombiye daha sıçrar. Silahın güçlendikçe zincir uzar.' },
+    bars: { can: 0.5, hiz: 0.55, hasar: 0.6 },
+  },
+  avci: {
+    name: 'Avcı', weapon: 'Arbalet', tiers: ['Arbalet', 'Ağır arbalet', 'Tekrarlı arbalet'], desc: 'Oklar sıra sıra zombiyi deler ve yere çiviler.',
+    hp: 100, spd: 225, dmg: 58, rate: 1.7, spread: 0.012, bspd: 1500, life: 0.85, pellets: 1, pierce: 4, kind: 'b', gun: 30,
+    ab: { name: 'Ok Yağmuru', desc: 'Önüne yelpaze gibi dokuz delici ok fırlatırsın.', cd: 16, n: 9, dmg: 90, range: 650 },
+    look: 'bolt',
+    pas: { name: 'Çivileyici', desc: 'Okların zombileri bir an yere çiviler; iri olmayanlar sendeler.' },
+    bars: { can: 0.45, hiz: 0.7, hasar: 0.8 },
+  },
 };
 
 // Order matters: the snapshot sends the levels as an array in this order.
@@ -191,6 +207,8 @@ export const AB_UP = {
   muhendis: ['Tamir dronu 3 sn uzar', 'Saldırı dronları %40 sert vurur', 'Üçüncü bir saldırı dronu'],
   kimyager: ['Bulut büyür, 2 sn uzar', 'Bulut zombileri yavaşlatır', 'Bulut çok daha sert zehirler'],
   komutan: ['Sandık daha çok iyileştirir ve altın verir', 'İki kat hasar 2 sn uzar', 'Sandık düşenleri de kaldırır'],
+  tesla: ['Bobin 4 sn uzar', 'Bobin daha çok zombiye sıçrar', 'Bobin çarptıklarını sersemletir'],
+  avci: ['Ok Yağmuru 3 ok daha', 'Oklar %40 daha sert', 'Oklar vurduklarını yavaşlatır'],
 };
 // How long a timed ability lasts with mastery level l.
 export function abDur(cls, l) {
@@ -202,6 +220,7 @@ export function abDur(cls, l) {
   if (cls === 'muhendis') return d + (k >= 1 ? 3 : 0);
   if (cls === 'kimyager') return d + (k >= 1 ? 2 : 0);
   if (cls === 'komutan') return d + (k >= 2 ? 2 : 0);
+  if (cls === 'tesla') return d + (k >= 1 ? 4 : 0);
   return d;
 }
 
@@ -256,8 +275,31 @@ export const PATHS = [
       { name: 'Napalm', adj: 'Napalm', desc: 'Yanan zombiler değdiklerini tutuşturur', cap: 'Yanan zombiler ölünce patlar' },
       { name: 'Kor', adj: 'Kor', desc: 'Yanma çok daha fazla hasar verir', cap: 'Vuruşlar yerde alev bırakır' },
     ] },
+  { name: 'Özel', adj: 'Özel', desc: 'Sınıfına özel silah', col: '#ffd34d', dmg: [1, 1, 1, 1, 1, 1], rate: [1, 1, 1, 1, 1, 1], br: [{ name: '', adj: '', desc: '', cap: '' }, { name: '', adj: '', desc: '', cap: '' }] },
 ];
 export const PATH_N = PATHS.length - 1;
+export const SPECIAL_K = 8;
+// The eighth path is different for each class that has one: a new weapon, not just a new effect.
+export const SPECIAL = {
+  asker: { name: 'Bomba atar', adj: 'Patlayıcı', desc: 'Tüfek yerine bomba atar: yavaş ama her atış patlar', col: '#c2d16a', kind: 'g', aoe: 70, bspd: 720, life: 0.8,
+    dmg: [1, 2.6, 2.9, 3.2, 3.5, 3.9], rate: [1, 0.2, 0.21, 0.22, 0.23, 0.25],
+    br: [{ name: 'Geniş alan', adj: 'Yıkıcı', desc: 'Patlama alanı çok büyür', cap: 'Patlamalar zombileri tutuşturur' },
+      { name: 'Seri atar', adj: 'Seri', desc: 'Daha hızlı bomba atar', cap: 'Her atışta iki bomba' }] },
+  doktor: { name: 'Zehirli dart', adj: 'Zehirli', desc: 'Dartlar zehirler ve yavaşlatır', col: '#5fd38d',
+    dmg: [1, 1.05, 1.12, 1.2, 1.28, 1.36], rate: [1, 0.85, 0.87, 0.9, 0.92, 0.95],
+    br: [{ name: 'Uyuşturucu', adj: 'Uyuşturucu', desc: 'Zombiler çok daha fazla yavaşlar', cap: 'Dartlar zombileri bir an uyutur' },
+      { name: 'Toksin', adj: 'Toksik', desc: 'Zehir çok daha sert', cap: 'Ölen zombiler zehir bulutu bırakır' }] },
+  nisanci: { name: 'Raylı top', adj: 'Raylı', desc: 'Tek dev atış, her şeyi ve kalkanları deler', col: '#7ad8ff', bspd: 2600, range: 1.4,
+    dmg: [1, 1.6, 1.8, 2, 2.2, 2.45], rate: [1, 0.72, 0.74, 0.76, 0.78, 0.8],
+    br: [{ name: 'Aşırı yük', adj: 'Aşırı yüklü', desc: 'Atışlar çok daha sert', cap: 'Kritik atışlar üç kat vurur' },
+      { name: 'Hızlı şarj', adj: 'Hızlı', desc: 'Daha sık ateş eder', cap: 'Atış yolunda şimşek bırakır' }] },
+  tamirci: { name: 'Çivi tabancası', adj: 'Çivili', desc: 'Pompalı yerine çok hızlı çivi yağdırır, çiviler zombileri yere çakar', col: '#d8c7a0', spread: 0.07, pellets: 1, bspd: 1300, life: 0.5,
+    dmg: [1, 1.2, 1.35, 1.5, 1.65, 1.85], rate: [1, 5.2, 5.5, 5.8, 6.1, 6.5],
+    br: [{ name: 'Çakıcı', adj: 'Çakıcı', desc: 'Çiviler zombileri daha uzun tutar', cap: 'Çivilenen zombiler %30 fazla hasar alır' },
+      { name: 'Şarapnel', adj: 'Şarapnelli', desc: 'Her atışta iki çivi', cap: 'Her atışta üç çivi' }] },
+};
+export const pathOf = (cls, k) => (k === SPECIAL_K && SPECIAL[cls] ? SPECIAL[cls] : PATHS[k] || PATHS[0]);
+export const pathsFor = (cls) => PATHS.map((_, k) => k).filter((k) => k > 0 && (k !== SPECIAL_K || SPECIAL[cls]));
 const lowerFirst = (s) => s.charAt(0).toLocaleLowerCase('tr') + s.slice(1);
 const cut = (v, a, b) => Math.max(a, Math.min(b, v | 0));
 
@@ -300,12 +342,42 @@ export function pathFx(t, k, b) {
   return f;
 }
 
+// the class's own eighth-path weapon
+function special(cls, c, f, P, B) {
+  const t = f.t, b = f.b, i = t - 3, cap = f.cap;
+  f.k = SPECIAL_K;
+  const w = { ...c, tier: t, path: SPECIAL_K, branch: b, fx: f, col: P.col, frost: false, heavy: 0, pelDmg: 1,
+    name: B ? `${B.adj} ${lowerFirst(P.name)}` : P.name, kind: P.kind || c.kind, aoe: P.aoe || c.aoe || 0,
+    bspd: P.bspd || c.bspd, life: (P.life || c.life) * (P.range || 1), spread: P.spread || c.spread, pellets: P.pellets || c.pellets, pierce: c.pierce };
+  w.look = { tamirci: 'nail', nisanci: 'rail' }[cls] || '';
+  if (cls === 'asker') {
+    w.aoe = 70 + 10 * t + (b === 1 ? [25, 40, 60][i] : 0);
+    if (b === 1 && cap) { f.burn = 0.3; f.bdur = 3; }
+    if (b === 2) { w.pellets = cap ? 2 : 1; w.pelDmg = cap ? 0.7 : 1; w.spread = 0.08; }
+  } else if (cls === 'doktor') {
+    f.poison = [0, 0.4, 0.48, 0.55, 0.62, 0.7][t] * (b === 2 ? 1.5 : 1); f.pdur = 4;
+    f.slow = 2; f.slowK = b === 1 ? [0.45, 0.4, 0.35][i] : 0.65;
+    if (b === 1 && cap) { f.freeze = 0.1; }
+    if (b === 2 && cap) f.gas = true;
+  } else if (cls === 'nisanci') {
+    w.pierce = 99; f.noShield = t >= 3; f.pierce = 99;
+    if (b === 1) { f.crit = 0.18; f.critX = cap ? 3 : 2; }
+    if (b === 2 && cap) { f.chain = 3; f.chainK = 0.3; }
+  } else if (cls === 'tamirci') {
+    f.kb = 40; f.stun = b === 1 ? [0.15, 0.2, 0.25][i] : 0.1;
+    if (b === 1 && cap) f.dazed = 1.3;
+    if (b === 2) { w.pellets = cap ? 3 : 2; w.pelDmg = 0.7; }
+  }
+  return w;
+}
+
 export function weaponOf(cls, wt, wp = 0, wb = 0) {
   const c = CLASSES[cls] || CLASSES.asker;
   const f = pathFx(wt, wp, wb);
   const t = f.t, k = f.k;
-  const P = PATHS[k];
+  const P = pathOf(cls, k);
   const B = f.b ? P.br[f.b - 1] : null;
+  if (k === SPECIAL_K && SPECIAL[cls]) return special(cls, c, f, P, B);
   const pierceT = k === 3 ? Math.min(2, t) + (t >= 3 && f.b === 1 ? t - 2 : 0) : 0;
   const nameT = c.tiers[t === 0 ? 0 : t < 3 ? 1 : 2];
   const pelMul = f.pel ? 1 + f.pel : 1;
@@ -333,7 +405,7 @@ export function pathDesc(cls, k) {
   const c = CLASSES[cls] || CLASSES.asker;
   if (k === 3 && c.kind === 'g') return 'Patlama alanı çok büyür, menzil artar';
   if (k === 3 && c.kind === 'f') return 'Alev daha uzağa gider, daha çok zombiyi deler';
-  return PATHS[k].desc;
+  return pathOf(cls, k).desc;
 }
 
 // One-use items bought in the armory and used in battle with keys 1-4 (or the item buttons on phones).
@@ -389,9 +461,16 @@ export const ZTYPES = [
   { name: 'Doğurgan', hp: 170, spd: 50, r: 22, dps: 14, gold: 20, col: '#9a8a5a', dark: '#544824' },
   { name: 'Sürüngen', hp: 14, spd: 165, r: 9, dps: 6, gold: 2, col: '#7a9a5a', dark: '#3a4a26' },
   { name: 'Şifacı', hp: 85, spd: 66, r: 15, dps: 5, gold: 22, col: '#6aa88a', dark: '#2a5040' },
+  { name: 'Kazıcı', hp: 75, spd: 90, r: 15, dps: 14, gold: 16, col: '#8a6a3a', dark: '#4a361a' },
+  { name: 'Çığlıkçı', hp: 65, spd: 78, r: 15, dps: 6, gold: 18, col: '#b07a8a', dark: '#5a3040' },
+  { name: 'Donmuş', hp: 100, spd: 62, r: 17, dps: 12, gold: 18, col: '#9ec8e0', dark: '#4a6a80' },
+  { name: 'Dev Hurda', hp: 2000, spd: 50, r: 44, dps: 50, gold: 170, col: '#6a5a4a', dark: '#2f2820', boss: true },
+  { name: 'Cadı', hp: 1500, spd: 74, r: 30, dps: 25, gold: 170, col: '#6a4a8a', dark: '#2a1a3a', boss: true },
 ];
 ZTYPES[3].boss = true;
-export const BOSS_ORDER = [3, 8, 9]; // Dev, Kraliçe, Koç, then repeat
+export const BOSS_ORDER = [3, 8, 9, 19, 20]; // Dev, Kraliçe, Koç, Dev Hurda, Cadı, then repeat
+// elite zombies: one random power each
+export const ELITE = ['', 'Hızlı', 'Patlayıcı', 'Yenilenen', 'Zırhlı'];
 export const isBoss = (t) => !!(ZTYPES[t] && ZTYPES[t].boss);
 // Charging zombies: the İri and the Koç boss.
 export const CHARGE = {
@@ -404,7 +483,7 @@ export const zMaxHp = (t, wave, n, hm = 1) =>
   ZTYPES[t].hp * hm * (1 + (Math.max(1, wave) - 1) * 0.12) * (ZTYPES[t].boss ? 1 + 0.35 * (Math.max(1, n) - 1) : 1);
 
 // zombie states sent over the network
-export const ZS = { NORMAL: 0, WINDUP: 1, DASH: 2, SLAM: 3, SPIT: 4, FUSE: 5, SUMMON: 6, PHASE: 7, CROUCH: 8, LEAP: 9 };
+export const ZS = { NORMAL: 0, WINDUP: 1, DASH: 2, SLAM: 3, SPIT: 4, FUSE: 5, SUMMON: 6, PHASE: 7, CROUCH: 8, LEAP: 9, BURROW: 10, SCREAM: 11, THROW: 12, CAST: 13 };
 
 export const FIRST_BREAK = 8;
 export const BREAK_TIME = 25;
@@ -417,13 +496,14 @@ export function stats(cls, lv, wt = 0, wp = 0, wb = 0, tm) {
   const c = CLASSES[cls] || CLASSES.asker;
   const L = lv || {};
   const f = pathFx(wt, wp, wb);
-  const P = PATHS[f.k];
+  const P = pathOf(cls, f.k);
   const td = tm ? tm[1] | 0 : 0;
+  const sp = f.k === SPECIAL_K && SPECIAL[cls] ? (cls === 'asker' && f.b === 2 ? [1, [1.3, 1.4, 1.5][f.t - 3]] : cls === 'nisanci' && f.b === 1 ? [[1.12, 1.18, 1.25][f.t - 3], 1] : cls === 'nisanci' && f.b === 2 ? [1, [1.1, 1.15, 1.22][f.t - 3]] : [1, 1]) : [1, 1];
   return {
     maxHp: c.hp + 20 * (L.hp | 0),
     spd: c.spd * (1 + 0.06 * (L.spd | 0)),
-    dmg: c.dmg * (1 + 0.15 * (L.dmg | 0)) * TIER_DMG[f.t] * P.dmg[f.t] * (1 + 0.08 * td),
-    rate: c.rate * (1 + 0.1 * (L.rate | 0)) * P.rate[f.t] * (f.rateX || 1),
+    dmg: c.dmg * (1 + 0.15 * (L.dmg | 0)) * TIER_DMG[f.t] * P.dmg[f.t] * (1 + 0.08 * td) * sp[0],
+    rate: c.rate * (1 + 0.1 * (L.rate | 0)) * P.rate[f.t] * (f.rateX || 1) * sp[1],
     cd: Math.max(0.4, 1 - 0.1 * (L.cd | 0)),
     crit: 0.04 * (L.crit | 0) + (cls === 'nisanci' ? 0.12 : 0),
     regen: 0.5 * (L.regen | 0) + (tm ? tm[2] | 0 : 0),

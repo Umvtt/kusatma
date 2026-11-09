@@ -99,7 +99,7 @@ export class ClientGame {
 
     const seenP = new Set();
     for (const e of s.P) {
-      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, lv, ab, rdy, shield, rev, pw, hs, wt, wp, wb, inv] = e;
+      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, lv, ab, rdy, shield, rev, pw, hs, wt, wp, wb, inv, chill] = e;
       seenP.add(pid);
       if (pid === this.me) {
         const S = this.self;
@@ -109,14 +109,14 @@ export class ClientGame {
         if (!S.alive && alive && S.inGame) this.notices.push({ k: 'revived' });
         S.hp = hp; S.maxHp = maxHp; S.alive = !!alive; S.gold = gold; S.kills = kills;
         S.lv = lvObj(lv);
-        S.abLeft = ab; S.shopReady = !!rdy; S.inGame = true; S.wt = wt || 0; S.wp = wp || 0; S.wb = wb || 0; S.power = pw || 0; S.haste = hs || 0;
+        S.abLeft = ab; S.shopReady = !!rdy; S.inGame = true; S.wt = wt || 0; S.wp = wp || 0; S.wb = wb || 0; S.power = pw || 0; S.haste = hs || 0; S.chill = chill || 0;
         S.inv = Array.isArray(inv) ? GEAR.map((g, i) => inv[i] | 0) : GEAR.map(() => 0);
       }
       let p = this.ps.get(pid);
       if (!p) { p = { x, y, a, walk: 0 }; this.ps.set(pid, p); }
       if (pid === this.me) { p.x = this.self.x; p.y = this.self.y; }
       p.tx = x; p.ty = y; p.ta = a; p.hp = hp; p.maxHp = maxHp; p.alive = !!alive;
-      p.kills = kills; p.ready = !!rdy; p.shield = !!shield; p.rev = rev || 0; p.wt = wt || 0; p.wp = wp || 0; p.wb = wb || 0; p.power = pw || 0; p.haste = hs || 0;
+      p.kills = kills; p.ready = !!rdy; p.shield = !!shield; p.rev = rev || 0; p.wt = wt || 0; p.wp = wp || 0; p.wb = wb || 0; p.power = pw || 0; p.haste = hs || 0; p.chill = chill || 0;
       p.abl = Array.isArray(lv) ? lv[lv.length - 1] | 0 : 0;
     }
     for (const pid of [...this.ps.keys()]) if (!seenP.has(pid)) this.ps.delete(pid);
@@ -146,7 +146,7 @@ export class ClientGame {
         if (st === ZS.SPIT) sfx.spit(x, y);
       }
       if (st === 9 && z.st !== 9) z.leapT = this.time;
-      z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm);
+      z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm) * ((fl >> 8) & 7 ? 2.5 : 1);
       if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
     }
     for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
@@ -157,7 +157,7 @@ export class ClientGame {
       let t = this.ts.get(id);
       if (!t) { t = { id, x, y, a, k: k | 0 }; this.ts.set(id, t); if (!k) this.ring(x, y, '#ffd23f', 60); else if (k === 3) { this.ring(x, y, '#ffd34d', 120); sfx.heal(x, y); } else if (k === 2) this.ring(x, y, '#43d17a', 60); }
       t.tx = x; t.ty = y; t.ta = a; t.life = life; t.k = k | 0;
-      if (!t.k || t.k === 3) { t.x = x; t.y = y; }
+      if (!t.k || t.k === 3 || t.k === 4) { t.x = x; t.y = y; }
     }
     for (const id of [...this.ts.keys()]) if (!seenT.has(id)) this.ts.delete(id);
 
@@ -233,6 +233,12 @@ export class ClientGame {
       case 'ws': this.notices.push({ k: 'wave', w: ev[1], boss: ev[2] || 0 }); sfx.waveStart(); break;
       case 'mv': if (ev[1]) { this.notices.push({ k: 'mev', ev: ev[1] }); sfx.waveStart(); } break;
       case 'pl': this.planes.push({ x: ev[1], y: ev[2], a: ev[3] || 0, t: 0, max: 3.2 }); sfx.siren(ev[1], ev[2]); break;
+      case 'dg': this.dust(ev[1], ev[2], 60); this.ring(ev[1], ev[2], '#8a6a3a', 70); sfx.slam(ev[1], ev[2]); break;
+      case 'sc': this.ring(ev[1], ev[2], '#ff6fb5', ev[3]); this.ring(ev[1], ev[2], '#ff6fb5', ev[3] * 0.6); sfx.siren(ev[1], ev[2]); break;
+      case 'rz': this.dust(ev[1], ev[2], 30); this.ring(ev[1], ev[2], '#b07ad8', 40); break;
+      case 'tp': this.ring(ev[1], ev[2], '#b07ad8', 60); this.ring(ev[3], ev[4], '#b07ad8', 60); this.light(ev[3], ev[4], 180, 0.6, '176,122,216'); sfx.summon(ev[3], ev[4]); break;
+      case 'cr': this.lobs.push({ x0: ev[1], y0: ev[2], x1: ev[3], y1: ev[4], t: 0, max: Math.max(0.1, ev[5]), car: true }); this.marks.push({ x: ev[3], y: ev[4], t: 0, max: Math.max(0.1, ev[5]) + 0.2, car: true }); break;
+      case 'fan': this.fanFx(ev[1], ev[2], ev[3], ev[4], ev[5]); break;
       case 'hz': this.ring(ev[1], ev[2], '#6ad8a0', 170); break;
       case 'ab2': this.ring(ev[1], ev[2], '#d8d0b0', 40); sfx.turretShot(ev[1], ev[2]); break;
       case 'sm': this.ring(ev[1], ev[2], '#b07ad8', 90); this.light(ev[1], ev[2], 200, 0.5, '176,122,216'); sfx.summon(ev[1], ev[2]); break;
@@ -277,7 +283,7 @@ export class ClientGame {
       let len = Math.hypot(mx, my), push = 1;
       const tm = this.input.tmove;
       if (len === 0 && tm && (tm.x || tm.y)) { mx = tm.x; my = tm.y; len = Math.hypot(mx, my); push = Math.min(1, len); } // joystick: analog
-      const spd = st.spd * (this.fxOn(this.me, 'sprint') ? 1.6 : 1) * (S.haste > 0 ? 1.4 : 1) * push;
+      const spd = st.spd * (this.fxOn(this.me, 'sprint') ? 1.6 : 1) * (S.haste > 0 ? 1.4 : 1) * (S.chill > 0 ? 0.6 : 1) * push;
       const bx = S.x, by = S.y;
       if (len > 0) moveCircle(S, (mx / len) * spd * dt, (my / len) * spd * dt, PLAYER_R);
       if (S.kvx || S.kvy) {
@@ -287,7 +293,7 @@ export class ClientGame {
         if (Math.abs(S.kvx) + Math.abs(S.kvy) < 5) { S.kvx = 0; S.kvy = 0; }
       }
       for (const z of this.zs.values()) {
-        if (z.dying) continue;
+        if (z.dying || (z.fl & 128)) continue;
         const min = ZTYPES[z.t].r + PLAYER_R;
         const dx = S.x - z.x, dy = S.y - z.y;
         const d = Math.hypot(dx, dy);
@@ -443,7 +449,7 @@ export class ClientGame {
       dmg, pierce, own, hit: null, kind: c.kind || 'b', aoe: c.aoe || 0,
       w: (c.pellets > 1 ? 1.6 : c.gun >= 36 ? 2.6 : 2) + (c.heavy || 0) * 0.6,
       col: c.path ? c.col : null, frost: !!c.frost, pk: c.path || 0, tier: c.tier || 0,
-      rico: c.fx && c.fx.rico ? c.fx.rico : 0, noShield: !!(c.fx && c.fx.noShield),
+      rico: c.fx && c.fx.rico ? c.fx.rico : 0, noShield: !!(c.fx && c.fx.noShield), look: c.look || '',
     };
   }
 
@@ -479,7 +485,7 @@ export class ClientGame {
       if (pointInObstacle(b.x, b.y)) { if (b.kind === 'g') this.grenadeBlast(b); else if (b.kind === 'b') this.sparks(b.x, b.y); continue; }
       let alive = true;
       for (const z of this.zs.values()) {
-        if (z.dying) continue;
+        if (z.dying || (z.fl & 128)) continue;
         const r = ZTYPES[z.t].r + (b.kind === 'f' ? 10 : 3);
         const dx = b.x - z.x, dy = b.y - z.y;
         if (dx * dx + dy * dy > r * r) continue;
@@ -546,7 +552,7 @@ export class ClientGame {
   grenadeBlast(b) {
     if (b.own) {
       for (const z of this.zs.values()) {
-        if (z.dying) continue;
+        if (z.dying || (z.fl & 128)) continue;
         if (Math.hypot(z.x - b.x, z.y - b.y) < b.aoe + ZTYPES[z.t].r) this.dealHit(z, b.dmg, true, b.crit);
       }
     }
@@ -564,6 +570,16 @@ export class ClientGame {
       this.addPart({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.28, max: 0.28, col, size: 1.8 + Math.random() * 1.6, kind: k === 7 ? 'fire' : 'dot' });
     }
   }
+  // Avcı's arrow fan: bolts that fly out in a fan from the player
+  fanFx(x, y, a, n, R) {
+    n = Math.max(2, Math.min(15, n | 0));
+    for (let i = 0; i < n; i++) {
+      const ang = a - 0.45 + 0.9 * (i / (n - 1));
+      this.bullets.push({ x, y, vx: Math.cos(ang) * 1500, vy: Math.sin(ang) * 1500, life: R / 1500, max: R / 1500, dmg: 0, pierce: 99, own: false, hit: null, kind: 'b', aoe: 0, w: 2, col: null, frost: false, pk: 0, tier: 0, rico: 0, noShield: true, look: 'bolt' });
+    }
+    sfx.ability('avci', x, y);
+  }
+
   zapFx(pts) {
     if (pts.length < 4) return;
     this.zaps.push({ pts, t: 0, max: 0.22, seed: Math.random() * 100 });

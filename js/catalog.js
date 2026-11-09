@@ -11,6 +11,7 @@ export const SLOTS = [
   { k: 'ttl', p: 'u', name: 'Unvan', none: 'Unvansız' },
   { k: 'thm', p: 't', name: 'Tema', none: 'Gece' },
   { k: 'pet', p: 'p', name: 'Evcil hayvan', none: 'Yok' },
+  { k: 'ban', p: 'b', name: 'Profil afişi', none: 'Gece' },
 ];
 export const SLOT_OF = Object.fromEntries(SLOTS.map((s) => [s.p, s]));
 
@@ -26,6 +27,8 @@ export const ITEMS = {
   'c.muhendis': { name: 'Mühendis', r: 'l', cls: 'muhendis' },
   'c.kimyager': { name: 'Kimyager', r: 'l', cls: 'kimyager' },
   'c.komutan': { name: 'Komutan', r: 'l', cls: 'komutan' },
+  'c.tesla': { name: 'Tesla', r: 'l', cls: 'tesla' },
+  'c.avci': { name: 'Avcı', r: 'l', cls: 'avci' },
   // colours
   'r.kan': { name: 'Kan kırmızısı', r: 'c', c: '#d61f3a' },
   'r.buz': { name: 'Buz mavisi', r: 'c', c: '#6fd8ff' },
@@ -55,6 +58,11 @@ export const ITEMS = {
   'w.buz': { name: 'Buzul', r: 'r', m: '#8fd3f0', w: '#5aa9c9', s: '#e8fbff' },
   'w.neon': { name: 'Neon', r: 'e', m: '#1a0f2e', w: '#2a1446', s: '#ff3df2', glow: '#ff3df2' },
   'w.altin': { name: 'Altın', r: 'l', m: '#c9971b', w: '#8a6510', s: '#ffe27a', glow: '#ffd34d' },
+  'w.bakir': { name: 'Bakır', r: 'c', m: '#8a4b2a', w: '#4a2c1a', s: '#d9884f' },
+  'w.orman': { name: 'Orman', r: 'c', m: '#2f4a2a', w: '#5b4026', s: '#8fdc4a' },
+  'w.kizil': { name: 'Kızıl', r: 'r', m: '#3a0d14', w: '#1e0a0d', s: '#ff3d55', glow: '#ff3d55' },
+  'w.plazma': { name: 'Plazma', r: 'e', m: '#0d1a2e', w: '#13284a', s: '#3df2ff', glow: '#3df2ff' },
+  'w.elmas': { name: 'Elmas', r: 'l', m: '#bfe9ff', w: '#6fb2d9', s: '#ffffff', glow: '#9fe3ff' },
   // avatar frames
   'f.bronz': { name: 'Bronz', r: 'c', free: true, c: ['#b07a45', '#6e4524'] },
   'f.gumus': { name: 'Gümüş', r: 'c', c: ['#dfe6ec', '#7d8a96'] },
@@ -97,6 +105,17 @@ export const ITEMS = {
   'n.buz': { name: 'Buz', r: 'e', c: '#9fe3ff', season: 'p' },
   'r.zumrut': { name: 'Zümrüt', r: 'r', c: '#1fa67a', season: 'f' },
   'u.gazi': { name: 'Kuşatma Gazisi', r: 'e', season: 'f' },
+  // profile banners (shown on the profile card)
+  'b.gece': { name: 'Gece', r: 'c', free: true, c: ['#1b2420', '#0b0f0d'] },
+  'b.orman': { name: 'Orman', r: 'c', c: ['#2f5a2a', '#10200f'], pat: 'pines' },
+  'b.kan': { name: 'Kan', r: 'r', c: ['#7a1018', '#1a0508'], pat: 'drips' },
+  'b.buz': { name: 'Buzul', r: 'r', c: ['#6fb2d9', '#123a5a'], pat: 'flakes' },
+  'b.alev': { name: 'Alev', r: 'e', c: ['#ff8a3d', '#5a1208'], pat: 'flames' },
+  'b.neon': { name: 'Neon şehir', r: 'e', c: ['#ff3df2', '#14062a'], pat: 'grid' },
+  'b.altin': { name: 'Altın', r: 'l', c: ['#ffe27a', '#6a4a08'], pat: 'rays' },
+  // spin wheel prizes: never sold
+  'u.sansli': { name: 'Şanslı', r: 'r', wheel: true },
+  'f.cark': { name: 'Şans çarkı', r: 'e', c: ['#ff3df2', '#ffd34d'], wheel: true },
   // dashboard themes
   't.gece': { name: 'Gece', r: 'c', free: true },
   't.orman': { name: 'Orman', r: 'c', free: true },

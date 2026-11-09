@@ -242,6 +242,7 @@ function homePage(sec) {
   heroBox.append(cv, txt);
   sec.append(heroBox);
   sec.append(dailyCard());
+  sec.append(spinCard());
 
   // friends strip
   const fr = card('Arkadaşlar', btn('btn small ghost', 'Tümü', () => dashGo('friends')));
@@ -318,6 +319,70 @@ function dailyCard() {
   });
   return c;
 }
+// a profile banner: the item's two colours and a light pattern
+export function bannerEl(id, cls) {
+  const it = ITEMS[id] || ITEMS['b.gece'], d = el('div', cls + ' ban-' + (it.pat || 'plain'));
+  d.style.setProperty('--b1', it.c[0]); d.style.setProperty('--b2', it.c[1]);
+  return d;
+}
+
+// ---------- the daily spin wheel ----------
+const SPIN = [['10', 'gem'], ['25', 'gem'], ['50', 'gem'], ['100', 'gem'], ['250', 'gem'], ['120 XP', 'xp'], ['350 XP', 'xp'], ['Unvan', 'item'], ['Çerçeve', 'item']];
+const SPIN_COL = ['#24402e', '#1f3a4a', '#2f2a4a', '#4a2a2a', '#5a4a12', '#203a3a', '#2a3a20', '#4a2a44', '#5a3a14'];
+function drawWheel(cv, rot) {
+  const S = cv.clientWidth || 180, dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (cv.width !== S * dpr) { cv.width = S * dpr; cv.height = S * dpr; }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, S, S);
+  const r = S / 2 - 6, n = SPIN.length, a0 = -Math.PI / 2;
+  g.save(); g.translate(S / 2, S / 2); g.rotate(rot);
+  for (let i = 0; i < n; i++) {
+    const a = a0 + (i / n) * Math.PI * 2 - Math.PI / n, b = a + Math.PI * 2 / n;
+    g.fillStyle = SPIN_COL[i]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, r, a, b); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.15)'; g.lineWidth = 1; g.stroke();
+    g.save(); g.rotate(a0 + (i / n) * Math.PI * 2); g.fillStyle = SPIN[i][1] === 'item' ? '#ffd34d' : '#ece6d6'; g.font = `700 ${Math.round(S / 17)}px Rubik, system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle';
+    g.fillText(SPIN[i][0], r - 8, 0); g.restore();
+  }
+  g.restore();
+  g.fillStyle = '#ece6d6'; g.beginPath(); g.arc(S / 2, S / 2, 12, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#ffd34d'; g.lineWidth = 4; g.beginPath(); g.arc(S / 2, S / 2, r + 2, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#ff6b2c'; g.beginPath(); g.moveTo(S / 2 - 10, 2); g.lineTo(S / 2 + 10, 2); g.lineTo(S / 2, 22); g.closePath(); g.fill();
+}
+let spinRot = 0;
+function spinCard() {
+  const c = el('div', 'dp-card spin-card'), cv = el('canvas', 'wheel');
+  const t = el('div', 'spin-t');
+  const sp = ME.spin || { free: true, n: 0 }, sh = LIVE.shop || {}, price = sh.spinP == null ? 100 : sh.spinP, max = sh.spinMax == null ? 5 : sh.spinMax;
+  const hd = el('h3', '', sp.free ? 'Bugünkü ücretsiz çevirmen hazır!' : 'Bugünkü ücretsiz çevirmeni kullandın');
+  t.append(el('p', 'eyebrow', 'Şans çarkı'), hd,
+    el('p', 'dim', `Elmas, XP ya da sadece çarktan çıkan bir unvan ve çerçeve. Ekstra çevirme ${price} elmas (günde en çok ${max}).`));
+  const b = btn('btn primary' + (sp.free ? '' : ' gem-btn'), '');
+  const label = () => { b.replaceChildren(); const s = ME.spin || sp; hd.textContent = s.free ? 'Bugünkü ücretsiz çevirmen hazır!' : (s.n | 0) >= max ? 'Bugünlük çevirmelerin bitti' : 'Ücretsiz çevirmeni kullandın'; if (s.free) b.textContent = 'Ücretsiz çevir'; else if ((s.n | 0) >= max) { b.textContent = 'Yarın tekrar gel'; b.disabled = true; } else { b.append(document.createTextNode('Tekrar çevir · '), gemIcon(14), el('b', '', fmt(price))); } };
+  label();
+  b.onclick = async () => {
+    const s = ME.spin || sp; b.disabled = true;
+    const j = await acctOp('spin', { buy: s.free ? 0 : 1 });
+    if (!j.ok) { b.disabled = false; H.toast({ gems: 'Yeterli elmasın yok.', max: 'Bugünlük bu kadar. Yarın gel!', used: 'Ücretsiz çevirmeni kullandın.', slow: 'Biraz bekle.' }[j.reason] || 'Çevrilemedi.', 'bad'); return; }
+    ME.spin = { free: false, n: j.n }; ME.gems = j.gems;
+    if (j.it && !ME.own.includes(j.it)) ME.own.push(j.it); if (j.pass) ME.pass = j.pass;
+    // spin: several turns, then stop with the prize under the pointer
+    const n = SPIN.length, target = -(j.i / n) * Math.PI * 2, from = spinRot, to = target - Math.PI * 2 * (5 + Math.floor(spinRot / (Math.PI * 2))) - Math.PI * 2 * 5;
+    const t0 = performance.now(), dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 3600;
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 4);
+      spinRot = from + (to - from) * e; drawWheel(cv, spinRot);
+      if (k < 1) { requestAnimationFrame(step); return; }
+      spinRot = to % (Math.PI * 2);
+      const what = j.it ? `${ITEMS[j.it] ? ITEMS[j.it].name : j.it} kazandın!` : j.x ? `+${j.x} XP kazandın!` : `+${fmt(j.g)} elmas kazandın!`;
+      H.toast('Şans çarkı: ' + what, 'gem'); notify('gem', 'Şans çarkı', what); if (j.g) gemBurst(); topBar(); b.disabled = false; label();
+    };
+    requestAnimationFrame(step);
+  };
+  t.append(b);
+  c.append(cv, t);
+  requestAnimationFrame(() => drawWheel(cv, spinRot));
+  return c;
+}
+
 // a pet on its own little canvas, turning slowly
 function petCanvas(id, S) {
   const cv = el('canvas', 'pet-cv'), dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -487,6 +552,7 @@ function playPage(sec) {
 function profileView(p, mine) {
   const wrap = el('div', 'prof');
   const ban = el('div', 'prof-banner'); ban.dataset.theme = ((p.eq && p.eq.thm) || 't.gece').slice(2);
+  if (p.eq && ITEMS[p.eq.ban]) ban.append(bannerEl(p.eq.ban, 'ban-bg'));
   const av = avatar(p.eq, 120, mine ? heroCls() : 'asker');
   const info = el('div', 'prof-info');
   const nm = el('div', 'prof-name'); nm.append(nameEl(p.name, p.eq, 'h2', 'nm dp-h'), lvlBadge(p.lvl));
@@ -495,8 +561,15 @@ function profileView(p, mine) {
   const meta = el('p', 'dim');
   meta.textContent = `${p.made ? 'Katıldı: ' + new Date(p.made).toLocaleDateString('tr', { year: 'numeric', month: 'long' }) : ''}${p.on ? ' · Çevrimiçi' : ''}`;
   info.append(meta);
+  if (p.bio) info.append(el('p', 'prof-bio', p.bio));
   ban.append(av, info);
   wrap.append(ban);
+  const show = (p.show || []).filter((id) => ACH_NAME[id]);
+  if (show.length) {
+    const sc = el('div', 'prof-show');
+    for (const id of show) { const d = el('div', 'show-ach'); d.append(el('span', 'ach-ic', '★'), el('strong', '', ACH_NAME[id])); sc.append(d); }
+    wrap.append(sc);
+  }
   const st = el('ul', 'dp-stats big');
   for (const [v, l] of [[p.lvl, 'seviye'], [p.best, 'en iyi dalga'], [fmt(p.kills), 'zombi'], [p.games, 'oyun'], [fmt(p.mins), 'dakika'], [p.ncls != null ? p.ncls : '', 'sınıf']]) { const li = el('li'); li.append(el('strong', '', String(v)), el('span', '', l)); st.append(li); }
   wrap.append(st);
@@ -506,8 +579,30 @@ function profilePage(sec) {
   const pa = el('div', 'prof-head-acts');
   pa.append(btn('btn ghost phone-only', 'Sıralama', () => dashGo('top')), btn('btn ghost phone-only', 'Ayarlar', () => dashGo('account')), btn('btn primary', 'Dolabı aç', () => dashGo('locker')));
   head(sec, 'Profil', 'Profilim', pa);
-  const p = { name: ACCT.name, eq: ME.eq, lvl: ME.lvl, best: ME.best, kills: ME.kills, games: ME.games, mins: ME.mins, made: ME.made, on: true, ncls: CLASS_ORDER.filter((c) => FREE_CLS.includes(c) || ME.own.includes('c.' + c)).length };
+  const p = { name: ACCT.name, eq: ME.eq, bio: ME.bio || '', show: ME.show || [], lvl: ME.lvl, best: ME.best, kills: ME.kills, games: ME.games, mins: ME.mins, made: ME.made, on: true, ncls: CLASS_ORDER.filter((c) => FREE_CLS.includes(c) || ME.own.includes('c.' + c)).length };
   sec.append(profileView(p, true));
+  // edit: bio and the three achievements shown on the profile
+  const ed = card('Profilini düzenle', btn('btn small ghost', 'Afiş seç', () => { lockSlot = 'ban'; dashGo('locker'); }));
+  const bl = el('label', 'field'); const bi = el('textarea', 'bio-in'); bi.maxLength = 120; bi.rows = 2; bi.placeholder = 'Kendini birkaç kelimeyle anlat (herkes görür)'; bi.value = ME.bio || '';
+  bl.append(el('span', '', 'Hakkımda'), bi);
+  const bb = btn('btn small self-start', 'Kaydet', async () => { bb.disabled = true; const r = await acctOp('bio', { x: bi.value }); bb.disabled = false; if (r.ok) { ME.bio = r.bio; bi.value = r.bio; H.toast('Kaydedildi', 'good'); dashGo('profile'); } else H.toast(r.reason === 'slow' ? 'Biraz bekle.' : 'Kaydedilemedi.', 'bad'); });
+  ed.append(bl, bb, el('p', 'eyebrow', 'Vitrin: profilinde görünen 3 başarım'));
+  const sb = el('div', 'show-pick'); sb.append(el('p', 'note', 'Yükleniyor…')); ed.append(sb);
+  sec.append(ed);
+  loadQuests().then((j) => {
+    if (!j) { sb.replaceChildren(el('p', 'note', 'Başarımlar yüklenemedi.')); return; }
+    const got = j.ach.filter((a) => a.claimed);
+    if (!got.length) { sb.replaceChildren(el('p', 'note', 'Önce bir başarım kazan ve ödülünü al.')); return; }
+    const sel = new Set(ME.show || []);
+    sb.replaceChildren(...got.map((a) => {
+      const b = btn('chip-opt' + (sel.has(a.id) ? ' on' : ''), (ACH_IC[a.k] || '★') + ' ' + (ACH_NAME[a.id] || a.id), async () => {
+        if (sel.has(a.id)) sel.delete(a.id); else { if (sel.size >= 3) { H.toast('En fazla 3 başarım seçebilirsin.'); return; } sel.add(a.id); }
+        const r = await acctOp('show', { ids: [...sel] });
+        if (r.ok) { ME.show = r.show; dashGo('profile'); } else H.toast('Kaydedilemedi.', 'bad');
+      });
+      b.setAttribute('aria-pressed', String(sel.has(a.id))); return b;
+    }));
+  });
   const qa = card('Görevler ve başarımlar', btn('btn small ghost', 'Aç', () => dashGo('quests'))); qa.append(el('p', 'note', 'Günlük görevler, seviye yolu ödülleri ve başarımlar.')); sec.append(qa);
   const xp = card('Seviye ilerlemesi');
   const bar = el('div', 'xpbar'); const f = el('i'); f.style.width = Math.round(100 * ME.lx / Math.max(1, ME.ln)) + '%'; bar.append(f);
@@ -585,7 +680,7 @@ async function equip(slot, id) {
 }
 
 // ---------- the gem shop ----------
-const SHOP_TABS = [['c', 'Sınıflar'], ['p', 'Evcil'], ['h', 'Şapkalar'], ['r', 'Renkler'], ['w', 'Silah'], ['f', 'Çerçeve'], ['n', 'İsim rengi'], ['u', 'Unvan'], ['t', 'Tema']];
+const SHOP_TABS = [['c', 'Sınıflar'], ['p', 'Evcil'], ['b', 'Afiş'], ['h', 'Şapkalar'], ['r', 'Renkler'], ['w', 'Silah'], ['f', 'Çerçeve'], ['n', 'İsim rengi'], ['u', 'Unvan'], ['t', 'Tema']];
 let shopTab = 'c', shopOwn = 'all';
 const priceOf = (id) => (LIVE.shop && LIVE.shop.p[id] != null ? LIVE.shop.p[id] : null);
 function shopPage(sec, tab) {
@@ -628,6 +723,7 @@ function itemCard(id, big, o = {}) {
   else if (kind === 'u') { pv.append(el('span', 'ttl-prev', it.name)); }
   else if (kind === 't') { const sw = el('div', 'theme-sw'); sw.dataset.theme = id.slice(2); pv.append(sw); }
   else if (kind === 'p') { pv.append(petCanvas(id, big ? 110 : 84)); }
+  else if (kind === 'b') { pv.append(bannerEl(id, 'ban-prev')); }
   b.append(pv);
   b.append(el('span', 'ic-r', RARITY[it.r] || ''), el('span', 'ic-name', it.name));
   if (kind === 'c' && CLASSES[it.cls]) b.append(el('span', 'ic-desc', `${CLASSES[it.cls].ab.name} · ${CLASSES[it.cls].pas.name}`));
@@ -637,6 +733,7 @@ function itemCard(id, big, o = {}) {
   else if (it.soon) pr.append(el('b', 'soon', 'Yakında'));
   else if (!LIVE.shop) pr.append(el('b', 'soon', '…'));
   else if (it.season) pr.append(el('b', 'soon', it.season === 'p' ? 'Premium sezon ödülü' : 'Sezon ödülü'));
+  else if (it.wheel) pr.append(el('b', 'soon', 'Şans çarkı ödülü'));
   else if (it.reward) pr.append(el('b', 'soon', `${it.reward}. seviye ödülü`));
   else if (price == null) pr.append(el('b', 'soon', 'Satışta değil'));
   else {
