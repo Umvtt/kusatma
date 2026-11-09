@@ -292,7 +292,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Taret ve Tesla bobini artık kırılabiliyor; zombiler üstüne yürürse yıkılır.', 'Oyun sonunda kazandığın elmas, seviye ve sezon kademesi görünüyor.', 'Leş akışı ve seri yazıları: boss ve elitleri kimin indirdiğini gör.', 'Telefonda lobi sekmeli, oda kurma penceresi ve etkinlik göstergesi düzenlendi.'];
+const WHATS_NEW = ['Telefonda nişan yardımı: nişan çubuğu en yakın zombiye hafifçe çekilir (Ayarlar → Nişan yardımı).', 'Ayarlar penceresi yenilendi: iki bölüm, açma kapama düğmeleri, telefona sığıyor.', 'Taret ve Tesla bobini artık kırılabiliyor; zombiler üstüne yürürse yıkılır.', 'Oyun sonunda kazandığın elmas, seviye ve sezon kademesi; leş akışı ve seri yazıları.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');

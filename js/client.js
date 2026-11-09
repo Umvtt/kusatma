@@ -71,6 +71,25 @@ export class ClientGame {
 
   get cls() { const r = this.roster.get(this.me); return r ? r.cls : 'asker'; }
   get myStats() { return stats(this.cls, this.self.lv, this.self.wt, this.self.wp, this.self.wb, this.team); }
+  // phones: a gentle pull of the aim stick toward the zombie closest to where it points (setting "Nişan yardımı")
+  aimAssist(S, a) {
+    const lv = { low: [0.6, 0.28], mid: [0.82, 0.36], high: [0.95, 0.48] }[SETTINGS.aim];
+    if (!lv) return a;
+    const w = this.myWeapon, range = Math.max(240, Math.min(950, (w.bspd || 900) * (w.life || 0.6)));
+    let best = null, bs = Infinity;
+    for (const z of this.zs.values()) {
+      if (z.dying || (z.fl & 128)) continue;
+      const dx = z.x - S.x, dy = z.y - S.y, d = Math.hypot(dx, dy);
+      if (d > range || d < 1) continue;
+      let da = Math.atan2(dy, dx) - a; da = Math.atan2(Math.sin(da), Math.cos(da));
+      const cone = lv[1] + Math.atan2((ZTYPES[z.t] ? ZTYPES[z.t].r : 15), d);
+      if (Math.abs(da) > cone) continue;
+      const sc = Math.abs(da) / cone + (d / range) * 0.4 - (isBoss(z.t) ? 0.1 : 0);
+      if (sc < bs) { bs = sc; best = da; }
+    }
+    return best == null ? a : a + best * lv[0];
+  }
+
   get myWeapon() { return weaponOf(this.cls, this.self.wt, this.self.wp, this.self.wb); }
   nameOf(pid) { const r = this.roster.get(pid); return r ? r.name : 'Biri'; }
   clsOf(pid) { const r = this.roster.get(pid); return r ? r.cls : 'asker'; }
@@ -309,7 +328,7 @@ export class ClientGame {
       }
       resolveCircle(S, PLAYER_R);
       if (meP) meP.walk += Math.hypot(S.x - bx, S.y - by);
-      if (this.input.taim != null) S.a = this.input.taim;
+      if (this.input.taim != null) S.a = this.touch ? this.aimAssist(S, this.input.taim) : this.input.taim;
       else if (len > 0 && this.touch) S.a = Math.atan2(my, mx); // no aim stick: face where you walk
       else if (!this.touch) { const w = this.toWorld(this.input.mx, this.input.my); S.a = Math.atan2(w.y - S.y, w.x - S.x); }
 

@@ -9,6 +9,7 @@ const DEFAULTS = {
   quality: 'auto',  // auto, low, med, high
   fps: false,       // show the frame rate
   vibe: true,       // vibrate on phones (in the app and on Android browsers)
+  aim: 'mid',       // aim assist on phones: off, low, mid, high
 };
 
 export const SETTINGS = { ...DEFAULTS };

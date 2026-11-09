@@ -731,6 +731,9 @@ function qSync() {
 }
 for (const b of $('#set-quality').children) b.addEventListener('click', () => { setSetting('quality', b.dataset.q); PERF.ups = 0; qApply(); qSync(); });
 $('#set-fps').addEventListener('change', (e) => { setSetting('fps', e.target.checked); $('#fps').hidden = !e.target.checked; });
+const AIM_N = { off: 'Kapalı', low: 'Hafif', mid: 'Orta', high: 'Güçlü' };
+function aimSync() { for (const b of $('#set-aim').children) b.setAttribute('aria-checked', String(b.dataset.a === SETTINGS.aim)); $('#set-aim-out').textContent = AIM_N[SETTINGS.aim] || 'Orta'; }
+for (const b of $('#set-aim').children) b.addEventListener('click', () => { setSetting('aim', b.dataset.a); aimSync(); });
 $('#set-vibe').addEventListener('change', (e) => setSetting('vibe', e.target.checked));
 function perfTick(now) {
   if (!PERF.t0) { PERF.t0 = now; PERF.n = 0; return; }
@@ -1489,8 +1492,9 @@ function openSettings() {
   $('#set-lead').checked = SETTINGS.lead;
   $('#set-fps').checked = SETTINGS.fps;
   $('#set-vibe').checked = SETTINGS.vibe;
-  $('#set-vibe-row').hidden = !('vibrate' in navigator) && !window.KusatmaApp;
-  qSync();
+  $('#set-vibe-row').hidden = !IS_TOUCH || (!('vibrate' in navigator) && !window.KusatmaApp);
+  $('#set-aim-row').hidden = !IS_TOUCH;
+  qSync(); aimSync();
   syncSettingsLabels();
   $('#settings').hidden = false;
   $('#settings-close').focus();

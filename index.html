@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=33">
-  <link rel="stylesheet" href="css/dash.css?v=33">
+  <link rel="stylesheet" href="css/style.css?v=34">
+  <link rel="stylesheet" href="css/dash.css?v=34">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -267,7 +267,7 @@
           <li><kbd>Boşluk</kbd> yetenek</li>
           <li><kbd>F</kbd> dipçik</li>
           <li><kbd>1</kbd>–<kbd>4</kbd> eşyalar</li>
-          <li><kbd>Q</kbd> <kbd>E</kbd> cephanelik sekmeleri</li>
+          <li><kbd>Q</kbd> <kbd>E</kbd> cephanelik</li>
           <li><kbd>Tekerlek</kbd> yakınlaştır</li>
           <li><kbd>Enter</kbd> sohbet</li>
           <li><kbd>Tab</kbd> skorlar</li>
@@ -411,19 +411,27 @@
     </div>
   </div>
   <div id="settings" class="confirm" hidden>
-    <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-      <div class="card-head"><h3 id="settings-title">Ayarlar</h3><button id="settings-close" class="btn small" type="button">Kapat</button></div>
-      <p class="set-build" id="set-build"></p>
-      <label class="set-row" for="set-volume"><span>Ses seviyesi</span><output id="set-volume-out">70</output><input id="set-volume" type="range" min="0" max="100" step="5"></label>
-      <label class="set-row" for="set-darkness"><span>Gece karanlığı</span><output id="set-darkness-out">50</output><input id="set-darkness" type="range" min="20" max="70" step="5"></label>
-      <label class="set-row" for="set-zoom"><span>Yakınlaştırma</span><output id="set-zoom-out">100</output><input id="set-zoom" type="range" min="70" max="160" step="5"></label>
-      <label class="set-check" for="set-shake"><input id="set-shake" type="checkbox"><span>Ekran sarsıntısı</span></label>
-      <label class="set-check" for="set-dmgnums"><input id="set-dmgnums" type="checkbox"><span>Hasar sayıları</span></label>
-      <label class="set-check" for="set-lead"><input id="set-lead" type="checkbox"><span>Kamera nişan yönüne kaysın</span></label>
-      <div class="set-row set-q"><span>Grafik kalitesi</span><output id="set-q-out">Otomatik</output><div class="seg q-seg" id="set-quality" role="radiogroup" aria-label="Grafik kalitesi"><button type="button" data-q="auto">Otomatik</button><button type="button" data-q="low">Düşük</button><button type="button" data-q="med">Orta</button><button type="button" data-q="high">Yüksek</button></div></div>
-      <label class="set-check" for="set-fps"><input id="set-fps" type="checkbox"><span>FPS göster</span></label>
-      <label class="set-check" for="set-vibe" id="set-vibe-row"><input id="set-vibe" type="checkbox"><span>Titreşim</span></label>
-      <div class="row end"><button id="settings-diag" class="btn ghost small" type="button">Bağlantı testi</button><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div>
+    <div class="card settings-dlg set-dlg" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="card-head set-head"><h3 id="settings-title">Ayarlar</h3><button id="settings-close" class="btn small" type="button">Kapat</button></div>
+      <div class="set-body">
+        <section class="set-sec">
+          <span class="eyebrow">Ses ve görüntü</span>
+          <label class="set-row" for="set-volume"><span>Ses seviyesi</span><output id="set-volume-out">70</output><input id="set-volume" type="range" min="0" max="100" step="5"></label>
+          <label class="set-row" for="set-darkness"><span>Gece karanlığı</span><output id="set-darkness-out">50</output><input id="set-darkness" type="range" min="20" max="70" step="5"></label>
+          <label class="set-row" for="set-zoom"><span>Yakınlaştırma</span><output id="set-zoom-out">100</output><input id="set-zoom" type="range" min="70" max="160" step="5"></label>
+          <label class="set-check" for="set-shake"><span>Ekran sarsıntısı</span><input id="set-shake" type="checkbox"></label>
+        </section>
+        <section class="set-sec">
+          <span class="eyebrow">Oynanış ve performans</span>
+          <div class="set-row set-q" id="set-aim-row"><span>Nişan yardımı</span><output id="set-aim-out">Orta</output><div class="seg q-seg" id="set-aim" role="radiogroup" aria-label="Nişan yardımı"><button type="button" data-a="off">Kapalı</button><button type="button" data-a="low">Hafif</button><button type="button" data-a="mid">Orta</button><button type="button" data-a="high">Güçlü</button></div></div>
+          <div class="set-row set-q"><span>Grafik kalitesi</span><output id="set-q-out">Otomatik</output><div class="seg q-seg" id="set-quality" role="radiogroup" aria-label="Grafik kalitesi"><button type="button" data-q="auto">Oto</button><button type="button" data-q="low">Düşük</button><button type="button" data-q="med">Orta</button><button type="button" data-q="high">Yüksek</button></div></div>
+          <label class="set-check" for="set-dmgnums"><span>Hasar sayıları</span><input id="set-dmgnums" type="checkbox"></label>
+          <label class="set-check" for="set-lead"><span>Kamera nişan yönüne kaysın</span><input id="set-lead" type="checkbox"></label>
+          <label class="set-check" for="set-fps"><span>FPS göster</span><input id="set-fps" type="checkbox"></label>
+          <label class="set-check" for="set-vibe" id="set-vibe-row"><span>Titreşim</span><input id="set-vibe" type="checkbox"></label>
+        </section>
+      </div>
+      <div class="set-foot"><p class="set-build" id="set-build"></p><div class="row"><button id="settings-diag" class="btn ghost small" type="button">Bağlantı testi</button><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div></div>
     </div>
   </div>
 
@@ -498,6 +506,6 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="module" src="js/main.js?v=33"></script>
+  <script type="module" src="js/main.js?v=34"></script>
 </body>
 </html>
