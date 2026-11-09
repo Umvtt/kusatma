@@ -879,3 +879,11 @@ body.esc-open .touchpad { display: none; }
   .class-card .cls-tag.lock { background: #0f1a1e; }
   .class-top > div, .class-top > span:not(.cls-tag) { min-width: 0; }
 }
+.lbl-short { display: none; }
+@media (max-width: 480px) { .lbl-long { display: none; } .lbl-short { display: inline; } #btn-acct, #btn-apk { white-space: nowrap; } }
+@media (max-width: 480px) {
+  .lp-top { padding-inline: 12px; gap: 6px; }
+  .lp-top .btn.small { padding: 6px 9px; font-size: 12.5px; }
+  .lp-top .lp-logo { font-size: 20px; }
+}
+@media (max-width: 370px) { .lp-top .btn.small { padding: 6px 7px; font-size: 12px; } .lp-top .lp-logo { font-size: 17px; } .lp-top { gap: 5px; padding-inline: 10px; } }

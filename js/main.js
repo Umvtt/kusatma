@@ -1473,7 +1473,7 @@ function acctUi() {
   dpShow();
   $('#acct-txt').textContent = ACCT ? `Giriş yapıldı: ${ACCT.name}` : 'Hesap isteğe bağlı';
   $('#menu-promo').hidden = !!ACCT;
-  $('#btn-acct').textContent = ACCT ? 'Çıkış yap' : 'Giriş yap';
+  const ab = $('#btn-acct'); if (ACCT) ab.textContent = 'Çıkış yap'; else ab.replaceChildren(el('span', 'lbl-long', 'Giriş yap / Hesap oluştur'), el('span', 'lbl-short', 'Giriş / Kayıt'));
   $('#name').readOnly = !!ACCT;
   if (ACCT) $('#name').value = ACCT.name;
 }
