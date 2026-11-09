@@ -422,7 +422,7 @@ export class Renderer {
   drawMinimap(g, game, roster) {
     const B = WORLD.bounds;
     const bw = B.x1 - B.x0, bh = B.y1 - B.y0;
-    const w = MINI_W, s = w / bw, h = bh * s;
+    const w = game.touch && this.vw < 760 ? 130 : game.touch && this.vh < 420 ? 155 : MINI_W, s = w / bw, h = bh * s;
     const x0 = this.vw - w - 16, y0 = 16;
     const mx = (x) => x0 + (x - B.x0) * s, my = (y) => y0 + (y - B.y0) * s;
     g.fillStyle = 'rgba(10,14,12,0.78)';

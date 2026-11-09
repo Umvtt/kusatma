@@ -529,6 +529,13 @@ export class ClientGame {
 
   float(x, y, txt, col) { if (this.texts.length < 30) this.texts.push({ x, y, txt, col, t: 0 }); }
 
+  // every boss alive, biggest first (the HUD shows up to three)
+  bosses() {
+    const L = [];
+    for (const z of this.zs.values()) if (isBoss(z.t) && !z.dying) L.push(z);
+    return L.sort((a, b) => b.max - a.max || a.id - b.id).slice(0, 3);
+  }
+
   // the biggest boss alive, for the health bar at the top of the screen
   boss() {
     let best = null;

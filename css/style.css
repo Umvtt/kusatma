@@ -887,3 +887,24 @@ body.esc-open .touchpad { display: none; }
   .lp-top .lp-logo { font-size: 20px; }
 }
 @media (max-width: 370px) { .lp-top .btn.small { padding: 6px 7px; font-size: 12px; } .lp-top .lp-logo { font-size: 17px; } .lp-top { gap: 5px; padding-inline: 10px; } }
+
+/* boss bars: the biggest boss on top, others smaller underneath */
+.boss-more { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.boss-more:empty { display: none; }
+.boss-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #f1d9c8; }
+.boss-row span { white-space: nowrap; }
+.boss-bar.sm { height: 5px; margin-top: 0; }
+@media (max-height: 520px), (max-width: 700px) {
+  body.touch .boss { width: min(340px, 42vw); min-width: 180px; transition: top .15s; }
+  .boss-row { font-size: 10.5px; } .boss-more { margin-top: 3px; gap: 2px; } .boss-bar.sm { height: 4px; }
+  body.touch .banner { top: 30%; }
+}
+/* narrow phones (under 760 px wide in landscape): smaller top row, labels under the Menü / Skor buttons */
+@media (max-width: 760px) {
+  body.touch .hud-bottom { transform: translateX(-50%) scale(.74); }
+  body.touch .hp-box { width: 240px; }
+  body.touch .mode-tag, body.touch .mev-chip { left: 0; }
+  body.touch .mode-tag { top: 176px; }
+  body.touch .mev-chip { top: 204px; }
+  body.touch .boss { width: min(300px, 44vw); }
+}

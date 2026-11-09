@@ -792,11 +792,22 @@ function updateHud() {
   if (me.haste > 0) buffs.push(['haste', `Hız ${Math.ceil(me.haste)} sn`]);
   const bl = $('#hud-buffs');
   if (bl.dataset.sig !== buffs.join()) { bl.dataset.sig = buffs.join(); bl.replaceChildren(...buffs.map(([k, t]) => el('span', 'buff ' + k, t))); }
-  const boss = g.boss();
-  $('#boss').hidden = !boss;
+  const BL = g.bosses(), boss = BL[0], bx = $('#boss');
+  if (bx.hidden !== !boss) bx.hidden = !boss;
   if (boss) {
-    $('#boss-name').textContent = ZTYPES[boss.t].name;
+    const nm = ZTYPES[boss.t].name; if ($('#boss-name').textContent !== nm) $('#boss-name').textContent = nm;
     $('#boss-fill').style.width = Math.max(0, Math.min(1, boss.hp / boss.max)) * 100 + '%';
+    // other bosses alive at the same time: smaller bars underneath
+    const more = $('#boss-more'), rest = BL.slice(1);
+    if (more.childElementCount !== rest.length) more.replaceChildren(...rest.map(() => { const r = el('div', 'boss-row'); const b = el('div', 'boss-bar sm'); b.append(el('i')); r.append(el('span'), b); return r; }));
+    rest.forEach((z, i) => { const r = more.children[i]; const t = ZTYPES[z.t].name; if (r.firstChild.textContent !== t) r.firstChild.textContent = t; r.lastChild.firstChild.style.width = Math.max(0, Math.min(1, z.hp / z.max)) * 100 + '%'; });
+    // phones: the health row sits at the top, so the boss bar goes right under it (and under the buffs)
+    if (document.body.classList.contains('touch')) {
+      let top = 0;
+      for (const s of ['.hud-bottom', '#hud-buffs']) { const e = $(s); if (!e || !e.offsetParent && s !== '.hud-bottom') continue; const r = e.getBoundingClientRect(); if (r.height > 2) top = Math.max(top, r.bottom); }
+      const want = Math.round(top + 6) + 'px';
+      if (bx.style.top !== want) bx.style.top = want;
+    } else if (bx.style.top) bx.style.top = '';
   }
   $('#hud-kills').textContent = fmt(me.kills);
 
