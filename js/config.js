@@ -2,7 +2,7 @@
 
 export const VERSION = 14;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 37;
+export const BUILD = 38;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;

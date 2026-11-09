@@ -227,6 +227,21 @@ const card = (title, action) => {
   return c;
 };
 
+// a horizontal strip that scrolls with arrows, drag or the wheel, never a browser scrollbar
+function scroller(track) {
+  const wrap = el('div', 'sp-wrap'), mv = (d) => track.scrollBy({ left: d * track.clientWidth * 0.8, behavior: 'smooth' });
+  const pb = btn('sp-arrow l', '‹', () => mv(-1)), nb = btn('sp-arrow r', '›', () => mv(1));
+  pb.setAttribute('aria-label', 'Geri'); nb.setAttribute('aria-label', 'İleri');
+  const edge = () => { wrap.classList.toggle('at-l', track.scrollLeft < 8); wrap.classList.toggle('at-r', track.scrollLeft > track.scrollWidth - track.clientWidth - 8); };
+  track.addEventListener('scroll', edge, { passive: true }); setTimeout(edge, 80); new ResizeObserver(edge).observe(track);
+  track.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && track.scrollWidth > track.clientWidth) { track.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+  let dx = null, sl = 0;
+  track.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' || e.target.closest('button')) return; dx = e.clientX; sl = track.scrollLeft; track.classList.add('drag'); });
+  addEventListener('pointermove', (e) => { if (dx != null) track.scrollLeft = sl - (e.clientX - dx); });
+  addEventListener('pointerup', () => { dx = null; track.classList.remove('drag'); });
+  track.classList.add('sx'); wrap.append(track, pb, nb);
+  return wrap;
+}
 function homePage(sec) {
   const heroBox = el('div', 'dp-hero');
   const cv = el('canvas'); cv.id = 'dp-hero-cv'; cv.setAttribute('aria-hidden', 'true');
@@ -251,7 +266,7 @@ function homePage(sec) {
   const strip = el('div', 'fr-strip'); strip.id = 'home-fr';
   const add = btn('fr-dot add', '', () => dashGo('friends', 'add')); add.append(el('span', 'plus', '+'), el('span', 'fn', 'Ekle'));
   strip.append(add);
-  fr.append(strip);
+  fr.append(scroller(strip));
   sec.append(fr);
   friendsGet().then((d) => { if (d) onFriends(d); });
 
@@ -512,16 +527,7 @@ function drawSeason(sec, body) {
     col.append(seasonCell(T.f, stF, () => spClaim(t, 'f')), seasonCell(T.p, stP, () => spClaim(t, 'p')));
     track.append(col);
   }
-  // the track scrolls with arrows, drag or the wheel; no browser scrollbar
-  const wrap = el('div', 'sp-wrap'), mv = (d) => track.scrollBy({ left: d * track.clientWidth * 0.8, behavior: 'smooth' });
-  const pb = btn('sp-arrow l', '‹', () => mv(-1)), nb = btn('sp-arrow r', '›', () => mv(1));
-  pb.setAttribute('aria-label', 'Önceki kademeler'); nb.setAttribute('aria-label', 'Sonraki kademeler');
-  const edge = () => { wrap.classList.toggle('at-l', track.scrollLeft < 8); wrap.classList.toggle('at-r', track.scrollLeft > track.scrollWidth - track.clientWidth - 8); };
-  track.addEventListener('scroll', edge, { passive: true }); setTimeout(edge, 60);
-  track.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { track.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
-  { let dx = null, sl = 0; track.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' || e.target.closest('button')) return; dx = e.clientX; sl = track.scrollLeft; track.classList.add('drag'); });
-    addEventListener('pointermove', (e) => { if (dx != null) track.scrollLeft = sl - (e.clientX - dx); }); addEventListener('pointerup', () => { dx = null; track.classList.remove('drag'); }); }
-  wrap.append(track, pb, nb);
+  const wrap = scroller(track);
   nodes.push(wrap, el('p', 'note', 'Her oyunda kazandığın XP sezon kartını da doldurur. Sezon ayın son günü biter; alınmamış ödüller kaybolur.'));
   body.replaceChildren(...nodes);
   const nx = track.querySelector('.next') || track.querySelector('.sp-col:last-child');
@@ -1076,7 +1082,7 @@ function questsPage(sec) {
   head(sec, 'Görevler', 'Görevler ve başarımlar', hx);
   const qc = card('Günlük görevler'); qc.append(el('p', 'note', 'Her gün üç yeni görev. Dalgaları temizledikçe ilerler.'));
   const qbox = el('div', 'q-list'); qbox.append(el('p', 'note', 'Yükleniyor…')); qc.append(qbox); sec.append(qc);
-  const rc = card('Seviye yolu'); const road = el('div', 'road'); rc.append(el('p', 'note', 'Her seviye elmas verir; bazı seviyeler satılmayan özel ödüller açar.'), road); sec.append(rc);
+  const rc = card('Seviye yolu'); const road = el('div', 'road'); rc.append(el('p', 'note', 'Her seviye elmas verir; bazı seviyeler satılmayan özel ödüller açar.'), scroller(road)); sec.append(rc);
   const ac = card('Başarımlar'); const abox = el('div', 'ach-grid'); ac.append(abox); sec.append(ac);
   loadQuests().then((j) => {
     if (!j) { qbox.replaceChildren(el('p', 'msg', 'Görevler yüklenemedi.')); return; }

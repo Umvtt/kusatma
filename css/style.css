@@ -1110,7 +1110,7 @@ body.touch .chat.open { z-index: 8; }
 .shop-heal.full .cost { visibility: hidden; }
 /* PC: chat sits above the bottom HUD row; the armory uses the full height on shorter screens */
 body:not(.touch) .chat { bottom: 112px; }
-@media (max-height: 900px) { body:not(.touch) .shop { top: 136px; max-height: calc(100% - 136px - 84px); gap: 8px; padding: 14px; } body:not(.touch) .shop-head .eyebrow { display: none; } body:not(.touch) .wpn-card canvas { aspect-ratio: 240 / 46; } }
+@media (max-height: 900px) { body:not(.touch) .shop { top: 136px; max-height: calc(100% - 136px - 108px); gap: 8px; padding: 14px; } body:not(.touch) .shop-head .eyebrow { display: none; } body:not(.touch) .wpn-card canvas { aspect-ratio: 240 / 46; } }
 
 /* the owner's hidden spectator view: no controls, no own-player HUD */
 body.watching .hud-bottom, body.watching #touch, body.watching #shop, body.watching #btn-armory, body.watching .t-btn, body.watching #dead, body.watching #rev, body.watching .menu-card > :not(.msg):not(#menu-msg), body.watching .lp-top, body.watching .build { display: none !important; }
