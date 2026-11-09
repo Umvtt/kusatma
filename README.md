@@ -2,6 +2,8 @@
 
 Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda çalışan ortak bir hayatta kalma oyunu. 15 kişiye kadar oynanır, kurulum ya da hesap gerekmez.
 
+https://umvtt.github.io/kusatma/ /////// https://umvtt-games.umvtt.deno.net/kusatma/
+
 ## Nasıl oynanır
 
 1. Takma adını yaz ve **Oda kur**'a bas.
