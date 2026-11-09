@@ -165,6 +165,8 @@ export async function acctCheck() {
 }
 export const topGet = () => api('/ktop');
 export const dailyGet = () => api('/kdaily');
+// anti-cheat: the host reports something impossible a player did (the server only records it)
+export function liveCheat(r) { send({ e: 'ac', name: str(r.name, 16), acct: str(r.acct, 12), kind: str(r.kind, 12), d: str(r.detail, 80), w: r.wave | 0 }); }
 // invite an online friend into the room this player is in (the server checks both sides)
 export function inviteSend(to) {
   if (!sockOk()) return Promise.resolve({ ok: false, reason: 'net' });

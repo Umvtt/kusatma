@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=31">
-  <link rel="stylesheet" href="css/dash.css?v=31">
+  <link rel="stylesheet" href="css/style.css?v=32">
+  <link rel="stylesheet" href="css/dash.css?v=32">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -217,6 +217,7 @@
       </div>
     </div>
 
+    <div id="fps" class="fps" hidden></div>
     <div id="net-warn" class="net-warn" hidden>Bağlantı zayıf. Kurucudan veri bekleniyor…</div>
 
     <div class="chat" id="chat">
@@ -283,6 +284,7 @@
           <h3 id="shop-h">Cephanelik</h3>
         </div>
         <div class="shop-timer"><strong id="shop-time">20</strong><span>sn</span></div>
+        <button id="shop-close" class="shop-close" type="button" aria-label="Cephaneliği kapat">✕</button>
       </div>
       <p class="shop-gold"><span class="coin" aria-hidden="true"></span> <strong id="shop-gold">0</strong> altın</p>
       <div id="shop-tabs" class="shop-tabs" role="tablist" aria-label="Cephanelik"></div>
@@ -290,6 +292,8 @@
       <button id="btn-shop-ready" class="btn primary" type="button">Hazırım</button>
       <p id="shop-ready-count" class="note center"></p>
     </aside>
+
+    <button id="btn-armory" class="armory-fab" type="button" hidden><span class="coin" aria-hidden="true"></span><b id="fab-gold">0</b><span class="fab-t">Cephanelik</span><span class="fab-n" id="fab-n" hidden></span></button>
 
     <div id="dead" class="dead" hidden>
       <div class="dead-top"><strong>Düştün</strong><span id="dead-sub"></span></div>
@@ -407,6 +411,9 @@
       <label class="set-check" for="set-shake"><input id="set-shake" type="checkbox"><span>Ekran sarsıntısı</span></label>
       <label class="set-check" for="set-dmgnums"><input id="set-dmgnums" type="checkbox"><span>Hasar sayıları</span></label>
       <label class="set-check" for="set-lead"><input id="set-lead" type="checkbox"><span>Kamera nişan yönüne kaysın</span></label>
+      <div class="set-row set-q"><span>Grafik kalitesi</span><output id="set-q-out">Otomatik</output><div class="seg q-seg" id="set-quality" role="radiogroup" aria-label="Grafik kalitesi"><button type="button" data-q="auto">Otomatik</button><button type="button" data-q="low">Düşük</button><button type="button" data-q="med">Orta</button><button type="button" data-q="high">Yüksek</button></div></div>
+      <label class="set-check" for="set-fps"><input id="set-fps" type="checkbox"><span>FPS göster</span></label>
+      <label class="set-check" for="set-vibe" id="set-vibe-row"><input id="set-vibe" type="checkbox"><span>Titreşim</span></label>
       <div class="row end"><button id="settings-diag" class="btn ghost small" type="button">Bağlantı testi</button><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div>
     </div>
   </div>
@@ -482,6 +489,6 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="module" src="js/main.js?v=31"></script>
+  <script type="module" src="js/main.js?v=32"></script>
 </body>
 </html>

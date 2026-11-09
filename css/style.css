@@ -908,3 +908,66 @@ body.esc-open .touchpad { display: none; }
   body.touch .mev-chip { top: 204px; }
   body.touch .boss { width: min(300px, 44vw); }
 }
+
+/* ---------- phones: the armory as a full-screen page ---------- */
+.shop-close { display: none; }
+.armory-fab { position: fixed; z-index: 7; left: 50%; bottom: max(14px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 10px 18px 10px 14px; border-radius: 999px; border: 1px solid rgba(245,197,66,.55); background: rgba(13,17,15,.92); color: var(--text); font: 700 15px var(--body); box-shadow: 0 8px 24px rgba(0,0,0,.45); animation: fabIn .3s ease-out; }
+.armory-fab .coin { width: 16px; height: 16px; }
+.armory-fab b { color: var(--gold); font-size: 16px; }
+.armory-fab .fab-t { color: #e8e2d2; }
+.armory-fab .fab-n { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--accent); color: var(--accent-ink); font-size: 12px; display: grid; place-items: center; }
+.armory-fab .fab-n[hidden] { display: none; }
+@keyframes fabIn { from { transform: translate(-50%, 14px); opacity: 0; } }
+body.touch .shop.full {
+  position: fixed; inset: 0; z-index: 8; width: auto; max-height: none; border-radius: 0; border: 0;
+  padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(180deg, #121814, #0b0f0d); gap: 10px; animation: shopIn .22s ease-out;
+}
+@keyframes shopIn { from { opacity: 0; transform: translateY(12px); } }
+@media (prefers-reduced-motion: reduce) { body.touch .shop.full, .armory-fab { animation: none; } }
+body.touch .shop.full .shop-head { align-items: center; gap: 12px; }
+body.touch .shop.full .shop-head > div:first-child { flex: 1; }
+body.touch .shop.full .shop-head h3 { font-size: 26px; }
+body.touch .shop.full .shop-close { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 20px; }
+body.touch .shop.full .shop-gold { font-size: 16px; }
+body.touch .shop.full .shop-gold strong { font-size: 20px; }
+body.touch .shop.full .shop-tabs button { min-height: 42px; font-size: 15px; }
+body.touch .shop.full .shop-list { gap: 8px; padding-bottom: 4px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+body.touch .shop.full .shop-item { padding: 12px 14px; min-height: 58px; }
+body.touch .shop.full .shop-item .nm { font-size: 16px; }
+body.touch .shop.full .shop-item .ds { font-size: 13.5px; line-height: 1.35; display: block; }
+body.touch .shop.full .shop-item .cost { font-size: 16px; }
+body.touch .shop.full .shop-item .cost .coin { width: 14px; height: 14px; }
+body.touch .shop.full .shop-item .hk { display: none; }
+body.touch .shop.full .path-btn { padding: 10px; gap: 4px; }
+body.touch .shop.full .path-btn .nm { font-size: 15px; }
+body.touch .shop.full .path-btn .ds { font-size: 12.5px; display: block; }
+body.touch .shop.full #btn-shop-ready { min-height: 50px; font-size: 17px; }
+body.touch .shop.full .price-tag { font-size: 15px; }
+body.touch:has(#shop.full:not([hidden])) .touchpad, body.touch:has(#shop.full:not([hidden])) .hud-bottom, body.touch:has(#shop.full:not([hidden])) #boss { visibility: hidden; }
+/* landscape phones: wide list, paths four in a row, everything centred */
+@media (orientation: landscape) {
+  body.touch .shop.full > * { width: 100%; max-width: 860px; margin-inline: auto; }
+  body.touch .shop.full .shop-list .paths { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body.touch .shop.full .shop-head h3 { font-size: 22px; }
+}
+@media (orientation: landscape) and (max-height: 420px) {
+  body.touch .shop.full { gap: 7px; }
+  body.touch .shop.full .shop-gold { position: absolute; top: max(14px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: auto; }
+  body.touch .shop.full #btn-shop-ready { min-height: 44px; }
+  body.touch .shop.full #shop-ready-count { display: none; }
+}
+/* full-screen armory rows: name, description and level pips on the left, price on the right */
+body.touch .shop.full .shop-item { grid-template-columns: minmax(0, 1fr) auto; column-gap: 14px; row-gap: 3px; }
+body.touch .shop.full .shop-item > :not(.cost):not(.hk) { grid-column: 1; }
+body.touch .shop.full .shop-item .cost { grid-column: 2; grid-row: 1 / span 3; }
+body.touch .shop.full .pips i { width: 16px; height: 4px; }
+@media (orientation: landscape) {
+  body.touch .shop.full .shop-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; column-gap: 8px; }
+  body.touch .shop.full .shop-list > li:not(:has(> .shop-item)) { grid-column: 1 / -1; }
+  body.touch .shop.full .shop-list > li:has(> .shop-item.weapon), body.touch .shop.full .shop-list > li:has(> .team-up) { grid-column: 1 / -1; }
+}
+.set-q { flex-wrap: wrap; }
+.q-seg { grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; margin-top: 6px; }
+.fps { position: fixed; z-index: 9; left: 50%; bottom: 4px; transform: translateX(-50%); font: 600 11px var(--body); color: #c9c3b3; background: rgba(0,0,0,.45); padding: 2px 8px; border-radius: 6px; pointer-events: none; }
+body.touch .fps { bottom: auto; top: 2px; }

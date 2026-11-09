@@ -236,6 +236,7 @@ export class HostGame {
 
   onInput(p, m) {
     if (!p.inGame) return;
+    if (p.pid !== this.hostPid && this.phase === 'combat') this.acInput(p, m);
     const B = WORLD.bounds;
     if (p.alive && num(m.x) && num(m.y)) { p.x = clamp(m.x, B.x0, B.x1); p.y = clamp(m.y, B.y0, B.y1); }
     if (p.alive && num(m.a)) p.a = clamp(m.a, -10, 10);
@@ -1141,7 +1142,47 @@ export class HostGame {
     if (p.hp <= 0) this.down(p);
   }
 
+  // ---------- anti-cheat: the host watches each player's hits and movement and only reports what looks impossible ----------
+  // (nothing happens to the player; the owner sees the report in the panel)
+  acStrike(p, kind, detail) {
+    const now = this.time, A = p.ac || (p.ac = {});
+    const k = A[kind] || (A[kind] = { n: 0, t0: now, sent: -999 });
+    if (now - k.t0 > 60) { k.n = 0; k.t0 = now; }
+    k.n++;
+    if (k.n >= 3 && now - k.sent > 60) { k.sent = now; k.n = 0; if (this.onCheat) this.onCheat({ name: p.name, acct: p.acct || '', kind, detail: String(detail).slice(0, 80), wave: this.wave }); }
+  }
+  acInput(p, m) {
+    const now = this.time, C = this.pc(p), st = C.st;
+    // movement: distance covered in each one-second window against the fastest this class can go
+    if (p.alive && num(m.x) && num(m.y)) {
+      const A = p.acm || (p.acm = { x: p.x, y: p.y, t: now, d: 0 });
+      if (p.acmSp !== p.sp || now - (p.kbAt || -9) < 1.2) { A.x = m.x; A.y = m.y; A.t = now; A.d = 0; p.acmSp = p.sp; }
+      else {
+        A.d += Math.hypot(m.x - A.x, m.y - A.y); A.x = m.x; A.y = m.y;
+        if (now - A.t >= 1) {
+          const fast = st.spd * 1.6 * 1.4 * 1.35 * (now - A.t) + 120;
+          if (A.d > fast) this.acStrike(p, 'hız', `${Math.round(A.d / (now - A.t))} px/sn, en çok ${Math.round(st.spd * 1.6 * 1.4)}`);
+          A.t = now; A.d = 0;
+        }
+      }
+    }
+    // hits: damage per hit and hits per second
+    if (Array.isArray(m.h) && m.h.length) {
+      const maxHit = st.dmg * 2 * 3.2 * 2.6 * 1.3 + 40; // power-up, crit, focus/rage, margins
+      for (const h of m.h) if (Array.isArray(h) && num(h[1]) && h[1] > maxHit) { this.acStrike(p, 'hasar', `${Math.round(h[1])} hasar, en çok ${Math.round(maxHit)}`); break; }
+      const H = p.ach || (p.ach = { n: 0, t: now });
+      H.n += m.h.length;
+      if (now - H.t >= 2) {
+        const w = weaponOf(p.cls, p.wt, p.wp, p.wb), perSec = H.n / (now - H.t);
+        const cap = st.rate * 2.2 * Math.max(1, w.pellets) * (Math.min(6, (w.pierce | 0) + 1) + (w.aoe ? 8 : 0) + (w.fx && w.fx.chain ? 4 : 0)) * 1.6 + 25;
+        if (perSec > cap) this.acStrike(p, 'atış', `saniyede ${Math.round(perSec)} isabet, en çok ${Math.round(cap)}`);
+        H.n = 0; H.t = now;
+      }
+    }
+  }
+
   knock(p, fromX, fromY, power) {
+    p.kbAt = this.time;
     const d = Math.hypot(p.x - fromX, p.y - fromY) || 1;
     this.ev(['kb', p.pid, Math.round(((p.x - fromX) / d) * power), Math.round(((p.y - fromY) / d) * power)]);
   }

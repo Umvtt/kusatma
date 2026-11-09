@@ -1,7 +1,7 @@
 // Canvas drawing: an abandoned plaza at night, seen from above, lit by the team's flashlights.
 import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp } from './config.js';
 import { WORLD, obstaclesIn } from './world.js';
-import { SETTINGS } from './settings.js';
+import { SETTINGS, QUALITY } from './settings.js';
 import { ITEMS as COS } from './catalog.js';
 
 const DECAL_SCALE = 0.4;
@@ -28,14 +28,22 @@ export class Renderer {
     this.resize();
   }
 
+  // graphics level: screen sharpness and light-map size
+  setQuality(q) {
+    if (this.q === q) return;
+    this.q = q; this.resize();
+  }
+
   resize() {
-    this.dpr = Math.min(2, window.devicePixelRatio || 1);
+    const Q = QUALITY[this.q || 'high'] || QUALITY.high;
+    this.dpr = Math.min(Q.dpr, window.devicePixelRatio || 1);
     this.vw = window.innerWidth;
     this.vh = window.innerHeight;
     this.cv.width = Math.round(this.vw * this.dpr);
     this.cv.height = Math.round(this.vh * this.dpr);
-    this.lightCv.width = Math.ceil(this.vw / 2);
-    this.lightCv.height = Math.ceil(this.vh / 2);
+    this.lightW = Q.light;
+    this.lightCv.width = Math.ceil(this.vw / Q.light);
+    this.lightCv.height = Math.ceil(this.vh / Q.light);
   }
 
   // Rebuild the ground picture when the map changes.
@@ -325,7 +333,7 @@ export class Renderer {
     l.fillStyle = blk ? 'rgba(2,3,6,0.97)' : `rgba(4,7,12,${SETTINGS.darkness / 100})`;
     l.fillRect(0, 0, this.lightCv.width, this.lightCv.height);
     l.save();
-    world(l, 0.5);
+    world(l, 1 / (this.lightW || 2));
     l.globalCompositeOperation = 'destination-out';
     const glow = (x, y, r, a) => {
       const gr = l.createRadialGradient(x, y, 0, x, y, r);

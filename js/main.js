@@ -11,8 +11,8 @@ import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
-import { SETTINGS, onSettings, setSetting, resetSettings } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet } from './live.js';
+import { SETTINGS, onSettings, setSetting, resetSettings, QUALITY, QORDER, QUAL } from './settings.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -143,6 +143,7 @@ async function createRoom(offline, opts) {
   S.net = net;
   S.host = new HostGame(net);
   S.host.badWords = LIVE.filter;
+  S.host.onCheat = (r) => liveCheat(r);
   S.me = 1;
   S.game = new ClientGame(send, 1);
   S.host.local = onMessage;
@@ -679,6 +680,7 @@ function startLoop() {
     g.touch = IS_TOUCH;
     g.update(dt);
     renderer.draw(g, g.roster);
+    perfTick(now);
     S.hudT -= dt;
     if (S.hudT <= 0) { S.hudT = 0.1; updateHud(); }
     for (const n of g.notices.splice(0)) notice(n);
@@ -686,8 +688,49 @@ function startLoop() {
   S.raf = requestAnimationFrame(frame);
 }
 
+// ---------- graphics level: auto mode steps down when the frame rate drops and back up when there is room ----------
+const PERF = { t0: 0, n: 0, ups: 0, cool: 0, good: 0, fps: 0 };
+function qApply() {
+  const want = SETTINGS.quality === 'auto' ? (QUAL.auto || (IS_TOUCH ? 'med' : 'high')) : SETTINGS.quality;
+  QUAL.level = QUALITY[want] ? want : 'high'; QUAL.parts = QUALITY[QUAL.level].parts;
+  renderer.setQuality(QUAL.level);
+}
+function qSync() {
+  for (const b of $('#set-quality').children) b.setAttribute('aria-checked', String(b.dataset.q === SETTINGS.quality));
+  $('#set-q-out').textContent = SETTINGS.quality === 'auto' ? `Otomatik · ${QUALITY[QUAL.level].name}` : QUALITY[SETTINGS.quality].name;
+}
+for (const b of $('#set-quality').children) b.addEventListener('click', () => { setSetting('quality', b.dataset.q); PERF.ups = 0; qApply(); qSync(); });
+$('#set-fps').addEventListener('change', (e) => { setSetting('fps', e.target.checked); $('#fps').hidden = !e.target.checked; });
+$('#set-vibe').addEventListener('change', (e) => setSetting('vibe', e.target.checked));
+function perfTick(now) {
+  if (!PERF.t0) { PERF.t0 = now; PERF.n = 0; return; }
+  PERF.n++;
+  const el2 = now - PERF.t0;
+  if (el2 < 3000) return;
+  const fps = PERF.n * 1000 / el2; PERF.fps = fps; PERF.t0 = now; PERF.n = 0;
+  if (SETTINGS.fps) { const f = $('#fps'); f.hidden = false; f.textContent = `${Math.round(fps)} FPS · ${QUALITY[QUAL.level].name}`; }
+  if (SETTINGS.quality !== 'auto' || document.hidden || (S.game && S.game.paused) || now < PERF.cool) return;
+  const i = QORDER.indexOf(QUAL.level);
+  if (fps < 44 && i > 0) { QUAL.auto = QORDER[i - 1]; PERF.good = 0; PERF.cool = now + 6000; qApply(); }
+  else if (fps > 57) { PERF.good++; if (PERF.good >= 3 && i < QORDER.length - 1 && PERF.ups < 2) { PERF.ups++; PERF.good = 0; QUAL.auto = QORDER[i + 1]; PERF.cool = now + 6000; qApply(); } }
+  else PERF.good = 0;
+}
+qApply();
+$('#fps').hidden = !SETTINGS.fps;
+onSettings(() => { qApply(); $('#fps').hidden = !SETTINGS.fps; });
+// vibration: the app's own bridge when there is one, the browser's otherwise
+let buzzAt = 0;
+function buzz(p, force) {
+  if (!SETTINGS.vibe || !IS_TOUCH) return;
+  const now = performance.now(); if (!force && now - buzzAt < 250) return; buzzAt = now;
+  try { if (window.KusatmaApp && window.KusatmaApp.vibrate) window.KusatmaApp.vibrate(JSON.stringify(Array.isArray(p) ? p : [p])); else if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* ignore */ }
+}
+let lastHpBuzz = null;
+
 function notice(n) {
   const g = S.game;
+  if (n.k === 'down' && n.pid === S.me) buzz([120, 60, 220], true);
+  if (n.k === 'wave' && n.boss) buzz([70, 50, 70, 50, 140], true);
   if (n.k === 'mev' && MEV[n.ev]) { banner('Harita olayı', MEV[n.ev].name, MEV[n.ev].desc); return; }
   if (n.k === 'wave') {
     if (n.w === 1) S.gameGems = 0;
@@ -722,6 +765,8 @@ function updateHud() {
   const me = g.self;
   const c = CLASSES[g.cls];
   const st = g.myStats;
+  if (me.inGame && me.alive && lastHpBuzz != null && me.hp < lastHpBuzz - Math.max(8, me.maxHp * 0.06)) buzz(35);
+  lastHpBuzz = me.inGame && me.alive ? me.hp : null;
 
   if (g.phase === 'combat') {
     $('#hud-phase').textContent = 'Dalga';
@@ -1079,10 +1124,24 @@ function shopKey(n) {
   if (b && !b.disabled) b.click();
 }
 
+$('#shop-close').addEventListener('click', () => { S.armoryOpen = false; updateShop(); });
+$('#btn-armory').addEventListener('click', () => { S.armoryOpen = true; S.shopSig = ''; updateShop(); });
 function updateShop() {
   const g = S.game;
-  const open = g.phase === 'break' && g.self.inGame;
-  $('#shop').hidden = !open;
+  const brk = g.phase === 'break' && g.self.inGame, touch = document.body.classList.contains('touch');
+  // phones: the armory opens full screen at the start of each break; closing it leaves a button on the screen
+  if (brk && !S.wasBreak) S.armoryOpen = true;
+  S.wasBreak = brk;
+  const open = brk && (!touch || S.armoryOpen !== false);
+  if ($('#shop').hidden !== !open) $('#shop').hidden = !open;
+  $('#shop').classList.toggle('full', touch);
+  const fab = $('#btn-armory'), showFab = brk && touch && !open;
+  if (fab.hidden !== !showFab) fab.hidden = !showFab;
+  if (showFab) {
+    const gs = fmt(g.self.gold); if ($('#fab-gold').textContent !== gs) $('#fab-gold').textContent = gs;
+    const na = Object.values(shopAffordable(g)).reduce((a, b) => a + b, 0), nf = $('#fab-n');
+    nf.hidden = !na; if (na && nf.textContent !== String(na)) nf.textContent = String(na);
+  }
   if (!open) return;
   const me = g.self;
   const sig = `${S.shopTab}|${g.cls}|${me.wt}|${me.wp}|${me.wb}`;
@@ -1372,6 +1431,10 @@ function openSettings() {
   $('#set-shake').checked = SETTINGS.shake;
   $('#set-dmgnums').checked = SETTINGS.dmgNums;
   $('#set-lead').checked = SETTINGS.lead;
+  $('#set-fps').checked = SETTINGS.fps;
+  $('#set-vibe').checked = SETTINGS.vibe;
+  $('#set-vibe-row').hidden = !('vibrate' in navigator) && !window.KusatmaApp;
+  qSync();
   syncSettingsLabels();
   $('#settings').hidden = false;
   $('#settings-close').focus();
@@ -1702,5 +1765,8 @@ function gemPop(n, xp, cap) {
 }
 
 // For automated tests only: open the page with ?debug to expose state.
-if (new URLSearchParams(location.search).has('debug')) window.__kusatma = S;
+// only on a test machine: on the real site this would let anyone edit the game
+if (new URLSearchParams(location.search).has('debug') && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__kusatma = S;
 window.__kusatmaReady = true;
+// the Android app hides its loading screen as soon as the game has drawn its first screen
+requestAnimationFrame(() => requestAnimationFrame(() => { try { if (window.KusatmaApp && window.KusatmaApp.ready) window.KusatmaApp.ready(); } catch (e) { /* ignore */ } }));

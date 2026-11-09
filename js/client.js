@@ -6,7 +6,8 @@ import * as sfx from './sfx.js';
 import { SETTINGS } from './settings.js';
 
 const SEND_INTERVAL = 0.05;
-const MAX_PARTS = 700;
+import { QUAL } from './settings.js';
+const MAX_PARTS_CAP = 700;
 
 export class ClientGame {
   constructor(send, me) {
@@ -569,7 +570,7 @@ export class ClientGame {
 
   // ---------- path effects ----------
   hitFx(k, x, y, tier) {
-    if (this.parts.length > MAX_PARTS * 0.8) return;
+    if (this.parts.length > QUAL.parts * 0.8) return;
     const col = PATHS[k] ? PATHS[k].col : '#fff';
     const n = tier >= 5 ? 4 : tier >= 3 ? 3 : 2;
     for (let i = 0; i < n; i++) {
@@ -705,7 +706,7 @@ export class ClientGame {
     this.decals.push({ x, y, r: 10, green: true });
   }
   ring(x, y, col, r) { this.rings.push({ x, y, col, r, t: 0, max: 0.6 }); }
-  addPart(p) { if (this.parts.length < MAX_PARTS) this.parts.push(p); }
+  addPart(p) { if (this.parts.length < Math.min(MAX_PARTS_CAP, QUAL.parts)) this.parts.push(p); }
   updateParts(dt) {
     for (const p of this.parts) {
       p.x += p.vx * dt; p.y += p.vy * dt;

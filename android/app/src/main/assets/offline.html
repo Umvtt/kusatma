@@ -1,6 +1,20 @@
-<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>html,body{height:100%;margin:0;background:#0d110f;color:#ece6d6;font-family:system-ui,sans-serif}
-main{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
-h1{margin:0;font-size:40px;letter-spacing:.04em;text-transform:uppercase}p{margin:0;color:#8f9a8e;max-width:34ch}
-button{font:600 17px system-ui;padding:12px 28px;border:0;border-radius:10px;background:#ff6b2c;color:#1c0c03}</style></head>
-<body><main><h1>Kuşatma</h1><p>İnternete bağlanılamadı. Bağlantını kontrol edip tekrar dene.</p><button onclick="location.href='retry:'">Tekrar dene</button></main></body></html>
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+html,body{height:100%;margin:0;background:radial-gradient(600px 400px at 50% 30%,#1c2520,#0d110f 70%);color:#ece6d6;font-family:system-ui,sans-serif}
+main{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;box-sizing:border-box}
+.ic{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;background:rgba(255,107,44,.12);border:1px solid rgba(255,107,44,.4)}
+.ic svg{width:34px;height:34px;fill:none;stroke:#ff6b2c;stroke-width:2;stroke-linecap:round}
+h1{margin:0;font-size:30px;letter-spacing:.06em;font-weight:900}
+.st{width:56px;height:4px;border-radius:2px;background:#ff6b2c}
+p{margin:0;color:#a9b2a8;max-width:34ch;line-height:1.45}
+ul{margin:4px 0 0;padding:0;list-style:none;color:#8f9a8e;font-size:14px;line-height:1.7}
+button{font:700 17px system-ui;padding:14px 34px;border:0;border-radius:12px;background:#ff6b2c;color:#1c0c03;margin-top:6px}
+button:active{transform:scale(.97)}
+</style></head>
+<body><main>
+<div class="ic"><svg viewBox="0 0 24 24"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0"/><path d="M3 3l18 18"/></svg></div>
+<h1>KUŞATMA</h1><div class="st"></div>
+<p>Oyun sunucusuna ulaşılamadı.</p>
+<ul><li>İnternet bağlantını kontrol et</li><li>Wi-Fi ile mobil veri arasında geçiş yap</li><li>Okul ağındaysan biraz sonra tekrar dene</li></ul>
+<button onclick="this.textContent='Bağlanıyor…';location.href='retry:'">Tekrar dene</button>
+</main></body></html>
