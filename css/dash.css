@@ -564,3 +564,5 @@ body.signed .build { z-index: 41; }
 .sp-arrow.l { left: 6px; } .sp-wrap:has(.sp-track) .sp-arrow.l { left: 84px; } .sp-arrow.r { right: 6px; }
 .sp-wrap.at-l .sp-arrow.l, .sp-wrap.at-r .sp-arrow.r { opacity: 0; pointer-events: none; }
 @media (hover: none) { .sp-arrow { width: 32px; height: 32px; font-size: 18px; } }
+.sp-col.sp-lab { background: #0e1310; box-shadow: -10px 0 0 #0e1310, 10px 0 0 #0e1310; z-index: 4; }
+.sp-wrap:has(.sp-track) .sp-arrow.l { left: 92px; }

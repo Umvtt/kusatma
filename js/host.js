@@ -102,9 +102,9 @@ export class HostGame {
   sendSnaps() {
     const s = this.snapshot();
     this.deliverLocal(s);
+    this.snapN = (this.snapN || 0) + 1;
     if (this.spec && this.spec.count && (this.snapN & 1)) this.spec.send(s); // hidden spectators: the whole picture, 7 times a second
     if (!this.net.sendSnap) { this.net.broadcast(s); return; }
-    this.snapN = (this.snapN || 0) + 1;
     const far = this.snapN % 4 === 0 ? s.Z.map((z) => [z[1], z[2] >> 3, z[3] >> 3]) : null;
     const R2 = 1800 * 1800, N2 = 1000 * 1000, odd = this.snapN & 1;
     for (const p of this.players.values()) {
