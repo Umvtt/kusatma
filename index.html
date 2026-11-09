@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=32">
-  <link rel="stylesheet" href="css/dash.css?v=32">
+  <link rel="stylesheet" href="css/style.css?v=33">
+  <link rel="stylesheet" href="css/dash.css?v=33">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -111,7 +111,7 @@
   </section>
 
   <!-- Lobi -->
-  <section id="lobby" class="screen lobby" hidden>
+  <section id="lobby" class="screen lobby" data-lt="cls" hidden>
     <div class="lobby-wrap">
       <header class="lobby-head">
         <div>
@@ -124,6 +124,12 @@
           <button id="btn-copy" class="btn small" type="button">Kodu kopyala</button>
         </div>
       </header>
+
+      <nav class="lobby-tabs" role="tablist" aria-label="Lobi">
+        <button type="button" role="tab" data-lt="cls" aria-selected="true">Sınıf</button>
+        <button type="button" role="tab" data-lt="set" aria-selected="false">Harita ve mod</button>
+        <button type="button" role="tab" data-lt="pl" aria-selected="false">Oyuncular <span id="lt-n" class="lt-n">1</span></button>
+      </nav>
 
       <div class="lobby-grid">
         <div class="lobby-side">
@@ -305,6 +311,8 @@
       <div class="rev" id="rev" hidden><span id="dead-watch"></span><span class="rev-bar"><i id="rev-fill"></i></span></div>
     </div>
 
+    <ul id="kfeed" class="kfeed" aria-live="off"></ul>
+    <div id="streak" class="streak" hidden></div>
     <div id="banner" class="banner" hidden>
       <span class="eyebrow" id="banner-eyebrow"></span>
       <strong id="banner-title"></strong>
@@ -329,6 +337,7 @@
       <h2 class="h2">Kuşatma düştü</h2>
       <p id="over-sub" class="lead"></p>
       <p id="over-record" class="record" hidden>Yeni rekor!</p>
+      <div id="over-me" class="over-me" hidden></div>
       <div id="over-awards" class="awards"></div>
       <div class="table-wrap">
         <table class="table">
@@ -339,7 +348,8 @@
       <p id="over-note" class="note"></p>
       <div class="row">
         <button id="btn-over-leave" class="btn ghost" type="button">Odadan ayrıl</button>
-        <button id="btn-over-lobby" class="btn primary" type="button">Lobiye dön</button>
+        <button id="btn-over-lobby" class="btn" type="button">Lobiye dön</button>
+        <button id="btn-over-again" class="btn primary" type="button" hidden>Tekrar oyna</button>
       </div>
     </div>
   </section>
@@ -359,7 +369,7 @@
     <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="acct-title">
       <div class="card-head"><h3 id="acct-title">Giriş yap / Hesap oluştur</h3><button id="acct-close" class="btn small" type="button">Kapat</button></div>
       <p class="note">İsteğe bağlı. Hesabın varsa giriş yap, yoksa ad ve şifre seçip hesap oluştur. Hesap oluşturunca adın sana ayrılır ve kendi sayfan açılır: oynadıkça elmas kazanır, yeni sınıflar ve kostümler açar, arkadaş ekleyip mesajlaşırsın.</p>
-      <label class="field" for="acct-name"><span>Ad</span><input id="acct-name" maxlength="16" autocomplete="username" spellcheck="false"></label>
+      <label class="field" for="acct-name"><span>Ad (A-Z harf ve rakam)</span><input id="acct-name" maxlength="16" autocomplete="username" spellcheck="false"></label>
       <label class="field" for="acct-pw"><span>Şifre (en az 6 karakter)</span><input id="acct-pw" type="password" maxlength="64" autocomplete="current-password"></label>
       <div class="row two"><button id="acct-login" class="btn primary" type="button">Giriş yap</button><button id="acct-reg" class="btn" type="button">Hesap oluştur</button></div>
       <p id="acct-msg" class="msg" role="status" hidden></p>
@@ -377,8 +387,7 @@
       <div class="room-set"><span class="eyebrow">Zorluk</span><div class="chip-row" id="room-diff"></div></div>
       <div class="room-set"><span class="eyebrow">Mod</span><div class="chip-row" id="room-mode"></div></div>
       <div class="room-set"><span class="eyebrow">En fazla oyuncu</span><div class="chip-row" id="room-max"></div></div>
-      <p id="room-note" class="note"></p>
-      <button id="room-go" class="btn primary big" type="button">Odayı kur</button>
+      <div class="room-foot"><p id="room-note" class="note"></p><button id="room-go" class="btn primary big" type="button">Odayı kur</button></div>
     </div>
   </div>
   <div id="inv-dlg" class="confirm" hidden>
@@ -489,6 +498,6 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="module" src="js/main.js?v=32"></script>
+  <script type="module" src="js/main.js?v=33"></script>
 </body>
 </html>

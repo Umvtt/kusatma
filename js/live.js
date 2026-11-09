@@ -16,7 +16,7 @@ try {
   }
 } catch (e) { dev = dev || 'f'.repeat(16); }
 
-export const LIVE = { news: { on: false, text: '' }, maint: { on: false, text: '' }, ban: null, names: [], shop: null, filter: [] };
+export const LIVE = { news: { on: false, text: '' }, maint: { on: false, text: '' }, ban: null, names: [], shop: null, filter: [], on: 0 };
 export let ACCT = null;
 export const ME = { qn: 0, best: 0, kills: 0, games: 0, mins: 0, gems: 0, xp: 0, lvl: 1, lx: 0, ln: 100, own: [], eq: {}, set: { fr: 1, on: 1, room: 1 }, pass: '', dl: false, fq: [], un: 0, made: 0, hideLb: false, gd: 0, mute: 0 };
 export let PUB = true;
@@ -86,7 +86,7 @@ function hi(force) {
 function onData(raw) {
   let d; try { d = JSON.parse(raw); } catch (e) { return; }
   if (!d || typeof d !== 'object') return;
-  if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; LIVE.filter = Array.isArray(d.cfg && d.cfg.filter) ? d.cfg.filter.slice(0, 400).map((x) => str(x, 24)).filter(Boolean) : []; if (d.cfg && d.cfg.shop) LIVE.shop = cleanShop(d.cfg.shop); H.onCfg(); }
+  if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; LIVE.filter = Array.isArray(d.cfg && d.cfg.filter) ? d.cfg.filter.slice(0, 400).map((x) => str(x, 24)).filter(Boolean) : []; if (d.cfg && d.cfg.shop) LIVE.shop = cleanShop(d.cfg.shop); LIVE.on = Math.max(0, Math.min(1e6, (d.cfg && d.cfg.on) | 0)); H.onCfg(); }
   else if (d.e === 'gem') { const n = Math.max(0, d.n | 0); ME.gems += n; ME.gd += n; addXp(Math.max(0, d.xp | 0)); if (H.onGem) H.onGem(n, d.xp | 0, !!d.cap); }
   else if (d.e === 'fl') { if (H.onFriends) H.onFriends(cleanFl(d)); }
   else if (d.e === 'dm') { if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
@@ -166,6 +166,13 @@ export async function acctCheck() {
 export const topGet = () => api('/ktop');
 export const dailyGet = () => api('/kdaily');
 // anti-cheat: the host reports something impossible a player did (the server only records it)
+// chat lines in this room, for the owner's log (sent by the host only, a few lines at a time)
+const chatQ = []; let chatT = 0;
+export function liveChat(name, text) {
+  chatQ.push([str(name, 16), str(text, 100)]);
+  const go = () => { clearTimeout(chatT); chatT = 0; if (chatQ.length) send({ e: 'ch', L: chatQ.splice(0, 10) }); };
+  if (chatQ.length >= 10) go(); else if (!chatT) chatT = setTimeout(go, 4000);
+}
 export function liveCheat(r) { send({ e: 'ac', name: str(r.name, 16), acct: str(r.acct, 12), kind: str(r.kind, 12), d: str(r.detail, 80), w: r.wave | 0 }); }
 // invite an online friend into the room this player is in (the server checks both sides)
 export function inviteSend(to) {

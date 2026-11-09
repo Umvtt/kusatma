@@ -279,6 +279,7 @@ export class HostGame {
     if (!text) return;
     p.chatAt = now;
     this.out({ t: 'c', pid: p.pid, m: this.clean(text) });
+    if (this.onChatLog) this.onChatLog(p.name, text);
   }
 
   // A player's bullet hit a zombie. eff: the hit came from their weapon, so the path's effects apply.
@@ -529,6 +530,18 @@ export class HostGame {
     }
   }
 
+  // turrets and Tesla coils stand in the way: zombies that reach one push against it and claw it down (slowly)
+  turretPush(z, T, dt) {
+    for (const t of this.turrets) {
+      if (!(t.k == null || t.k === 0 || t.k === 4) || t.hp == null) continue;
+      const R = 17 + T.r, dx = z.x - t.x, dy = z.y - t.y, d = Math.hypot(dx, dy);
+      if (d >= R) continue;
+      if (d > 0.01) { z.x = t.x + dx / d * R; z.y = t.y + dy / d * R; }
+      if (z.st === ZS.DASH) { t.hp -= 120; z.st = ZS.NORMAL; z.cd = Math.max(z.cd, 2); }
+      else if (T.dps > 0) t.hp -= T.dps * dt * 0.5 * (isBoss(z.t) ? 1.5 : 1);
+    }
+  }
+
   updateWalls(dt) {
     for (const q of this.walls) {
       q.life -= dt;
@@ -562,7 +575,7 @@ export class HostGame {
       const mine = this.turrets.filter((t) => t.owner === p.pid);
       if (mine.length >= (L >= 3 ? 2 : 1)) this.turrets.splice(this.turrets.indexOf(mine[0]), 1);
       const B = WORLD.bounds;
-      this.turrets.push({ id: this.nextId++, owner: p.pid, x: clamp(x, B.x0 + 20, B.x1 - 20), y: clamp(y, B.y0 + 20, B.y1 - 20), a: p.a, life: c.ab.dur, cd: 0, dk: L >= 1 ? 1.4 : 1, rt: L >= 2 ? c.ab.rate / 2 : c.ab.rate });
+      this.turrets.push({ id: this.nextId++, owner: p.pid, x: clamp(x, B.x0 + 20, B.x1 - 20), y: clamp(y, B.y0 + 20, B.y1 - 20), a: p.a, life: c.ab.dur, cd: 0, dk: L >= 1 ? 1.4 : 1, rt: L >= 2 ? c.ab.rate / 2 : c.ab.rate, hp: 900, mhp: 900 });
     } else if (p.cls === 'muhendis') {
       this.turrets = this.turrets.filter((t) => !(t.owner === p.pid && t.k === 2));
       this.turrets.push({ id: this.nextId++, k: 2, owner: p.pid, x: p.x, y: p.y, a: 0, life: dur, cd: 0 });
@@ -610,7 +623,7 @@ export class HostGame {
       if (Math.hypot(x - p.x, y - p.y) > 120 || pointInObstacle(x, y, 14)) { x = p.x; y = p.y; }
       this.turrets = this.turrets.filter((t) => !(t.owner === p.pid && t.k === 4));
       const B = WORLD.bounds;
-      this.turrets.push({ id: this.nextId++, k: 4, owner: p.pid, x: clamp(x, B.x0 + 20, B.x1 - 20), y: clamp(y, B.y0 + 20, B.y1 - 20), a: 0, life: dur, cd: 0, L });
+      this.turrets.push({ id: this.nextId++, k: 4, owner: p.pid, x: clamp(x, B.x0 + 20, B.x1 - 20), y: clamp(y, B.y0 + 20, B.y1 - 20), a: 0, life: dur, cd: 0, L, hp: 700, mhp: 700 });
     } else if (p.cls === 'avci') {
       // a fan of piercing bolts: everything on each line takes the hit
       const n = c.ab.n + (L >= 1 ? 3 : 0), R = c.ab.range, dm = c.ab.dmg * dmgMul * (L >= 2 ? 1.4 : 1), spread = 0.9;
@@ -1029,6 +1042,7 @@ export class HostGame {
       for (const c of this.cars) {
         c.t -= dt; if (c.t > 0) continue;
         this.ev(['sl', Math.round(c.x), Math.round(c.y), 90]);
+        for (const t of this.turrets) if (t.hp != null && Math.hypot(t.x - c.x, t.y - c.y) < 100) t.hp -= 300;
         for (const q of this.inGame()) if (q.alive && Math.hypot(q.x - c.x, q.y - c.y) < 90) { this.hurt(q, 38); this.knock(q, c.x, c.y, 520); }
       }
       this.cars = this.cars.filter((c) => c.t > 0);
@@ -1471,6 +1485,7 @@ export class HostGame {
       const bx = z.x, by = z.y;
       this.separate(z, T, grid, hw, HC, dt, speed, z.dx / dl, z.dy / dl);
       if (this.walls.length) this.wallPush(z, T, dt);
+      if (this.turrets.length) this.turretPush(z, T, dt);
       // stuck? (pressed into a wall or a crowd) step sideways toward whichever side is closer to the
       // players on the path map; if that fails too, back off a little first
       if (speed > 0 && Math.hypot(z.x - bx, z.y - by) < speed * dt * 0.3) {
@@ -1631,6 +1646,7 @@ export class HostGame {
       if (this.shots.length < 240) this.shots.push([drone ? -2 : -1, Math.round(t.x + Math.cos(t.a) * (drone ? 8 : 20)), Math.round(t.y + Math.sin(t.a) * (drone ? 8 : 20)), r2(t.a)]);
       t.cd = drone ? ab.rate * (owner && owner.abUntil > this.time ? 0.6 : 1) : (t.rt || ab.rate);
     }
+    for (const t of this.turrets) if (t.hp != null && t.hp <= 0 && t.life > 0) { t.life = 0; this.ev(['tb', Math.round(t.x), Math.round(t.y), t.k | 0]); }
     this.turrets = this.turrets.filter((t) => t.life > 0);
   }
 
@@ -1671,7 +1687,7 @@ export class HostGame {
         this.ev([z.t === 18 ? 'ic' : 'x', Math.round(z.x), Math.round(z.y), R]);
         for (const q of this.inGame()) if (q.alive && Math.hypot(q.x - z.x, q.y - z.y) < R) { this.hurt(q, z.t === 18 ? 8 : 16); if (z.t === 18) q.chillUntil = this.time + 2; }
       }
-      this.ev(['d', Math.round(z.x), Math.round(z.y), z.t]);
+      this.ev(['d', Math.round(z.x), Math.round(z.y), z.t, p ? p.pid : 0, z.el | 0]);
       this.deathFx(z, p);
       if (z.t === 13) for (let i = 0; i < 4 && this.zombies.length < 520; i++) this.spawnAt(14, z.x, z.y);
       if (isBoss(z.t)) for (let i = 0; i < 4; i++) this.drop(z.x + (Math.random() - 0.5) * 80, z.y + (Math.random() - 0.5) * 80);
@@ -1815,7 +1831,7 @@ export class HostGame {
       B: [Math.round(this.bounds.x0), Math.round(this.bounds.y0), Math.round(this.bounds.x1), Math.round(this.bounds.y1)],
       bt: Math.max(0, Math.ceil(this.breakT)), zl: this.queue.length + Z.length,
       P, Z,
-      T: this.turrets.map((t) => [t.id, Math.round(t.x), Math.round(t.y), r2(t.a), Math.min(99, Math.ceil(t.life)), t.k || 0]),
+      T: this.turrets.map((t) => [t.id, Math.round(t.x), Math.round(t.y), r2(t.a), Math.min(99, Math.ceil(t.life)), t.k || 0, t.hp != null ? Math.max(0, Math.round(100 * t.hp / t.mhp)) : 100]),
       M: this.mines.map((m) => [m.id, Math.round(m.x), Math.round(m.y), m.arm <= 0 ? 1 : 0]),
       Q: this.spits.map((s) => [s.id, Math.round(s.x), Math.round(s.y)]),
       I: this.items.map((it) => [it.id, it.k, it.x, it.y, Math.ceil(it.life)]),

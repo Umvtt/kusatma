@@ -241,6 +241,7 @@ function homePage(sec) {
   txt.append(acts);
   heroBox.append(cv, txt);
   sec.append(heroBox);
+  sec.append(newsCard());
   sec.append(dailyCard());
   sec.append(spinCard());
 
@@ -289,6 +290,25 @@ function homePage(sec) {
   row2.append(rooms, st);
   sec.append(row2);
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
+}
+// what's on now (events with a countdown, players online) and what this version added
+const WHATS_NEW = ['Taret ve Tesla bobini artık kırılabiliyor; zombiler üstüne yürürse yıkılır.', 'Oyun sonunda kazandığın elmas, seviye ve sezon kademesi görünüyor.', 'Leş akışı ve seri yazıları: boss ve elitleri kimin indirdiğini gör.', 'Telefonda lobi sekmeli, oda kurma penceresi ve etkinlik göstergesi düzenlendi.'];
+const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
+function newsCard() {
+  const c = card('Neler var?'); c.classList.add('dp-whatsnew');
+  const live = el('div', 'wn-live'), ticks = [];
+  const ev = (cls, title, until) => { const r = el('div', 'wn-ev ' + cls); const t = el('span', 'wn-t'); r.append(el('strong', '', title), t); if (until) ticks.push([t, until]); live.append(r); };
+  const sh = LIVE.shop, now = Date.now();
+  if (sh && sh.mul > 1 && (!sh.until || sh.until > now)) ev('gem', `${sh.mul}× elmas etkinliği`, sh.until);
+  if (sh && sh.saleAll > 0 && sh.saleUntil > now) ev('sale', `Mağazada %${sh.saleAll} indirim`, sh.saleUntil);
+  if (LIVE.on > 0) ev('on', `${fmt(LIVE.on)} oyuncu şu an çevrimiçi`, 0);
+  if (!live.childElementCount) ev('none', 'Şu an etkinlik yok', 0);
+  const tick = () => { if (!c.isConnected && ticks.length) { clearInterval(iv); return; } for (const [t, u] of ticks) t.textContent = u > Date.now() ? 'bitmesine ' + leftT(u) : 'bitti'; };
+  const iv = setInterval(tick, 1000); tick();
+  const ul = el('ul', 'wn-list'); for (const x of WHATS_NEW) ul.append(el('li', '', x));
+  const nw = el('div', 'wn-new'); nw.append(el('span', 'eyebrow', 'Bu sürümde'), ul);
+  c.append(live, nw);
+  return c;
 }
 // the daily challenge: the same map, class and difficulty for everyone today
 function dailyCard() {
@@ -1100,9 +1120,10 @@ function accountPage(sec) {
   const row = (label, hint, b) => { const r = el('div', 'acc-row'); const t = el('span'); t.append(el('strong', '', label), el('span', 'dim', hint)); r.append(t, b); return r; };
   const renCost = LIVE.shop ? LIVE.shop.ren : 500;
   ac.append(row('Adını değiştir', `Yeni ad ${renCost} elmas. Şu an: ${ACCT.name}`, btn('btn small', 'Değiştir', () => formDlg('Adını değiştir', [['name', 'Yeni ad', 'text']], `${renCost} elmas harcanacak.`, 'Değiştir', async (v) => {
-    const j = await acctOp('ren', { name: v.name });
+    if (!/^[A-Za-z0-9]{3,16}$/.test(v.name.trim())) return v.name.trim().length < 3 ? 'Ad en az 3 harf olmalı.' : 'Adda sadece İngilizce harf (A-Z) ve rakam olabilir.';
+    const j = await acctOp('ren', { name: v.name.trim() });
     if (j.ok) { H.toast('Adın değişti.', 'good'); H.refresh(); return ''; }
-    return { name: 'Ad en az 3 harf olmalı.', taken: 'Bu ad alınmış.', gems: 'Elmasın yetmiyor.', slow: 'Bugün yeterince denedin.' }[j.reason] || 'Değiştirilemedi.';
+    return { name: 'Ad en az 3 harf olmalı.', chars: 'Adda sadece İngilizce harf (A-Z) ve rakam olabilir.', taken: 'Bu ad alınmış.', gems: 'Elmasın yetmiyor.', slow: 'Bugün yeterince denedin.' }[j.reason] || 'Değiştirilemedi.';
   }))));
   ac.append(row('Şifreni değiştir', 'Diğer cihazlardaki oturumlar kapanır.', btn('btn small', 'Değiştir', () => formDlg('Şifreni değiştir', [['old', 'Şu anki şifre', 'password'], ['pw', 'Yeni şifre (en az 6)', 'password']], '', 'Değiştir', async (v) => {
     const j = await acctOp('pw', v);

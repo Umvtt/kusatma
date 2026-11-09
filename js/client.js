@@ -153,11 +153,11 @@ export class ClientGame {
     for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
 
     const seenT = new Set();
-    for (const [id, x, y, a, life, k] of s.T) {
+    for (const [id, x, y, a, life, k, hp] of s.T) {
       seenT.add(id);
       let t = this.ts.get(id);
       if (!t) { t = { id, x, y, a, k: k | 0 }; this.ts.set(id, t); if (!k) this.ring(x, y, '#ffd23f', 60); else if (k === 3) { this.ring(x, y, '#ffd34d', 120); sfx.heal(x, y); } else if (k === 2) this.ring(x, y, '#43d17a', 60); }
-      t.tx = x; t.ty = y; t.ta = a; t.life = life; t.k = k | 0;
+      t.tx = x; t.ty = y; t.ta = a; t.life = life; t.k = k | 0; t.hp = hp == null ? 100 : hp;
       if (!t.k || t.k === 3 || t.k === 4) { t.x = x; t.y = y; }
     }
     for (const id of [...this.ts.keys()]) if (!seenT.has(id)) this.ts.delete(id);
@@ -192,6 +192,12 @@ export class ClientGame {
         const big = ev[3] === 2 || ev[3] === 3;
         this.splat(ev[1], ev[2], ZTYPES[ev[3]] ? ZTYPES[ev[3]].r : 15, true, ev[3] === 4);
         sfx.zombieDie(ev[1], ev[2], big);
+        // kill feed (bosses, elites and the rarer zombies) and the local kill streak
+        if (ev[4]) {
+          if (ev[4] === this.me) { const now = performance.now(); if (now - (this.stT || 0) > 2600) this.stN = 0; this.stN = (this.stN || 0) + 1; this.stT = now; if (this.stN >= 3) this.notices.push({ k: 'streak', n: this.stN }); }
+          const zt = ZTYPES[ev[3]];
+          if (zt && (zt.boss || ev[5] || [6, 7, 13, 15, 16, 17, 18].includes(ev[3]))) this.notices.push({ k: 'kill', pid: ev[4], t: ev[3], el: ev[5] | 0 });
+        }
         break;
       }
       case 'h': this.ring(ev[1], ev[2], '#43d17a', ev[3] || CLASSES.doktor.ab.r); this.light(ev[1], ev[2], 260, 0.6, '67,209,122'); sfx.heal(ev[1], ev[2]); break;
@@ -239,6 +245,7 @@ export class ClientGame {
       case 'rz': this.dust(ev[1], ev[2], 30); this.ring(ev[1], ev[2], '#b07ad8', 40); break;
       case 'tp': this.ring(ev[1], ev[2], '#b07ad8', 60); this.ring(ev[3], ev[4], '#b07ad8', 60); this.light(ev[3], ev[4], 180, 0.6, '176,122,216'); sfx.summon(ev[3], ev[4]); break;
       case 'cr': this.lobs.push({ x0: ev[1], y0: ev[2], x1: ev[3], y1: ev[4], t: 0, max: Math.max(0.1, ev[5]), car: true }); this.marks.push({ x: ev[3], y: ev[4], t: 0, max: Math.max(0.1, ev[5]) + 0.2, car: true }); break;
+      case 'tb': this.explode(ev[1], ev[2], 50); this.dust(ev[1], ev[2], 40); break;
       case 'fan': this.fanFx(ev[1], ev[2], ev[3], ev[4], ev[5]); break;
       case 'hz': this.ring(ev[1], ev[2], '#6ad8a0', 170); break;
       case 'ab2': this.ring(ev[1], ev[2], '#d8d0b0', 40); sfx.turretShot(ev[1], ev[2]); break;

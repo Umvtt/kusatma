@@ -729,7 +729,17 @@ function drawObstacle(g, o) {
 function drawTurret(g, t) {
   if (t.k === 1 || t.k === 2) { drawDrone(g, t); return; }
   if (t.k === 3) { drawCrate(g, t); return; }
-  if (t.k === 4) { drawCoil(g, t); return; }
+  if (t.k === 4) { drawCoil(g, t); turretHp(g, t); return; }
+  drawTurretBody(g, t); turretHp(g, t);
+}
+// a small health bar under a turret or coil once zombies start clawing it
+function turretHp(g, t) {
+  if (t.hp == null || t.hp >= 100) return;
+  const w = 36, x = t.x - w / 2, y = t.y + 22, k = Math.max(0, t.hp) / 100;
+  g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(x - 1, y - 1, w + 2, 6);
+  g.fillStyle = k > 0.5 ? '#43d17a' : k > 0.25 ? '#f5c542' : '#e5484d'; g.fillRect(x, y, w * k, 4);
+}
+function drawTurretBody(g, t) {
   g.save();
   g.translate(t.x, t.y);
   g.fillStyle = 'rgba(0,0,0,0.35)';

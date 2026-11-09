@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 12;
+export const VERSION = 13;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 32;
+export const BUILD = 33;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;

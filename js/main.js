@@ -12,7 +12,7 @@ import * as sfx from './sfx.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings, QUALITY, QORDER, QUAL } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveChat } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -87,6 +87,10 @@ function ask(title, text, yesLabel, cb) {
 $('#confirm-no').addEventListener('click', () => { $('#confirm').hidden = true; confirmCb = null; });
 $('#confirm-yes').addEventListener('click', () => { $('#confirm').hidden = true; const cb = confirmCb; confirmCb = null; if (cb) cb(); });
 
+// new names: English letters and digits only (old saved names and accounts keep theirs)
+const NAME_OK = /^[A-Za-z0-9]{3,16}$/;
+const asciiName = (v) => v.replace(/[çÇğĞıİöÖşŞüÜ]/g, (c) => ({ ç: 'c', Ç: 'C', ğ: 'g', Ğ: 'G', ı: 'i', İ: 'I', ö: 'o', Ö: 'O', ş: 's', Ş: 'S', ü: 'u', Ü: 'U' })[c]).replace(/[^A-Za-z0-9]/g, '').slice(0, 16);
+$('#name').addEventListener('input', (e) => { const i = e.target, v = asciiName(i.value); if (v !== i.value) i.value = v; });
 function getName() {
   if (ACCT) $('#name').value = ACCT.name;
   const n = cleanName($('#name').value, '');
@@ -144,6 +148,7 @@ async function createRoom(offline, opts) {
   S.host = new HostGame(net);
   S.host.badWords = LIVE.filter;
   S.host.onCheat = (r) => liveCheat(r);
+  S.host.onChatLog = (n, m) => liveChat(n, m);
   S.me = 1;
   S.game = new ClientGame(send, 1);
   S.host.local = onMessage;
@@ -349,9 +354,11 @@ function renderLobby() {
 
   const list = $('#player-list');
   list.replaceChildren();
+  $('#lt-n').textContent = String(r.players.length);
   for (const p of r.players) {
     const li = el('li', 'player' + (p.pid === S.me ? ' me' : ''));
-    const dot = el('span', 'dot'); dot.style.background = p.color;
+    let dot = el('span', 'dot'); dot.style.background = p.color;
+    if (p.eq && Object.keys(p.eq).length) { dot = el('canvas', 'p-av'); drawAvatar(dot, p.eq, { size: 34, cls: p.cls, noPet: true }); dot.style.setProperty('--pc', p.color); }
     const nm = el('div', 'p-name');
     const pn = el('b', '', p.name + (p.pid === S.me ? ' (sen)' : ''));
     const nc = p.eq && COS[p.eq.nc] ? COS[p.eq.nc].c : null;
@@ -379,6 +386,7 @@ function renderLobby() {
   }
 
   renderSettings(r, isHost);
+  if (S.again && r.ph === 'lobby') { S.again = false; const me2 = r.players.find((p) => p.pid === S.me); if (me2 && !me2.ready) setTimeout(() => $('#btn-ready').click(), 200); }
 
   const cl = $('#class-list');
   if (!cl.childElementCount) buildClassCards();
@@ -606,6 +614,11 @@ $('#btn-leave').addEventListener('click', () => {
   } else leave('');
 });
 
+for (const b of document.querySelectorAll('.lobby-tabs button')) b.addEventListener('click', () => {
+  $('#lobby').dataset.lt = b.dataset.lt;
+  for (const o of document.querySelectorAll('.lobby-tabs button')) o.setAttribute('aria-selected', String(o === b));
+  $('#lobby').scrollTop = 0;
+});
 $('#btn-copy').addEventListener('click', async () => {
   const code = S.roster && S.roster.code;
   if (!code) return;
@@ -619,6 +632,21 @@ $('#btn-copy').addEventListener('click', async () => {
 });
 
 // ---------- game over ----------
+// the signed-in player's take from this game: gems, level, season tier and their own line
+function overMe() {
+  const box = $('#over-me'), o = S.over, me = o && o.P.find((p) => p.pid === S.me);
+  if (!box || !me) { if (box) box.hidden = true; return; }
+  const tile = (v, l, cls) => { const t = el('div', 'om-t' + (cls ? ' ' + cls : '')); t.append(el('strong', '', v), el('span', '', l)); return t; };
+  const tiles = [tile(fmt(me.kills), 'leş'), tile(fmt(me.dmg), 'hasar'), tile(String(o.wave), 'dalga')];
+  if (ACCT) {
+    const g = tile('+' + fmt(S.gameGems | 0), 'elmas', 'gem'); g.prepend(gemIcon(18)); tiles.unshift(g);
+    const lv = el('div', 'om-t om-lv'); const bar = el('div', 'xpbar'); const f = el('i'); f.style.width = Math.round(100 * (ME.lx | 0) / Math.max(1, ME.ln | 0)) + '%'; bar.append(f);
+    lv.append(el('strong', '', 'Seviye ' + (ME.lvl || 1)), bar, el('span', '', `${fmt(ME.lx | 0)} / ${fmt(ME.ln | 0)} XP · sezon kademesi ${ME.spt | 0}`)); tiles.push(lv);
+  } else tiles.push(tile('Hesap aç', 'elmas ve seviye kazan', 'cta'));
+  box.replaceChildren(...tiles); box.hidden = false;
+  if (ACCT && !S.overRefresh) { S.overRefresh = 1; setTimeout(() => { acctCheck().then(() => { S.overRefresh = 0; if (S.screen === 'over') overMe(); }).catch(() => { S.overRefresh = 0; }); }, 2500); }
+}
+$('#btn-over-again').addEventListener('click', () => { S.again = true; send({ t: 'lobby' }); });
 function renderOver() {
   const o = S.over;
   if (!o) return;
@@ -659,8 +687,10 @@ function renderOver() {
     tr.append(el('td', '', String(i + 1)), tdWho, el('td', '', CLASSES[p.cls].name), el('td', 'num', fmt(p.kills)), el('td', 'num', fmt(p.dmg)), el('td', 'num', fmt(p.revives || 0)), el('td', 'num', fmt(p.downs || 0)));
     body.append(tr);
   });
+  overMe();
   const isHost = S.role === 'host';
   $('#btn-over-lobby').hidden = !isHost;
+  $('#btn-over-again').hidden = !(isHost && S.roster && !S.roster.code);
   $('#over-note').textContent = isHost ? 'Lobiye dönünce herkes yeni oyun için sınıf seçebilir.' : 'Kurucu lobiye döndüğünde yeni oyun için hazırlanabilirsin.';
 }
 $('#btn-over-lobby').addEventListener('click', () => send({ t: 'lobby' }));
@@ -732,8 +762,10 @@ function notice(n) {
   if (n.k === 'down' && n.pid === S.me) buzz([120, 60, 220], true);
   if (n.k === 'wave' && n.boss) buzz([70, 50, 70, 50, 140], true);
   if (n.k === 'mev' && MEV[n.ev]) { banner('Harita olayı', MEV[n.ev].name, MEV[n.ev].desc); return; }
+  if (n.k === 'kill') { killFeed(n); return; }
+  if (n.k === 'streak') { streak(n.n); return; }
   if (n.k === 'wave') {
-    if (n.w === 1) S.gameGems = 0;
+    if (n.w === 1) { S.gameGems = 0; $('#kfeed').replaceChildren(); }
     liveGame();
     if (g.self) liveKills(g.self.kills);
     const boss = n.boss ? ZTYPES[n.boss].name : null;
@@ -748,6 +780,29 @@ function notice(n) {
   else if (n.k === 'team' && TEAM[n.i]) toast(`Takım yükseltmesi: ${TEAM[n.i].name} ${ROMAN[n.lv] || n.lv}${n.pid === S.me ? ' (son katkı senden)' : ''}`, 'good');
 }
 
+// kill feed: bosses, elites and rarer zombies, newest on top, each line fades after a few seconds
+const ELITE = ['', 'Hızlı', 'Patlayan', 'Yenilenen', 'Zırhlı'];
+function killFeed(n) {
+  const g = S.game, box = $('#kfeed'), zt = ZTYPES[n.t];
+  if (!g || !box || !zt) return;
+  const li = el('li', (n.pid === S.me ? 'me' : '') + (zt.boss ? ' boss' : ''));
+  const who = el('b', '', n.pid === S.me ? 'Sen' : g.nameOf(n.pid));
+  const r = g.roster.get(n.pid); if (r && r.color && n.pid !== S.me) who.style.color = r.color;
+  li.append(who, el('span', 'kf-x', '›'), el('span', '', (n.el && ELITE[n.el] ? ELITE[n.el] + ' ' : '') + zt.name));
+  box.prepend(li);
+  while (box.children.length > (IS_TOUCH ? 3 : 5)) box.lastChild.remove();
+  setTimeout(() => { li.classList.add('out'); setTimeout(() => li.remove(), 400); }, 4500);
+}
+let streakT = 0;
+function streak(k) {
+  const b = $('#streak'); if (!b) return;
+  const word = k >= 15 ? 'Durdurulamaz!' : k >= 10 ? 'Katliam!' : k >= 6 ? 'Seri katil!' : k >= 4 ? 'Seri!' : 'Üçlü!';
+  b.replaceChildren(el('strong', '', word), el('span', '', `${k} leş`));
+  b.hidden = false; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+  if (k === 6 || k === 10 || k === 15) buzz(40);
+  clearTimeout(streakT); streakT = setTimeout(() => { b.hidden = true; }, 1600);
+}
+
 let bannerTimer = 0;
 function banner(eyebrow, title, sub) {
   const b = $('#banner');
@@ -760,6 +815,7 @@ function banner(eyebrow, title, sub) {
 }
 
 function updateHud() {
+  if (IS_TOUCH) { const wb = document.querySelector('.wave-box'); if (wb) { const t = Math.round(wb.getBoundingClientRect().bottom + 8); if (t > 20 && t !== S.tbTop) { S.tbTop = t; document.body.style.setProperty('--tb-top', t + 'px'); } } }
   const g = S.game;
   if (!g) return;
   const me = g.self;
@@ -1538,7 +1594,7 @@ show('menu');
 
 // ---------- optional accounts and the leaderboard ----------
 const TAKEN = 'Bu ad bir hesaba ait. Giriş yap ya da başka bir ad seç.';
-const ACCT_WHY = { name: 'Ad en az 3 harf olmalı.', pw: 'Şifre en az 6 karakter olmalı.', taken: 'Bu ad alınmış. Başka bir ad dene.', wrong: 'Ad ya da şifre yanlış.',
+const ACCT_WHY = { name: 'Ad en az 3 harf olmalı.', chars: 'Adda sadece İngilizce harf (A-Z) ve rakam olabilir.', pw: 'Şifre en az 6 karakter olmalı.', taken: 'Bu ad alınmış. Başka bir ad dene.', wrong: 'Ad ya da şifre yanlış.',
   slow: 'Çok fazla deneme oldu. Birkaç dakika bekleyip tekrar dene.', ban: 'Bu hesap engellendi.', net: 'Sunucuya ulaşılamadı. İnternetini kontrol et.' };
 // ban or maintenance: its own notice that always shows the current state
 function blockUi() { const t = liveBlock(); for (const id of ['#menu-block', '#dp-block']) { const m = $(id); m.hidden = !t; m.textContent = t; } }
@@ -1559,6 +1615,7 @@ $('#btn-acct').onclick = () => {
 $('#acct-close').onclick = () => { $('#acct-dlg').hidden = true; };
 async function acctGo(op) {
   const name = $('#acct-name').value.trim(), pw = $('#acct-pw').value;
+  if (op === 'reg' && !NAME_OK.test(name)) { acctMsg(name.length < 3 ? ACCT_WHY.name : ACCT_WHY.chars); return; }
   for (const b of ['#acct-login', '#acct-reg']) $(b).disabled = true;
   acctMsg(op === 'reg' ? 'Hesap oluşturuluyor…' : 'Giriş yapılıyor…', true);
   const j = await acctSign(op, name, pw);
