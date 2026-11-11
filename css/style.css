@@ -189,7 +189,7 @@ kbd {
 .settings-card .note { margin-top: 8px; font-size: 13px; }
 .player-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .player {
-  display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; gap: 10px; align-items: center;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center;
   padding: 9px 10px; border-radius: 8px; background: var(--panel-2);
 }
 .player.me { box-shadow: inset 0 0 0 1px rgba(236,230,214,.18); }
