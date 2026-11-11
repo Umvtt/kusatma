@@ -50,11 +50,8 @@ function near(x0, y0, x1, y1) {
 }
 export function obstaclesIn(x0, y0, x1, y1) { return near(x0, y0, x1, y1); }
 
-// Push a circle out of the map edges and every obstacle. Sliding along walls falls out of this.
-export function resolveCircle(e, r) {
-  const B = WORLD.bounds;
-  e.x = clamp(e.x, B.x0 + r, B.x1 - r);
-  e.y = clamp(e.y, B.y0 + r, B.y1 - r);
+// Push a circle out of every obstacle it overlaps.
+function pushOut(e, r) {
   for (const o of near(e.x - r, e.y - r, e.x + r, e.y + r)) {
     const cx = clamp(e.x, o.x, o.x + o.w);
     const cy = clamp(e.y, o.y, o.y + o.h);
@@ -73,6 +70,51 @@ export function resolveCircle(e, r) {
       else if (m === t) e.y = o.y - r;
       else e.y = o.y + o.h + r;
     }
+  }
+}
+
+// True when a circle at (x, y) overlaps any obstacle.
+export function overlaps(x, y, r) {
+  for (const o of near(x - r, y - r, x + r, y + r)) {
+    const cx = clamp(x, o.x, o.x + o.w), cy = clamp(y, o.y, o.y + o.h);
+    if ((x - cx) ** 2 + (y - cy) ** 2 < r * r - 0.5) return true;
+  }
+  return false;
+}
+
+// The nearest open spot inside the map edges where a circle of radius r fits, searched in rings
+// (first toward the middle of the arena). Null if nothing is free within reach.
+export function freeSpot(x, y, r, test) {
+  const B = WORLD.bounds, m = r + 2;
+  const mx = (B.x0 + B.x1) / 2, my = (B.y0 + B.y1) / 2, a0 = Math.atan2(my - y, mx - x);
+  for (let d = 0; d <= 900; d += 18) {
+    const n = d === 0 ? 1 : Math.max(8, Math.round((2 * Math.PI * d) / 24));
+    for (let k = 0; k < n; k++) {
+      // alternate sides around the direction to the middle: 0, +1, -1, +2, -2...
+      const j = k === 0 ? 0 : (k % 2 ? (k + 1) / 2 : -k / 2);
+      const a = a0 + (j * 2 * Math.PI) / n;
+      const px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
+      if (px < B.x0 + m || px > B.x1 - m || py < B.y0 + m || py > B.y1 - m) continue;
+      if (overlaps(px, py, m)) continue;
+      if (test && !test(px, py)) continue;
+      return { x: px, y: py };
+    }
+  }
+  return null;
+}
+
+// Push a circle out of the map edges and every obstacle. Sliding along walls falls out of this.
+// When the moving arena edge pins something against an obstacle, it is moved to the nearest open spot
+// instead of being squeezed into the wall (where it would be stuck for good).
+export function resolveCircle(e, r) {
+  const B = WORLD.bounds;
+  e.x = clamp(e.x, B.x0 + r, B.x1 - r);
+  e.y = clamp(e.y, B.y0 + r, B.y1 - r);
+  pushOut(e, r);
+  const cx = clamp(e.x, B.x0 + r, B.x1 - r), cy = clamp(e.y, B.y0 + r, B.y1 - r);
+  if (cx !== e.x || cy !== e.y) {
+    e.x = cx; e.y = cy;
+    if (overlaps(e.x, e.y, r)) { const f = freeSpot(e.x, e.y, r); if (f) { e.x = f.x; e.y = f.y; } }
   }
 }
 
@@ -213,3 +255,38 @@ export function fieldAhead(field, x, y, r) {
 
 // Field value at a world position (Infinity in walls or out of reach).
 export function fieldAt(field, x, y) { return field[cellOf(x, y)]; }
+
+// How many open path cells are reachable from (x, y) inside the map edges, counting up to `limit`.
+// A small number means a closed pocket (walls on every side, or walls and the arena edge).
+const PQ = new Int32Array(4096), PSEEN = new Uint8Array(GW * GH);
+export function pocketSize(x, y, limit = 60) {
+  const B = WORLD.bounds;
+  const inB = (j) => { const cx = j % GW, cy = (j - cx) / GW, px = cx * CELL + CELL / 2, py = cy * CELL + CELL / 2; return px > B.x0 && px < B.x1 && py > B.y0 && py < B.y1; };
+  const i0 = cellOf(x, y), cx0 = i0 % GW, cy0 = (i0 - cx0) / GW;
+  let h = 0, t = 0, n = 0;
+  const seen = [];
+  const add = (j) => { if (PSEEN[j] || BLOCKED[j] || !inB(j)) return; PSEEN[j] = 1; seen.push(j); PQ[t++] = j; n++; };
+  // start from the cell itself, or the open cells right around it when it hugs a wall
+  add(i0);
+  if (!n) for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) { const nx = cx0 + ox, ny = cy0 + oy; if (nx >= 0 && ny >= 0 && nx < GW && ny < GH) add(ny * GW + nx); }
+  if (!n) { for (const j of seen) PSEEN[j] = 0; return limit; } // inside a wall's margin: can't tell, assume open
+  while (h < t && n < limit) {
+    const i = PQ[h++], cx = i % GW, cy = (i - cx) / GW;
+    for (let q = 0; q < 4; q++) {
+      const nx = cx + NBX[q], ny = cy + NBY[q];
+      if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+      add(ny * GW + nx);
+      if (n >= limit || t >= PQ.length) break;
+    }
+  }
+  for (const j of seen) PSEEN[j] = 0;
+  return Math.min(n, limit);
+}
+// Moves `e` out of a small closed pocket to the nearest open ground. Returns true if it moved.
+export function escapePocket(e, r, limit = 60) {
+  if (pocketSize(e.x, e.y, limit) >= limit) return false;
+  const f = freeSpot(e.x, e.y, r, (px, py) => pocketSize(px, py, limit) >= limit);
+  if (!f) return false;
+  e.x = f.x; e.y = f.y;
+  return true;
+}

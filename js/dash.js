@@ -78,10 +78,29 @@ export const THEMES = {
   't.neon': { a: '#ff3df2', a2: '#2a1446', b2: '#07040f', sky: ['#07040f', '#1a0b33'], ground: '#120a24', fog: 'rgba(61,242,255,0.07)', grid: '#3df2ff' },
   't.altin': { a: '#ffd34d', a2: '#3d3214', b2: '#0c0a04', sky: ['#0c0a04', '#241c08'], ground: '#1e1a0e', fog: 'rgba(255,211,77,0.07)' },
 };
+// a theme being tried on (not bought or worn yet): the whole site shows it until the preview ends
+let pvTheme = null;
+const curThm = () => (pvTheme && THEMES[pvTheme] ? pvTheme : ME.eq.thm && THEMES[ME.eq.thm] ? ME.eq.thm : 't.gece');
 function applyTheme() {
-  const id = ME.eq.thm && THEMES[ME.eq.thm] ? ME.eq.thm : 't.gece';
-  $('#dashpage').dataset.theme = id.slice(2);
+  $('#dashpage').dataset.theme = curThm().slice(2);
 }
+function previewTheme(id) {
+  if (!THEMES[id]) return;
+  pvTheme = id; applyTheme(); hero.flakes.length = 0;
+  let bar = $('#thm-pv');
+  if (!bar) { bar = el('div', 'thm-pv'); bar.id = 'thm-pv'; bar.setAttribute('role', 'status'); $('#dashpage').append(bar); }
+  const have = owns(id) || isFree(id), price = priceOf(id);
+  const txt = el('div', 'thm-pv-t'); txt.append(el('span', 'eyebrow', 'Önizleme'), el('strong', '', ITEMS[id].name));
+  const acts = el('div', 'thm-pv-a');
+  if (have) acts.append(btn('btn primary small', 'Kullan', () => { endPreview(); equip('thm', id === 't.gece' ? '' : id); }));
+  else if (price != null) { const b = btn('btn primary small', '', () => { endPreview(); buyDlg(id, price); }); b.append(el('span', '', 'Satın al · '), gemAmt(price)); acts.append(b); }
+  acts.append(btn('btn ghost small', 'Bitir', endPreview));
+  bar.replaceChildren(el('div', 'theme-sw thm-pv-sw'), txt, acts);
+  bar.firstChild.dataset.theme = id.slice(2);
+  bar.hidden = false;
+  clearTimeout(previewTheme.t); previewTheme.t = setTimeout(endPreview, 45000);
+}
+function endPreview() { if (!pvTheme) return; pvTheme = null; clearTimeout(previewTheme.t); const b = $('#thm-pv'); if (b) b.hidden = true; applyTheme(); hero.flakes.length = 0; }
 
 // ---------- the hero scene on the home page: your soldier holding off a few zombies ----------
 const hero = { raf: 0, t: 0, z: [], shots: [], cv: null, last: 0, aim: 0, flakes: [] };
@@ -126,7 +145,7 @@ function heroStep(dt) {
   }
   for (const s of hero.shots) s.life -= dt;
   hero.shots = hero.shots.filter((s) => s.life > 0);
-  const th = THEMES[ME.eq.thm] || THEMES['t.gece'];
+  const th = THEMES[curThm()];
   if (th.snow) {
     while (hero.flakes.length < 70) hero.flakes.push({ x: Math.random() * W, y: Math.random() * Hh, v: 20 + Math.random() * 40 });
     for (const f of hero.flakes) { f.y += f.v * dt; f.x += Math.sin(hero.t + f.v) * dt * 10; if (f.y > Hh) { f.y = -4; f.x = Math.random() * W; } }
@@ -136,7 +155,7 @@ function heroDraw() {
   const cv = hero.cv, dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth, Hh = cv.clientHeight;
   if (!W || !Hh) return;
   if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(Hh * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); }
-  const g = cv.getContext('2d'), th = THEMES[ME.eq.thm] || THEMES['t.gece'];
+  const g = cv.getContext('2d'), th = THEMES[curThm()];
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   const sky = g.createLinearGradient(0, 0, W, Hh); sky.addColorStop(0, th.sky[0]); sky.addColorStop(1, th.sky[1]);
   g.fillStyle = sky; g.fillRect(0, 0, W, Hh);
@@ -235,13 +254,19 @@ function scroller(track) {
   const edge = () => { wrap.classList.toggle('at-l', track.scrollLeft < 8); wrap.classList.toggle('at-r', track.scrollLeft > track.scrollWidth - track.clientWidth - 8); };
   track.addEventListener('scroll', edge, { passive: true }); setTimeout(edge, 80); new ResizeObserver(edge).observe(track);
   track.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && track.scrollWidth > track.clientWidth) { track.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
-  let dx = null, sl = 0;
-  track.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' || e.target.closest('button')) return; dx = e.clientX; sl = track.scrollLeft; track.classList.add('drag'); });
-  addEventListener('pointermove', (e) => { if (dx != null) track.scrollLeft = sl - (e.clientX - dx); });
-  addEventListener('pointerup', () => { dx = null; track.classList.remove('drag'); });
+  // drag with the mouse too (even when the press starts on a button; a real drag doesn't count as a click)
+  let dx = null, sl = 0, moved = false;
+  track.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' || e.button !== 0) return; dx = e.clientX; sl = track.scrollLeft; moved = false; });
+  addEventListener('pointermove', (e) => { if (dx == null) return; const d = e.clientX - dx; if (!moved && Math.abs(d) > 6) { moved = true; track.classList.add('drag'); } if (moved) track.scrollLeft = sl - d; });
+  addEventListener('pointerup', () => { dx = null; track.classList.remove('drag'); setTimeout(() => { moved = false; }, 0); });
+  track.addEventListener('click', (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); } }, true);
   track.classList.add('sx'); wrap.append(track, pb, nb);
+  // keep the chosen tab in view
+  setTimeout(() => { const on = track.querySelector('[aria-selected="true"], .on, .cur'); if (on && track.scrollWidth > track.clientWidth) track.scrollLeft = Math.max(0, on.offsetLeft - (track.clientWidth - on.offsetWidth) / 2); }, 0);
   return wrap;
 }
+// a row of tabs that slides sideways (touch, mouse drag, wheel and arrows) when it doesn't fit
+function segTabs(tabs) { const w = scroller(tabs); w.classList.add('seg-wrap'); return w; }
 function homePage(sec) {
   const heroBox = el('div', 'dp-hero');
   const cv = el('canvas'); cv.id = 'dp-hero-cv'; cv.setAttribute('aria-hidden', 'true');
@@ -313,7 +338,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Çok oyunculuda gecikme büyük ölçüde azaldı.', 'Bosslar çok daha güçlü; tek kişilikte de elmas (co-op\'un %75\'i), sınıflar Deneme Alanı modunda denenir.', 'Lobide ve telefonda sohbet, giriş serisi takvimi, şans çarkı ödül penceresi.', 'Harita yavaşça büyüyüp küçülür ve kayar; taret ve bobinin menzili görünür.'];
+const WHATS_NEW = ['Her sınıfın kendi silah yolları var: Zehir Kimyager\'in, Elektrik Tesla\'nın, Ateş Alevci\'nin, Buz Nişancı\'nın. Doktor artık uyutucu dart atıyor.', 'Oyun lobideki oyuncu sayısına göre zorlaşır ve harita büyür.', 'Harita kayarken oyuncular ve zombiler artık sıkışmıyor.', 'Yeni giriş sayfası, tema önizlemesi, daha detaylı karakter ve zombi modelleri.']
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -711,7 +736,7 @@ function lockerPage(sec) {
   const right = el('div', 'locker-items');
   const tabs = el('div', 'seg-tabs');
   for (const s of SLOTS) { const b = btn('', s.name, () => { lockSlot = s.k; dashGo('locker'); }); b.setAttribute('aria-selected', String(s.k === lockSlot)); tabs.append(b); }
-  right.append(tabs);
+  right.append(segTabs(tabs));
   const slot = SLOTS.find((s) => s.k === lockSlot);
   const grid = el('div', 'item-grid small');
   const cur = ME.eq[slot.k] || '';
@@ -760,7 +785,7 @@ function shopPage(sec, tab) {
     const b = btn('', '', () => { shopTab = k; dashGo('shop'); }); b.append(el('span', '', n), el('span', 'tab-c', `${have}/${L.length}`)); if (sale) b.append(el('span', 'tab-sale', '%'));
     b.setAttribute('aria-selected', String(k === shopTab)); tabs.append(b);
   }
-  sec.append(tabs);
+  sec.append(segTabs(tabs));
   const own = el('div', 'chips shop-own');
   for (const [k, n] of [['all', 'Hepsi'], ['no', 'Sahip olmadıklarım'], ['yes', 'Sahip olduklarım'], ['sale', 'İndirimde']]) { const b = btn('chip-opt', n, () => { shopOwn = k; dashGo('shop'); }); b.setAttribute('aria-pressed', String(k === shopOwn)); own.append(b); }
   sec.append(own);
@@ -848,7 +873,9 @@ function buyDlg(id, price) {
         else draw('err', { gems: 'Elmasın yetmiyor.', owned: 'Bu zaten sende.', item: 'Bu eşya artık satışta değil.', slow: 'Biraz yavaş, birkaç saniye bekle.' }[j.reason] || 'Satın alınamadı. İnternetini kontrol edip tekrar dene.');
       });
       go.append(el('span', '', 'Satın al · '), gemAmt(price));
-      acts.append(go, btn('btn ghost', 'Vazgeç', () => { dlg.hidden = true; }));
+      acts.append(go);
+      if (kind === 't') acts.append(btn('btn ghost', 'Önizle', () => { dlg.hidden = true; previewTheme(id); }));
+      acts.append(btn('btn ghost', 'Vazgeç', () => { dlg.hidden = true; }));
     }
     info.append(acts);
     box.append(info);
@@ -868,7 +895,7 @@ function friendsPage(sec, arg) {
   for (const [k, n] of [['list', `Arkadaşlar (${FR.L.length})`], ['req', `İstekler${FR.q.length ? ' (' + FR.q.length + ')' : ''}`], ['recent', 'Son oynadıkların'], ['add', 'Arkadaş ekle']]) {
     const b = btn('', n, () => { frTab = k; dashGo('friends'); }); b.setAttribute('aria-selected', String(k === frTab)); tabs.append(b);
   }
-  sec.append(tabs);
+  sec.append(segTabs(tabs));
   const box = el('div', 'fr-box'); box.id = 'fr-box'; sec.append(box);
   drawFriends();
   friendsGet().then((d) => { if (d) onFriends(d); });
@@ -1123,7 +1150,7 @@ function topPage(sec) {
   head(sec, 'Sıralama', 'En iyiler');
   const tabs = el('div', 'seg-tabs');
   for (const [k, n] of [['xp', 'Seviye'], ['best', 'En iyi dalga'], ['end', 'Hayatta Kalma'], ['daily', 'Günün görevi'], ['kills', 'En çok öldürme']]) { const b = btn('', n, () => { topTab = k; dashGo('top'); }); b.setAttribute('aria-selected', String(k === topTab)); tabs.append(b); }
-  sec.append(tabs);
+  sec.append(segTabs(tabs));
   const ol = el('ol', 'top-rows'); ol.append(el('li', 'empty', 'Yükleniyor…'));
   sec.append(ol);
   (topTab === 'daily' ? dailyGet() : topGet()).then((j) => {
@@ -1151,12 +1178,21 @@ function accountPage(sec) {
     const sw = el('div', 'theme-sw'); sw.dataset.theme = id.slice(2);
     b.append(sw, el('span', '', ITEMS[id].name));
     if (!have) b.append(gemAmt(priceOf(id) || 0));
-    b.onclick = () => (have ? equip('thm', id === 't.gece' ? '' : id) : buyDlg(id, priceOf(id)));
+    b.onclick = () => (have ? equip('thm', id === 't.gece' ? '' : id) : previewTheme(id));
+    if (!have) b.title = 'Dokun: önizle';
     tg.append(b);
   }
   th.append(tg);
   sec.append(th);
 
+  {
+    const lg = card('Yasal ve çerezler');
+    const row = el('div', 'legal-links dp-legal');
+    for (const [h, t] of [['gizlilik.html', 'Gizlilik Politikası'], ['cerezler.html', 'Çerez Politikası'], ['kosullar.html', 'Kullanım Şartları']]) { const a = el('a', '', t); a.href = h; a.target = '_blank'; a.rel = 'noopener'; row.append(a); }
+    const cb = btn('ck-open', 'Çerez tercihleri'); row.append(cb);
+    lg.append(el('p', 'note', 'Hangi bilgileri neden sakladığımızı buradan okuyabilir, çerez tercihini değiştirebilirsin.'), row);
+    sec.append(lg);
+  }
   const pv = card('Gizlilik');
   const sw = (k, label, hint, val, set) => {
     const row = el('label', 'sw-row'); const t = el('span'); t.append(el('strong', '', label), el('span', 'dim', hint));

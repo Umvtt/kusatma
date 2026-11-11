@@ -2,12 +2,12 @@
 // Every incoming message is checked for shape and size so bad data can't crash the game.
 import {
   WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS,
-  CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD,
-  WEAPON_COST, ITEMS, BASH, WMAX, PATH_N, BRANCH_SWAP, weaponSpent, weaponOf,
+  CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, scaleFor, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD,
+  WEAPON_COST, ITEMS, BASH, WMAX, PATH_N, BRANCH_SWAP, weaponSpent, weaponOf, pathOk,
   newLv, lvArr, AB_COST, abDur, GEAR, GEAR_RANGE, TEAM, teamCost, TEAM_CHUNK, gearCost, gearMax, bashCd,
   FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, SPECIAL, SPECIAL_K, MODE_ORDER, dailyRules, MEV, MEV_ORDER,
 } from './config.js';
-import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldDir, fieldAhead, fieldAt, outOfMap, GW, GH } from './world.js';
+import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldDir, fieldAhead, fieldAt, outOfMap, GW, GH, escapePocket, resolveCircle } from './world.js';
 import { generateMap } from './mapgen.js';
 import { ITEMS as COS, checkPass, ownsCls, nkey } from './catalog.js';
 
@@ -353,6 +353,7 @@ export class HostGame {
         z.stunT = Math.max(z.stunT || 0, 1.2); z.frozenT = now + 1.2; z.stunImm = now + 2.5;
       }
     }
+    if (f.stun && !f.kb && !boss && !(z.stunImm > now)) { z.stunT = Math.max(z.stunT || 0, f.stun); z.stunImm = now + 0.7; }
     if (f.kb && !boss) {
       const dx = z.x - p.x, dy = z.y - p.y, dl = Math.hypot(dx, dy) || 1, k = z.t === 2 ? 0.5 : 1;
       if (!(z.stunImm > now)) {
@@ -735,7 +736,7 @@ export class HostGame {
       if (p.wt >= WMAX || p.gold < WEAPON_COST[p.wt + 1]) return;
       if (p.wt === 0) {
         // the first level picks a path, the third one of its two branches; the rest follow them
-        if (!Number.isInteger(m.p) || m.p < 1 || m.p > PATH_N || (m.p === SPECIAL_K && !SPECIAL[p.cls])) return;
+        if (!Number.isInteger(m.p) || !pathOk(p.cls, m.p)) return;
         p.wp = m.p;
       }
       if (p.wt === 2) {
@@ -873,7 +874,7 @@ export class HostGame {
     const n = Math.max(1, this.inGame().length);
     this.waveN = n;
     const w = this.wave;
-    const total = Math.min(450, Math.round((8 + w * 5) * (0.7 + 0.3 * n) * DIFFS[this.diff].count * (this.mode === 'boss' ? 0.55 : 1)));
+    const total = Math.min(450, Math.round((8 + w * 5) * scaleFor(n).count * DIFFS[this.diff].count * (this.mode === 'boss' ? 0.55 : 1)));
     const pRun = w >= 2 ? Math.min(0.28, 0.08 + w * 0.02) : 0;
     const pBig = w >= 3 ? Math.min(0.14, 0.03 + w * 0.01) : 0;
     const pSpit = w >= 4 ? Math.min(0.12, 0.02 + w * 0.01) : 0;
@@ -911,6 +912,7 @@ export class HostGame {
     this.mev = null; this.hordeT = 0;
     this.mevAt = w >= 3 && Math.random() < (this.mode === 'endless' ? 0.5 : 0.4) ? this.time + 12 + Math.random() * 22 : Infinity;
     if (this.pendBoss) { this.queue.splice(Math.floor(this.queue.length * 0.4), 0, this.pendBoss); this.pendBoss = 0; }
+    if (this.pendEv && this.pendEv.length) { const L = this.pendEv; this.pendEv = null; setTimeout(() => { if (this.phase === 'combat') for (const [k, n, x] of L) this.adminEvent(k, n, Object.assign({}, x, { re: 1 })); }, 4000); }
     this.spawnT = 0.5;
     for (const p of this.inGame()) p.shopReady = false;
     this.ev(['ws', w, this.bossWave]);
@@ -956,18 +958,24 @@ export class HostGame {
 
   // events sent from the owner's admin panel
   adminEvent(k, n, x = {}) {
+    // everyone in the game sees a short note about it (deferred ones say they come with the next wave)
+    if (!x.re) this.ev(['ae', k, n | 0, x.i | 0, String(x.who || '').slice(0, 16), (k === 'horde' || k === 'zombie' || k === 'mev' || k === 'boss') && this.phase !== 'combat' ? 1 : 0, String(x.q || '').slice(0, 8), x.t | 0]);
     if (k === 'gold') {
       const g = Math.max(10, Math.min(5000, n | 0));
       for (const p of this.inGame()) if (!x.who || p.name === x.who) p.gold += g;
       this.pushRoster();
-    } else if (k === 'horde' && this.phase === 'combat') {
+    } else if ((k === 'horde' || k === 'zombie' || k === 'mev') && this.phase !== 'combat') {
+      // between waves (or in the lobby) the owner's event waits for the next wave
+      if (!this.pendEv) this.pendEv = [];
+      if (this.pendEv.length < 10) this.pendEv.push([k, n, x]);
+    } else if (k === 'horde') {
       const c = Math.max(5, Math.min(150, n | 0 || 30));
       for (let i = 0; i < c; i++) this.queue.unshift(1);
       this.hordeT = this.time + 12;
     } else if (k === 'zombie') {
       const t = Math.max(0, Math.min(ZTYPES.length - 1, x.t | 0)), c = Math.max(1, Math.min(60, n | 0 || 5));
-      if (this.phase === 'combat') for (let i = 0; i < c; i++) this.spawnZombie(t);
-    } else if (k === 'mev' && this.phase === 'combat' && MEV[x.q]) {
+      for (let i = 0; i < c; i++) this.spawnZombie(t);
+    } else if (k === 'mev' && MEV[x.q]) {
       // the owner picks the event: run it now, whatever was planned
       this.mev = null; this.mevAt = this.time;
       const R = Math.random, i = MEV_ORDER.indexOf(x.q);
@@ -978,7 +986,7 @@ export class HostGame {
       for (const p of this.inGame()) if (!x.who || p.name === x.who) { if (!Array.isArray(p.inv)) p.inv = GEAR.map(() => 0); p.inv[i] = Math.min(99, (p.inv[i] | 0) + c); }
       this.pushRoster();
     } else if (k === 'boss') {
-      const t = BOSS_ORDER[Math.floor(Math.random() * BOSS_ORDER.length)];
+      const t = BOSS_ORDER.includes(x.t) ? x.t : BOSS_ORDER[Math.floor(Math.random() * BOSS_ORDER.length)];
       if (this.phase === 'combat') this.spawnZombie(t); else this.pendBoss = t;
     }
   }
@@ -1554,6 +1562,9 @@ export class HostGame {
           z.los = false; z.losT = 0.6; // follow the path map for a moment
         }
       } else { z.stk = 0; z.freeT = (z.freeT || 0) + dt; if (z.freeT > 2) { z.stuckN = 0; z.freeT = 0; } }
+      // walled in (the arena edge moved past it, or it keeps getting stuck)? move it to open ground
+      z.pkT = (z.pkT || 0) - dt;
+      if (z.pkT <= 0) { z.pkT = 1.5; if ((z.stuckN >= 3 || fieldAt(this.field, z.x, z.y) === Infinity) && escapePocket(z, T.r, 40)) { z.stuckN = 0; z.stk = 0; } }
       // face the target when close (matters for the Kalkanlı's shield)
       z.face = Math.atan2(ty - z.y, tx - z.x);
 

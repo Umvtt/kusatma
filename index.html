@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=39">
-  <link rel="stylesheet" href="css/dash.css?v=39">
+  <link rel="stylesheet" href="css/style.css?v=40">
+  <link rel="stylesheet" href="css/dash.css?v=40">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -32,9 +32,9 @@
         <h1 class="logo">Kuşatma</h1>
         <p class="tagline">Sürü her dalgada büyüyor. Sınıfını seç, takımını topla, sabaha kadar dayan.</p>
         <ul class="facts">
-          <li><strong>11</strong><span>sınıf</span></li>
+          <li><strong>13</strong><span>sınıf</span></li>
           <li><strong>15</strong><span>oyuncuya kadar</span></li>
-          <li><strong>7</strong><span>silah yolu</span></li>
+          <li><strong>6</strong><span>harita</span></li>
           <li><strong id="best-wave">–</strong><span id="best-label">en iyi dalgan</span></li>
         </ul>
         <div class="lp-classes" id="lp-classes" aria-label="Sınıflar"></div>
@@ -60,6 +60,7 @@
           <div><strong>Hesap aç, elmas kazan</strong><span>Yeni sınıflar ve kostümler aç, arkadaş ekle, sıralamaya gir.</span></div>
           <button id="btn-promo" class="btn small" type="button">Ücretsiz aç</button>
         </div>
+        <nav class="legal-links" aria-label="Yasal"><a href="gizlilik.html" target="_blank" rel="noopener">Gizlilik</a><a href="cerezler.html" target="_blank" rel="noopener">Çerezler</a><a href="kosullar.html" target="_blank" rel="noopener">Kullanım Şartları</a><button type="button" class="ck-open">Çerez tercihleri</button></nav>
       </div>
     </div>
     <footer class="keys">
@@ -367,16 +368,66 @@
     </div>
   </div>
 
-  <div id="acct-dlg" class="confirm" hidden>
-    <div class="card settings-dlg" role="dialog" aria-modal="true" aria-labelledby="acct-title">
-      <div class="card-head"><h3 id="acct-title">Giriş yap / Hesap oluştur</h3><button id="acct-close" class="btn small" type="button">Kapat</button></div>
-      <p class="note">İsteğe bağlı. Hesabın varsa giriş yap, yoksa ad ve şifre seçip hesap oluştur. Hesap oluşturunca adın sana ayrılır ve kendi sayfan açılır: oynadıkça elmas kazanır, yeni sınıflar ve kostümler açar, arkadaş ekleyip mesajlaşırsın.</p>
-      <label class="field" for="acct-name"><span>Ad (6–16 karakter, A-Z harf ve rakam)</span><input id="acct-name" maxlength="16" autocomplete="username" spellcheck="false"></label>
-      <label class="field" for="acct-pw"><span>Şifre (en az 6 karakter)</span><input id="acct-pw" type="password" maxlength="64" autocomplete="current-password"></label>
-      <div class="row two"><button id="acct-login" class="btn primary" type="button">Giriş yap</button><button id="acct-reg" class="btn" type="button">Hesap oluştur</button></div>
-      <p id="acct-msg" class="msg" role="status" hidden></p>
+  <!-- Giriş ve kayıt: kendi tam sayfası -->
+  <section id="acct-dlg" class="auth" hidden aria-labelledby="auth-h">
+    <div class="auth-glow" aria-hidden="true"></div>
+    <div class="auth-grid">
+      <aside class="auth-side">
+        <button id="acct-close" class="auth-back" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Geri</span></button>
+        <div class="auth-brand">
+          <p class="eyebrow">Ortak hayatta kalma</p>
+          <span class="auth-logo">Kuşatma</span>
+          <p class="auth-tag">Hesabınla her dalga bir adım daha: elmas topla, sınıfları aç, takımını kur.</p>
+        </div>
+        <ul class="auth-perks">
+          <li><i aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 2 3 9l9 13 9-13z" fill="#5be3ff"/><path d="M7.5 9h9L12 22z" fill="#2bb5e0"/></svg></i><div><strong>Elmas ve seviye</strong><span>Temizlediğin her dalga elmas ve XP kazandırır.</span></div></li>
+          <li><i aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.3 6L12 16.4 6.6 19.4l1.3-6L3.4 9.3l6-.7z" fill="#ffd34d"/></svg></i><div><strong>Sınıflar ve kostümler</strong><span>Yeni sınıflar, temalar, şapkalar ve evcil hayvanlar.</span></div></li>
+          <li><i aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="8.5" cy="8" r="3.5" fill="#ff8a3d"/><circle cx="16.5" cy="9" r="3" fill="#43d17a"/><path d="M2 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6z" fill="#ff8a3d"/><path d="M13.5 20c.3-2.3-.4-3.9-1.5-5 1-.6 2.5-1 4-1 3.3 0 6 2 6 6z" fill="#43d17a"/></svg></i><div><strong>Arkadaşlar ve sıralama</strong><span>Arkadaş ekle, mesajlaş, sıralamada yüksel.</span></div></li>
+        </ul>
+        <canvas id="auth-squad" class="auth-squad" width="360" height="120" aria-hidden="true"></canvas>
+      </aside>
+      <main class="auth-main">
+        <form id="auth-form" class="auth-card" novalidate>
+          <div class="auth-seg" role="tablist" aria-label="Giriş ya da kayıt">
+            <button type="button" role="tab" data-m="login" id="auth-t-login">Giriş yap</button>
+            <button type="button" role="tab" data-m="reg" id="auth-t-reg">Hesap oluştur</button>
+            <i class="auth-pill" aria-hidden="true"></i>
+          </div>
+          <div class="auth-head">
+            <h2 id="auth-h">Tekrar hoş geldin</h2>
+            <p class="auth-sub" id="auth-sub">Hesabına gir, kaldığın yerden devam et.</p>
+          </div>
+          <div class="af">
+            <input id="acct-name" name="username" maxlength="16" autocomplete="username" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder=" " required>
+            <label for="acct-name">Kullanıcı adı</label>
+            <span class="af-c" id="auth-count" aria-hidden="true">0/16</span>
+          </div>
+          <ul class="auth-rules" id="auth-rules" aria-live="polite">
+            <li data-r="len"><i aria-hidden="true"></i>6–16 karakter</li>
+            <li data-r="chr"><i aria-hidden="true"></i>Sadece İngilizce harf ve rakam</li>
+          </ul>
+          <div class="af">
+            <input id="acct-pw" name="password" type="password" maxlength="64" autocomplete="current-password" placeholder=" " required>
+            <label for="acct-pw">Şifre</label>
+            <button type="button" class="af-eye" id="auth-eye" aria-label="Şifreyi göster" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path class="eye-x" d="M4 20 20 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+          </div>
+          <div class="auth-meter" id="auth-meter" aria-live="polite"><div class="am-bar"><i></i><i></i><i></i><i></i></div><span id="auth-meter-t">En az 6 karakter</span></div>
+          <div class="af" id="auth-pw2-row">
+            <input id="acct-pw2" type="password" maxlength="64" autocomplete="new-password" placeholder=" ">
+            <label for="acct-pw2">Şifre tekrar</label>
+            <span class="af-ok" id="auth-pw2-ok" aria-hidden="true"></span>
+          </div>
+          <p id="acct-msg" class="auth-msg" role="alert" hidden></p>
+          <button id="acct-login" class="auth-go" type="submit"><span class="ag-t">Giriş yap</span><span class="ag-spin" aria-hidden="true"></span></button>
+          <button id="acct-reg" class="auth-go" type="submit" hidden><span class="ag-t">Hesap oluştur</span><span class="ag-spin" aria-hidden="true"></span></button>
+          <p class="auth-alt" id="auth-alt"></p>
+          <div class="auth-or"><span>ya da</span></div>
+          <button type="button" class="auth-guest" id="auth-guest">Hesapsız oyna</button>
+          <p class="auth-legal">Devam ederek <a href="kosullar.html" target="_blank" rel="noopener">Kullanım Şartları</a>'nı kabul etmiş, <a href="gizlilik.html" target="_blank" rel="noopener">Gizlilik Politikası</a>'nı okumuş olursun.</p>
+        </form>
+      </main>
     </div>
-  </div>
+  </section>
   <div id="room-dlg" class="confirm" hidden>
     <div class="card settings-dlg room-dlg" role="dialog" aria-modal="true" aria-labelledby="room-title">
       <div class="card-head"><h3 id="room-title">Oda kur</h3><button id="room-close" class="btn small" type="button">Kapat</button></div>
@@ -433,7 +484,7 @@
           <label class="set-check" for="set-vibe" id="set-vibe-row"><span>Titreşim</span><input id="set-vibe" type="checkbox"></label>
         </section>
       </div>
-      <div class="set-foot"><p class="set-build" id="set-build"></p><div class="row"><button id="settings-diag" class="btn ghost small" type="button">Bağlantı testi</button><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div></div>
+      <div class="set-foot"><p class="set-build" id="set-build"></p><nav class="legal-links set-legal" aria-label="Yasal"><a href="gizlilik.html" target="_blank" rel="noopener">Gizlilik</a><a href="cerezler.html" target="_blank" rel="noopener">Çerezler</a><a href="kosullar.html" target="_blank" rel="noopener">Şartlar</a><button type="button" class="ck-open">Çerez tercihleri</button></nav><div class="row"><button id="settings-diag" class="btn ghost small" type="button">Bağlantı testi</button><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div></div>
     </div>
   </div>
 
@@ -509,7 +560,7 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=39","./js/client.js":"./js/client.js?v=39","./js/config.js":"./js/config.js?v=39","./js/dash.js":"./js/dash.js?v=39","./js/host.js":"./js/host.js?v=39","./js/live.js":"./js/live.js?v=39","./js/mapgen.js":"./js/mapgen.js?v=39","./js/net.js":"./js/net.js?v=39","./js/render.js":"./js/render.js?v=39","./js/scene.js":"./js/scene.js?v=39","./js/settings.js":"./js/settings.js?v=39","./js/sfx.js":"./js/sfx.js?v=39","./js/world.js":"./js/world.js?v=39"}}</script>
-  <script type="module" src="js/main.js?v=39"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=40","./js/client.js":"./js/client.js?v=40","./js/config.js":"./js/config.js?v=40","./js/consent.js":"./js/consent.js?v=40","./js/dash.js":"./js/dash.js?v=40","./js/host.js":"./js/host.js?v=40","./js/live.js":"./js/live.js?v=40","./js/mapgen.js":"./js/mapgen.js?v=40","./js/net.js":"./js/net.js?v=40","./js/render.js":"./js/render.js?v=40","./js/scene.js":"./js/scene.js?v=40","./js/settings.js":"./js/settings.js?v=40","./js/sfx.js":"./js/sfx.js?v=40","./js/world.js":"./js/world.js?v=40"}}</script>
+  <script type="module" src="js/main.js?v=40"></script>
 </body>
 </html>

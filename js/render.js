@@ -7,6 +7,8 @@ import { ITEMS as COS } from './catalog.js';
 const DECAL_SCALE = 0.4;
 const MINI_W = 180;
 const SKIN = '#d9a77a';
+// extra shading and small details on characters and zombies (off on the low graphics level)
+let DETAIL = true;
 
 export class Renderer {
   constructor(canvas) {
@@ -30,6 +32,7 @@ export class Renderer {
 
   // graphics level: screen sharpness and light-map size
   setQuality(q) {
+    DETAIL = q !== 'low';
     if (this.q === q) return;
     this.q = q; this.resize();
   }
@@ -888,12 +891,25 @@ function drawZombie(g, z, time) {
     g.lineTo(r * (0.9 + 0.35 * reach + s * sway * 0.4), s * r * (0.55 + sway * 0.3 * s));
     g.stroke();
   }
+  if (DETAIL && !fl) { // torn sleeves over the upper arm
+    g.strokeStyle = shirtOf(z); g.lineWidth = r * 0.36;
+    for (const s of [-1, 1]) { g.beginPath(); g.moveTo(r * 0.1, s * r * 0.62); g.lineTo(r * 0.45, s * r * (0.6 + sway * 0.1 * s)); g.stroke(); }
+  }
   g.fillStyle = fl ? '#fff' : T.col;
   for (const s of [-1, 1]) { g.beginPath(); g.arc(r * (0.9 + 0.35 * reach + s * sway * 0.4), s * r * (0.55 + sway * 0.3 * s), r * 0.2, 0, Math.PI * 2); g.fill(); }
   // torso: ragged shirt
   g.fillStyle = fl ? '#fff' : shirtOf(z);
   g.beginPath(); g.ellipse(-r * 0.1, 0, r * 0.62, r * 0.88, 0, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = 2; g.stroke();
+  if (DETAIL && !fl) {
+    // shading, a torn hem and old blood: each zombie a little different (from its id)
+    g.fillStyle = 'rgba(0,0,0,0.24)'; g.beginPath(); g.ellipse(-r * 0.35, 0, r * 0.36, r * 0.8, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.08)'; g.beginPath(); g.ellipse(r * 0.12, -r * 0.15, r * 0.25, r * 0.5, 0, 0, Math.PI * 2); g.fill();
+    const h = (z.id * 2654435761) >>> 0;
+    g.fillStyle = 'rgba(0,0,0,0.35)';
+    for (let i = 0; i < 3; i++) { const a = ((h >> (i * 5)) & 31) / 31 * Math.PI * 2, px = Math.cos(a) * r * 0.58 - r * 0.1, py = Math.sin(a) * r * 0.84; g.beginPath(); g.moveTo(px, py); g.lineTo(px * 0.72, py * 0.72 + r * 0.12); g.lineTo(px * 0.78, py * 0.78 - r * 0.12); g.fill(); }
+    if (h & 1) { g.fillStyle = 'rgba(110,20,18,0.55)'; g.beginPath(); g.ellipse(-r * 0.05 + ((h >> 3) & 7) * 0.6 - 2, ((h >> 7) & 7) - 3, r * 0.22, r * 0.16, (h & 15) * 0.4, 0, Math.PI * 2); g.fill(); }
+  }
+  g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 2; g.beginPath(); g.ellipse(-r * 0.1, 0, r * 0.62, r * 0.88, 0, 0, Math.PI * 2); g.stroke();
   if (z.t === 2 || z.t === 3) {
     g.fillStyle = 'rgba(0,0,0,0.2)';
     g.beginPath(); g.ellipse(-r * 0.25, 0, r * 0.4, r * 0.7, 0, 0, Math.PI * 2); g.fill();
@@ -955,6 +971,10 @@ function drawZombie(g, z, time) {
   g.strokeStyle = T.dark; g.lineWidth = 1.5; g.stroke();
   g.fillStyle = 'rgba(0,0,0,0.25)';
   g.beginPath(); g.arc(r * 0.12, -r * 0.12, r * 0.18, 0, Math.PI * 2); g.fill();
+  if (DETAIL && !fl && z.t !== 17 && z.t !== 20 && z.t !== 19) { // sunken jaw, hanging open
+    g.fillStyle = 'rgba(40,10,10,0.75)'; g.beginPath(); g.ellipse(r * 0.55, 0, r * 0.09, r * 0.16, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.2)'; g.beginPath(); g.arc(r * 0.18, 0, r * 0.4, Math.PI * 0.55, Math.PI * 1.45); g.fill();
+  }
   if (z.t === 16) { g.fillStyle = '#e8a33a'; g.beginPath(); g.arc(r * 0.25, 0, r * 0.44, Math.PI * 0.5, Math.PI * 1.5); g.fill(); g.fillStyle = '#fff6b0'; g.beginPath(); g.arc(r * 0.55, 0, 2.5, 0, Math.PI * 2); g.fill(); }
   if (z.t === 17) { g.fillStyle = '#2a0a14'; g.beginPath(); g.ellipse(r * 0.55, 0, r * 0.18, r * (z.st === ZS.SCREAM ? 0.28 : 0.14), 0, 0, Math.PI * 2); g.fill(); }
   if (z.t === 20) { g.fillStyle = '#1a0e22'; g.beginPath(); g.moveTo(r * 0.7, 0); g.lineTo(-r * 0.6, -r * 0.55); g.lineTo(-r * 0.6, r * 0.55); g.closePath(); g.fill(); g.fillStyle = '#c88cff'; g.beginPath(); g.arc(r * 0.4, -r * 0.12, 2, 0, Math.PI * 2); g.arc(r * 0.4, r * 0.12, 2, 0, Math.PI * 2); g.fill(); }
@@ -1110,9 +1130,10 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
   const dark = shade(color, -60);
   const stride = alive ? Math.sin(walk * 0.12) * 6 : 0;
 
-  // feet
+  // feet: boots with a lighter toe cap
   g.fillStyle = '#1c1f1c';
   g.beginPath(); g.ellipse(stride, -6.5, 5.5, 3.5, 0, 0, Math.PI * 2); g.ellipse(-stride, 6.5, 5.5, 3.5, 0, 0, Math.PI * 2); g.fill();
+  if (DETAIL) { g.fillStyle = '#3a3f3a'; g.beginPath(); g.ellipse(stride + 2.6, -6.5, 2.2, 2.2, 0, 0, Math.PI * 2); g.ellipse(-stride + 2.6, 6.5, 2.2, 2.2, 0, 0, Math.PI * 2); g.fill(); }
 
   // gear on the back
   drawBack(g, cls, color);
@@ -1120,7 +1141,14 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
   // torso
   g.fillStyle = cls === 'nisanci' ? '#3a4a30' : color;
   g.beginPath(); g.ellipse(-1, 0, 9.5, cls === 'kalkanci' ? 16.5 : 15, 0, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 2.5; g.stroke();
+  if (DETAIL && alive) {
+    // light on the front, shadow at the back, a strap across the chest and shoulder pads: reads as a body, not a disc
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.beginPath(); g.ellipse(-5, 0, 5, cls === 'kalkanci' ? 15 : 13.5, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.14)'; g.beginPath(); g.ellipse(3, -2, 4, 9, 0, 0, Math.PI * 2); g.fill();
+    if (cls !== 'kalkanci') { g.fillStyle = shade(cls === 'nisanci' ? '#3a4a30' : color, -40); for (const sd of [-1, 1]) { g.beginPath(); g.ellipse(0, sd * 11.5, 4.2, 3.4, 0, 0, Math.PI * 2); g.fill(); } }
+    g.strokeStyle = 'rgba(30,24,16,0.55)'; g.lineWidth = 2; g.beginPath(); g.moveTo(-6, -10); g.lineTo(5, 9); g.stroke();
+  }
+  g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 2.5; g.beginPath(); g.ellipse(-1, 0, 9.5, cls === 'kalkanci' ? 16.5 : 15, 0, 0, Math.PI * 2); g.stroke();
   if (cls === 'nisanci') { // ghillie fringe in team colour
     g.strokeStyle = color; g.lineWidth = 2;
     for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(-4, i * 4); g.lineTo(-11, i * 4.5 + 1); g.stroke(); }
@@ -1162,6 +1190,7 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
   // head and headgear
   g.fillStyle = SKIN;
   g.beginPath(); g.arc(1, 0, 6.5, 0, Math.PI * 2); g.fill();
+  if (DETAIL && alive) { g.fillStyle = 'rgba(0,0,0,0.18)'; g.beginPath(); g.arc(-0.5, 0, 6, Math.PI * 0.5, Math.PI * 1.5); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1; g.beginPath(); g.arc(1, 0, 6.5, 0, Math.PI * 2); g.stroke(); }
   if (opts.hat && alive) drawHat(g, opts.hat, color, opts.time || 0); else drawHead(g, cls, color);
   g.restore();
 }

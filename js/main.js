@@ -1,5 +1,5 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
+import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
@@ -9,6 +9,7 @@ import { dashPage, dashGo } from './dash.js';
 import { dashInit, dashShow, dashRefresh, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar } from './dash.js';
 import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
+import { consentStart, manage as cookieSettings } from './consent.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings, QUALITY, QORDER, QUAL } from './settings.js';
@@ -445,6 +446,12 @@ function renderLobby() {
     btn.disabled = false;
     note.textContent = 'Kurucu oyunu başlattığında savaş başlar.';
   }
+  // the game gets tougher (and the map bigger) with every extra player
+  const np = r.players.length;
+  if (np > 1 && !running && r.ph !== 'over') {
+    const k = scaleFor(np), pc = (v) => Math.round((v - 1) * 100);
+    note.textContent += ` ${np} oyuncu: zombiler +%${pc(k.count)}, can +%${pc(k.hp)}, boss canı +%${pc(k.boss)}, harita daha büyük.`;
+  }
 }
 
 function renderSettings(r, isHost) {
@@ -587,6 +594,7 @@ function showClassDetail(id) {
     sec('Yetenek · Boşluk', c.ab.name, abInfo),
     sec('Pasif', c.pas.name, c.pas.desc),
     sec('Yetenek ustalığı (cephanelikte)', '', '', mast),
+    sec('Silah yolları (cephanelikte)', '', '', (() => { const u = el('div', 'cd-paths'); for (const k of pathsFor(cls)) { const P = pathOf(cls, k), ch = el('span', 'cd-path'); ch.style.setProperty('--pc', P.col); ch.title = P.desc || ''; ch.textContent = P.name; u.append(ch); } return u; })()),
     el('p', 'cd-tip', CLASS_TIPS[cls] || ''));
   box.classList.remove('swap'); void box.offsetWidth; box.classList.add('swap');
 }
@@ -775,6 +783,7 @@ function notice(n) {
   if (n.k === 'mev' && MEV[n.ev]) { banner('Harita olayı', MEV[n.ev].name, MEV[n.ev].desc); return; }
   if (n.k === 'kill') { killFeed(n); return; }
   if (n.k === 'streak') { streak(n.n); return; }
+  if (n.k === 'adm') { adminNote(n); return; }
   if (n.k === 'wave') {
     if (n.w === 1) { S.gameGems = 0; $('#kfeed').replaceChildren(); }
     liveGame();
@@ -789,6 +798,25 @@ function notice(n) {
   else if (n.k === 'up') toast(`${g.nameOf(n.pid)} ayağa kalktı.`, 'good');
   else if (n.k === 'revived') toast('Ayağa kalktın!', 'good');
   else if (n.k === 'team' && TEAM[n.i]) toast(`Takım yükseltmesi: ${TEAM[n.i].name} ${ROMAN[n.lv] || n.lv}${n.pid === S.me ? ' (son katkı senden)' : ''}`, 'good');
+}
+
+// what the game's organisers just sent, as a short toast for everyone in the game
+function adminNote(n) {
+  const mine = !!n.who && !!S.game && n.who === S.game.nameOf(S.me);
+  const who = n.who ? (mine ? 'Sana' : `${n.who} için`) : 'Herkese';
+  const later = n.later ? ' (sonraki dalgada)' : '';
+  const zt = ZTYPES[n.t];
+  const t = {
+    gold: `${who} +${Math.max(10, Math.min(5000, n.n))} altın geldi!`,
+    item: `${who} ${(GEAR[n.i] || {}).name || 'eşya'} ×${Math.max(1, n.n)} geldi!`,
+    boss: `Bir boss yola çıktı${later}!`,
+    horde: `Koşucu sürüsü geliyor${later}!`,
+    zombie: `${zt ? zt.name : 'Zombi'} ×${Math.max(1, n.n)} geliyor${later}!`,
+    mev: MEV[n.q] ? `${MEV[n.q].name}${later}!` : '',
+  }[n.e];
+  if (!t) return;
+  toast(t, n.e === 'gold' || n.e === 'item' ? 'good' : 'bad');
+  if ((n.e === 'gold' || n.e === 'item') && (!n.who || mine)) sfx.buy();
 }
 
 // kill feed: bosses, elites and rarer zombies, newest on top, each line fades after a few seconds
@@ -1631,25 +1659,98 @@ function acctUi() {
   $('#name').readOnly = !!ACCT;
   if (ACCT) $('#name').value = ACCT.name;
 }
+// ---------- sign in / sign up: a page of its own ----------
+const AUTH = { m: 'login', busy: false };
 function acctMsg(t, info) { const m = $('#acct-msg'); m.hidden = !t; m.textContent = t || ''; m.classList.toggle('info', !!info); }
+function pwScore(pw) {
+  if (pw.length < 6) return 0;
+  let k = 1;
+  if (pw.length >= 10) k++;
+  if (/[a-zçğıöşü]/.test(pw) && /[A-ZÇĞİÖŞÜ]/.test(pw)) k++;
+  if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) k++; else if (/\d/.test(pw) || /[^A-Za-z0-9]/.test(pw)) k += 0.5;
+  if (/^(.)\1+$/.test(pw) || /^(123456|password|qwerty|sifre|şifre)/i.test(pw)) k = 1;
+  return Math.min(4, Math.round(k));
+}
+function authCheck() {
+  const reg = AUTH.m === 'reg', name = $('#acct-name').value, pw = $('#acct-pw').value, pw2 = $('#acct-pw2').value;
+  $('#auth-count').textContent = `${name.length}/16`;
+  const len = name.length >= 6 && name.length <= 16, chr = /^[A-Za-z0-9]*$/.test(name) && name.length > 0;
+  for (const [r, okv] of [['len', len], ['chr', chr]]) { const li = $(`#auth-rules [data-r="${r}"]`); li.classList.toggle('ok', okv); li.classList.toggle('bad', !!name && !okv); }
+  const sc = pwScore(pw), words = ['En az 6 karakter', 'Zayıf', 'İdare eder', 'Güçlü', 'Çok güçlü'];
+  $('#auth-meter').dataset.s = String(pw ? sc : -1); $('#auth-meter-t').textContent = pw ? words[sc] : words[0];
+  const same = !!pw2 && pw2 === pw; $('#auth-pw2-row').classList.toggle('ok', same); $('#auth-pw2-row').classList.toggle('bad', !!pw2 && !same && pw2.length >= pw.length);
+  const ready = reg ? len && chr && pw.length >= 6 && same : name.trim().length > 0 && pw.length > 0;
+  $(reg ? '#acct-reg' : '#acct-login').classList.toggle('ready', ready);
+  return ready;
+}
+function authMode(m) {
+  AUTH.m = m === 'reg' ? 'reg' : 'login';
+  const reg = AUTH.m === 'reg', page = $('#acct-dlg');
+  page.dataset.m = AUTH.m;
+  for (const b of page.querySelectorAll('.auth-seg [data-m]')) { const on = b.dataset.m === AUTH.m; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; }
+  $('#auth-h').textContent = reg ? 'Aramıza katıl' : 'Tekrar hoş geldin';
+  $('#auth-sub').textContent = reg ? 'Bir ad ve şifre seç. Adın sana ayrılır, ilerlemen her cihazda seninle.' : 'Hesabına gir, kaldığın yerden devam et.';
+  $('#acct-login').hidden = reg; $('#acct-reg').hidden = !reg;
+  $('#auth-rules').hidden = !reg; $('#auth-meter').hidden = !reg; $('#auth-pw2-row').hidden = !reg; $('#auth-count').hidden = !reg;
+  $('#acct-pw').autocomplete = reg ? 'new-password' : 'current-password';
+  const alt = $('#auth-alt'); alt.replaceChildren(document.createTextNode(reg ? 'Zaten hesabın var mı? ' : 'Hesabın yok mu? '));
+  const sw = el('button', '', reg ? 'Giriş yap' : 'Hemen oluştur'); sw.type = 'button'; sw.onclick = () => { authMode(reg ? 'login' : 'reg'); $('#acct-name').focus(); }; alt.append(sw);
+  acctMsg(''); authCheck();
+}
+function authOpen(m) {
+  const page = $('#acct-dlg');
+  $('#acct-name').value = ($('#name').value || '').trim().slice(0, 16); $('#acct-pw').value = ''; $('#acct-pw2').value = '';
+  let had = false; try { had = !!localStorage.getItem('kusatma-giris'); } catch (e) { /* ignore */ }
+  authMode(m || (had ? 'login' : 'reg'));
+  page.hidden = false; page.classList.remove('out'); document.body.classList.add('authing');
+  try { if (!history.state || !history.state.auth) history.pushState({ auth: 1 }, ''); } catch (e) { /* ignore */ }
+  authSquad();
+  setTimeout(() => ($('#acct-name').value ? $('#acct-pw') : $('#acct-name')).focus({ preventScroll: true }), 60);
+}
+function authClose(fromPop) {
+  const page = $('#acct-dlg'); if (page.hidden) return;
+  page.classList.add('out'); document.body.classList.remove('authing');
+  setTimeout(() => { page.hidden = true; page.classList.remove('out'); }, 220);
+  if (!fromPop) { try { if (history.state && history.state.auth) history.back(); } catch (e) { /* ignore */ } }
+}
+addEventListener('popstate', () => { if (!$('#acct-dlg').hidden) authClose(true); });
+// a few of the classes standing together under the logo
+function authSquad() {
+  const cv = $('#auth-squad'); if (!cv || cv.dataset.done) return; cv.dataset.done = '1';
+  const g = cv.getContext('2d'), L = [['kalkanci', '#4cc9f0'], ['asker', '#ff8a3d'], ['doktor', '#43d17a'], ['tesla', '#9ad8ff'], ['nisanci', '#f15bb5']];
+  L.forEach(([c, col], i) => { g.save(); g.translate(40 + i * 70, 74); g.scale(1.9, 1.9); try { drawCharacter(g, c, col, -Math.PI / 2 + (i - 2) * 0.12, 0, { alive: true }); } catch (e) { /* ignore */ } g.restore(); });
+}
 $('#btn-acct').onclick = () => {
   if (ACCT) { ask('Çıkış yap', 'Bu cihazda hesabından çıkılsın mı? İstediğin zaman tekrar girebilirsin.', 'Çıkış yap', async () => { await acctOut(); acctUi(); }); return; }
-  $('#acct-name').value = $('#name').value.trim(); $('#acct-pw').value = ''; acctMsg(''); $('#acct-dlg').hidden = false; ($('#acct-name').value ? $('#acct-pw') : $('#acct-name')).focus();
+  authOpen();
 };
-$('#acct-close').onclick = () => { $('#acct-dlg').hidden = true; };
+$('#acct-close').onclick = () => authClose();
+$('#auth-guest').onclick = () => authClose();
+for (const b of document.querySelectorAll('#acct-dlg .auth-seg [data-m]')) b.onclick = () => { authMode(b.dataset.m); $('#acct-name').focus(); };
+$('#acct-dlg .auth-seg').addEventListener('keydown', (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { authMode(AUTH.m === 'reg' ? 'login' : 'reg'); $(`#auth-t-${AUTH.m}`).focus(); } });
+$('#acct-dlg').addEventListener('keydown', (e) => { if (e.key === 'Escape') authClose(); });
+for (const id of ['#acct-name', '#acct-pw', '#acct-pw2']) $(id).addEventListener('input', () => { if (!$('#acct-msg').classList.contains('info')) acctMsg(''); authCheck(); });
+$('#acct-name').addEventListener('input', () => { const i = $('#acct-name'); if (AUTH.m === 'reg') { const v = i.value.replace(/[^A-Za-z0-9]/g, ''); if (v !== i.value) { i.value = v; authCheck(); const r = $('#auth-rules [data-r="chr"]'); r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } } });
+$('#auth-eye').onclick = () => { const on = $('#acct-pw').type === 'password'; for (const id of ['#acct-pw', '#acct-pw2']) $(id).type = on ? 'text' : 'password'; $('#auth-eye').setAttribute('aria-pressed', String(on)); $('#auth-eye').setAttribute('aria-label', on ? 'Şifreyi gizle' : 'Şifreyi göster'); };
+function authShake() { const c = $('#auth-form'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake'); }
 async function acctGo(op) {
+  if (AUTH.busy) return;
   const name = $('#acct-name').value.trim(), pw = $('#acct-pw').value;
-  if (op === 'reg' && !NAME_OK.test(name)) { acctMsg(name.length < 6 ? ACCT_WHY.name : ACCT_WHY.chars); return; }
-  for (const b of ['#acct-login', '#acct-reg']) $(b).disabled = true;
-  acctMsg(op === 'reg' ? 'Hesap oluşturuluyor…' : 'Giriş yapılıyor…', true);
+  if (op === 'reg') {
+    if (!NAME_OK.test(name)) { acctMsg(name.length < 6 || name.length > 16 ? ACCT_WHY.name : ACCT_WHY.chars); authShake(); $('#acct-name').focus(); return; }
+    if (pw.length < 6) { acctMsg(ACCT_WHY.pw); authShake(); $('#acct-pw').focus(); return; }
+    if ($('#acct-pw2').value !== pw) { acctMsg('Şifreler aynı değil.'); authShake(); $('#acct-pw2').focus(); return; }
+  } else if (!name || !pw) { acctMsg('Adını ve şifreni yaz.'); authShake(); return; }
+  const go = $(op === 'reg' ? '#acct-reg' : '#acct-login');
+  AUTH.busy = true; go.classList.add('busy'); go.disabled = true; acctMsg('');
   const j = await acctSign(op, name, pw);
-  for (const b of ['#acct-login', '#acct-reg']) $(b).disabled = false;
-  if (!j.ok) { acctMsg(ACCT_WHY[j.reason] || 'Bir sorun oldu. Tekrar dene.'); return; }
-  $('#acct-dlg').hidden = true; acctUi(); toast(op === 'reg' ? `Hesabın oluşturuldu. Hoş geldin, ${j.name}!` : `Hoş geldin, ${j.name}!`, 'good');
+  AUTH.busy = false; go.classList.remove('busy'); go.disabled = false;
+  if (!j.ok) { acctMsg(ACCT_WHY[j.reason] || 'Bir sorun oldu. Tekrar dene.'); authShake(); return; }
+  try { localStorage.setItem('kusatma-giris', '1'); } catch (e) { /* ignore */ }
+  go.classList.add('done');
+  setTimeout(() => { go.classList.remove('done'); authClose(); acctUi(); toast(op === 'reg' ? `Hesabın oluşturuldu. Hoş geldin, ${j.name}!` : `Hoş geldin, ${j.name}!`, 'good'); }, 420);
 }
-$('#acct-login').onclick = () => acctGo('login');
-$('#acct-reg').onclick = () => acctGo('reg');
-$('#acct-pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') acctGo('login'); });
+$('#auth-form').addEventListener('submit', (e) => { e.preventDefault(); const sub = e.submitter && e.submitter.id; acctGo(sub === 'acct-reg' ? 'reg' : sub === 'acct-login' ? 'login' : AUTH.m); });
 // ---------- the signed-in player's full-page panel (js/dash.js) ----------
 function dpShow() {
   const on = !!ACCT; document.body.classList.toggle('signed', on); $('#dashpage').hidden = !on;
@@ -1785,15 +1886,21 @@ $('#inv-yes').onclick = () => {
 function liveNote(title, text) {
   let b = $('#live-note');
   if (!b) {
-    b = el('div', 'live-note'); b.id = 'live-note'; b.setAttribute('role', 'alert');
-    const x = el('button', 'btn small', 'Tamam'); x.type = 'button'; x.onclick = () => { b.hidden = true; };
-    b.append(el('strong', ''), el('p', ''), x); document.body.append(b);
+    b = el('div', 'live-note'); b.id = 'live-note'; b.setAttribute('role', 'status');
+    const x = el('button', 'ln-x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Kapat');
+    x.onclick = (e) => { e.stopPropagation(); b.hidden = true; };
+    const head = el('div', 'ln-h'); head.append(el('strong', ''), x);
+    b.append(head, el('p', ''));
+    // a long note opens fully on a tap and then stays until closed
+    b.onclick = () => { if (b.classList.contains('clip')) { b.classList.remove('clip'); b.classList.add('open'); clearTimeout(liveNote.t); } };
   }
+  document.body.append(b);
   b.querySelector('strong').textContent = title;
   const p = b.querySelector('p'); p.textContent = text || ''; p.hidden = !text;
-  b.classList.toggle('gift', /gönderdi/.test(title));
-  b.hidden = false;
-  clearTimeout(liveNote.t); liveNote.t = setTimeout(() => { b.hidden = true; }, 15000);
+  b.classList.toggle('gift', /gönderdi|etkinli/i.test(title));
+  b.classList.remove('open', 'clip'); b.hidden = false;
+  requestAnimationFrame(() => b.classList.toggle('clip', !p.hidden && p.scrollHeight > p.clientHeight + 2));
+  clearTimeout(liveNote.t); liveNote.t = setTimeout(() => { b.hidden = true; }, Math.min(14000, 5000 + (text || '').length * 50));
 }
 // ?spec=<peer>&k=<key>: the owner's hidden spectator view (opened from the panel); it never joins the live list
 const WATCH = (() => { const q = new URLSearchParams(location.search), id = q.get('spec'), k = q.get('k'); return id && k && /^[a-z0-9-]{8,64}$/.test(id) && /^[A-Za-z0-9]{4,24}$/.test(k) ? { id, k } : null; })();
@@ -1830,10 +1937,7 @@ if (!WATCH) liveStart({
   onKick: (t) => { if (online()) leave('Yönetici seni oyundan çıkardı.' + (t ? ' Sebep: ' + t : '')); else liveNote('Yönetici', t || 'Oyundan çıkarıldın.'); },
   onEv: (k, n, t, x) => {
     if (S.host) S.host.adminEvent(k, n, x || {});
-    if (!S.role) return;
-    const who = x && x.who ? `${x.who} için ` : 'Herkese ';
-    const msg = { boss: 'Bir boss yola çıktı!', gold: `${who}+${Math.max(10, Math.min(5000, n))} altın!`, horde: 'Yönetici bir sürü gönderdi!', zombie: 'Yönetici zombi gönderdi!', mev: '', item: `${who}eşya geldi: ${(GEAR[x && x.i] || {}).name || 'eşya'} ×${Math.max(1, n | 0)}` }[k];
-    if (msg) liveNote('Yönetici etkinliği', msg + (t ? ' ' + t : ''));
+    if (t) liveNote('Duyuru', t);
   },
   detail: () => (S.host ? S.host.detail() : null),
   // the owner's panel asks to watch this game unseen: open a spectator door (solo games too) and say where it is
@@ -1871,5 +1975,9 @@ function gemPop(n, xp, cap) {
 // only on a test machine: on the real site this would let anyone edit the game
 if (new URLSearchParams(location.search).has('debug') && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__kusatma = S;
 window.__kusatmaReady = true;
+// cookie choice: the banner on a first visit, and the settings window from the legal links
+document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.ck-open')) cookieSettings(); });
+if (!WATCH) consentStart();
+if (location.hash === '#cerez') { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ } setTimeout(cookieSettings, 400); }
 // the Android app hides its loading screen as soon as the game has drawn its first screen
 requestAnimationFrame(() => requestAnimationFrame(() => { try { if (window.KusatmaApp && window.KusatmaApp.ready) window.KusatmaApp.ready(); } catch (e) { /* ignore */ } }));

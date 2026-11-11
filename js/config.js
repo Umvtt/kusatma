@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 14;
+export const VERSION = 15;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 39;
+export const BUILD = 40;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
@@ -286,10 +286,10 @@ export const SPECIAL = {
     dmg: [1, 2.6, 2.9, 3.2, 3.5, 3.9], rate: [1, 0.2, 0.21, 0.22, 0.23, 0.25],
     br: [{ name: 'Geniş alan', adj: 'Yıkıcı', desc: 'Patlama alanı çok büyür', cap: 'Patlamalar zombileri tutuşturur' },
       { name: 'Seri atar', adj: 'Seri', desc: 'Daha hızlı bomba atar', cap: 'Her atışta iki bomba' }] },
-  doktor: { name: 'Zehirli dart', adj: 'Zehirli', desc: 'Dartlar zehirler ve yavaşlatır', col: '#5fd38d',
-    dmg: [1, 1.05, 1.12, 1.2, 1.28, 1.36], rate: [1, 0.85, 0.87, 0.9, 0.92, 0.95],
-    br: [{ name: 'Uyuşturucu', adj: 'Uyuşturucu', desc: 'Zombiler çok daha fazla yavaşlar', cap: 'Dartlar zombileri bir an uyutur' },
-      { name: 'Toksin', adj: 'Toksik', desc: 'Zehir çok daha sert', cap: 'Ölen zombiler zehir bulutu bırakır' }] },
+  doktor: { name: 'Uyutucu dart', adj: 'Uyutucu', desc: 'Dartlar zombileri uyuşturur: çok yavaşlarlar ve sersemlerler', col: '#5fd38d',
+    dmg: [1, 1.15, 1.25, 1.35, 1.45, 1.55], rate: [1, 0.85, 0.87, 0.9, 0.92, 0.95],
+    br: [{ name: 'Narkoz', adj: 'Narkozlu', desc: 'Zombiler çok daha fazla yavaşlar', cap: 'Dartlar zombileri bir an uyutur' },
+      { name: 'Teşhis', adj: 'Teşhisli', desc: 'Uyuşan zombiler çok daha fazla hasar alır', cap: 'Sersemleyen zombiler iki kat hasar alır' }] },
   nisanci: { name: 'Raylı top', adj: 'Raylı', desc: 'Tek dev atış, her şeyi ve kalkanları deler', col: '#7ad8ff', bspd: 2600, range: 1.4,
     dmg: [1, 1.6, 1.8, 2, 2.2, 2.45], rate: [1, 0.72, 0.74, 0.76, 0.78, 0.8],
     br: [{ name: 'Aşırı yük', adj: 'Aşırı yüklü', desc: 'Atışlar çok daha sert', cap: 'Kritik atışlar üç kat vurur' },
@@ -299,8 +299,39 @@ export const SPECIAL = {
     br: [{ name: 'Çakıcı', adj: 'Çakıcı', desc: 'Çiviler zombileri daha uzun tutar', cap: 'Çivilenen zombiler %30 fazla hasar alır' },
       { name: 'Şarapnel', adj: 'Şarapnelli', desc: 'Her atışta iki çivi', cap: 'Her atışta üç çivi' }] },
 };
-export const pathOf = (cls, k) => (k === SPECIAL_K && SPECIAL[cls] ? SPECIAL[cls] : PATHS[k] || PATHS[0]);
-export const pathsFor = (cls) => PATHS.map((_, k) => k).filter((k) => k > 0 && (k !== SPECIAL_K || SPECIAL[cls]));
+// Every class has its own short list of weapon paths. Effects that belong to a class stay with it:
+// poison only for the Kimyager, lightning only for Tesla, fire only for the Alevci, ice only for the Nişancı.
+export const CLASS_PATHS = {
+  asker: [1, 2, 3, 8], doktor: [2, 3, 8], tamirci: [1, 2, 8], nisanci: [1, 4, 8], kalkanci: [1, 2, 3], alevci: [7, 2, 3],
+  bombaci: [1, 2, 3], izci: [2, 3, 1], muhendis: [2, 1, 3], kimyager: [5, 2, 3], komutan: [1, 2, 3], tesla: [6, 2, 1], avci: [3, 1, 2],
+};
+// the same path reads differently on each class: [name, adjective, description]
+const PFLAV = {
+  asker: { 1: ['Ağır kalibre', 'Ağır', 'Daha yavaş ama çok sert vurur'], 2: ['Otomatik', 'Otomatik', 'Çok daha hızlı ateş eder'], 3: ['Zırh delici', 'Delici', 'Mermiler sıradaki zombileri de deler'] },
+  doktor: { 2: ['Hızlı dart', 'Hızlı', 'Dartları çok daha sık atar'], 3: ['İğne', 'İğneli', 'Dartlar zombileri delip geçer'] },
+  tamirci: { 1: ['Kalın saçma', 'Kalın', 'Az ama çok sert saçma'], 2: ['Seri pompalı', 'Seri', 'Pompalı çok daha hızlı ateşler'] },
+  nisanci: { 1: ['Ağır mermi', 'Ağır', 'Tek atışta çok daha fazla hasar'], 4: ['Kriyojenik', 'Kriyojenik', 'Mermiler zombileri dondurur ve yavaşlatır'] },
+  kalkanci: { 1: ['Koçbaşı', 'Koçbaşı', 'Sert ve sarsıcı atışlar'], 2: ['Baskı ateşi', 'Bastıran', 'Kalkanın arkasından seri ateş'], 3: ['Zırh kıran', 'Zırh kıran', 'Mermiler kalkanlı ve zırhlı zombileri deler'] },
+  alevci: { 7: ['Cehennem', 'Cehennem', 'Alev çok daha uzun yakar ve yayılır'], 2: ['Basınç', 'Basınçlı', 'Alev daha sık püskürür'], 3: ['Uzun hortum', 'Uzun', 'Alev daha uzağa gider, daha çok zombiyi deler'] },
+  bombaci: { 1: ['Büyük şarj', 'Büyük', 'Bombalar daha sert ve geniş patlar'], 2: ['Seri atış', 'Seri', 'Bombaları çok daha sık atar'], 3: ['Geniş alan', 'Geniş', 'Patlama alanı çok büyür, menzil artar'] },
+  izci: { 2: ['Makineli', 'Makineli', 'Çok daha hızlı ateş eder'], 3: ['Uzun namlu', 'Uzun namlulu', 'Menzil artar, mermiler deler'], 1: ['Sert vuruş', 'Sert', 'Daha yavaş ama çok sert vurur'] },
+  muhendis: { 2: ['Hızlı tetik', 'Hızlı', 'Çok daha hızlı ateş eder'], 1: ['Ağır namlu', 'Ağır', 'Daha yavaş ama çok sert vurur'], 3: ['Delici çekirdek', 'Delici', 'Mermiler zombileri deler, menzil artar'] },
+  kimyager: { 5: ['Toksin', 'Toksik', 'Vurduğun zombiler zehirlenip can kaybeder'], 2: ['Seri sprey', 'Seri', 'Çok daha hızlı ateş eder'], 3: ['Aşındırıcı', 'Aşındırıcı', 'Atışlar zombileri delip geçer'] },
+  komutan: { 1: ['Komuta tüfeği', 'Ağır', 'Daha yavaş ama çok sert vurur'], 2: ['Hücum', 'Hücum', 'Çok daha hızlı ateş eder'], 3: ['Keskin göz', 'Keskin', 'Mermiler deler, menzil artar'] },
+  tesla: { 6: ['Yüksek gerilim', 'Gerilimli', 'Vuruşlar yakındaki zombilere sıçrar'], 2: ['Hızlı deşarj', 'Hızlı', 'Çok daha sık ateşler'], 1: ['Kondansatör', 'Yüklü', 'Daha yavaş ama çok sert vurur'] },
+  avci: { 3: ['Çelik uç', 'Çelik uçlu', 'Oklar zombileri deler, menzil artar'], 1: ['Ağır yay', 'Ağır', 'Daha yavaş ama çok sert vurur'], 2: ['Çift kiriş', 'Hızlı', 'Okları çok daha sık atar'] },
+};
+const PCACHE = new Map();
+export const pathOf = (cls, k) => {
+  if (k === SPECIAL_K && SPECIAL[cls]) return SPECIAL[cls];
+  const P = PATHS[k] || PATHS[0], f = PFLAV[cls] && PFLAV[cls][k];
+  if (!f) return P;
+  const key = cls + k;
+  if (!PCACHE.has(key)) PCACHE.set(key, { ...P, name: f[0], adj: f[1], desc: f[2] });
+  return PCACHE.get(key);
+};
+export const pathsFor = (cls) => (CLASS_PATHS[cls] || [1, 2, 3]).filter((k) => k !== SPECIAL_K || SPECIAL[cls]);
+export const pathOk = (cls, k) => pathsFor(cls).includes(k);
 const lowerFirst = (s) => s.charAt(0).toLocaleLowerCase('tr') + s.slice(1);
 const cut = (v, a, b) => Math.max(a, Math.min(b, v | 0));
 
@@ -356,10 +387,10 @@ function special(cls, c, f, P, B) {
     if (b === 1 && cap) { f.burn = 0.3; f.bdur = 3; }
     if (b === 2) { w.pellets = cap ? 2 : 1; w.pelDmg = cap ? 0.7 : 1; w.spread = 0.08; }
   } else if (cls === 'doktor') {
-    f.poison = [0, 0.4, 0.48, 0.55, 0.62, 0.7][t] * (b === 2 ? 1.5 : 1); f.pdur = 4;
-    f.slow = 2; f.slowK = b === 1 ? [0.45, 0.4, 0.35][i] : 0.65;
-    if (b === 1 && cap) { f.freeze = 0.1; }
-    if (b === 2 && cap) f.gas = true;
+    // sedative darts: no poison (that is the Kimyager's), heavy slow and a short daze instead
+    f.slow = 2.5; f.slowK = b === 1 ? [0.4, 0.34, 0.28][i] : 0.55; f.stun = t >= 2 ? 0.08 : 0;
+    if (b === 1 && cap) { f.freeze = 0.12; }
+    if (b === 2) { f.brittle = [1.2, 1.28, 1.36][i]; if (cap) { f.stun = 0.2; f.dazed = 2; } }
   } else if (cls === 'nisanci') {
     w.pierce = 99; f.noShield = t >= 3; f.pierce = 99;
     if (b === 1) { f.crit = 0.18; f.critX = cap ? 3 : 2; }
@@ -403,9 +434,6 @@ export function weaponOf(cls, wt, wp = 0, wb = 0) {
 }
 // Short path description for the shop, with class-specific wording where it differs.
 export function pathDesc(cls, k) {
-  const c = CLASSES[cls] || CLASSES.asker;
-  if (k === 3 && c.kind === 'g') return 'Patlama alanı çok büyür, menzil artar';
-  if (k === 3 && c.kind === 'f') return 'Alev daha uzağa gider, daha çok zombiyi deler';
   return pathOf(cls, k).desc;
 }
 
@@ -483,8 +511,12 @@ export const CHARGE = {
 };
 // Front arc (radians either side of facing) a Kalkanlı blocks bullets in.
 export const SHIELD_ARC = 1.15;
-export const zMaxHp = (t, wave, n, hm = 1) =>
-  ZTYPES[t].hp * hm * (1 + (Math.max(1, wave) - 1) * 0.12) * (ZTYPES[t].boss ? 1 + 0.35 * (Math.max(1, n) - 1) : 1);
+// How much tougher a wave gets for each extra player in the game (kept light on purpose).
+export const scaleFor = (n) => { const k = Math.max(1, Math.min(MAX_PLAYERS, n | 0 || 1)) - 1; return { count: 1 + 0.2 * k, hp: 1 + 0.05 * k, boss: 1 + 0.2 * k }; };
+export const zMaxHp = (t, wave, n, hm = 1) => {
+  const S = scaleFor(n);
+  return ZTYPES[t].hp * hm * (1 + (Math.max(1, wave) - 1) * 0.12) * (ZTYPES[t].boss ? S.boss : S.hp);
+};
 
 // zombie states sent over the network
 export const ZS = { NORMAL: 0, WINDUP: 1, DASH: 2, SLAM: 3, SPIT: 4, FUSE: 5, SUMMON: 6, PHASE: 7, CROUCH: 8, LEAP: 9, BURROW: 10, SCREAM: 11, THROW: 12, CAST: 13 };

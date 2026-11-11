@@ -1,8 +1,7 @@
 // What every player's browser runs (the host included): own movement and shooting,
 // smoothing of what the host sends, and visual effects.
 import { CX, CY, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS, BASH, bashCd, newLv, lvObj, GEAR, GEAR_RANGE, TEAM, abDur, PATHS } from './config.js';
-import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds, WORLD } from './world.js';
-const BOUNDS = () => WORLD.bounds;
+import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds, WORLD, escapePocket } from './world.js';
 import * as sfx from './sfx.js';
 import { SETTINGS } from './settings.js';
 
@@ -293,6 +292,7 @@ export class ClientGame {
         if (hit) { this.bashHit(x + Math.cos(a) * 40, y + Math.sin(a) * 40); sfx.bashHit(x, y); if (pid === this.me) this.shake = Math.min(10, this.shake + 5); }
         break;
       }
+      case 'ae': this.notices.push({ k: 'adm', e: ev[1], n: ev[2], i: ev[3], who: ev[4], later: ev[5], q: ev[6], t: ev[7] }); break;
       case 'we': this.notices.push({ k: 'clear', w: ev[1], bonus: ev[2] }); sfx.waveClear(); break;
       default: break;
     }
@@ -336,7 +336,9 @@ export class ClientGame {
         if (d < min && d > 0.01) { S.x += (dx / d) * (min - d) * 0.6; S.y += (dy / d) * (min - d) * 0.6; }
       }
       resolveCircle(S, PLAYER_R);
-      { const B = BOUNDS(); if (B) { S.x = Math.max(B.x0 + PLAYER_R, Math.min(B.x1 - PLAYER_R, S.x)); S.y = Math.max(B.y0 + PLAYER_R, Math.min(B.y1 - PLAYER_R, S.y)); } }
+      // walled in by the moving arena edge? step out to open ground (checked once a second)
+      this.pocketT = (this.pocketT || 0) - dt;
+      if (this.pocketT <= 0) { this.pocketT = 1; const B = WORLD.bounds, edge = Math.min(S.x - B.x0, B.x1 - S.x, S.y - B.y0, B.y1 - S.y); if (edge < 280 && escapePocket(S, PLAYER_R, 40)) { S.kvx = 0; S.kvy = 0; } }
       if (meP) meP.walk += Math.hypot(S.x - bx, S.y - by);
       if (this.input.taim != null) S.a = this.touch ? this.aimAssist(S, this.input.taim) : this.input.taim;
       else if (len > 0 && this.touch) S.a = Math.atan2(my, mx); // no aim stick: face where you walk

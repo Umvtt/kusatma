@@ -1,0 +1,1334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.workers.dev https://*.pages.dev https://*.deno.net wss://*.deno.net; img-src data:; frame-src 'self' https://umvtt.github.io https://umvtt-games.umvtt.deno.net http://localhost:*; base-uri 'none'; form-action 'none'">
+<title>Sign in</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23000'/%3E%3Crect x='.5' y='.5' width='31' height='31' rx='7.5' fill='none' stroke='%23333'/%3E%3Crect x='8' y='8' width='7' height='7' rx='1.5' fill='%23fff'/%3E%3Crect x='17' y='8' width='7' height='7' rx='1.5' fill='%23fff' opacity='.45'/%3E%3Crect x='8' y='17' width='7' height='7' rx='1.5' fill='%23fff' opacity='.45'/%3E%3Crect x='17' y='17' width='7' height='7' rx='1.5' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{--bg:#000;--glass:#0a0a0a;--glass2:#111;--edge:#1c1c1c;--edge2:#2a2a2a;--text:#ededed;--dim:#888;--dim2:#5c5c5c;--accent:#fff;--ok:#46c768;--bad:#f2555a;--line:#1c1c1c;--panel2:#111;--hov:#141414;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--head:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}
+html,body{min-height:100%;height:100%}
+body{margin:0;color:var(--text);font:14px/1.5 var(--head);background:var(--bg);overflow-x:hidden;-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss01";color-scheme:dark}
+::selection{background:#333}
+*{scrollbar-width:thin;scrollbar-color:#2a2a2a transparent}
+main{min-height:100vh;width:100%}
+h1{margin:0;font:600 22px var(--head);letter-spacing:-.02em}
+h2{margin:0;font:600 14px var(--head);letter-spacing:-.005em;color:var(--text)}
+p{margin:0;color:var(--dim)}
+.card{background:var(--glass);border:1px solid var(--edge);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px}
+#setup,#lock{max-width:360px;margin:16vh auto 0;width:calc(100% - 32px);padding:28px}
+#setup::before,#lock::before{content:"Admin";font:600 20px var(--head);letter-spacing:-.02em;margin-bottom:4px}
+label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:500;color:var(--dim)}
+label.chk{flex-direction:row;align-items:center;gap:10px;color:var(--text);font-size:14px;font-weight:400}
+input,select,textarea{background:#050505;color:var(--text);border:1px solid var(--edge2);border-radius:8px;padding:0 12px;height:36px;font:14px var(--head);width:100%;outline:none;transition:border-color .12s,box-shadow .12s}
+textarea{height:auto;padding:9px 12px;resize:vertical;min-height:76px}
+input::placeholder,textarea::placeholder{color:var(--dim2)}
+input:focus,select:focus,textarea:focus{border-color:#555;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
+input[type=checkbox]{width:16px;height:16px;padding:0;accent-color:#fff;flex:none}
+.switch input[type=checkbox]{appearance:none;-webkit-appearance:none;width:36px;height:20px;border-radius:20px;background:#262626;border:0;position:relative;cursor:pointer;transition:background .15s}
+.switch input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#888;transition:transform .15s,background .15s}
+.switch input[type=checkbox]:checked{background:var(--ok)}.switch input[type=checkbox]:checked::after{transform:translateX(16px);background:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+button{background:#ededed;color:#000;border:1px solid #ededed;border-radius:8px;height:34px;padding:0 14px;font:500 13px var(--head);cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s,color .12s}
+button:hover{background:#fff}button:disabled{opacity:.4;cursor:default}
+button:focus-visible{outline:2px solid #666;outline-offset:2px}
+button.ghost{background:transparent;color:var(--text);border-color:var(--edge2)}button.ghost:hover{background:var(--hov);border-color:#3a3a3a}
+button.small{height:28px;padding:0 10px;font-size:12px;border-radius:7px}
+button.danger{background:transparent;color:var(--bad);border-color:#4a1d1f}button.danger:hover{background:#1a0a0b;border-color:#6b2427}
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;padding:16px 12px;display:flex;flex-direction:column;gap:2px;background:#050505;border-right:1px solid var(--edge);overflow-y:auto}
+.brand{font:600 15px var(--head);letter-spacing:-.01em;padding:4px 8px 14px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:3px;background:#111;border:1px solid var(--edge);border-radius:9px;margin-bottom:14px}
+.seg button{height:28px;background:transparent;border:0;color:var(--dim);border-radius:6px;font-size:12.5px;padding:0 8px}
+.seg button:hover{background:transparent;color:var(--text)}
+.seg button[aria-pressed=true]{background:#262626;color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.5)}
+.tabs button[data-tab]{background:transparent;color:var(--dim);border:0;text-align:left;height:32px;padding:0 10px;font-size:13px;border-radius:7px;position:relative}
+.tabs button[data-tab]:hover{background:var(--hov);color:var(--text)}
+.sub{font-size:12.5px;color:var(--dim2);margin-top:2px;min-height:1.2em}
+.tabs button[data-tab],.navlock{display:flex;align-items:center;gap:10px}
+.tabs svg,.navlock svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+.list>p,.item.d{justify-content:center;text-align:center;color:var(--dim2);padding:22px 14px}
+.item button.small.ghost{background:#131313;border-color:#1f1f1f}.item button.small.ghost:hover{background:#1c1c1c;border-color:#333}
+#dKpi,#kpis,#hKpi{grid-template-columns:repeat(4,minmax(0,1fr))}@media (max-width:820px){.kpis,#dKpi,#kpis,#hKpi{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{transition:border-color .15s}.kpi:hover{border-color:var(--edge2)}
+.card>h2:first-child,.card>.row:first-child h2{font-size:14.5px}
+#refresh{gap:6px;display:inline-flex;align-items:center}#refresh.spin svg{animation:sp .6s linear}@keyframes sp{to{transform:rotate(360deg)}}
+#refresh svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+.meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px 22px}
+.meter2{display:flex;flex-direction:column;gap:6px}.meter2 .t{display:flex;justify-content:space-between;gap:10px;font-size:13px}.meter2 .t span:last-child{color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.meter2 .b{height:6px;border-radius:3px;background:#1a1a1a;overflow:hidden}.meter2 .b i{display:block;height:100%;border-radius:3px;background:var(--ok)}.meter2.warn .b i{background:#e3b341}.meter2.bad .b i{background:var(--bad)}
+.tbl td.n,.tbl th.n{text-align:right;font-variant-numeric:tabular-nums}
+.navfoot{margin-top:auto;padding-top:14px;border-top:1px solid var(--edge);display:flex;flex-direction:column;gap:2px}
+.nlab{font:500 11px var(--head);letter-spacing:.06em;text-transform:uppercase;color:var(--dim2);padding:14px 10px 6px}
+.ngh{display:flex;align-items:center;justify-content:space-between;background:transparent;color:var(--dim);border:0;height:32px;padding:0 10px;font-size:13px;border-radius:7px;text-align:left}.ngh:hover{background:var(--hov);color:var(--text)}
+.ngh svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}.ngh[aria-expanded=true]{color:var(--text)}.ngh[aria-expanded=true] svg{transform:rotate(90deg)}
+.ngrp{display:flex;flex-direction:column;gap:2px;margin:0 0 8px 10px;padding-left:8px;border-left:1px solid var(--edge)}.ngrp[hidden]{display:none}
+.tb-sec{display:flex;align-items:center;color:var(--dim);font:500 14px var(--head)}
+.lgf .lg-r{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,2fr) minmax(0,1fr) auto;gap:10px;align-items:end}
+.lgf .lg-r2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end;margin-top:12px}
+.lgf label.switch.sw-in{flex-direction:row;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;height:38px;border-radius:8px;font-size:13px;color:var(--text);align-self:end}
+.chips button.chip{cursor:pointer;background:transparent;height:28px;padding:0 11px;font-size:12px}.chips button.chip:hover{color:var(--text);border-color:#444}
+.chips button.chip[aria-pressed=true]{color:#fff;border-color:#fff;background:#161616}.chips button.chip b{font-weight:500;color:var(--dim2);font-size:11px}
+.lg-list .item{align-items:flex-start;gap:4px 12px;padding:9px 14px;min-height:0}.lg-list .lt{font:12px var(--mono);color:var(--dim2);white-space:nowrap;min-width:92px;padding-top:2px}
+.lg-list .lg-g{font:600 10.5px var(--mono);border:1px solid var(--edge2);border-radius:4px;padding:1px 5px;color:var(--dim)}.lg-list .lk{min-width:64px;color:var(--dim);font-size:12px;padding-top:2px}
+.lg-list .ln{color:var(--text);font-weight:500;background:none;border:0;padding:0;height:auto;font-size:13.5px;cursor:pointer}.lg-list .ln:hover{text-decoration:underline}
+.lg-list .lr{font:12px var(--mono);color:var(--dim);background:none;border:1px solid var(--edge2);border-radius:4px;padding:1px 6px;height:auto;cursor:pointer}.lg-list .lr:hover{color:var(--text)}
+.lg-list .ld{flex:1 1 280px;color:var(--dim);font-size:13px;overflow-wrap:anywhere;min-width:0}.lg-list .lf{color:var(--bad);font-size:12px}
+.lg-list .lday{background:#0b0b0b;color:var(--dim2);font:500 11.5px var(--head);letter-spacing:.04em;text-transform:uppercase;padding:7px 14px;min-height:0}
+.lg-foot{display:flex;justify-content:center;margin-top:12px}
+.lg-list .item>button.small{margin-left:auto}
+@media (max-width:820px){.lgf .lg-r2{grid-template-columns:1fr 1fr}.lgf .lg-r{grid-template-columns:1fr 1fr}.lgf .lg-r>button{grid-column:1/-1}.lg-list .lt{min-width:0}.ngrp{margin:0;padding:0;border:0;display:contents}.ngrp[hidden]{display:none}.nlab{display:none}}
+.ctx{position:fixed;z-index:200;min-width:200px;max-width:280px;padding:5px;border-radius:10px;border:1px solid var(--edge2);background:#0d0d0d;box-shadow:0 14px 40px rgba(0,0,0,.6);display:flex;flex-direction:column;animation:ctxIn .12s ease-out}
+.ctx-i{all:unset;box-sizing:border-box;display:block;width:100%;padding:8px 11px;border-radius:6px;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctx-i:hover,.ctx-i:focus-visible{background:#1a1a1a}.ctx-i.danger{color:var(--bad)}.ctx-sep{height:1px;margin:4px 6px;background:var(--edge)}
+@keyframes ctxIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.ctx,.pcard{animation:none}}
+.pcard{position:fixed;z-index:190;width:300px;max-width:calc(100vw - 16px);padding:14px 16px;border-radius:12px;border:1px solid var(--edge2);background:#0b0b0b;box-shadow:0 18px 50px rgba(0,0,0,.65);display:flex;flex-direction:column;gap:10px;animation:ctxIn .14s ease-out}
+.pc-h{display:flex;align-items:baseline;gap:8px}.pc-h strong{font-size:15px}.pcard p{margin:0;font-size:12.5px}
+.pc-g{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;font-size:12.5px}.pc-g span:nth-child(even){overflow-wrap:anywhere}.pc-b{gap:6px}
+.plink{all:unset;cursor:pointer;color:var(--text);font-weight:500}.plink:hover{text-decoration:underline}.plink:focus-visible{outline:1px solid #fff;outline-offset:2px}
+[data-pa],[data-pn]{-webkit-touch-callout:none}
+.mqf .mq-top{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;gap:10px;align-items:end}
+.mq-list{display:flex;flex-direction:column;border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:#070707;margin-top:12px}
+.mq-row{display:grid;grid-template-columns:minmax(0,3fr) 52px 64px 52px minmax(90px,1fr) 70px 76px 118px;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--edge);font-size:13px;min-height:44px}
+.mq-row:last-child{border-bottom:0}.mq-row:not(.mq-h):hover{background:#0e0e0e}.mq-h{color:var(--dim2);font:500 11px var(--head);letter-spacing:.05em;text-transform:uppercase;min-height:0;background:#0a0a0a}
+.mq-row .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim)}.mq-row .n.hot{color:var(--text);font-weight:600}.mq-h span:nth-child(n+2):nth-child(-n+4),.mq-h span:nth-child(7){text-align:right}
+.mq-who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}.mq-note{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mq-act{display:flex;gap:6px;justify-content:flex-end}.mq-more{min-width:32px;padding:0 8px}
+.mq-pager{gap:8px}
+@media (max-width:820px){.mqf .mq-top{grid-template-columns:1fr 1fr}.mqf .mq-top>button{grid-column:1/-1}.mq-h{display:none}.mq-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}.mq-row>span:nth-child(n+2):nth-child(-n+7){display:none}.mq-row .mq-act{grid-row:1;grid-column:2}}
+.list-more{margin:8px auto;display:block}
+button.plink,button.plink:hover,button.plink:focus,button.ln,button.ln:hover,button.lr:hover,button.ctx-i{background:none;border:0;box-shadow:none}
+button.plink,button.plink:hover,button.ln,button.ln:hover{color:var(--text)}button.lr:hover{color:var(--text);border:1px solid var(--edge2)}
+button.ctx-i:hover,button.ctx-i:focus-visible{background:#1a1a1a;color:var(--text)}button.ctx-i.danger,button.ctx-i.danger:hover{color:var(--bad)}
+button.small{height:32px;padding:0 12px;font-size:12.5px}
+.ctlp{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.ctlp-g{border:1px solid var(--edge);border-radius:10px;padding:12px;background:#080808;display:flex;flex-direction:column;gap:10px}.ctlp-g h3{margin:0;font-size:13px;color:var(--dim);font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.ctlp-r{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}.ctlp-r>button{height:36px;padding:0 14px}
+.ctlp-f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--dim);flex:1 1 120px;min-width:0}
+.dlg.wide.watch .card{max-width:min(1500px,96vw);width:96vw;max-height:94vh}
+.watchw{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start}
+.watchv{position:relative;aspect-ratio:16/9;border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:#000;display:grid;place-items:center}
+.watchf{position:absolute;inset:0;width:100%;height:100%;border:0}
+.watchs{display:flex;flex-direction:column;gap:10px;max-height:calc(94vh - 90px);overflow:auto}.watchs .ctlp{grid-template-columns:1fr}.watchs>*{flex-shrink:0}.watchs>.sub{margin:0}
+@media (max-width:1000px){.watchw{grid-template-columns:1fr}.watchs{max-height:none}}
+.ctl-card .btns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.ctl-card .btns button{margin:0}
+.ksh-sec h3{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+button.plink,.lg-list .ln{padding:4px 2px;min-height:26px}
+.navlock{background:transparent;color:var(--dim);border:0;text-align:left;height:32px;padding:0 10px;font-size:13px;border-radius:7px}.navlock:hover{background:var(--hov);color:var(--bad)}
+.tabs button[data-tab][aria-selected=true]{background:#161616;color:var(--text);font-weight:500}
+.content{padding:28px 32px 48px;display:flex;flex-direction:column;gap:18px;min-width:0;max-width:1360px;width:100%}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:4px}
+.code{font:600 24px var(--mono);color:var(--text);overflow-wrap:anywhere}
+.msg{min-height:1.4em;color:var(--dim);overflow-wrap:anywhere;font-size:13px}.msg:empty{min-height:0}
+.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+.ksh-secs{display:flex;flex-direction:column;gap:18px;margin-top:6px}.ksh-sec h3{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-size:15px}.ksh-sec h3 .sp{flex:1}.ksh-sec .list{flex-shrink:0}.ksh-sec .item.chg{background:#141414;box-shadow:inset 3px 0 0 #fff}.ksh-sec .item input[type=number]{width:84px}.ksh-bar{position:sticky;bottom:0;z-index:5;display:flex;align-items:center;gap:10px;margin-top:16px;padding:12px 16px;border:1px solid var(--edge2);border-radius:12px;background:rgba(10,10,10,.94);backdrop-filter:blur(6px)}.ksh-bar.dirty{border-color:#fff}.btns button[aria-pressed=true]{background:#fff;color:#000}
+.list{display:flex;flex-direction:column;border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:#070707}.list:empty{display:none}.list>p{padding:11px 14px}#dLog{max-height:440px;overflow:auto}
+.item{flex-shrink:0;border-bottom:1px solid var(--edge);padding:10px 14px;min-height:46px;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;transition:background .1s}.item:last-child{border-bottom:0}
+.item:hover{background:#0e0e0e}
+.item.d{color:var(--dim)}
+.item .c{font:500 12.5px var(--mono);color:var(--text);letter-spacing:.02em}
+.item .k{color:var(--text);font-weight:500}
+.item .d{color:var(--dim);font-size:13px}
+.item .sp{flex:1}
+.item>button{margin-left:2px}
+.st-ready{color:var(--ok)}.st-done,.st-exp{color:var(--dim)}.st-off{color:var(--bad)}
+.abs{display:flex;flex-direction:column;gap:8px}
+.chip{font:500 11.5px var(--head);border:1px solid var(--edge2);border-radius:999px;padding:2px 9px;color:var(--dim);display:inline-flex;align-items:center;gap:6px}
+.chip.gold{color:var(--text)}.chip.green,.chip.on{color:var(--ok);border-color:#1e4a2a;background:#07130a}.chip.off{color:var(--bad);border-color:#4a1d1f;background:#140808}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--edge);border-radius:10px;padding:14px 16px;background:#070707}.switch b{color:var(--text);font-weight:500}.switch p{margin:2px 0 0;font-size:13px}
+.netbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#140808;border:1px solid #4a1d1f;border-radius:10px;padding:10px 14px;color:var(--text)}
+.meter{height:4px;border-radius:2px;background:var(--line);overflow:hidden}.meter i{display:block;height:100%;width:0;background:var(--bad)}
+#stat{display:flex;gap:8px;flex-wrap:wrap}#stat span{font:500 12px var(--head);padding:3px 10px;border-radius:999px;border:1px solid var(--edge2);color:var(--dim);display:inline-flex;align-items:center;gap:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{border:1px solid var(--edge);border-radius:12px;padding:16px 18px;background:var(--glass);display:flex;flex-direction:column;gap:4px}.kpi span{order:-1}.kpi small{font-size:11.5px;color:var(--dim2)}
+.kpi b{display:block;font:600 26px var(--head);letter-spacing:-.02em;color:var(--text);line-height:1.15;font-variant-numeric:tabular-nums}.kpi span{font-size:12.5px;color:var(--dim)}
+.bars{display:flex;align-items:flex-end;gap:3px;height:160px;padding-top:8px;border-bottom:1px solid var(--edge)}
+.pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.pbox{display:flex;flex-direction:column;gap:8px;min-width:0;padding:14px;border:1px solid var(--edge);border-radius:12px;background:#080808}.pbox.wide{grid-column:1/-1}.pbox h3{margin:4px 0 0;font-size:13px;font-weight:500;color:var(--dim)}.pbox h3:first-child{margin:0;color:var(--text);font-size:14px}
+.phead{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}.tags{display:flex;flex-direction:column;gap:6px}.tagrow{display:flex;flex-wrap:wrap;align-items:center;gap:5px}.tagrow .d{min-width:84px}
+@media(max-width:700px){.pgrid{grid-template-columns:minmax(0,1fr)}}
+.ctip{position:fixed;z-index:200;pointer-events:none;display:flex;flex-direction:column;gap:2px;padding:7px 10px;border-radius:8px;background:#fff;color:#000;font:500 12px var(--head);box-shadow:0 8px 24px rgba(0,0,0,.5);white-space:nowrap}.ctip b{font-size:14px}
+.bars div.hl{background:#fff}
+.usage2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}@media(max-width:900px){.usage2{grid-template-columns:minmax(0,1fr)}}
+.ucol h3{margin:14px 0 4px;font-size:13px;font-weight:500;color:var(--dim)}.ucol .bars{height:110px}
+.uhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.kpis.small{grid-template-columns:repeat(2,minmax(0,1fr));margin:10px 0}.kpis.small .kpi b{font-size:22px}
+.bars div{flex:1;min-width:4px;max-width:36px;background:#cfcfcf;border-radius:3px 3px 0 0}.bars div:hover{background:#fff}
+.bars.g div{background:#4a4a4a}.bars.g div:hover{background:#7a7a7a}
+.axis{display:flex;justify-content:space-between;font:11px var(--mono);color:var(--dim2)}
+.hbar{display:grid;grid-template-columns:minmax(90px,180px) 1fr 50px;gap:12px;align-items:center;font-size:13px}.hbar>div{background:#151515;border-radius:3px}.hbar i{display:block;height:8px;border-radius:3px;background:#cfcfcf}.hbar span:last-child{font-family:var(--mono);color:var(--dim);text-align:right;font-size:12px}
+.vehs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 14px;max-height:46vh;overflow:auto;padding:4px}
+.vehs h3{grid-column:1/-1;margin:16px 0 2px;padding-bottom:6px;border-bottom:1px solid var(--edge);font:600 13px var(--head);color:var(--text)}
+.vehs h4{grid-column:1/-1;margin:8px 0 0;font:500 12px var(--head);color:var(--dim)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;box-shadow:0 0 0 3px rgba(70,199,104,.15)}
+[hidden]{display:none!important}
+.dlg{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.72);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);animation:fi .12s ease}
+.dlg .card{width:100%;max-width:500px;max-height:88vh;overflow:auto;background:#0b0b0b;border-color:var(--edge2);box-shadow:0 24px 60px rgba(0,0,0,.6);animation:pi .14s ease}.dlg.wide .card{max-width:860px}
+.dlg h2{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:15px}
+@keyframes fi{from{opacity:0}}@keyframes pi{from{opacity:0;transform:translateY(6px)}}
+.toasts{position:fixed;right:16px;bottom:16px;z-index:60;display:flex;flex-direction:column;gap:8px;max-width:min(380px,calc(100vw - 32px))}
+.toast{background:#141414;border:1px solid var(--edge2);border-radius:10px;padding:10px 14px;font:13px var(--head);box-shadow:0 12px 30px rgba(0,0,0,.5);animation:pi .14s ease}
+.toast.ok{border-left:3px solid var(--ok)}.toast.bad{border-left:3px solid var(--bad)}
+.dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.evgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.ev{border:1px solid var(--edge);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;background:#070707}
+.ev b{font:600 14px var(--head);color:var(--text)}.ev p{font-size:13px;flex:1}.ev button{align-self:flex-start}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}.tbl th{text-align:left;font:500 12px var(--head);color:var(--dim);padding:8px 10px;border-bottom:1px solid var(--edge)}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--edge);font-family:var(--mono);font-size:12px}.tbl tr:hover td{background:#0e0e0e}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 14px;font-size:13px}.kv span:nth-child(odd){color:var(--dim);font-size:12.5px}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.menu{position:relative;display:inline-block}
+@media (max-width:820px){.shell{grid-template-columns:1fr;align-content:start}.side{position:sticky;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:8px 10px;gap:2px;border-right:0;border-bottom:1px solid var(--edge);z-index:5}.brand{display:none}.navfoot{margin:0 0 0 auto;padding:0 0 0 8px;border-top:0;border-left:1px solid var(--edge);flex-direction:row}.navlock{flex:none}.tabs button[data-tab]{white-space:nowrap;flex:none}.content{padding:18px 14px 32px}.card{padding:16px}h1{font-size:19px}}
+
+/* premium pass */
+:root{--acc:#fff}
+.card{box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 1px 2px rgba(0,0,0,.4)}
+.shell{grid-template-rows:56px minmax(0,1fr)}
+.topbar{grid-column:1/-1;position:sticky;top:0;z-index:20;height:56px;display:flex;align-items:stretch;gap:28px;padding:0 24px;background:rgba(0,0,0,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--edge)}
+.tb-brand{display:flex;align-items:center;font:600 15px var(--head);letter-spacing:-.01em;padding-right:22px;border-right:1px solid var(--edge);margin:14px 0}
+.seg{display:flex;gap:4px;padding:0;margin:0;background:none;border:0;border-radius:0}
+.seg button{height:100%;padding:0 16px;background:transparent;border:0;border-radius:0;color:var(--dim);font:500 14.5px var(--head);position:relative;transition:color .15s}
+.seg button:hover{background:transparent;color:var(--text)}
+.seg button::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;border-radius:2px;background:#fff;transform:scaleX(0);transition:transform .2s cubic-bezier(.3,.7,.4,1)}
+.seg button[aria-pressed=true]{color:#fff;box-shadow:none;background:transparent}.seg button[aria-pressed=true]::after{transform:scaleX(1)}
+.side{top:56px;height:calc(100vh - 56px)}
+.tabs button[data-tab][aria-selected=true]{box-shadow:inset 2px 0 0 #fff}
+.tabs button[data-tab][aria-selected=true] svg{opacity:1}
+.crumb{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim2);margin-bottom:2px}
+.hint{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:500;color:var(--dim)}.hint b{height:36px;display:flex;align-items:center;font:500 14px var(--head);color:var(--text)}
+#lbRefresh,#alRefresh,#aRefresh,#cRefresh,#gRefresh,#bRefresh{display:none}
+[data-pane=lb]>.row:first-child,[data-pane=alog]>.row:first-child{display:none}
+[data-pane=accts]>.row:first-child h2{display:none}[data-pane=accts]>.row:first-child,[data-pane=accts]>.row:first-child>.row{flex:1}#aFind{width:100%!important;flex:1}
+.row:has(>#kCode:empty){display:none}
+
+.ctl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}.ctl-card{border:1px solid var(--edge);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--glass)}.ctl-card canvas{width:100%;height:auto;aspect-ratio:300/190;border-radius:8px;border:1px solid var(--edge)}.ctl-h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.ctl-h div{display:flex;flex-direction:column;min-width:0}.ctl-h b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ctl-i{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;min-height:22px}.ctl-card .btns{display:flex;flex-wrap:wrap;gap:6px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.cal-h{font-size:11.5px;color:var(--dim2);text-align:center;padding:4px 0}.cal-d{min-height:64px;border:1px solid var(--edge);border-radius:8px;padding:4px 6px;display:flex;flex-direction:column;gap:3px;min-width:0}.cal-d.now{border-color:var(--text)}.cal-n{font-size:11.5px;color:var(--dim)}.cal-x{font-size:10.5px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cal-x.on{background:var(--text);color:#000}
+.ss-row{flex-wrap:wrap}.ss-cell{display:inline-flex;gap:6px;align-items:center}.ss-cell select{max-width:220px}.ss-cell input{width:90px}
+#mbList label.item{cursor:pointer}textarea{width:100%;font:inherit}
+.sect{display:flex;flex-direction:column;gap:10px;min-width:0}.hlist{display:flex;flex-direction:column;gap:8px}.hlist p{font-size:13px;color:var(--dim2)}
+/* motion */
+@keyframes paneIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes widen{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(70,199,104,.45)}70%{box-shadow:0 0 0 7px rgba(70,199,104,0)}100%{box-shadow:0 0 0 0 rgba(70,199,104,0)}}
+@keyframes toastIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes dlgIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes popIn2{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}
+.in{animation:rise .32s cubic-bezier(.2,.75,.2,1) both}
+.bars div.in{animation:grow .55s cubic-bezier(.2,.75,.2,1) both;transform-origin:bottom}
+.hbar i.in,.meter2 .b i.in{animation:widen .7s cubic-bezier(.2,.75,.2,1) both;transform-origin:left}
+.dot{animation:ping 2.4s ease-out infinite}
+.toast{animation:toastIn .26s cubic-bezier(.2,.75,.2,1)}
+.dlg .card{animation:dlgIn .22s cubic-bezier(.2,.75,.2,1)}
+.fx-pop{animation:popIn2 .14s ease-out}
+button{transition:background .12s,border-color .12s,color .12s,transform .08s}
+button:active:not(:disabled){transform:scale(.97)}
+.tabs button[data-tab]{transition:background .15s,color .15s,box-shadow .2s}
+.tabs button[data-tab] svg{transition:transform .2s,opacity .15s}.tabs button[data-tab]:hover svg{transform:translateX(1px)}
+.item,.kpi,.ev,.switch{transition:background .15s,border-color .15s,transform .15s}
+.kpi:hover{transform:translateY(-1px)}
+.meter2 .b i,.hbar i{transition:width .5s cubic-bezier(.2,.75,.2,1)}
+#refresh.spin svg{animation:sp .6s cubic-bezier(.2,.75,.2,1)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+[data-pane=players] h2:has(+ #banList),#banList{display:none!important}
+[data-pane=klive] .dash>section:first-child{display:none}[data-pane=klive] .dash{grid-template-columns:1fr}
+/* switches everywhere */
+input[type=checkbox]{appearance:none;-webkit-appearance:none;width:36px;height:20px;border-radius:20px;background:#262626;border:0;position:relative;cursor:pointer;transition:background .15s;flex:none;margin:0}
+input[type=checkbox]::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#8a8a8a;transition:transform .18s cubic-bezier(.3,.7,.4,1),background .15s;box-shadow:0 1px 2px rgba(0,0,0,.4)}
+input[type=checkbox]:checked{background:var(--ok)}input[type=checkbox]:checked::after{transform:translateX(16px);background:#fff}
+input[type=checkbox]:focus-visible{outline:2px solid #666;outline-offset:2px}
+label.chk{padding:6px 0}
+/* number inputs without browser spinners */
+input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+/* own dropdown and date picker */
+.fx-native{position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important}
+.fx-sel{width:100%;height:36px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px 0 12px;background:#050505;color:var(--text);border:1px solid var(--edge2);border-radius:8px;font:400 14px var(--head);text-align:left;cursor:pointer}
+.fx-sel:hover{background:#0c0c0c;border-color:#3a3a3a}.fx-sel.fx-open{border-color:#555;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
+.fx-sel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.fx-sel svg{width:16px;height:16px;flex:none;stroke:var(--dim);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.fx-sel.fx-open svg:last-child{transform:rotate(180deg)}.fx-sel.fx-auto{width:auto;min-width:110px}
+.fx-date{justify-content:flex-start}.fx-date svg{stroke:var(--dim)}.fx-date.empty span{color:var(--dim2)}
+.fx-pop{position:fixed;z-index:80;background:#0e0e0e;border:1px solid #2c2c2c;border-radius:12px;padding:6px;box-shadow:0 18px 50px rgba(0,0,0,.65),0 0 0 1px rgba(0,0,0,.4);animation:pi .12s ease;max-width:calc(100vw - 16px)}
+.fx-list{max-height:280px;overflow:auto;display:flex;flex-direction:column;gap:1px}
+.fx-opt{padding:8px 10px;border-radius:7px;font-size:13.5px;cursor:pointer;color:var(--text);white-space:nowrap;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.fx-opt:hover,.fx-opt.act{background:#1b1b1b}.fx-opt.on{font-weight:600}.fx-opt.on::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc);flex:none}
+.fx-q{height:32px;margin-bottom:6px;font-size:13px}.fx-none{padding:10px;color:var(--dim2);font-size:13px}
+.fx-cal{width:292px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.fx-calh{display:flex;align-items:center;justify-content:space-between}.fx-calh b{font-size:14px;font-weight:600}
+.fx-nav{width:30px;height:30px;padding:0;display:grid;place-items:center;background:transparent;border:1px solid var(--edge2);border-radius:8px}.fx-nav:hover{background:#1a1a1a}
+.fx-nav svg{width:16px;height:16px;stroke:var(--text);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fx-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}.fx-wd{font-size:11px;color:var(--dim2);text-align:center;padding:4px 0;font-weight:600}
+.fx-day{height:34px;padding:0;background:transparent;border:0;border-radius:8px;color:var(--text);font-size:13px;font-weight:400;font-variant-numeric:tabular-nums}
+.fx-day:hover{background:#1c1c1c}.fx-day.past{color:#4a4a4a}.fx-day.today{box-shadow:inset 0 0 0 1px #3a3a3a}.fx-day.on{background:#ededed;color:#000;font-weight:600}
+.fx-time{display:flex;align-items:center;gap:8px;padding-top:8px;border-top:1px solid var(--edge);font-size:13px;color:var(--dim)}.fx-time>span{flex:1}
+.fx-step{display:flex;align-items:center;border:1px solid var(--edge2);border-radius:8px;overflow:hidden}.fx-step b{min-width:30px;text-align:center;font-variant-numeric:tabular-nums;color:var(--text);font-weight:500}
+.fx-step button{width:28px;height:30px;padding:0;background:transparent;border:0;border-radius:0;color:var(--text);font-size:15px}.fx-step button:hover{background:#1c1c1c}
+.fx-quick{display:flex;flex-wrap:wrap;gap:6px}.fx-quick button{height:26px;padding:0 9px;font-size:12px;background:#151515;color:var(--text);border:1px solid #242424;border-radius:999px}.fx-quick button:hover{border-color:#3a3a3a;background:#1c1c1c}
+.fx-foot{display:flex;justify-content:flex-end;gap:6px}
+@media (max-width:820px){.shell{grid-template-rows:auto auto 1fr}.topbar{height:50px;padding:0 12px;gap:10px}.tb-brand{padding-right:12px;font-size:14px;margin:12px 0}.seg button{padding:0 10px;font-size:14px}.side{position:static;top:auto;height:auto}}
+</style>
+</head>
+<body>
+<main>
+<section class="card" id="setup" hidden>
+  <label>Address <input id="sUrl" autocomplete="off" spellcheck="false"></label>
+  <label>Key <input id="sKey" type="password" autocomplete="off"></label>
+  <label>Password <input id="sPw" type="password" autocomplete="new-password"></label>
+  <div class="meter"><i id="sMeter"></i></div>
+  <label>Repeat <input id="sPw2" type="password" autocomplete="new-password"></label>
+  <div class="row"><button id="sGo" type="button">Save</button></div>
+  <div class="msg" id="sMsg"></div>
+</section>
+<section class="card" id="lock" hidden>
+  <label>Password <input id="lPw" type="password" autocomplete="current-password"></label>
+  <div class="row"><button id="lGo" type="button">Sign in</button><button class="ghost small" id="lReset" type="button">Reset</button></div>
+  <div class="msg" id="lMsg"></div>
+</section>
+<div id="app" class="shell" hidden>
+  <div class="topbar"><div class="tb-brand">Admin</div><div class="tb-sec" id="tbSec"></div></div>
+  <nav class="side tabs" role="tablist">
+    <button type="button" data-tab="home" data-g="*" aria-selected="false">Dashboard</button>
+    <button type="button" data-tab="logs" data-g="*" aria-selected="false">Logs</button>
+    <div class="nlab">Kuşatma</div>
+    <button type="button" data-tab="klive" data-g="k" aria-selected="false">Live</button>
+    <button type="button" data-tab="kctl" data-g="k" aria-selected="false">Control room</button>
+    <button type="button" data-tab="kev" data-g="k" aria-selected="false">Events</button>
+    <button type="button" data-tab="ksc" data-g="k" aria-selected="false">Schedule</button>
+    <button type="button" data-tab="kset" data-g="k" aria-selected="false">News &amp; settings</button>
+    <button type="button" data-tab="kpl" data-g="k" aria-selected="false">Accounts</button>
+    <button type="button" data-tab="kec" data-g="k" aria-selected="false">Economy</button>
+    <button type="button" data-tab="ksh" data-g="k" aria-selected="false">Shop</button>
+    <button type="button" data-tab="kss" data-g="k" aria-selected="false">Season</button>
+    <button type="button" data-tab="krp" data-g="k" aria-selected="false">Reports</button>
+    <button type="button" data-tab="kmod" data-g="k" aria-selected="false">Moderation</button>
+    <button type="button" data-tab="klb" data-g="k" aria-selected="false">Leaderboard</button>
+    <button type="button" data-tab="kstats" data-g="k" aria-selected="false">Stats</button>
+    <button type="button" data-tab="kan" data-g="k" aria-selected="false">Analytics</button>
+    <button type="button" data-tab="kdat" data-g="k" aria-selected="false">Data</button>
+    <button type="button" data-tab="kbn" data-g="k" aria-selected="false">Bans</button>
+    <div class="navfoot">
+      
+      <button type="button" data-tab="alog" data-g="*" aria-selected="false">Activity</button>
+      <button type="button" data-tab="acct" data-g="*" aria-selected="false">Security</button>
+      <button type="button" class="navlock" id="navLock">Lock</button>
+    </div>
+  </nav>
+  <div class="content">
+  
+  <header class="top"><div><span class="crumb" id="crumb"></span><h1 id="pgT">Dashboard</h1><p class="sub" id="upd"></p></div><div class="row"><div class="row" id="stat"></div><button class="ghost small" id="refresh" type="button">Refresh</button></div></header>
+  
+  
+  
+  <div data-pane="logs" hidden>
+    <section class="card lgf">
+      <div class="lg-r"><label>Player <input id="lgN" maxlength="40" placeholder="Name, account or device"></label><label>Detail <input id="lgX" maxlength="60" placeholder="Text in the line"></label><label>Room <input id="lgR" maxlength="6" placeholder="Code"></label><button id="lgGo" type="button">Search</button></div>
+      <div class="lg-r2"><label>From <select id="lgG"><option value="">Everywhere</option><option value="k">Game</option><option value="p">Panel</option></select></label>
+        <label>Time <select id="lgD"><option value="1">Last hour</option><option value="24" selected>Last 24 hours</option><option value="168">Last 7 days</option><option value="720">Last 30 days</option><option value="c">Pick dates</option></select></label>
+        <label data-lgc hidden>From <input id="lgFrom" type="datetime-local"></label><label data-lgc hidden>To <input id="lgTo" type="datetime-local"></label>
+        <label class="switch sw-in"><span>Failed only</span><input type="checkbox" id="lgFail"></label><label class="switch sw-in"><span>Auto refresh</span><input type="checkbox" id="lgAuto"></label></div>
+      <div class="chips" id="lgK" style="margin-top:14px"></div>
+    </section>
+    <section class="card"><div class="row" style="justify-content:space-between"><span class="d" id="lgCount"></span><div class="row"><button class="ghost small" id="lgClear" type="button">Clear filters</button><button class="ghost small" id="lgCopy" type="button">Copy</button></div></div>
+      <div class="list lg-list" id="lgList"></div><div class="lg-foot"><button class="ghost" id="lgMore" type="button" hidden>Older</button></div><div class="msg" id="lgMsg"></div></section>
+  </div>
+  <section class="card" data-pane="alog" hidden>
+    <div class="row" style="justify-content:space-between"><h2>Activity</h2><button class="ghost small" id="alRefresh" type="button">Refresh</button></div>
+    <p>Every change made in this panel, newest first.</p>
+    <div class="list" id="alList"></div><div class="msg" id="alMsg"></div>
+  </section>
+  
+  
+  
+  
+  <div data-pane="home" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div class="netbar" id="hNote" hidden></div>
+    <div class="kpis" id="hKpi"></div>
+    <div class="usage2">
+      <section class="card ucol"><div class="uhead"><h2>Cloudflare</h2><span class="chip" id="hCfS">—</span></div><p class="msg" id="hReset"></p>
+        <div class="kpis small" id="hCfK"></div><div class="meters" id="hCfL"></div>
+        <h3>Server requests per day</h3><div class="bars" id="hcR"></div><div class="axis" id="haR"></div>
+        <h3>Database writes per day</h3><div class="bars g" id="hcW"></div><div class="axis" id="haW"></div>
+        <h3>Relay (TURN) data per day</h3><div class="bars" id="hcT"></div><div class="axis" id="haT"></div></section>
+      <section class="card ucol"><div class="uhead"><h2>Deno</h2><span class="chip" id="hDnS">—</span></div><p class="msg">Monthly limits</p>
+        <div class="kpis small" id="hDnK"></div><div class="meters" id="hDnL"></div>
+        <h3>Requests per day</h3><div class="bars" id="hcD"></div><div class="axis" id="haD"></div>
+        <h3>Data sent per day</h3><div class="bars g" id="hcE"></div><div class="axis" id="haE"></div>
+        <div class="list" id="hDnApps" style="margin-top:12px"></div></section>
+    </div>
+    <section class="card"><h2>Services</h2><div style="overflow-x:auto"><table class="tbl" id="hSvc"></table></div></section>
+    <section class="card"><h2>Stored</h2><div class="kv" id="hData"></div></section>
+  </div>
+  <div data-pane="klive" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div class="kpis" id="kKpi"></div>
+    <section class="card"><div class="row" style="justify-content:space-between"><h2>Online now</h2><span class="msg" id="kN"></span></div>
+      <div class="row"><input id="kAll" maxlength="300" placeholder="Message to everyone online" style="flex:1;min-width:160px"><button id="kAllGo" type="button">Send to all</button></div>
+      <div class="row"><input id="kPlQ" maxlength="24" placeholder="Filter by name, room or class" style="flex:1;min-width:160px"></div>
+      <div class="list" id="kPl"></div></section>
+    <section class="card"><h2>Rooms</h2><div class="list" id="kRm"></div></section>
+    <div class="dash"><section class="card"><h2>Bans</h2><div class="list" id="kBn"></div></section><section class="card"><h2>Game versions online</h2><div class="list" id="kVer"></div></section></div>
+  </div>
+  <section class="card" data-pane="kpl" hidden>
+    <div class="row"><input id="kpQ" maxlength="24" placeholder="Name, account id or device" style="flex:1;min-width:160px"><button id="kpGo" type="button">Search</button></div>
+    <div class="row mq-pager" style="justify-content:flex-end"><button class="ghost small" id="kpPrev" type="button">Previous</button><span class="d" id="kpPg"></span><button class="ghost small" id="kpNext" type="button">Next</button></div>
+    <div class="list" id="kpList"></div><div class="msg" id="kpMsg"></div>
+  </section>
+  <section class="card" data-pane="klb" hidden>
+    <div class="dash" id="klbCols"></div><div class="msg" id="klbMsg"></div>
+  </section>
+  
+  <section class="card" data-pane="kbn" hidden>
+    <input id="kbQ" maxlength="24" placeholder="Search name, device or account">
+    <div class="list" id="kbList"></div><div class="msg" id="kbMsg"></div>
+  </section>
+  <section class="card" data-pane="kev" hidden>
+    <p>Every running Kuşatma game gets these right away, with a message on screen.</p>
+    <label>Message with the event (optional) <input id="kevTx" maxlength="120" placeholder="e.g. İyi şanslar!"></label>
+    <div class="evgrid">
+      <div class="ev"><b>Boss</b><p>A random boss joins the fight now, or at the start of the next wave if a game is between waves.</p><button type="button" id="kevBoss">Send a boss</button></div>
+      <div class="ev"><b>Gold for everyone</b><p>Every player in a game gets this much gold to spend in the armoury.</p><div class="row"><select id="kevGold" style="width:auto"><option>100</option><option selected>250</option><option>500</option><option>1000</option></select><button type="button" id="kevGoldGo">Give gold</button></div></div>
+    </div>
+  </section>
+  <section class="card" data-pane="kset" hidden>
+    <div class="switch"><div><b>News in the main menu</b><p>Shown above the name box.</p></div><input type="checkbox" id="kNewsOn"></div>
+    <label>News text <textarea id="kNewsTx" maxlength="200"></textarea></label>
+    <div class="switch"><div><b>Maintenance</b><p>Closes online play right away. Players in rooms go back to the menu. Solo still works.</p></div><input type="checkbox" id="kMaintOn"></div>
+    <label>Maintenance note (optional) <input id="kMaintTx" maxlength="200"></label>
+    <div class="row"><button id="kSave" type="button">Save and go live</button></div><div class="msg" id="kSetMsg"></div>
+  </section>
+  <div data-pane="kec" hidden>
+    <div class="kpis" id="kecK"></div>
+    <section class="card" style="margin-top:16px"><h2>Gems earned per day</h2><div class="bars" id="kecE"></div><div class="axis" id="kecEa"></div>
+      <h2>Gems spent per day</h2><div class="bars g" id="kecS"></div><div class="axis" id="kecSa"></div></section>
+    <div class="dash" style="margin-top:16px">
+      <section class="card"><h2>Earning</h2>
+        <label>Gem event <select id="kecMul"><option value="1">Off</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select></label>
+        <label>Event ends <input id="kecUntil" type="datetime-local"></label>
+        <label>Daily limit per player <input id="kecCap" type="number" min="0" max="100000"></label>
+        <label>Hourly limit per player <input id="kecHcap" type="number" min="0" max="100000"></label>
+        <label>Daily reward <input id="kecLogin" type="number" min="0" max="10000"></label>
+        <label>Gems for new accounts <input id="kecStart" type="number" min="0" max="100000"></label>
+        <label>Name change cost <input id="kecRen" type="number" min="0" max="100000"></label>
+        <label>Extra wheel spin cost <input id="kecSpinP" type="number" min="0" max="100000"></label>
+        <label>Extra spins per day <input id="kecSpinMax" type="number" min="0" max="50"></label>
+        <div class="row"><button id="kecSave" type="button">Save and go live</button></div><div class="msg" id="kecMsg"></div></section>
+      <section class="card"><h2>Gift to everyone</h2>
+        <label>Gems <input id="kgN" type="number" min="1" max="100000" value="100"></label>
+        <label>Message (optional) <input id="kgT" maxlength="120"></label>
+        <label>Can be claimed for <select id="kgD"><option value="1">1 day</option><option value="3" selected>3 days</option><option value="7">7 days</option><option value="30">30 days</option></select></label>
+        <div class="row"><button id="kgGo" type="button">Send gift</button></div><div class="list" id="kgList"></div></section>
+    </div>
+  </div>
+  <div data-pane="ksh" hidden>
+    <div class="dash">
+      <section class="card"><h2>Sale on everything</h2>
+        <div class="btns" id="kshAllQ"></div>
+        <div class="row"><label style="flex:1;min-width:120px">Percent <input id="kshAll" type="number" min="0" max="90"></label><label style="flex:2;min-width:200px">Ends <input id="kshUntil" type="datetime-local"></label></div>
+        <div class="btns" id="kshDurQ"></div></section>
+      <section class="card"><h2>Featured on the home page</h2><label>Item <select id="kshFeat"></select></label><p class="msg" id="kshNow"></p></section>
+    </div>
+    <section class="card" style="margin-top:16px"><div class="uhead"><h2>On sale now</h2><button id="kshClear" class="ghost small" type="button">End all sales</button></div><div class="list" id="kshActive"></div></section>
+    <section class="card" style="margin-top:16px">
+      <div class="row"><input id="kshQ" maxlength="24" placeholder="Search items" style="flex:1;min-width:160px"><label class="chk"><input type="checkbox" id="kshOnly"> Only changed or on sale</label></div>
+      <div class="btns" id="kshCats"></div>
+      <div id="kshList" class="ksh-secs"></div>
+    </section>
+    <div class="ksh-bar" id="kshBar"><span id="kshMsg" class="msg"></span><span class="sp"></span><button class="ghost small" id="kshUndo" type="button">Discard</button><button id="kshSave" type="button">Save shop</button></div>
+  </div>
+  <div data-pane="krp" hidden>
+    <section class="card"><div class="row" style="justify-content:space-between"><h2>Reports</h2><label class="chk"><input type="checkbox" id="krpAll"> Show handled</label></div><div class="list" id="krpList"></div><div class="msg" id="krpMsg"></div></section>
+    <section class="card" style="margin-top:16px"><h2>Flagged accounts</h2><div class="list" id="ksusList"></div><div class="msg" id="ksusMsg"></div></section>
+  </div>
+  <section class="card" data-pane="kctl" hidden>
+    <div class="row" style="justify-content:space-between"><h2>Running games <span class="msg" id="ctlN"></span></h2><label class="chk"><input type="checkbox" id="ctlLobby"> Show lobbies</label></div>
+    <div class="row"><input id="ctlQ" maxlength="24" placeholder="Player or room code" style="flex:1;min-width:160px"><span class="sp"></span><div class="row mq-pager"><button class="ghost small" id="ctlPrev" type="button">Previous</button><span class="d" id="ctlPg"></span><button class="ghost small" id="ctlNext" type="button">Next</button></div></div>
+    <div class="ctl-grid" id="ctlGrid"></div><div class="msg" id="ctlMsg"></div>
+  </section>
+  <div data-pane="ksc" hidden>
+    <section class="card"><h2>New scheduled event</h2>
+      <div class="grid"><label>Kind <select id="scK"><option value="gems">Gem weekend (×)</option><option value="sale">Sale</option><option value="gift">Gift to everyone</option><option value="news">News</option><option value="maint">Maintenance</option></select></label>
+        <label>Name <input id="scName" maxlength="60" placeholder="Shown only here"></label>
+        <label>Starts <input id="scFrom" type="datetime-local"></label><label>Ends <input id="scTo" type="datetime-local"></label>
+        <label data-sc="gems">Gem multiplier <select id="scMul"><option value="1.5">1.5×</option><option value="2" selected>2×</option><option value="3">3×</option></select></label>
+        <label data-sc="sale">Discount % <input id="scPct" type="number" min="5" max="90" value="25"></label>
+        <label data-sc="sale">Item (empty = whole shop) <select id="scItem"><option value="">Whole shop</option></select></label>
+        <label data-sc="gift">Gems each <input id="scN" type="number" min="1" max="100000" value="100"></label>
+        <label data-sc="gift news maint" style="grid-column:1/-1">Text <input id="scText" maxlength="200"></label></div>
+      <div class="row"><button id="scAdd" type="button">Add to schedule</button><span class="msg" id="scMsg"></span></div></section>
+    <section class="card" style="margin-top:16px"><div class="row" style="justify-content:space-between"><h2 id="scMonth">Calendar</h2><div class="row"><button class="ghost small" id="scPrev" type="button">‹</button><button class="ghost small" id="scNext" type="button">›</button></div></div><div class="cal" id="scCal"></div></section>
+    <section class="card" style="margin-top:16px"><h2>Scheduled</h2><div class="list" id="scList"></div></section>
+  </div>
+  <div data-pane="kmod" hidden>
+    <section class="card mqf">
+      <div class="mq-top"><label>Player <input id="mqQ" maxlength="24" placeholder="Name, account id or device"></label><label>Sort by <select id="mqS"><option value="last">Last seen</option><option value="risk">Risk (cheat, reports, flags)</option><option value="made">Newest accounts</option><option value="lvl">Level</option><option value="gems">Gems</option><option value="kills">Kills</option><option value="ver">Build</option><option value="name">Name</option></select></label><button id="mqGo" type="button">Search</button></div>
+      <div class="chips" id="mqF" style="margin-top:14px"></div>
+    </section>
+    <section class="card"><div class="row" style="justify-content:space-between"><span class="d" id="mqN"></span><div class="row mq-pager"><button class="ghost small" id="mqPrev" type="button">Previous</button><span class="d" id="mqPg"></span><button class="ghost small" id="mqNext" type="button">Next</button></div></div>
+      <div class="mq-list" id="mqList"></div><div class="msg" id="mqMsg"></div></section>
+    <section class="card"><div class="row" style="justify-content:space-between"><h2>Anti-cheat reports <span class="msg" id="acN"></span></h2><button class="ghost small" id="acClr" type="button">Clear list</button></div><div class="list" id="acList"></div></section>
+    <section class="card"><h2>Chat word filter</h2><textarea id="mfBad" rows="6"></textarea>
+      <h2>Auto-flag words</h2><textarea id="mfFlag" rows="4"></textarea>
+      <div class="row"><button id="mfSave" type="button">Save lists</button><span class="msg" id="mfMsg"></span></div><details><summary>Built-in list</summary><p class="sub" id="mfBase"></p></details></section>
+  </div>
+  <section class="card" data-pane="kdat" hidden>
+    <div class="kpis" id="dtK"></div>
+    <div class="dash"><div class="sect"><h2>Countries</h2><div class="hlist" id="dtCc"></div></div><div class="sect"><h2>Platforms</h2><div class="hlist" id="dtP"></div></div></div>
+    <div class="dash"><div class="sect"><h2>Browsers and app</h2><div class="hlist" id="dtB"></div></div><div class="sect"><h2>Systems</h2><div class="hlist" id="dtOs"></div></div></div>
+    <div class="dash"><div class="sect"><h2>Languages</h2><div class="hlist" id="dtL"></div></div><div class="sect"><h2>Time zones</h2><div class="hlist" id="dtTz"></div></div></div>
+    <div class="dash"><div class="sect"><h2>Screens</h2><div class="hlist" id="dtS"></div></div><div class="sect"><h2>Connection</h2><div class="hlist" id="dtN"></div></div></div>
+    <div class="dash"><div class="sect"><h2>Online now: countries</h2><div class="hlist" id="dtLc"></div></div><div class="sect"><h2>Online now: where</h2><div class="hlist" id="dtLm"></div></div></div>
+    <h2>Players</h2>
+    <div class="mq-top"><label>Player <input id="dtQ" maxlength="24" placeholder="Name, id, country, device, language"></label><label>Show <select id="dtF"><option value="all">Everyone</option><option value="consent">Statistics allowed</option><option value="noconsent">Statistics refused</option><option value="active">Active this week</option><option value="app">App</option><option value="web">Browser</option><option value="touch">Touch screen</option></select></label><label>Sort by <select id="dtSo"><option value="last">Last seen</option><option value="made">Newest</option><option value="mins">Time played</option><option value="plays">Sessions</option><option value="name">Name</option></select></label><button class="ghost" id="dtCsv" type="button">Download CSV</button></div>
+    <div class="row mq-pager" style="justify-content:flex-end"><button class="ghost small" id="dtPrev" type="button">Previous</button><span class="d" id="dtPg"></span><button class="ghost small" id="dtNext" type="button">Next</button></div>
+    <div class="list" id="dtList"></div><div class="msg" id="dtMsg"></div>
+  </section>
+  <section class="card" data-pane="kan" hidden>
+    <div class="kpis" id="anK"></div>
+    <div class="dash"><div class="sect"><h2>Retention by sign-up day</h2><div class="list" id="anRet"></div></div><div class="sect"><h2>Most bought (30 days)</h2><div class="hlist" id="anBuy"></div></div></div>
+    <h2>Average game length per day (minutes)</h2><div class="bars" id="anGL"></div><div class="axis" id="anGLa"></div>
+    <h2>Where games end (last wave reached, 30 days)</h2><div class="bars g" id="anQ"></div><div class="axis" id="anQa"></div>
+    <div class="dash"><div class="sect"><h2>Classes: average wave and reach wave 10</h2><div class="list" id="anCls"></div></div><div class="sect"><h2>Modes (30 days)</h2><div class="hlist" id="anMode"></div></div></div>
+    <div class="msg" id="anMsg"></div>
+  </section>
+  <div data-pane="kss" hidden>
+    <section class="card"><div class="kpis" id="ssK"></div></section>
+    <section class="card" style="margin-top:16px"><h2>Season settings</h2><div class="grid"><label>Name <input id="ssName" maxlength="40"></label><label>XP per tier <input id="ssXp" type="number" min="50" max="5000"></label><label>Premium price (gems) <input id="ssPrice" type="number" min="0" max="100000"></label></div>
+      <h2>Tiers</h2><p class="sub">Each reward is either gems or an item. Season items are never sold in the shop.</p><div class="list" id="ssT"></div>
+      <div class="row"><button id="ssSave" type="button">Save season</button><button id="ssReset" class="ghost" type="button">Default tiers</button><span class="msg" id="ssMsg"></span></div></section>
+    <section class="card" style="margin-top:16px"><h2>Players per tier (this season)</h2><div class="bars" id="ssTB"></div><div class="axis" id="ssTBa"></div></section>
+  </div>
+  <section class="card" data-pane="kstats" hidden>
+    <div class="kpis" id="kSK"></div>
+    <h2>Players per day</h2><div class="bars" id="kcU"></div><div class="axis" id="kaU"></div>
+    <h2>Games per day</h2><div class="bars g" id="kcG"></div><div class="axis" id="kaG"></div>
+    <div class="dash"><div class="sect"><h2>Classes played (30 days)</h2><div class="hlist" id="kTopC"></div></div><div class="sect"><h2>Maps (30 days)</h2><div class="hlist" id="kTopM"></div></div><div class="sect"><h2>Difficulty (30 days)</h2><div class="hlist" id="kTopD"></div></div></div>
+    <div class="msg" id="kStMsg"></div>
+  </section>
+  
+  
+  
+  
+  <section class="card" data-pane="acct" hidden>
+    <h2>Change password</h2>
+    <label>Current password <input id="aOld" type="password" autocomplete="current-password"></label>
+    <label>New password <input id="aNew" type="password" autocomplete="new-password"></label>
+    <div class="meter"><i id="aMeter"></i></div>
+    <label>Type it again <input id="aNew2" type="password" autocomplete="new-password"></label>
+    <div class="row"><button id="aGo" type="button">Change password</button></div>
+    <div class="msg" id="aMsg"></div>
+    <h2>This device</h2>
+    <p>The panel locks itself after 10 minutes without use, or 2 minutes after you switch away from it.</p>
+    <div class="row"><button class="ghost" id="lockNow" type="button">Lock now</button><button class="danger" id="wipe" type="button">Remove the key from this device</button></div>
+  </section>
+  </div>
+</div>
+</main>
+<div class="toasts" id="toasts"></div>
+<script>
+'use strict';
+if(window.top!==window.self){document.documentElement.textContent='';throw new Error('framed');}
+const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',enc=new TextEncoder(),dec=new TextDecoder(),$=s=>document.querySelector(s);
+const STORE='ironfield-admin',ROUNDS=600000,IDLE=10*60e3,AWAY=2*60e3;
+let KEY=null,URL0='',ALT=[],pIdx=0;
+ALT=['https://ironfield-codes.umvtt.workers.dev','https://ironfield-api.umvtt.deno.net','https://ironfield-api.pages.dev'];
+const urls=u=>{const a=[(u||URL0).replace(/\/$/,'')];for(const x of ALT)if(!a.includes(x))a.push(x);return a;};
+const b64=u=>btoa(String.fromCharCode(...u)),unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const load=()=>{try{return JSON.parse(localStorage.getItem(STORE)||'{}');}catch(e){return{};}};
+const keep=o=>localStorage.setItem(STORE,JSON.stringify(o));
+/* glass dialogs and toasts instead of the browser's prompt/confirm */
+function ask(o){return new Promise(res=>{const d=document.createElement('div');d.className='dlg';const c=document.createElement('div');c.className='card';d.append(c);
+  const h=document.createElement('h2');h.textContent=o.title||'';c.append(h);if(o.text){const p=document.createElement('p');p.textContent=o.text;c.append(p);}
+  const F={};for(const f of o.fields||[]){const l=document.createElement('label');l.textContent=f.label;let i;if(f.type==='select'){i=document.createElement('select');for(const[v,t]of f.options){const op=document.createElement('option');op.value=v;op.textContent=t;i.append(op);}}else if(f.type==='area'){i=document.createElement('textarea');}else{i=document.createElement('input');i.type=f.type||'text';}
+    if(f.value!==undefined)i.value=f.value;if(f.max)i.maxLength=f.max;if(f.ph)i.placeholder=f.ph;l.append(i);c.append(l);F[f.id]=i;}
+  const r=document.createElement('div');r.className='row';const ok=document.createElement('button');ok.type='button';ok.textContent=o.ok||'OK';if(o.danger)ok.className='danger';const no=document.createElement('button');no.type='button';no.className='ghost';no.textContent=o.cancel||'Cancel';r.append(ok,no);c.append(r);
+  const end=v=>{d.remove();removeEventListener('keydown',kd);res(v);};const kd=e=>{if(e.key==='Escape')end(null);if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA')ok.click();};addEventListener('keydown',kd);
+  ok.onclick=()=>{const v={};for(const k in F)v[k]=F[k].value;end(o.fields&&o.fields.length?v:true);};no.onclick=()=>end(null);d.onclick=e=>{if(e.target===d)end(null);};
+  document.body.append(d);const first=Object.values(F)[0];(first||ok).focus();});}
+const sure=(text,ok,danger)=>ask({title:'Are you sure?',text,ok:ok||'Yes',danger:danger!==false});
+function note(t,kind){const e=document.createElement('div');e.className='toast'+(kind?' '+kind:'');e.textContent=t;$('#toasts').append(e);setTimeout(()=>{e.style.transition='opacity .4s';e.style.opacity='0';setTimeout(()=>e.remove(),400);},3800);}
+function sheet(title,wide){const d=document.createElement('div');d.className='dlg'+(wide?' wide':'');const c=document.createElement('div');c.className='card';const h=document.createElement('h2');const t=document.createElement('span');t.textContent=title;const x=document.createElement('button');x.type='button';x.className='ghost small';x.textContent='Close';h.append(t,x);c.append(h);d.append(c);
+  const close=()=>{d.remove();d.onclose&&d.onclose();};x.onclick=close;d.onclick=e=>{if(e.target===d)close();};document.body.append(d);return{d,c,close,title:t};}
+const say=(sel,t,cls)=>{if(t==='Loading…')return;const e=$(sel);e.textContent=t;e.className='msg'+(cls?' '+cls:'');};
+const COMMON=['password','passw0rd','123456','qwerty','letmein','iloveyou','admin','welcome','ironfield','monkey','dragon','football','sifre','şifre','galatasaray','fenerbahce','besiktas','trabzonspor'];
+function strength(pw){if(!pw)return 0;const cls=[/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/].filter(r=>r.test(pw)).length,lo=pw.toLowerCase();
+  if(COMMON.some(w=>lo.includes(w))||/^(.)\1+$/.test(pw)||/(0123|1234|2345|3456|4567|5678|6789|abcd|qwer|asdf)/i.test(pw))return Math.min(1,pw.length/40);
+  const pool=[26,26,10,33].reduce((a,n,i)=>a+([/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/][i].test(pw)?n:0),0),bits=pw.length*Math.log2(pool||1);
+  return(pw.length>=20||(pw.length>=12&&cls>=3))?Math.min(1,bits/90):Math.min(.45,bits/90);}
+const strongEnough=pw=>strength(pw)>=.5;
+function meter(inp,bar){const f=()=>{const s=strength($(inp).value);$(bar).style.width=Math.round(s*100)+'%';$(bar).style.background=s>=.75?'var(--ok)':s>=.5?'var(--accent)':'var(--bad)';};$(inp).addEventListener('input',f);}
+async function pwKey(pw,salt,rounds){const base=await crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:rounds,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+async function seal(pw,obj){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),k=await pwKey(pw,salt,ROUNDS);
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},k,enc.encode(JSON.stringify(obj))));const st=load();keep({v:2,rounds:ROUNDS,salt:b64(salt),iv:b64(iv),ct:b64(ct),fails:0,until:0,url:st.url||''});}
+async function unseal(pw){const st=load();const k=await pwKey(pw,unb64(st.salt),st.rounds||ROUNDS);return JSON.parse(dec.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(st.iv)},k,unb64(st.ct))));}
+const hmacKey=secret=>crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+async function sign(msg,key){return new Uint8Array(await crypto.subtle.sign('HMAC',key||KEY,enc.encode(msg)));}
+const hex=b=>[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+
+
+
+async function admin(action,ids=[],data,key,url){const ts=Date.now(),ds=data===undefined?null:JSON.stringify(data);
+  const sig=hex(await sign('admin:'+ts+':'+action+':'+ids.join(',')+(ds!==null?':'+ds:''),key));
+  const body={ts,action,ids,sig};if(ds!==null)body.data=ds;
+  let r=null;const wait=[300,800,1600,3000],U=urls(url);let tries=0;for(let i=0;i<6&&!r;i++){tries++;const k=(pIdx+i)%U.length;try{const ac=new AbortController(),to=setTimeout(()=>ac.abort(),9000);r=await fetch(U[k]+'/admin',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),cache:'no-store',signal:ac.signal});clearTimeout(to);pIdx=k;}catch(e){if(i<5)await new Promise(f=>setTimeout(f,wait[i%4]));}}
+  if(!r){netDown();throw new Error('no connection to the server');}netUp();
+  const j=await r.json().catch(()=>({ok:false,reason:'reply'}));if(!j.ok&&j.reason==='replay'&&tries>1)return{ok:true};if(!j.ok)throw new Error(WHY[j.reason]||j.reason||'error');LASTOK=Date.now();return j;}
+const WHY={slow:'too many requests from this address; wait a few minutes',auth:'the server refused the key (or this device\'s clock is off by more than 5 minutes)',replay:'that request was already sent; try again',busy:'the server is busy; try again in a moment',server:'the server hit an error; try again',reply:'the server sent a broken reply; try again',exists:'that code already exists; make another',kind:'unknown code type',gone:'that badge no longer exists',name:'a callsign is needed',data:'bad data',setup:'the server is not set up'};
+function netDown(){let b=$('#netbar');if(!b){b=document.createElement('div');b.id='netbar';b.className='netbar';const t=document.createElement('span');t.id='netTxt';const k=document.createElement('button');k.type='button';k.className='small';k.textContent='Try again';
+    k.onclick=()=>{netUp();const tab=(document.querySelector('.tabs button[aria-selected=true]')||{}).dataset;openTab(tab&&tab.tab||'live');loadStat();};b.append(t,k);$('#app').prepend(b);}
+  $('#netTxt').textContent=navigator.onLine===false?'This device is offline. Reconnect, then try again.':'Can\'t reach the server from this network right now (tried both server addresses). Usually it\'s a short drop; if it keeps happening, an ad blocker, VPN or private DNS on this device may be blocking workers.dev.';b.hidden=false;}
+function netUp(){const b=$('#netbar');if(b)b.hidden=true;}
+addEventListener('online',()=>{if(KEY){netUp();loadStat();}});
+function show(id){for(const s of['#setup','#lock','#app'])$(s).hidden=s!==id;if(id!=='#app')document.title='Sign in';if(id==='#lock')lockTimer();}
+function lock(){KEY=null;URL0='';for(const e of document.querySelectorAll('#app input,#app textarea'))if(e.type==='password')e.value='';show('#lock');$('#lPw').focus();}
+function lockTimer(){const st=load(),left=Math.max(0,(st.until||0)-Date.now());$('#lGo').disabled=left>0;
+  if(left>0){say('#lMsg','Try again later.','bad');setTimeout(lockTimer,1000);}else if($('#lMsg').textContent.startsWith('Try again'))say('#lMsg','');}
+meter('#sPw','#sMeter');meter('#aNew','#aMeter');
+$('#sGo').onclick=async()=>{const url=$('#sUrl').value.trim(),secret=$('#sKey').value,pw=$('#sPw').value;
+  if(!/^https:\/\/[a-z0-9.-]+\.(workers\.dev|pages\.dev|deno\.net)\/?$/i.test(url))return say('#sMsg','Invalid address.','bad');
+  if(secret.length<16)return say('#sMsg','Invalid key.','bad');
+  if(!strongEnough(pw))return say('#sMsg','Password too weak: 12+ characters with 3 of lowercase, uppercase, numbers, symbols (or 20+ characters).','bad');
+  if(pw!==$('#sPw2').value)return say('#sMsg','Passwords differ.','bad');
+  say('#sMsg','…');$('#sGo').disabled=true;
+  try{const k=await hmacKey(secret);await admin('status',[],undefined,k,url);await seal(pw,{url,secret});const st=load();st.url=url;keep(st);
+    $('#sKey').value='';$('#sPw').value='';$('#sPw2').value='';KEY=k;URL0=url;say('#sMsg','');show('#app');openTab(startTab());loadStat();}
+  catch(e){say('#sMsg','Invalid key.','bad');}finally{$('#sGo').disabled=false;}};
+$('#lGo').onclick=async()=>{const st=load();if((st.until||0)>Date.now())return lockTimer();const pw=$('#lPw').value;if(!pw)return;$('#lGo').disabled=true;say('#lMsg','…');
+  try{const o=await unseal(pw);KEY=await hmacKey(o.secret);URL0=o.url;$('#lPw').value='';const s2=load();s2.fails=0;s2.until=0;keep(s2);say('#lMsg','');show('#app');openTab(startTab());poke();}
+  catch(e){const s2=load();s2.fails=(s2.fails||0)+1;if(s2.fails>=5)s2.until=Date.now()+Math.min(3600e3,30e3*2**(s2.fails-5));keep(s2);$('#lPw').value='';say('#lMsg','Incorrect.','bad');lockTimer();}
+  finally{if(!((load().until||0)>Date.now()))$('#lGo').disabled=false;}};
+$('#lPw').addEventListener('keydown',e=>{if(e.key==='Enter')$('#lGo').click();});
+$('#lReset').onclick=async()=>{if(await sure('Reset this device? The saved key is removed.','Reset')){localStorage.removeItem(STORE);show('#setup');}};
+$('#wipe').onclick=async()=>{if(await sure('Remove the key from this device and lock? You will need the secret key to set it up again.','Remove')){localStorage.removeItem(STORE);KEY=null;URL0='';show('#setup');}};
+$('#lockNow').onclick=lock;
+let lastUse=Date.now(),hiddenAt=0;const poke=()=>{lastUse=Date.now();};
+for(const ev of['pointerdown','keydown','input','wheel','touchstart'])addEventListener(ev,poke,{passive:true});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else{if(KEY&&hiddenAt&&Date.now()-hiddenAt>AWAY)lock();hiddenAt=0;}});
+setInterval(()=>{if(KEY&&Date.now()-lastUse>IDLE)lock();},15000);
+$('#aGo').onclick=async()=>{const o=$('#aOld').value,n=$('#aNew').value;
+  if(!strongEnough(n))return say('#aMsg','Pick a stronger new password.','bad');if(n!==$('#aNew2').value)return say('#aMsg','The two new passwords are different.','bad');
+  say('#aMsg','Changing…');try{const obj=await unseal(o);await seal(n,obj);const st=load();st.url=obj.url;keep(st);for(const s of['#aOld','#aNew','#aNew2'])$(s).value='';say('#aMsg','Password changed.','ok');}
+  catch(e){say('#aMsg','The current password is wrong.','bad');}};
+const KTABS=['kdat','klive','kpl','kec','ksh','krp','klb','kbn','kev','kset','kstats','kctl','ksc','kmod','kan','kss'],SHARED=['alog','acct','home','logs'];let GAME='k';const gameOf=()=>'k';
+function setGame(g){GAME='k';document.body.dataset.game='k';}
+
+
+const startTab=()=>'home';
+function openTab(t){const pn=document.querySelector('[data-pane="'+t+'"]');if(pn&&!pn.dataset.seen){pn.dataset.seen=1;ENTER_T=performance.now();STAG=0;}else ENTER_T=0;setGame(gameOf(t));if(!SHARED.includes(t))try{localStorage.setItem('ptab_'+GAME,t);}catch(e){}const tb=document.querySelector('.tabs button[data-tab="'+t+'"]');if(tb){$('#pgT').textContent=tb.textContent;$('#crumb').textContent=SHARED.includes(t)||t==='home'?'Panel':'Kuşatma';$('#tbSec').textContent='';document.title=tb.textContent+' · Admin';}for(const b of document.querySelectorAll('.tabs button[data-tab]'))b.setAttribute('aria-selected',String(b.dataset.tab===t));
+  for(const p of document.querySelectorAll('[data-pane]'))p.hidden=p.dataset.pane!==t;({alog:loadAlog,klive:kLoad,kset:kLoad,kstats:kLoad,kpl:kSearch,klb:kLb,kec:kEco,ksh:kEco,krp:kRep,home:hLoad,kbn:()=>banTab(1),kctl:kCtl,ksc:kSched,kmod:kMod,kan:kAn,kdat:()=>kData(),kss:kSeason,logs:()=>lgLoad(false)})[t]?.();if(t!=='logs')lgAutoOff();}
+for(const b of document.querySelectorAll('.tabs button[data-tab]'))b.onclick=()=>openTab(b.dataset.tab);
+const toLocal=ms=>{if(!ms)return '';const d=new Date(ms),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());};
+const fromLocal=v=>v?new Date(v).getTime()||0:0;
+const when=ms=>new Date(ms).toLocaleString([], {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+
+
+
+let VEH={},VLIST=[];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let CODES=[],allOn=true;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function loadStat(){}
+
+
+/* players online, rooms, bans */
+const mk=(tag,cls,t)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(t!==undefined)e.textContent=t;return e;};
+const dur=ms=>{const m=Math.max(0,Math.round((Date.now()-ms)/60000));return m<60?m+' min':m<2880?Math.floor(m/60)+' h '+(m%60)+' min':Math.floor(m/1440)+' days';},ago=ms=>Date.now()-ms<60000?'just now':dur(ms)+' ago';
+const smallBtn=(t,f,cls)=>{const b=mk('button',(cls===undefined?'ghost':cls)+' small',t);b.type='button';b.onclick=f;return b;};
+
+/* actions on one online player: shared by the players list, the room viewer and profiles */
+
+
+
+/* player profile: history plus notes */
+
+/* room viewer: live details from the host every few seconds */
+
+
+
+
+
+/* dashboard */
+const ACTN={kecoset:'Kuşatma economy',kgiftall:'Kuşatma gift to everyone',kaset:'Kuşatma account edited',kagem:'Kuşatma gems',krepdone:'Kuşatma report',kcfgset:'Kuşatma settings',kmsg:'Kuşatma message',kkick:'Kuşatma kick',kban:'Kuşatma ban',kunban:'Kuşatma unban',kgift:'Kuşatma gold gift',kroom:'Kuşatma room',karen:'Kuşatma rename',kareset:'Kuşatma stats reset',kanote:'Kuşatma note',kalb:'Kuşatma leaderboard',kapw:'Kuşatma password reset',kadel:'Kuşatma account deleted',kev:'Kuşatma event',kpnote:'Kuşatma note',gift:'Gift',event:'Event',troll:'Fun',skin:'Paint job',cmd:'Commander drop-in',pnote:'Note',ban:'Ban',unban:'Unban',kick:'Kick',msg:'Message',cfgset:'Settings saved',mk:'Code made',del:'Code deleted',set:'Code edited',unbadge:'Badge taken back',rebadge:'Badge edited',acctset:'Save edited',acctpw:'Password reset',acctdel:'Account deleted',lbhide:'Leaderboard',alloff:'All codes off',allon:'All codes on',off:'Code off',on:'Code on'};
+const actTxt=x=>{let d='';try{const o=JSON.parse(x.d||'{}');d=o.k||o.text||o.why||o.name||(o.rp?o.rp+' RP':'')||'';}catch(e){}return(ACTN[x.a]||x.a)+(d?' · '+String(d).slice(0,60):'');};
+
+
+/* events */
+/* leaderboard */
+
+
+async function loadAlog(){const box=$('#alList');try{const L=(await admin('alog')).log.slice().reverse();box.textContent='';for(const x of L){const it=mk('div','item');it.append(mk('span','d',when(x.t)),mk('span','k',actTxt(x)));if(x.ids&&x.ids.length)it.append(mk('span','d',x.ids.join(', ')));box.append(it);}if(!L.length)box.append(mk('p','','Nothing yet.'));}catch(e){say('#alMsg',e.message,'bad');}}
+$('#alRefresh').onclick=loadAlog;
+/* Logs: everything the server saw in the last 30 days */
+const LGK=[['session','Sessions'],['room','Rooms'],['game','Games'],['wave','Waves'],['chat','Chat'],['social','Friends & DMs'],['shop','Shop'],['gems','Gems'],['reward','Rewards'],['account','Accounts'],['profile','Profile'],['cheat','Anti-cheat'],['redeem','Codes'],['panel','Panel']];
+const LG={k:new Set(),next:'',rows:[],busy:0,timer:0,seq:0};
+(()=>{const box=$('#lgK');const all=mk('button','chip','All');all.type='button';all.dataset.k='';box.append(all);for(const[k,l]of LGK){const b=mk('button','chip',l);b.type='button';b.dataset.k=k;box.append(b);}
+  const sync=()=>{for(const b of box.children)b.setAttribute('aria-pressed',String(b.dataset.k?LG.k.has(b.dataset.k):!LG.k.size));};sync();
+  box.onclick=e=>{const b=e.target.closest('button.chip');if(!b)return;const k=b.dataset.k;if(!k)LG.k.clear();else if(LG.k.has(k))LG.k.delete(k);else LG.k.add(k);sync();lgLoad(false);};LG.sync=sync;})();
+function lgQuery(){const d=$('#lgD').value,now=Date.now();let from=now-(+d||24)*36e5,to=0;if(d==='c'){from=fromLocal($('#lgFrom').value)||now-30*864e5;to=fromLocal($('#lgTo').value)||0;}
+  return {n:$('#lgN').value.trim(),x:$('#lgX').value.trim(),r:$('#lgR').value.trim(),g:$('#lgG').value,k:[...LG.k],from,to,fail:$('#lgFail').checked?1:0,lim:200};}
+const LGG={k:'K',i:'I',p:'P'},LGL=Object.fromEntries(LGK);
+function lgRow(e){const it=mk('div','item');const t=new Date(e.t),p2=n=>String(n).padStart(2,'0');
+  it.append(mk('span','lt',p2(t.getHours())+':'+p2(t.getMinutes())+':'+p2(t.getSeconds())),mk('span','lg-g',LGG[e.g]||'?'),mk('span','lk',LGL[e.k]||e.k));
+  const po={a:e.a,n:e.n,d:e.v,r:e.r,g:e.g==='i'?'i':'k'};pTag(it,po);
+  if(e.n){const b=mk('button','ln plink',e.n);b.type='button';b.title='Player card · right-click for more';b.onclick=()=>pCard(b,po);it.append(b);}
+  if(e.r){const b=mk('button','lr',e.r);b.type='button';b.title='Show only this room';b.onclick=()=>{$('#lgR').value=e.r;lgLoad(false);};it.append(b);}
+  it.append(mk('span','ld',e.d||''));if(e.f)it.append(mk('span','lf',e.f));
+  if(e.g==='k'&&e.a&&/^[A-Z2-9]{6,12}$/.test(e.a)){const b=smallBtn('Profile',()=>kAcct(e.a));b.classList.add('ghost');it.append(b);}
+  return it;}
+function lgDraw(append,list){const box=$('#lgList');if(!append){box.textContent='';LG.rows=[];LG.lastDay='';}
+  const dayOf=t=>new Date(t).toLocaleDateString([], {weekday:'short',day:'numeric',month:'short'});
+  for(const e of list){const dk=dayOf(e.t);if(dk!==LG.lastDay){LG.lastDay=dk;box.append(mk('div','item lday',dk));}box.append(lgRow(e));LG.rows.push(e);}
+  if(!LG.rows.length)box.append(mk('p','','Nothing matches.'));
+  $('#lgCount').textContent=LG.rows.length.toLocaleString()+' line'+(LG.rows.length===1?'':'s')+(LG.next?' · more below':'');$('#lgMore').hidden=!LG.next;}
+async function lgLoad(more){if(more&&!LG.next)return;const seq=++LG.seq;const q=lgQuery();if(more)q.cur=LG.next;$('#lgMore').disabled=true;if(!LG.rows.length)say('#lgMsg','Loading…');
+  try{const j=await admin('logs',[],q);if(seq!==LG.seq)return;LG.next=j.next||'';lgDraw(more,j.list);say('#lgMsg','');}catch(e){if(seq===LG.seq)say('#lgMsg',e.message,'bad');}finally{$('#lgMore').disabled=false;}}
+function lgAutoOff(){clearInterval(LG.timer);LG.timer=0;}
+$('#lgGo').onclick=()=>lgLoad(false);$('#lgMore').onclick=()=>lgLoad(true);
+for(const id of['#lgN','#lgX','#lgR'])$(id).addEventListener('keydown',e=>{if(e.key==='Enter')lgLoad(false);});
+for(const id of['#lgG','#lgFrom','#lgTo','#lgFail'])$(id).addEventListener('change',()=>lgLoad(false));
+$('#lgD').addEventListener('change',()=>{const c=$('#lgD').value==='c';for(const l of document.querySelectorAll('[data-lgc]'))l.hidden=!c;lgLoad(false);});
+$('#lgAuto').addEventListener('change',()=>{lgAutoOff();if($('#lgAuto').checked)LG.timer=setInterval(()=>{if(curTab()==='logs'&&!document.hidden&&document.querySelector('.lg-list').parentNode.scrollTop<=0)lgLoad(false);},10000);});
+$('#lgClear').onclick=()=>{for(const id of['#lgN','#lgX','#lgR'])$(id).value='';LG.k.clear();LG.sync();const g=$('#lgG');g.value='';g.dispatchEvent(new Event('change'));$('#lgFail').checked=false;lgLoad(false);};
+$('#lgCopy').onclick=()=>{const t=LG.rows.map(e=>[new Date(e.t).toISOString(),LGG[e.g]||'',e.k,e.n||'',e.a||'',e.r||'',e.d||'',e.f||''].join('\t')).join('\n');navigator.clipboard.writeText(t).then(()=>note('Copied '+LG.rows.length+' lines','ok'),()=>note('Could not copy','bad'));};
+const curTab=()=>((document.querySelector('.tabs button[aria-selected=true]')||{}).dataset||{}).tab;
+/* Kusatma */
+const KST={lobby:'lobby',break:'break',combat:'in battle',over:'game over',menu:''};
+async function kLoad(){const t=curTab();let j;try{j=await admin('kdash');}catch(e){note(e.message,'bad');return;}
+  const P=j.players,today=j.days[0]||{},rooms={};for(const p of P)if(p.room&&p.mode!=='solo'){const r=rooms[p.room]||(rooms[p.room]={code:p.room,host:'',n:0,st:p.st,wave:0});r.n++;if(p.mode==='host'){r.host=p.name;r.st=p.st;}r.wave=Math.max(r.wave,p.wave);}
+  const kp=(box,L)=>{box.textContent='';for(const[n,l]of L){const k=mk('div','kpi');k.append(mk('b','',Number(n).toLocaleString()),mk('span','',l));box.append(k);}};
+  if(t==='klive'){kp($('#kKpi'),[[P.length,'online now'],[P.filter(p=>p.st==='combat'||p.st==='break').length,'in a game'],[Object.keys(rooms).length,'rooms'],[today.u||0,'players today'],[today.g||0,'games today'],[today.best||0,'best wave today']]);admin('kmodq',[],{f:'new',per:10}).then(q=>{const k=$('#kKpi');if(!k||k.querySelector('[data-ka]'))return;const e=mk('div','kpi');e.dataset.ka=1;e.append(mk('b','',Number(q.accounts).toLocaleString()),mk('span','','accounts'),mk('small','','+'+q.cnt.new+' this week'));k.append(e);}).catch(()=>{});
+    $('#kN').textContent=P.length+' online';const pl=$('#kPl'),plN=[],kq=$('#kPlQ').value.trim().toLowerCase();
+    for(const p of P.sort((a,b)=>a.name.localeCompare(b.name))){if(kq&&![p.name,p.room,p.cls,p.acct].some(x=>String(x||'').toLowerCase().includes(kq)))continue;const it=mk('div','item'),dot=mk('span','dot');pTag(it,{a:p.acct,n:p.name,d:p.dev,r:p.room,s:p.id,g:'k'});it.append(dot,mk('span','k',p.name||'(no name)'),p.acct?mk('span','chip green','account'):'',mk('span','d',p.mode==='solo'?'solo':p.room?(p.mode==='host'?'hosting ':'in ')+p.room:'main menu'),mk('span','d',p.st in KST?KST[p.st]:p.st||''),
+        p.cls?mk('span','d',KCN[p.cls]||p.cls):'',p.wave?mk('span','d','wave '+p.wave):'',mk('span','d',p.mins+' min'),mk('span','d','build '+p.ver),mk('span','sp'),
+        p.acct?smallBtn('Profile',()=>kAcct(p.acct)):'',(p.st==='combat'||p.st==='break')?smallBtn('Gift gold',()=>kGift(p)):'',p.mode==='solo'?smallBtn('View',()=>kRoom('s'+p.id,'Solo · '+(p.name||''))):'',smallBtn('Message',async()=>{const v=await ask({title:'Message '+(p.name||'this player'),fields:[{id:'t',label:'Message',type:'area',max:300}],ok:'Send'});if(!v||!v.t.trim())return;try{const r=await admin('kmsg',[p.id],{text:v.t});note(r.n?'Sent':'They went offline',r.n?'ok':'bad');}catch(e){note(e.message,'bad');}}),
+        smallBtn('Kick',async()=>{const v=await ask({title:'Kick '+(p.name||'this player'),text:'They go back to the main menu and see your reason.',fields:[{id:'t',label:'Reason (optional)',max:200}],ok:'Kick',danger:true});if(!v)return;try{await admin('kkick',[p.id],{text:v.t});note('Kicked','ok');kLoad();}catch(e){note(e.message,'bad');}}),
+        smallBtn('Ban',async()=>{const v=await ask({title:'Ban '+(p.name||'this player'),text:'Blocks online play on their device.',fields:[{id:'t',label:'Reason',max:120},{id:'m',label:'Length',type:'select',options:[['0','Forever'],['60','1 hour'],['1440','1 day'],['10080','7 days'],['43200','30 days']]}],ok:'Ban',danger:true});if(!v)return;try{await admin('kban',[],{dev:p.dev,acct:p.acct,name:p.name,why:v.t,mins:+v.m});note('Banned','ok');kLoad();}catch(e){note(e.message,'bad');}},'danger'));plN.push(it);}pager(pl,plN,100,P.length?'No match.':'Nobody online.');
+    if(!P.length)pl.append(mk('div','item d','Nobody is online.'));
+    const rm=$('#kRm');rm.textContent='';for(const r of Object.values(rooms)){const it=mk('div','item');pTag(it,{r:r.code,n:r.host,g:'k'});it.append(mk('span','c',r.code),mk('span','k',r.host||'?'),mk('span','d',r.n+' player'+(r.n===1?'':'s')),mk('span','d',KST[r.st]||r.st||''),r.wave?mk('span','d','wave '+r.wave):'',mk('span','sp'),smallBtn('View',()=>kRoom(r.code,'Room '+r.code)),smallBtn('Message room',()=>kRoomMsg(r.code)),smallBtn('Close room',()=>kRoomClose(r.code),'danger'));rm.append(it);}
+    const vb=$('#kVer');vb.textContent='';const V={};for(const p of P)V[p.ver]=(V[p.ver]||0)+1;for(const[v,n]of Object.entries(V).sort((a,b)=>b[0]-a[0])){const it=mk('div','item');it.append(mk('span','c','Build '+v),mk('span','d',n+' player'+(n===1?'':'s')));vb.append(it);}if(!P.length)vb.append(mk('div','item d','Nobody is online.'));
+    if(!Object.keys(rooms).length)rm.append(mk('div','item d','No rooms right now.'));
+    const bn=$('#kBn');bn.textContent='';for(const b of j.bans){const it=mk('div','item');it.append(mk('span','k',b.name||b.dev),mk('span','d',b.why||''),mk('span','d',when(b.t)),mk('span','sp'),b.acct?smallBtn('Profile',()=>kAcct(b.acct)):'',smallBtn('Unban',async()=>{try{await admin('kunban',[b.id]);note('Unbanned','ok');kLoad();}catch(e){note(e.message,'bad');}}));bn.append(it);}
+    if(!j.bans.length)bn.append(mk('div','item d','Nobody is banned.'));}
+  if(t==='kset'){const c=j.cfg;$('#kNewsOn').checked=c.news.on;$('#kNewsTx').value=c.news.text;$('#kMaintOn').checked=c.maint.on;$('#kMaintTx').value=c.maint.text;say('#kSetMsg','');}
+  if(t==='kstats'){const D=j.days.slice().reverse();kp($('#kSK'),[[today.u||0,'players today'],[today.pk||0,'peak online today'],[today.g||0,'games today'],[Math.max(0,...j.days.map(d=>d.best||0)),'best wave (30 days)'],[j.days.reduce((a,d)=>a+(d.g||0),0),'games (30 days)']]);
+    const bars=(el,ax,key)=>{const box=$(el);box.textContent='';const mx=Math.max(1,...D.map(d=>d[key]||0));for(const d of D){const b=mk('div');b.style.height=Math.max(2,Math.round((d[key]||0)/mx*100))+'%';b.dataset.tip=d.d+'\n'+(d[key]||0).toLocaleString();box.append(b);}
+      const a=$(ax);a.textContent='';if(D.length)a.append(mk('span','',D[0].d.slice(5)),mk('span','','max '+mx),mk('span','',D[D.length-1].d.slice(5)));};
+    bars('#kcU','#kaU','u');bars('#kcG','#kaG','g');
+    const top=(el,key,names)=>{const T={};for(const d of j.days)for(const[x,n]of Object.entries(d[key]||{}))T[x]=(T[x]||0)+n;const L=Object.entries(T).sort((a,b)=>b[1]-a[1]),mx=Math.max(1,...L.map(x=>x[1])),box=$(el);box.textContent='';
+      for(const[x,n]of L){const r=mk('div','hbar'),bar=mk('div'),i=mk('i');i.style.width=Math.round(n/mx*100)+'%';bar.append(i);r.append(mk('span','',names[x]||x),bar,mk('span','',String(n)));box.append(r);}if(!L.length)box.append(mk('p','','No data yet.'));};
+    top('#kTopC','cls',KCN);top('#kTopM','map',KMN);top('#kTopD','diff',KDN);say('#kStMsg',D.length?'':'No data yet. It starts once players open the new version.');}}
+$('#kPlQ').addEventListener('input',()=>{clearTimeout(KPQT);KPQT=setTimeout(kLoad,250);});let KPQT=0;
+$('#kAllGo').onclick=async()=>{const t=$('#kAll').value.trim();if(!t)return;try{const r=await admin('kmsg',[],{text:t});$('#kAll').value='';note('Sent to '+r.n+' player'+(r.n===1?'':'s'),'ok');}catch(e){note(e.message,'bad');}};
+$('#kSave').onclick=async()=>{if($('#kMaintOn').checked&&!(await sure('Close Kuşatma online play for everyone now?','Start maintenance')))return;
+  try{const r=await admin('kcfgset',[],{news:{on:$('#kNewsOn').checked,text:$('#kNewsTx').value.trim()},maint:{on:$('#kMaintOn').checked,text:$('#kMaintTx').value.trim()}});say('#kSetMsg','Saved. Sent to '+r.n+' open game'+(r.n===1?'':'s')+'.','ok');}catch(e){say('#kSetMsg',e.message,'bad');}};
+async function kRoom(code,title){const S=sheet(title,true),body=mk('div');{const tb=mk('div','btns');tb.append(smallBtn(/^s/.test(code)?'Message player':'Message room',()=>kRoomMsg(code)));if(!/^s/.test(code))tb.append(smallBtn('Close room',async()=>{if(await kRoomClose(code))S.close();},'danger'));S.c.append(tb);}S.c.append(body);body.append(mk('p','','Asking the host…'));let on=true;S.d.onclose=()=>{on=false;};
+  const tick=async()=>{if(!on)return;try{const j=await admin('kwatch',[],{code});body.textContent='';if(!j.open){body.append(mk('p','','This game has closed.'));return;}
+      const d=j.detail,kv=mk('div','kv'),row=(k,v)=>kv.append(mk('span','',k),mk('span','',v));row('Host',j.host||'—');
+      if(d){row('Game',d.ph==='lobby'?'in the lobby':d.ph==='over'?'game over':'wave '+d.w+(d.ph==='break'?' · break':' · '+d.z+' zombies left'));row('Map',d.map||'—');row('Difficulty',d.diff||'—');body.append(kv);
+        const t=document.createElement('table');t.className='tbl';const hr=document.createElement('tr');for(const h of['Player','Class','State','Kills','Gold']){const th=document.createElement('th');th.textContent=h;hr.append(th);}t.append(hr);
+        for(const p of d.p){const tr=document.createElement('tr');for(const v of[p[0],p[1]||'—',p[2]===2?'waiting':p[2]?'alive':'down',String(p[3]),Number(p[4]).toLocaleString()]){const td=document.createElement('td');td.textContent=v;tr.append(td);}t.append(tr);}body.append(t);}
+      else{body.append(kv,mk('p','','Waiting for the host to answer…'));}}catch(e){body.textContent='';body.append(mk('p','',e.message));}if(on)setTimeout(tick,4000);};tick();}
+async function kAcct(id){let j;try{j=await admin('kaget',[],{id});}catch(e){return note(e.message,'bad');}const P=j.a,S=sheet(P.name,true),re=()=>{S.close();kAcct(id);};
+  const act=async(fn,ok)=>{try{await fn();note(ok||'Saved','ok');re();}catch(e){note(e.message,'bad');}};
+  const grid=mk('div','pgrid');S.c.append(grid);
+  const box=(title,wide)=>{const c=mk('section','pbox'+(wide?' wide':''));c.append(mk('h3','',title));grid.append(c);return c;};
+  const kv=(c,rows)=>{const k=mk('div','kv');for(const[a,b]of rows)if(b!==undefined&&b!==null&&b!=='')k.append(mk('span','',a),mk('span','',String(b)));c.append(k);};
+  const btns=(c,L)=>{const r=mk('div','btns');for(const x of L)if(x)r.append(x);c.append(r);};
+  const list=(c,L,f,empty)=>{const l=mk('div','list');l.style.flexShrink='0';for(const x of L)l.append(...[(()=>{const it=mk('div','item');it.append(...f(x));return it;})()]);if(!L.length)l.append(mk('div','item',empty||'Nothing yet'));c.append(l);};
+  /* header */
+  const hd=mk('div','phead');const st=j.live?'Online · '+(j.live.mode==='solo'?'solo game':j.live.room?(j.live.mode==='host'?'hosting ':'in room ')+j.live.room:'main menu')+(j.live.wave?' · wave '+j.live.wave:''):'Offline · last seen '+(P.last?ago(P.last):'never');
+  hd.append(mk('span','chip',j.live?'online':'offline'),mk('span','d',st),mk('span','sp'),mk('span','d','id '+P.id));if(j.ban)hd.append(mk('span','chip','banned'));if(P.mute>Date.now())hd.append(mk('span','chip','muted'));S.c.insertBefore(hd,grid);
+  /* overview */
+  const o=box('Overview');kv(o,[['Level',(P.lvl||kLvl(P.xp||0))+' · '+(P.xp||0).toLocaleString()+' XP'],['Gems',(P.gems||0).toLocaleString()],['Gems earned today',P.gd===kDay()?(P.gn||0):0],['Last played build',(j.live&&j.live.ver)?'build '+j.live.ver+' (playing now)':P.ver?'build '+P.ver:'not played yet'],['Best wave',P.best||0],['Kills',(P.kills||0).toLocaleString()],['Games finished',P.games||0],['Sessions',P.plays||0],['Time played',dur(Date.now()-(P.mins||0)*60000)],['Account made',when(P.made)],['Signed in on',(P.nsess||0)+' device session'+(P.nsess===1?'':'s')]]);
+  /* device */
+  const dv=(j.live&&j.live.dv)||P.dvi||null,dvx=mk('section','pbox');dvx.append(mk('h3','',j.live&&j.live.dv?'Device (now)':'Device (last used)'));grid.append(dvx);
+  if(dv)kv(dvx,[['Platform',(dv.p||'?')+(dv.os?' · '+dv.os:'')],['Playing in',dv.app?'Kuşatma app v'+dv.app:(dv.b||'browser')],['Screen',dv.w&&dv.h?dv.w+' × '+dv.h+(dv.dpr?' @'+dv.dpr+'x':''):''],['Touch screen',dv.tc?'yes':'no'],['Language',dv.lang],['Memory',dv.mem?dv.mem+' GB':''],['CPU cores',dv.cpu||''],['Network',dv.net],['Game build',(j.live&&j.live.ver)||(dv.ver)||P.ver||''],['Device id',(j.live&&j.live.dev)||dv.dev||'']]);
+  else dvx.append(mk('p','msg','No device info yet. It is saved the next time they play.'));
+  if((P.dvs||[]).length>1){dvx.append(mk('h3','','Other devices'));list(dvx,P.dvs.slice().reverse().slice(1),x=>[mk('span','k',(x.p||'?')+(x.os?' '+x.os:'')),mk('span','d',x.app?'app v'+x.app:x.b||''),mk('span','sp'),mk('span','d',when(x.t))]);}
+  /* economy */
+  const ec=box('Gems and XP');kv(ec,[['Balance',(P.gems||0).toLocaleString()+' gems'],['Level',(P.lvl||kLvl(P.xp||0))]]);
+  btns(ec,[smallBtn('Give gems',async()=>{const v=await ask({title:'Gems for '+P.name,fields:[{id:'n',label:'Gems',type:'number',value:'100'},{id:'t',label:'Note they see under the title (optional)',max:120},{id:'why',label:'Note for the gem history',max:40,value:'gift'}],ok:'Give'});if(!v)return;act(()=>admin('kagem',[],{id,n:+v.n|0,text:v.t,why:v.why,tell:1}),'Sent');},''),
+    smallBtn('Give XP',async()=>{const v=await ask({title:'XP for '+P.name,text:'Added on top of what they have. Level-ups pay their level rewards.',fields:[{id:'n',label:'XP',type:'number',value:'500'},{id:'t',label:'Note they see (optional)',max:120}],ok:'Give XP'});if(!v)return;act(()=>admin('kaxp',[],{id,n:+v.n|0,text:v.t,tell:1}),'XP sent');},''),
+    smallBtn('Take gems',async()=>{const v=await ask({title:'Take gems from '+P.name,fields:[{id:'n',label:'Gems',type:'number',value:'100'},{id:'why',label:'Reason',max:40}],ok:'Take',danger:true});if(!v)return;act(()=>admin('kagem',[],{id,n:-(+v.n|0),why:v.why||'taken'}),'Taken');}),
+    smallBtn('Set exact values',async()=>{const v=await ask({title:'Set gems and XP',fields:[{id:'g',label:'Gems',type:'number',value:String(P.gems||0)},{id:'x',label:'XP',type:'number',value:String(P.xp||0)}],ok:'Save'});if(!v)return;act(()=>admin('kaset',[],{id,gems:+v.g|0,xp:+v.x|0}));})]);
+  ec.append(mk('h3','','Gem history'));list(ec,(P.gl||[]).slice().reverse().slice(0,25),x=>[mk('span','k',(x.n>0?'+':'')+x.n),mk('span','d',x.w||''),mk('span','sp'),mk('span','d',when(x.t))],'No gem history yet');
+  /* items */
+  const it=box('Items and look');const own=P.own||[],eq=P.eq||{},g={};for(const x of own)(g[x[0]]||(g[x[0]]=[])).push(x.slice(2));
+  const tags=mk('div','tags');for(const[k,L]of Object.entries(g)){const t=mk('div','tagrow');t.append(mk('span','d',KKIND[k]||k));for(const n of L)t.append(mk('span','chip',n));tags.append(t);}if(!own.length)tags.append(mk('p','msg','Nothing bought yet.'));it.append(tags);
+  kv(it,[['Wearing',Object.entries(eq).map(([k,v])=>k+': '+v.slice(2)).join(' · ')||'default']]);
+  btns(it,[smallBtn('Edit items',()=>kItems(P,re)),smallBtn('Reset look',async()=>{if(await sure('Take off everything '+P.name+' is wearing? They keep what they own.','Reset',false))act(()=>admin('kaset',[],{id,eq:{}}),'Look reset');})]);
+  /* progress */
+  const pr=box('Progress');const SS=P.st||{};kv(pr,[['Waves cleared',SS.waves||0],['Boss waves',SS.bosses||0],['Hard / Kâbus waves',SS.hard||0],['Waves with others',SS.coop||0],['Achievements',(P.ach||[]).length+' of 33']]);
+  btns(pr,[smallBtn('Add kills',async()=>{const v=await ask({title:'Add kills for '+P.name,text:'Added to their total. Use a minus number to take kills away.',fields:[{id:'n',label:'Kills',type:'number',value:'100'}],ok:'Add'});if(!v)return;act(()=>admin('kaset',[],{id,addKills:+v.n|0}),'Kills changed');},''),
+    smallBtn('Set kills and waves',async()=>{const v=await ask({title:'Stats for '+P.name,fields:[{id:'k',label:'Kills',type:'number',value:String(P.kills||0)},{id:'b',label:'Best wave',type:'number',value:String(P.best||0)},{id:'g',label:'Games finished',type:'number',value:String(P.games||0)}],ok:'Save'});if(!v)return;act(()=>admin('kaset',[],{id,kills:Math.max(0,+v.k|0),best:Math.max(0,+v.b|0),games:Math.max(0,+v.g|0)}),'Stats saved');})]);
+  if(P.q&&P.q.d===kDay()){pr.append(mk('h3','',"Today's quests"));list(pr,P.q.L,q=>[mk('span','k',q.t+(q.k?' ('+q.k+')':'')),mk('span','d',q.p+' / '+q.n),mk('span','sp'),mk('span','chip',q.c?'claimed':q.p>=q.n?'ready':'in progress')]);}
+  /* social */
+  const so=box('Friends and privacy');kv(so,[['Friends',(P.fr||[]).length],['Waiting requests',(P.fq||[]).length],['Friend requests',(P.set||{}).fr===0?'off':'on'],['Shows online',(P.set||{}).on===0?'no':'yes'],['Shows room',(P.set||{}).room===0?'no':'yes'],['Leaderboard',P.hideLb?'hidden':'shown'],['Private messages',P.mute>Date.now()?'muted until '+when(P.mute):'allowed']]);
+  btns(so,[smallBtn('Friends',()=>kFriendsSheet(P)),smallBtn(P.mute>Date.now()?'Unmute messages':'Mute messages',async()=>{let until=0;if(!(P.mute>Date.now())){const v=await ask({title:'Mute '+P.name,text:'They cannot send private messages for this long.',fields:[{id:'h',label:'For',type:'select',options:[['1','1 hour'],['24','1 day'],['168','7 days'],['720','30 days']]}],ok:'Mute'});if(!v)return;until=Date.now()+(+v.h)*36e5;}act(()=>admin('kaset',[],{id,mute:until}));}),
+    smallBtn(P.hideLb?'Show on leaderboard':'Hide from leaderboard',()=>act(()=>admin('kalb',[],{id,hide:!P.hideLb})))]);
+  /* sign-ins */
+  const si=box('Sign-ins');list(si,(P.logins||[]).slice().reverse(),x=>[mk('span','k',x.p||'unknown device'),mk('span','d',x.dev||''),mk('span','sp'),mk('span','d',when(x.t))],'No sign-ins recorded');
+  if((P.names||[]).length>1)kv(si,[['Earlier names',P.names.filter(n=>n!==P.name).join(', ')]]);
+  /* moderation */
+  const mo=box('Moderation',true);
+  if(j.ban)kv(mo,[['Banned',when(j.ban.t)+(j.ban.why?': '+j.ban.why:'')+(j.ban.until?' · until '+when(j.ban.until):'')]]);
+  {const au=mk('div');mo.append(mk('h3','','Panel actions on this account'),au);admin('alog').then(r=>{const L=(r.log||[]).filter(x=>(x.ids||[]).includes(id)||(x.d||'').includes(id)).reverse().slice(0,30);
+    if(!L.length){au.append(mk('p','sub','None yet.'));return;}list(au,L,x=>[mk('span','k',x.a),mk('span','d',(x.d||'').replace(/[{}"]/g,' ').slice(0,90)),mk('span','sp'),mk('span','d',when(x.t))]);}).catch(()=>{});}
+  if(P.sus){mo.append(mk('h3','','Flags ('+P.sus+')'));list(mo,(P.susl||[]).slice().reverse(),x=>[mk('span','d',x.w),mk('span','sp'),mk('span','d',when(x.t))]);}
+  const R=j.reps||[];if(R.length){mo.append(mk('h3','','Reports'));list(mo,R.slice().reverse(),r=>[mk('span','chip',r.who===id?'about them':'by them'),mk('span','k',r.who===id?r.bn:r.wn),mk('span','d',r.why+(r.x?' · '+r.x:'')),mk('span','sp'),mk('span','d',when(r.t))]);}
+  const l=mk('label','','Your notes');const ta=document.createElement('textarea');ta.value=P.note||'';ta.maxLength=500;l.append(ta);mo.append(l);
+  btns(mo,[smallBtn('Save notes',()=>act(()=>admin('kanote',[],{id,note:ta.value}),'Notes saved'),''),
+    j.live?smallBtn('Message',async()=>{const v=await ask({title:'Message '+P.name,fields:[{id:'t',label:'Message',type:'area',max:300}],ok:'Send'});if(!v||!v.t.trim())return;try{const r=await admin('kmsg',[j.live.id],{text:v.t});note(r.n?'Sent':'They went offline',r.n?'ok':'bad');}catch(e){note(e.message,'bad');}}):null,
+    j.live?smallBtn('Kick',async()=>{const v=await ask({title:'Kick '+P.name,text:'They go back to the main menu and see your reason.',fields:[{id:'t',label:'Reason (optional)',max:200}],ok:'Kick',danger:true});if(!v)return;act(()=>admin('kkick',[j.live.id],{text:v.t}),'Kicked');}):null,
+    P.sus?smallBtn('Clear flags',()=>act(()=>admin('kaset',[],{id,sus:0}),'Cleared')):null,
+    smallBtn('Rename',async()=>{const v=await ask({title:'Rename '+P.name,text:'The old name becomes free. Their game picks up the new name right away.',fields:[{id:'n',label:'New name (6–16 letters A–Z or digits)',max:16,value:P.name}],ok:'Rename'});if(!v)return;const nn=v.n.trim();if(!/^[A-Za-z0-9]{6,16}$/.test(nn))return note('Names are 6–16 characters, English letters and digits only','bad');act(()=>admin('karen',[],{id,name:nn}),'Renamed');}),
+    smallBtn('Reset stats',async()=>{if(await sure('Set '+P.name+'\'s best wave, kills, games and time played back to zero?','Reset'))act(()=>admin('kareset',[],{id}),'Stats reset');}),
+    smallBtn('Reset password',async()=>{const v=await ask({title:'New password for '+P.name,text:'They are signed out everywhere and sign in with this.',fields:[{id:'p',label:'New password (6+ characters)',max:64}],ok:'Set password'});if(!v)return;if(v.p.length<6)return note('At least 6 characters','bad');act(()=>admin('kapw',[],{id,pw:v.p}),'Password changed');}),
+    !j.ban?smallBtn('Ban',async()=>{const v=await ask({title:'Ban '+P.name,text:'Blocks online play and sign-in for this account and its devices.',fields:[{id:'t',label:'Reason',max:120},{id:'m',label:'Length',type:'select',options:[['0','Forever'],['60','1 hour'],['1440','1 day'],['10080','7 days'],['43200','30 days']]}],ok:'Ban',danger:true});if(!v)return;act(()=>admin('kban',[],{acct:id,dev:j.live?j.live.dev:(P.devs||[]).slice(-1)[0]||'',name:P.name,why:v.t,mins:+v.m}),'Banned');},'danger'):smallBtn('Unban',()=>act(()=>admin('kunban',[j.ban.id]),'Unbanned')),
+    smallBtn('Delete account',async()=>{if(!(await sure('Delete the account '+P.name+'? Their stats are lost and the name becomes free. This cannot be undone.','Delete')))return;try{await admin('kadel',[],{id});note('Account deleted','ok');S.close();if(curTab()==='kpl')kSearch();}catch(e){note(e.message,'bad');}},'danger')]);}
+const KP={p:0};
+async function kSearch(){const box=$('#kpList');say('#kpMsg','Loading…');try{const j=await admin('kmodq',[],{q:$('#kpQ').value.trim(),f:'all',s:'last',p:KP.p,per:50});box.textContent='';KP.p=j.p;
+    $('#kpPg').textContent='page '+(j.p+1)+' / '+j.pages;$('#kpPrev').disabled=j.p<=0;$('#kpNext').disabled=j.p>=j.pages-1;
+    for(const p of j.rows){const it=mk('div','item');pTag(it,{a:p.id,n:p.name,d:p.dev,g:'k'});if(p.online)it.append(mk('span','dot'));const nb=mk('button','plink',p.name);nb.type='button';nb.onclick=()=>pCard(nb,{a:p.id,n:p.name,d:p.dev,g:'k'});
+      it.append(nb,mk('span','d','level '+(p.lvl||1)),mk('span','d',p.ver?'build '+p.ver:'no build yet'),mk('span','d',(p.gems||0).toLocaleString()+' gems'),p.sus?mk('span','chip',p.sus+' flags'):'',p.muted?mk('span','chip','muted'):'',p.ban?mk('span','chip off','banned'):'',mk('span','d','best wave '+(p.best||0)),mk('span','d',(p.kills||0).toLocaleString()+' kills'),mk('span','d',(p.games||0)+' games'),mk('span','d',p.online?'online now':'last seen '+ago(p.last||p.made)),p.hideLb?mk('span','chip','hidden'):'',p.note?mk('span','d','· '+p.note.slice(0,40)):'',mk('span','sp'),smallBtn('Profile',()=>kAcct(p.id)));box.append(it);}
+    say('#kpMsg',j.total?j.total.toLocaleString()+' account'+(j.total===1?'':'s')+(j.total!==j.accounts?' of '+j.accounts.toLocaleString():''):'No accounts found.');}catch(e){say('#kpMsg',e.message,'bad');}}
+$('#kpPrev').onclick=()=>{KP.p=Math.max(0,KP.p-1);kSearch();};$('#kpNext').onclick=()=>{KP.p++;kSearch();};
+const kDay=()=>new Date(Date.now()+3*36e5).toISOString().slice(0,10);
+const kLvl=xp=>{let l=1,need=100;while(xp>=need&&l<100){xp-=need;l++;need=100+40*(l-1);}return l;};
+const KKIND={c:'Class',r:'Colour',h:'Hat',w:'Gun skin',f:'Frame',t:'Theme',n:'Name colour',u:'Title',p:'Pet',b:'Banner'};
+const kItemName=id=>(KKIND[id[0]]||'')+' · '+id.slice(2);
+let KECO=null;
+async function kItems(P,done){let j;try{j=KECO&&KECO.cat?KECO:await admin('keco');}catch(e){return note(e.message,'bad');}const S=sheet('Items · '+P.name,true);const have=new Set(P.own||[]);const boxes=[];
+  for(const k of Object.keys(KKIND)){const ids=Object.keys(j.cat).filter(x=>x[0]===k);if(!ids.length)continue;S.c.append(mk('h2','',KKIND[k]));const g=mk('div','abs');
+    for(const id of ids){const l=mk('label','chk');const i=document.createElement('input');i.type='checkbox';i.value=id;i.checked=have.has(id);l.append(i,document.createTextNode(' '+id.slice(2)+' · '+j.cat[id][0]));g.append(l);boxes.push(i);}S.c.append(g);}
+  const b=mk('div','btns');b.append(smallBtn('Save items',async()=>{try{await admin('kaset',[],{id:P.id,own:boxes.filter(i=>i.checked).map(i=>i.value)});note('Saved','ok');S.close();done&&done();}catch(e){note(e.message,'bad');}},''));S.c.append(b);}
+async function kFriendsSheet(P){let j;try{j=await admin('kafr',[],{id:P.id});}catch(e){return note(e.message,'bad');}const S=sheet('Friends · '+P.name);const l=mk('div','list');l.style.flexShrink='0';
+  for(const f of j.fr){const it=mk('div','item');it.append(mk('span','k',f.name),mk('span','sp'),smallBtn('Profile',()=>{S.close();kAcct(f.id);}),smallBtn('Remove',async()=>{try{await admin('kaset',[],{id:P.id,fdel:f.id});it.remove();note('Removed','ok');}catch(e){note(e.message,'bad');}}));l.append(it);}
+  if(!j.fr.length)l.append(mk('div','item','No friends yet.'));S.c.append(l);
+  if(j.fq.length){S.c.append(mk('h2','','Waiting requests'));const q=mk('div','list');q.style.flexShrink='0';for(const r of j.fq){const it=mk('div','item');it.append(mk('span','k',r.name),mk('span','sp'),mk('span','d',r.t?when(r.t):''));q.append(it);}S.c.append(q);}}
+async function kEco(){let j;try{j=await admin('keco');}catch(e){note(e.message,'bad');return;}KECO=j;const E=j.eco,t=curTab();
+  if(t==='kec'){const D=j.days.slice().reverse(),today=j.days.find(d=>d.d===new Date().toISOString().slice(0,10))||{};
+    const kp=$('#kecK');kp.textContent='';for(const[n,l]of[[j.total.gems,'gems held by players'],[j.total.n,'accounts'],[today.eg||0,'gems earned today'],[today.es||0,'gems spent today'],[j.days.reduce((a,d)=>a+(d.es||0),0),'gems spent (30 days)']]){const k=mk('div','kpi');k.append(mk('b','',Number(n).toLocaleString()),mk('span','',l));kp.append(k);}
+    const bars=(el,ax,key)=>{const box=$(el);box.textContent='';const mx=Math.max(1,...D.map(d=>d[key]||0));for(const d of D){const b=mk('div');b.style.height=Math.max(2,Math.round((d[key]||0)/mx*100))+'%';b.dataset.tip=d.d+'\n'+(d[key]||0).toLocaleString();box.append(b);}const a=$(ax);a.textContent='';if(D.length){a.append(mk('span','',D[0].d.slice(5)),mk('span','',D[D.length-1].d.slice(5)));}};
+    bars('#kecE','#kecEa','eg');bars('#kecS','#kecSa','es');
+    $('#kecMul').value=String(E.until>Date.now()?E.mul:1);$('#kecUntil').value=E.until>Date.now()?toLocal(E.until):'';$('#kecCap').value=E.cap;$('#kecHcap').value=E.hcap;$('#kecLogin').value=E.login;$('#kecStart').value=E.start;$('#kecRen').value=E.ren;$('#kecSpinP').value=E.spinP==null?100:E.spinP;$('#kecSpinMax').value=E.spinMax==null?5:E.spinMax;
+    const gl=$('#kgList');gl.textContent='';for(const g of E.gifts.slice().reverse()){const it=mk('div','item');it.append(mk('span','k',g.n+' gems'),mk('span','d',g.text||''),mk('span','sp'),mk('span','d',g.until>Date.now()?'until '+when(g.until):'ended'));gl.append(it);}}
+  if(t==='ksh')kShopDraw();}
+let KSH=null,kshCat='all';
+const KCATS=[['all','All'],['c','Classes'],['h','Hats'],['r','Colours'],['w','Gun skins'],['f','Frames'],['n','Name colours'],['u','Titles'],['t','Themes']];
+function kShopDraw(){const j=KECO,E=j.eco;KSH={prices:Object.assign({},E.prices),sale:Object.assign({},E.sale),off:E.off.slice(),lim:Object.assign({},E.lim)};
+  const fs=$('#kshFeat');fs.textContent='';const o0=mk('option','','None');o0.value='';fs.append(o0);for(const id of Object.keys(j.cat)){const o=mk('option','',kItemName(id));o.value=id;fs.append(o);}fs.value=E.feat||'';
+  $('#kshAll').value=E.saleUntil>Date.now()?E.saleAll:0;$('#kshUntil').value=E.saleUntil>Date.now()?toLocal(E.saleUntil):'';
+  $('#kshNow').textContent=(E.saleUntil>Date.now()&&E.saleAll?'Now: '+E.saleAll+'% off everything until '+when(E.saleUntil)+'. ':'No sale on everything right now. ')+(E.feat?'Featured: '+kItemName(E.feat)+'.':'');
+  const q=$('#kshAllQ');q.textContent='';for(const p of[0,10,25,50]){const b=smallBtn(p?p+'%':'Off',()=>{$('#kshAll').value=p;if(p&&!$('#kshUntil').value)$('#kshUntil').value=toLocal(Date.now()+3*864e5);kDirty();});q.append(b);}
+  const d=$('#kshDurQ');d.textContent='';for(const[h,n]of[[24,'1 day'],[72,'3 days'],[168,'1 week']])d.append(smallBtn(n,()=>{$('#kshUntil').value=toLocal(Date.now()+h*36e5);kDirty();}));
+  const c=$('#kshCats');c.textContent='';for(const[k,n]of KCATS){const b=smallBtn(n,()=>{kshCat=k;kShopList();});b.dataset.k=k;c.append(b);}
+  const ac=$('#kshActive');ac.textContent='';const now=Date.now(),all=E.saleUntil>now?E.saleAll:0;
+  const saveNow=async(E2,msg)=>{try{await admin('kecoset',[],E2);await kEco();note(msg,'ok');}catch(e){note(e.message,'bad');}};
+  if(all){const it=mk('div','item');it.append(mk('span','chip','-'+all+'%'),mk('span','k','Everything'),mk('span','d','ends '+when(E.saleUntil)),mk('span','sp'),smallBtn('End',()=>saveNow(Object.assign({},E,{saleAll:0,saleUntil:0}),'Sale ended')));ac.append(it);}
+  for(const[id,pct]of Object.entries(E.sale)){const base=E.prices[id]!=null?E.prices[id]:j.cat[id][0],pc=Math.max(pct,all),it=mk('div','item');
+    it.append(mk('span','chip','-'+pc+'%'),mk('span','k',kItemName(id)),mk('span','d',base+' → '+Math.round(base*(100-pc)/100)+' gems'),mk('span','sp'),smallBtn('End',()=>{const S2=Object.assign({},E.sale);delete S2[id];saveNow(Object.assign({},E,{sale:S2}),'Sale ended');}));ac.append(it);}
+  if(!ac.children.length)ac.append(mk('div','item','Nothing is on sale. Use the buttons above for everything, or set % off on single items below.'));
+  $('#kshClear').onclick=async()=>{if(!(await sure('End every sale now? Prices go back to normal in every open game.','End all sales',false)))return;saveNow(Object.assign({},E,{sale:{},saleAll:0,saleUntil:0}),'All sales ended');};
+  kShopList();kDirty();}
+function kShopList(){const j=KECO,E=j.eco,box=$('#kshList');box.textContent='';const f=$('#kshQ').value.trim().toLowerCase(),only=$('#kshOnly').checked;
+  for(const b of $('#kshCats').children)b.setAttribute('aria-pressed',String(b.dataset.k===kshCat));
+  const buys={};for(const d of j.days)for(const[k,n]of Object.entries(d.buy||{}))buys[k]=(buys[k]||0)+n;
+  for(const[k,n]of KCATS.slice(1)){if(kshCat!=='all'&&kshCat!==k)continue;
+    const ids=Object.keys(j.cat).filter(id=>id[0]===k&&j.cat[id][1]!=='R'&&(!f||id.includes(f))&&(!only||KSH.prices[id]!=null||KSH.sale[id]||KSH.off.includes(id)||KSH.lim[id]));if(!ids.length)continue;
+    const sec=mk('div','ksh-sec'),h=mk('h3');const onSale=ids.filter(id=>KSH.sale[id]).length;
+    h.append(mk('span','',n),mk('span','chip',ids.length+' items'),onSale?mk('span','chip',onSale+' on sale'):'',mk('span','sp'));
+    for(const p of[0,25,50])h.append(smallBtn(p?'Section '+p+'% off':'No section sale',()=>{for(const id of ids){if(p)KSH.sale[id]=p;else delete KSH.sale[id];}kShopList();kDirty();}));
+    sec.append(h);const list=mk('div','list');
+    for(const id of ids){const[base,fl]=j.cat[id];const it=mk('div','item');it.dataset.id=id;
+      const ef=mk('span','d');const chg=()=>{it.classList.toggle('chg',kChanged(id));ef.textContent='= '+Math.round((KSH.prices[id]!=null?KSH.prices[id]:base)*(100-(KSH.sale[id]||0))/100);};
+      const pr=document.createElement('input');pr.type='number';pr.min=0;pr.max=100000;pr.placeholder=String(base);pr.value=KSH.prices[id]!=null?KSH.prices[id]:'';pr.title='Empty = '+base;
+      pr.oninput=()=>{if(pr.value==='')delete KSH.prices[id];else KSH.prices[id]=Math.max(0,+pr.value|0);chg();kDirty();};
+      const sl=document.createElement('input');sl.type='number';sl.min=0;sl.max=90;sl.placeholder='0';sl.value=KSH.sale[id]||'';
+      sl.oninput=()=>{const v=Math.min(90,Math.max(0,+sl.value|0));if(v)KSH.sale[id]=v;else delete KSH.sale[id];chg();kDirty();};
+      const off=mk('label','chk');const oc=document.createElement('input');oc.type='checkbox';oc.checked=KSH.off.includes(id);oc.onchange=()=>{KSH.off=KSH.off.filter(x=>x!==id);if(oc.checked)KSH.off.push(id);chg();kDirty();};off.append(oc,document.createTextNode(' hidden'));
+      it.append(mk('span','k',id.slice(2)),fl==='L'?mk('span','chip','limited'):'',mk('span','d',(j.total.own[id]||0)+' own · '+(buys[id]||0)+' bought'),mk('span','sp'),mk('span','d','price'),pr,mk('span','d','% off'),sl,ef,off);
+      if(fl==='L'){const lu=document.createElement('input');lu.type='datetime-local';lu.value=KSH.lim[id]>Date.now()?toLocal(KSH.lim[id]):'';lu.onchange=()=>{if(lu.value)KSH.lim[id]=fromLocal(lu.value);else delete KSH.lim[id];chg();kDirty();};it.append(mk('span','d','in shop until'),lu);}
+      chg();list.append(it);}
+    sec.append(list);box.append(sec);}
+  if(!box.children.length)box.append(mk('p','msg','Nothing matches.'));}
+function kChanged(id){const E=KECO.eco;return (KSH.prices[id]??null)!==(E.prices[id]??null)||(KSH.sale[id]||0)!==(E.sale[id]||0)||KSH.off.includes(id)!==E.off.includes(id)||(KSH.lim[id]||0)!==(E.lim[id]||0);}
+function kDirty(){if(!KECO||!KSH)return;const E=KECO.eco;let n=Object.keys(KECO.cat).filter(kChanged).length;
+  if($('#kshFeat').value!==(E.feat||''))n++;const sa=+$('#kshAll').value|0;if(sa!==(E.saleUntil>Date.now()?E.saleAll:0)||(sa&&fromLocal($('#kshUntil').value)!==(E.saleUntil>Date.now()?E.saleUntil:0)))n++;
+  $('#kshBar').classList.toggle('dirty',n>0);say('#kshMsg',n?n+' unsaved change'+(n===1?'':'s'):'Everything saved.');}
+$('#kshQ').oninput=()=>KSH&&kShopList();$('#kshOnly').onchange=()=>KSH&&kShopList();
+for(const s of['#kshFeat','#kshAll','#kshUntil'])$(s).addEventListener('change',kDirty);$('#kshAll').addEventListener('input',kDirty);
+$('#kshUndo').onclick=()=>{if(KECO)kShopDraw();};
+$('#kecSave').onclick=async()=>{if(!KECO)return;const E=Object.assign({},KECO.eco,{spinP:+$('#kecSpinP').value|0,spinMax:+$('#kecSpinMax').value|0,mul:+$('#kecMul').value,until:+$('#kecMul').value>1?(fromLocal($('#kecUntil').value)||Date.now()+7*864e5):0,cap:+$('#kecCap').value|0,hcap:+$('#kecHcap').value|0,login:+$('#kecLogin').value|0,start:+$('#kecStart').value|0,ren:+$('#kecRen').value|0});
+  try{await admin('kecoset',[],E);await kEco();say('#kecMsg','Saved. Every open game has it now.','ok');}catch(e){say('#kecMsg',e.message,'bad');}};
+$('#kshSave').onclick=async()=>{if(!KECO||!KSH)return;const sa=+$('#kshAll').value|0;const E=Object.assign({},KECO.eco,{prices:KSH.prices,sale:KSH.sale,off:KSH.off,lim:KSH.lim,feat:$('#kshFeat').value,saleAll:sa,saleUntil:sa>0?(fromLocal($('#kshUntil').value)||Date.now()+3*864e5):0});
+  try{await admin('kecoset',[],E);await kEco();say('#kshMsg','Saved. Every open game has the new shop now.','ok');}catch(e){say('#kshMsg',e.message,'bad');}};
+$('#kgGo').onclick=async()=>{const n=+$('#kgN').value|0;if(n<1)return;if(!(await sure('Give '+n+' gems to every Kuşatma account? Each player gets it once when they next open the game.','Send gift',false)))return;
+  try{await admin('kgiftall',[],{n,text:$('#kgT').value,days:+$('#kgD').value});note('Gift sent','ok');$('#kgT').value='';kEco();}catch(e){note(e.message,'bad');}};
+async function kRep(){let j,k;try{[j,k]=await Promise.all([admin('krep'),admin('ksus')]);}catch(e){say('#krpMsg',e.message,'bad');return;}const all=$('#krpAll').checked,box=$('#krpList');box.textContent='';
+  const L=j.list.filter(r=>all||!r.done),rN=[];for(const r of L){const it=mk('div','item');pTag(it,{a:r.who,n:r.wn,g:'k'});it.append(mk('span','k',r.wn),mk('span','chip',r.why),mk('span','d','by '+r.bn),r.x?mk('span','d','· '+r.x):'',mk('span','sp'),mk('span','d',when(r.t)));
+    if(r.conv&&r.conv.length)it.append(smallBtn('Messages',()=>{const S=sheet('Messages · '+r.bn+' and '+r.wn);const l=mk('div','list');l.style.flexShrink='0';for(const m of r.conv){const e=mk('div','item');e.append(mk('span','k',m.f===r.by?r.bn:r.wn),mk('span','d',m.x),mk('span','sp'),mk('span','d',when(m.t)));l.append(e);}S.c.append(l);}));
+    it.append(smallBtn('Profile',()=>kAcct(r.who)),smallBtn(r.done?'Reopen':'Done',async()=>{try{await admin('krepdone',[r.i],r.done?{undo:1}:{});kRep();}catch(e){note(e.message,'bad');}},r.done?'ghost':''));rN.push(it);}pager(box,rN,100);
+  say('#krpMsg',L.length?'':(all?'No reports.':'Nothing waiting.'));
+  const sb=$('#ksusList');sb.textContent='';for(const a of k.list){const it=mk('div','item');pTag(it,{a:a.id,n:a.name,g:'k'});it.append(mk('span','k',a.name),mk('span','chip',a.sus+' flags'),mk('span','d',a.gn+' gems today'),mk('span','d',((a.susl||[]).slice(-1)[0]||{}).w||''),mk('span','sp'),smallBtn('Profile',()=>kAcct(a.id)),smallBtn('Clear',async()=>{try{await admin('kaset',[],{id:a.id,sus:0});kRep();}catch(e){note(e.message,'bad');}}));sb.append(it);}
+  say('#ksusMsg',k.list.length?'':'Nobody flagged. Accounts show up here when their wave reports look too fast or they hit the daily gem limit.');}
+$('#krpAll').onchange=kRep;
+async function kLb(){const box=$('#klbCols');say('#klbMsg','Loading…');try{const L=(await admin('klb')).lb;box.textContent='';
+    for(const[k,h,f]of[['best','Best wave',r=>'wave '+r.best],['kills','Most kills',r=>r.kills.toLocaleString()+' kills']]){const c=mk('section','card');c.append(mk('h2','',h));const list=mk('div','list');
+      L[k].forEach((r,i)=>{const it=mk('div','item');pTag(it,{a:r.id,n:r.name,g:'k'});it.append(mk('span','d','#'+(i+1)),mk('span','k',r.name),mk('span','d',f(r)),r.hide?mk('span','chip','hidden'):'',mk('span','sp'),smallBtn(r.hide?'Show':'Hide',async()=>{try{await admin('kalb',[],{id:r.id,hide:!r.hide});kLb();}catch(e){note(e.message,'bad');}}),smallBtn('Profile',()=>kAcct(r.id)));list.append(it);});
+      if(!L[k].length)list.append(mk('div','item d','Nobody yet.'));c.append(list);box.append(c);}
+    say('#klbMsg','Shown in the game\'s main menu (top 10). Only accounts appear.');}catch(e){say('#klbMsg',e.message,'bad');}}
+$('#kpGo').onclick=kSearch;$('#kpQ').onkeydown=e=>{if(e.key==='Enter')kSearch();};
+const kEvent=async(k,n)=>{if(!(await sure(k==='boss'?'Send a boss to every running Kuşatma game?':'Give '+n+' gold to every player in a game?',k==='boss'?'Send':'Give')))return;
+  try{const r=await admin('kev',[],{k,n,text:$('#kevTx').value.trim()});note('Sent to '+r.n+' open game'+(r.n===1?'':'s'),'ok');}catch(e){note(e.message,'bad');}};
+$('#kevBoss').onclick=()=>kEvent('boss',0);$('#kevGoldGo').onclick=()=>kEvent('gold',+$('#kevGold').value);
+$('#navLock').onclick=()=>lock();
+/* look: icons, last-updated line, refresh */
+let LASTOK=0;
+const ICO_ACCTS='<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5.5 17c.6-1.8 1.9-2.7 3.5-2.7s2.9.9 3.5 2.7M15 10h3M15 14h3"/>';
+const ICO={home:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',dash0:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  players:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.6c2 .7 3.2 2.5 3.5 5.4"/>',
+  events:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',live:'<path d="M4 11a8 8 0 0 1 16 0v1"/><path d="M4 18h16M7 14h10"/>',
+  accts:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5.5 17c.6-1.8 1.9-2.7 3.5-2.7s2.9.9 3.5 2.7M15 10h3M15 14h3"/>',
+  lb:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/>',
+  stats:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',codes:'<path d="M9 4 7 20M17 4l-2 16M4 9h17M3 15h17"/>',
+  log:'<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r=".6"/><circle cx="4" cy="12" r=".6"/><circle cx="4" cy="18" r=".6"/>',
+  badges:'<path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>',
+  alog:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',acct:'<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  ibans:'<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>',kbn:'<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>',klb:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/>',kpl:ICO_ACCTS,klive:'<circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 7.5a6.4 6.4 0 0 1 0 9M4.6 4.6a10.5 10.5 0 0 0 0 14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8"/>',
+  kec:'<path d="M12 2 3 9l9 13 9-13z"/><path d="M3 9h18"/>',ksh:'<path d="M4 7h16l-1 13H5z"/><path d="M9 7a3 3 0 0 1 6 0"/>',krp:'<path d="M5 21V4h11l-2 4 2 4H5"/>',
+  kev:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',kset:'<path d="M4 11a8 8 0 0 1 16 0v1"/><path d="M4 18h16M7 14h10"/>',kstats:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  logs:'<path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/>',
+  kctl:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 12l3-3 2 2 4-4"/>',ksc:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3"/>',kmod:'<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>',kan:'<path d="M3 20h18M6 16l4-5 3 3 5-7"/>',kdat:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',kss:'<path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/><path d="M12 8v8M8 12h8"/>',
+  lock:'<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l4-4-4-4M14 12H4"/>'};
+const svg=d=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+d+'</svg>';
+ICO.dash=ICO.klive;for(const b of document.querySelectorAll('.tabs button[data-tab]'))if(ICO[b.dataset.tab])b.insertAdjacentHTML('afterbegin',svg(ICO[b.dataset.tab]));
+$('#navLock').insertAdjacentHTML('afterbegin',svg(ICO.lock));
+$('#refresh').insertAdjacentHTML('afterbegin',svg('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>'));
+$('#refresh').onclick=()=>{if(curTab()==='home'){hLoad(true);}const r=$('#refresh');r.classList.remove('spin');void r.offsetWidth;r.classList.add('spin');if(curTab()!=='home')openTab(curTab());if(GAME==='i')loadStat();};
+setInterval(()=>{const e=$('#upd');if(!e)return;if(!LASTOK){e.textContent='';return;}const s=Math.round((Date.now()-LASTOK)/1000);e.textContent='Updated '+(s<5?'just now':s<60?s+' s ago':Math.round(s/60)+' min ago');},1000);
+/* dashboard: Cloudflare and Deno usage */
+const fmtN=n=>Number(Math.round(n||0)).toLocaleString(),fmtB=b=>{b=b||0;const u=['B','KB','MB','GB','TB'];let i=0;while(b>=1024&&i<4){b/=1024;i++;}return(i?b.toFixed(b<10?2:1):b)+' '+u[i];};
+async function hLoad(fresh){let j;try{j=await admin('usage',[],fresh?{fresh:1}:undefined);}catch(e){note(e.message,'bad');return;}
+  const U=j.u||{},cf=U.cf,dn=U.deno,today=new Date().toISOString().slice(0,10),mon=today.slice(0,7);
+  const nb=$('#hNote');const errs=(U.err||[]);nb.hidden=!errs.length;nb.textContent=errs.length?(errs.some(e=>/not set up/.test(e))?'Cloudflare and Deno numbers are not connected yet.':'Some numbers could not be loaded: '+errs.join(' · ')):'';
+  const C=(cf&&cf.days&&cf.days[today])||{},dsum=(f,k)=>{let t=0;if(dn)for(const a of Object.values(dn))for(const[d,z]of Object.entries(a))if(f(d))t+=z[k]||0;return t;};
+  const dT=k=>dsum(d=>d===today,k),dM=k=>dsum(d=>d.startsWith(mon),k);
+  const stored=cf?Math.max(0,...Object.values(cf.days).map(z=>z.sb||0)):0,gbs=(C.act||0)/1e6*0.125;
+  const tiles=(box,L)=>{const k=$(box);k.textContent='';for(const[n,l,sub]of L){const e=mk('div','kpi');e.append(mk('b','',n),mk('span','',l));if(sub)e.append(mk('small','',sub));k.append(e);}};
+  tiles('#hKpi',[[fmtN(j.online.k),'online now'],[fmtN(j.today.k),'players today'],['·','accounts'],['·','new this week']]);
+  admin('kmodq',[],{f:'new',per:10}).then(q=>{const c=$('#hKpi').children;if(c.length<4)return;c[2].querySelector('b').textContent=fmtN(q.accounts);c[3].querySelector('b').textContent='+'+fmtN(q.cnt.new);}).catch(()=>{});
+  const tM=cf?Object.entries(cf.days).filter(([d])=>d.startsWith(mon)).reduce((a,[,z])=>a+(z.te||0),0):0;
+  tiles('#hCfK',[[cf?fmtN(C.w):'—','requests today',cf?fmtN(C.we)+' errors':''],[cf?fmtN(C.rw):'—','writes today'],[cf?fmtN((C.wi||0)+(C.wo||0)):'—','live messages today'],[cf?fmtB(stored):'—','stored']]);
+  tiles('#hDnK',[[dn?fmtN(dT('r')):'—','requests today'],[dn?fmtN(dM('r')):'—','requests this month'],[dn?fmtB(dT('eg')):'—','data sent today'],[dn?fmtB(dM('eg')):'—','data this month']]);
+  let worstCf=0,worstDn=0;
+  const lim=(box,name,used,max,fmt,per,side)=>{const pc=max?Math.min(100,used/max*100):0;if(used!=null){if(side==='c')worstCf=Math.max(worstCf,pc);else worstDn=Math.max(worstDn,pc);}
+    const m=mk('div','meter2'+(pc>=90?' bad':pc>=70?' warn':'')),t=mk('div','t'),b=mk('div','b'),i=mk('i');
+    i.style.width=Math.max(pc>0?1.5:0,pc)+'%';b.append(i);t.append(mk('span','',name+' '+per),mk('span','',(used==null?'—':fmt(used))+' / '+fmt(max)+(used==null?'':' · '+(pc<1&&pc>0?'<1':Math.round(pc))+'%')));m.append(t,b);$(box).append(m);};
+  $('#hCfL').textContent='';$('#hDnL').textContent='';
+  lim('#hCfL','Server requests',cf?C.w:null,1e5,fmtN,'(day)','c');lim('#hCfL','Database requests',cf?C.o:null,1e5,fmtN,'(day)','c');lim('#hCfL','Database reads',cf?C.rr:null,5e6,fmtN,'(day)','c');lim('#hCfL','Database writes',cf?C.rw:null,1e5,fmtN,'(day)','c');
+  lim('#hCfL','Database run time',cf?gbs:null,13000,v=>fmtN(v)+' GB-s','(day)','c');lim('#hCfL','Stored data',cf?stored:null,5*1024**3,fmtB,'(total)','c');lim('#hCfL','Relay (TURN) data',cf?tM:null,1000*1024**3,fmtB,'(month)','c');
+  lim('#hDnL','Requests',dn?dM('r'):null,1e6,fmtN,'(month)','d');lim('#hDnL','Data sent',dn?dM('eg'):null,100*1024**3,fmtB,'(month)','d');
+  const chip=(id,ok,pc)=>{const c=$(id);c.textContent=!ok?'not connected':pc>=90?'near the limit':pc>=70?'getting busy':'healthy';};chip('#hCfS',!!cf,worstCf);chip('#hDnS',!!dn,worstDn);
+  const nx=new Date();nx.setUTCHours(24,0,0,0);const ms=nx-Date.now();$('#hReset').textContent='Daily limits reset in '+Math.floor(ms/36e5)+' h '+Math.floor(ms%36e5/6e4)+' min';
+  const D30=[];for(let i=29;i>=0;i--)D30.push(new Date(Date.now()-i*864e5).toISOString().slice(0,10));
+  const bars=(el,ax,get,f,label)=>{const box=$(el);box.textContent='';f=f||fmtN;const v=D30.map(get),mx=Math.max(1,...v);D30.forEach((d,i)=>{const b=mk('div');b.style.height=Math.max(2,Math.round(v[i]/mx*100))+'%';b.dataset.tip=new Date(d+'T12:00:00Z').toLocaleDateString([], {weekday:'short',day:'numeric',month:'short'})+'\n'+f(v[i])+' '+label;box.append(b);});
+    const a=$(ax);a.textContent='';a.append(mk('span','',D30[0].slice(5)),mk('span','','max '+f(mx)),mk('span','',D30[29].slice(5)));};
+  bars('#hcR','#haR',d=>cf&&cf.days[d]?cf.days[d].w:0,fmtN,'requests');bars('#hcW','#haW',d=>cf&&cf.days[d]?cf.days[d].rw:0,fmtN,'writes');bars('#hcT','#haT',d=>cf&&cf.days[d]?(cf.days[d].te||0)+(cf.days[d].ti||0):0,fmtB,'relayed');
+  bars('#hcD','#haD',d=>dsum(x=>x===d,'r'),fmtN,'requests');bars('#hcE','#haE',d=>dsum(x=>x===d,'eg'),fmtB,'sent');
+  const DV={'ironfield-api':'Server forwarder','umvtt-games':'Site mirror'};const ap=$('#hDnApps');ap.textContent='';
+  if(dn)for(const[app,days]of Object.entries(dn)){const z=Object.values(days),it=mk('div','item');it.append(mk('span','k',DV[app]||app),mk('span','d',fmtN((days[today]||{}).r)+' today'),mk('span','sp'),mk('span','d',fmtN(z.reduce((a,b)=>a+b.r,0))+' req · '+fmtB(z.reduce((a,b)=>a+b.eg,0))+' (30 d)'));ap.append(it);}
+  const T=$('#hSvc');T.textContent='';const tr=(cells,th)=>{const r=document.createElement('tr');cells.forEach((c,i)=>{const e=document.createElement(th?'th':'td');e.textContent=c;if(i)e.className='n';r.append(e);});T.append(r);};
+  tr(['Service','Today','Last 30 days','Data sent (30 days)'],1);
+  const SV={'ironfield-codes':'Cloudflare · game server','ironfield-api':'Cloudflare · Pages forwarder'};if(cf)for(const[sname,days]of Object.entries(cf.scripts)){const tot=Object.values(days).reduce((a,b)=>a+b,0);tr([SV[sname]||'Cloudflare · '+sname,fmtN(days[today]||0),fmtN(tot),'—']);}
+  if(cf){const T30=Object.values(cf.days).reduce((a,z)=>a+(z.te||0),0);tr(['Cloudflare · TURN relay',fmtB((C.te||0)+(C.ti||0)),fmtB(T30+Object.values(cf.days).reduce((a,z)=>a+(z.ti||0),0)),fmtB(T30)]);}
+  if(dn)for(const[app,days]of Object.entries(dn)){const z=Object.values(days);tr(['Deno · '+(DV[app]||app),fmtN((days[today]||{}).r),fmtN(z.reduce((a,b)=>a+b.r,0)),fmtB(z.reduce((a,b)=>a+b.eg,0))]);}
+  if(!cf&&!dn)tr(['Not connected yet','','','']);
+  const kv=$('#hData');kv.textContent='';const row=(a,b)=>kv.append(mk('span','',a),mk('span','',b));row('Guest player history',fmtN(j.keys.khist)+' players');
+  if(cf)row('Database size',fmtB(stored));row('Usage numbers from',new Date(j.t).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));}
+/* Kuşatma: names, gold gifts, room tools */
+const KCN={asker:'Asker',doktor:'Doktor',tamirci:'Tamirci',nisanci:'Nişancı',kalkanci:'Kalkancı',alevci:'Alevci',bombaci:'Bombacı',izci:'İzci',muhendis:'Mühendis',kimyager:'Kimyager',komutan:'Komutan',tesla:'Tesla',avci:'Avcı'},KMN={meydan:'Meydan',benzinlik:'Benzinlik',hastane:'Hastane Bahçesi',orman:'Orman',liman:'Liman',kar:'Kış Köyü'},KDN={kolay:'Kolay',normal:'Normal',zor:'Zor',kabus:'Kâbus'};
+async function kGift(p){const v=await ask({title:'Gold for '+(p.name||'this player'),text:'Arrives in their game right away, with a message.',fields:[{id:'n',label:'Gold',type:'select',options:[['100','100'],['250','250'],['500','500'],['1000','1000'],['2500','2500']],value:'250'},{id:'t',label:'Message (optional)',max:120}],ok:'Send gold'});if(!v)return;
+  try{await admin('kgift',[],{id:p.id,n:+v.n,text:v.t});note('Sent '+v.n+' gold to '+p.name,'ok');}catch(e){note(e.message==='nohost'?'Their room has no host right now':e.message==='gone'?'They went offline':e.message,'bad');}}
+async function kRoomMsg(code){const v=await ask({title:/^s/.test(code)?'Message this player':'Message room '+code,fields:[{id:'t',label:'Message',type:'area',max:300}],ok:'Send'});if(!v||!v.t.trim())return;try{const r=await admin('kroom',[],{code,op:'msg',text:v.t});note('Sent to '+r.n+' player'+(r.n===1?'':'s'),'ok');}catch(e){note(e.message,'bad');}}
+async function kRoomClose(code){const v=await ask({title:'Close room '+code,text:'Everyone in the room goes back to the main menu and sees your reason.',fields:[{id:'t',label:'Reason (optional)',max:200}],ok:'Close room',danger:true});if(!v)return false;
+  try{const r=await admin('kroom',[],{code,op:'close',text:v.t});note('Closed: '+r.n+' player'+(r.n===1?'':'s')+' sent to the menu','ok');kLoad();return true;}catch(e){note(e.message,'bad');return false;}}
+/* motion: things that appear right after opening a page rise in one after another, numbers count up, charts grow */
+var ENTER_T=0,STAG=0;
+const countUp=el=>{const t=el.textContent.trim();if(!/^[\d,.]+$/.test(t))return;const n=+t.replace(/,/g,'');if(!(n>0)||n>1e9)return;const t0=performance.now(),dur=650;
+  const step=now=>{const k=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-k,3);el.textContent=Math.round(n*e).toLocaleString();if(k<1)requestAnimationFrame(step);else el.textContent=t;};requestAnimationFrame(step);};
+new MutationObserver(ms=>{if(performance.now()-ENTER_T>1400||matchMedia('(prefers-reduced-motion:reduce)').matches)return;for(const m of ms)for(const n of m.addedNodes){if(n.nodeType!==1)continue;
+  if(n.matches('.item,.kpi,.ev,.hbar,.meter2,.top-row')){n.classList.add('in');n.style.animationDelay=Math.min(12,STAG++)*22+'ms';}
+  if(n.parentNode&&n.parentNode.classList&&n.parentNode.classList.contains('bars')){n.classList.add('in');n.style.animationDelay=Math.min(30,[...n.parentNode.children].indexOf(n))*14+'ms';}
+  for(const i of n.querySelectorAll?n.querySelectorAll('.hbar i,.meter2 .b i'):[]){i.classList.add('in');i.style.animationDelay=Math.min(12,STAG)*22+100+'ms';}
+  if(n.matches('.kpi'))for(const b of n.querySelectorAll('b'))countUp(b);}}).observe(document.getElementById('app'),{childList:true,subtree:true});
+/* Bans tab (both games): everyone banned, by device and/or account, with Unban */
+let BANS=[[],[]];
+async function banTab(){try{BANS[1]=(await admin('kdash')).bans;}catch(e){say('#kbMsg',e.message,'bad');return;}banDraw(1);}
+function banDraw(k){const box=$('#kbList'),q=$('#kbQ').value.trim().toLowerCase();
+  const L=BANS[k].filter(b=>!q||[b.name,b.dev,b.acct,b.why].some(x=>String(x||'').toLowerCase().includes(q))).sort((a,b)=>b.t-a.t),items=[];
+  for(const b of L){const it=mk('div','item');pTag(it,{a:b.acct,n:b.name,d:b.dev,g:k?'k':'i'});it.append(mk('span','k',b.name||'(no name)'),b.acct?mk('span','chip','account '+b.acct):'',b.dev?mk('span','chip','device '+b.dev.slice(0,8)):'',mk('span','d',b.why||'no reason'),mk('span','d',when(b.t)),mk('span','sp'),
+      k&&b.acct?smallBtn('Profile',()=>kAcct(b.acct)):'',smallBtn('Unban',async()=>{if(!(await sure('Unban '+(b.name||'this player')+'? They can play online again right away, even if their game is closed now.','Unban',false)))return;
+        try{await admin(k?'kunban':'unban',[b.id]);note('Unbanned '+(b.name||''),'ok');banTab(k);}catch(e){note(e.message,'bad');}}));items.push(it);}
+  pager(box,items,100,BANS[k].length?'No match.':'Nobody is banned.');
+  say('#kbMsg',BANS[k].length?BANS[k].length+' ban'+(BANS[k].length===1?'':'s'):'');}
+$('#kbQ').oninput=()=>banDraw(1);
+
+
+/* accounts and their saves */
+let ACCTS=[],SV=null;
+
+
+
+
+
+
+
+
+
+
+
+/* daily stats */
+
+setInterval(()=>{if(!KEY||document.hidden||document.querySelector('.dlg'))return;const t=curTab();if(t==='klive')kLoad();},8000);
+setInterval(()=>{if(KEY&&!document.hidden&&!document.querySelector('.dlg')&&curTab()==='home')hLoad();},60000);
+show(load().ct?'#lock':'#setup');
+/* own controls: switches (CSS), dropdowns and a date-time picker instead of the browser's */
+const FX={pop:null,close(){if(FX.pop){FX.pop.remove();FX.pop=null;document.querySelectorAll('.fx-open').forEach(e=>e.classList.remove('fx-open'));}}};
+addEventListener('mousedown',e=>{if(FX.pop&&!FX.pop.contains(e.target)&&!e.target.closest('.fx-open'))FX.close();});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&FX.pop){e.stopPropagation();FX.close();}},true);
+addEventListener('resize',()=>FX.close());document.addEventListener('scroll',e=>{if(FX.pop&&!FX.pop.contains(e.target))FX.close();},true);
+function fxPlace(pop,anchor){document.body.append(pop);const r=anchor.getBoundingClientRect(),h=pop.offsetHeight,w=Math.max(r.width,pop.offsetWidth);
+  pop.style.minWidth=r.width+'px';let top=r.bottom+6;if(top+h>innerHeight-8&&r.top-h-6>8)top=r.top-h-6;top=Math.max(8,Math.min(top,innerHeight-h-8));
+  pop.style.top=top+'px';pop.style.left=Math.max(8,Math.min(r.left,innerWidth-w-8))+'px';}
+function fxHook(el,prop,after){const P=Object.getPrototypeOf(el),d=Object.getOwnPropertyDescriptor(P,prop);Object.defineProperty(el,prop,{configurable:true,get(){return d.get.call(this);},set(v){d.set.call(this,v);after();}});}
+const CHEV='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+function fxSelect(sel){if(sel.dataset.fx)return;let curKey=null;sel.dataset.fx=1;sel.classList.add('fx-native');sel.tabIndex=-1;
+  const b=document.createElement('button');b.type='button';b.className='fx-sel';const t=document.createElement('span');b.append(t);b.insertAdjacentHTML('beforeend',CHEV);sel.after(b);
+  if(sel.style.width==='auto')b.classList.add('fx-auto');
+  const sync=()=>{const o=sel.options[sel.selectedIndex];t.textContent=o?o.textContent:'';b.disabled=sel.disabled;};sync();
+  fxHook(sel,'value',sync);fxHook(sel,'selectedIndex',sync);new MutationObserver(sync).observe(sel,{childList:true,subtree:true,attributes:true});sel.addEventListener('change',sync);
+  const pick=v=>{if(sel.value!==v){sel.value=v;sel.dispatchEvent(new Event('input',{bubbles:true}));sel.dispatchEvent(new Event('change',{bubbles:true}));}FX.close();b.focus();};
+  const open=()=>{if(b.classList.contains('fx-open')){FX.close();return;}FX.close();b.classList.add('fx-open');const pop=document.createElement('div');pop.className='fx-pop';FX.pop=pop;
+    const opts=[...sel.options];let q=null;if(opts.length>10){q=document.createElement('input');q.className='fx-q';q.placeholder='Search…';pop.append(q);}
+    const list=document.createElement('div');list.className='fx-list';pop.append(list);let act=-1,shown=[];
+    const draw=()=>{list.textContent='';const f=q?q.value.trim().toLowerCase():'';shown=opts.filter(o=>!f||o.textContent.toLowerCase().includes(f));
+      shown.forEach((o,i)=>{const it=document.createElement('div');it.className='fx-opt'+(o.value===sel.value?' on':'')+(i===act?' act':'');it.textContent=o.textContent;it.onmousedown=e=>{e.preventDefault();pick(o.value);};list.append(it);});
+      if(!shown.length){const n=document.createElement('div');n.className='fx-none';n.textContent='Nothing found';list.append(n);}};
+    act=Math.max(0,opts.findIndex(o=>o.value===sel.value));draw();fxPlace(pop,b);const cur=list.querySelector('.on');if(cur)cur.scrollIntoView({block:'nearest'});
+    const key=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();act=Math.max(0,Math.min(shown.length-1,act+(e.key==='ArrowDown'?1:-1)));draw();const a=list.querySelector('.act');if(a)a.scrollIntoView({block:'nearest'});}
+      else if(e.key==='Enter'){e.preventDefault();if(shown[act])pick(shown[act].value);}};
+    curKey=key;if(q){q.oninput=()=>{act=0;draw();};q.onkeydown=key;q.focus();}};
+  b.onclick=open;b.onkeydown=e=>{if(b.classList.contains('fx-open')&&curKey){curKey(e);return;}if((e.key==='ArrowDown'||e.key===' ')&&!b.classList.contains('fx-open')){e.preventDefault();open();}};}
+const MON=['January','February','March','April','May','June','July','August','September','October','November','December'],p2=n=>String(n).padStart(2,'0');
+const fxFmt=v=>{if(!v)return '';const d=new Date(v);if(isNaN(d))return '';return d.toLocaleDateString([], {weekday:'short',day:'numeric',month:'short',year:'numeric'})+' · '+p2(d.getHours())+':'+p2(d.getMinutes());};
+const fxVal=d=>d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+'T'+p2(d.getHours())+':'+p2(d.getMinutes());
+function fxDate(inp){if(inp.dataset.fx)return;inp.dataset.fx=1;inp.classList.add('fx-native');inp.tabIndex=-1;
+  const b=document.createElement('button');b.type='button';b.className='fx-sel fx-date';b.insertAdjacentHTML('afterbegin','<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>');
+  const t=document.createElement('span');b.append(t);inp.after(b);const sync=()=>{t.textContent=fxFmt(inp.value)||'Not set';b.classList.toggle('empty',!inp.value);};sync();fxHook(inp,'value',sync);
+  const set=v=>{inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));};
+  b.onclick=()=>{if(b.classList.contains('fx-open')){FX.close();return;}FX.close();b.classList.add('fx-open');const pop=document.createElement('div');pop.className='fx-pop fx-cal';FX.pop=pop;
+    let sel=inp.value?new Date(inp.value):null;if(sel&&isNaN(sel))sel=null;const base=sel||new Date(Date.now()+36e5);let vy=base.getFullYear(),vm=base.getMonth(),hh=sel?sel.getHours():base.getHours(),mm=sel?sel.getMinutes()-sel.getMinutes()%5:0;
+    const draw=()=>{pop.textContent='';const head=document.createElement('div');head.className='fx-calh';const pv=document.createElement('button'),nx=document.createElement('button'),ti=document.createElement('b');
+      pv.type=nx.type='button';pv.className=nx.className='fx-nav';pv.innerHTML='<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>';nx.innerHTML='<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>';ti.textContent=MON[vm]+' '+vy;
+      pv.onclick=()=>{vm--;if(vm<0){vm=11;vy--;}draw();};nx.onclick=()=>{vm++;if(vm>11){vm=0;vy++;}draw();};head.append(pv,ti,nx);pop.append(head);
+      const g=document.createElement('div');g.className='fx-grid';for(const w of['Mo','Tu','We','Th','Fr','Sa','Su']){const e=document.createElement('span');e.className='fx-wd';e.textContent=w;g.append(e);}
+      const first=new Date(vy,vm,1),off=(first.getDay()+6)%7,days=new Date(vy,vm+1,0).getDate(),today=new Date();today.setHours(0,0,0,0);
+      for(let i=0;i<off;i++)g.append(document.createElement('span'));
+      for(let d=1;d<=days;d++){const e=document.createElement('button');e.type='button';e.className='fx-day';e.textContent=d;const dt=new Date(vy,vm,d);
+        if(dt<today)e.classList.add('past');if(+dt===+today)e.classList.add('today');if(sel&&sel.getFullYear()===vy&&sel.getMonth()===vm&&sel.getDate()===d)e.classList.add('on');
+        e.onclick=()=>{sel=new Date(vy,vm,d,hh,mm);draw();};g.append(e);}pop.append(g);
+      const tm=document.createElement('div');tm.className='fx-time';const step=(lab,get,setv,max,st)=>{const w=document.createElement('div');w.className='fx-step';const m=document.createElement('button'),p=document.createElement('button'),v=document.createElement('b');
+          m.type=p.type='button';m.textContent='−';p.textContent='+';v.textContent=p2(get());m.onclick=()=>{setv((get()-st+max)%max);draw();};p.onclick=()=>{setv((get()+st)%max);draw();};w.append(m,v,p);return w;};
+      const lb=document.createElement('span');lb.textContent='Time';tm.append(lb,step('h',()=>hh,v=>{hh=v;if(sel)sel.setHours(v);},24,1),document.createTextNode(':'),step('m',()=>mm,v=>{mm=v;if(sel)sel.setMinutes(v);},60,5));pop.append(tm);
+      const q=document.createElement('div');q.className='fx-quick';for(const[l,ms]of[['+1 hour',36e5],['+1 day',864e5],['+3 days',2592e5],['+1 week',6048e5]]){const c=document.createElement('button');c.type='button';c.textContent=l;c.onclick=()=>{const d=new Date(Date.now()+ms);d.setSeconds(0,0);d.setMinutes(d.getMinutes()-d.getMinutes()%5);set(fxVal(d));FX.close();};q.append(c);}pop.append(q);
+      const f=document.createElement('div');f.className='fx-foot';const cl=document.createElement('button'),ok=document.createElement('button');cl.type=ok.type='button';cl.className='ghost small';ok.className='small';cl.textContent='Clear';ok.textContent='Done';
+      cl.onclick=()=>{set('');FX.close();};ok.onclick=()=>{if(sel)set(fxVal(sel));FX.close();};ok.disabled=!sel;f.append(cl,ok);pop.append(f);};
+    draw();fxPlace(pop,b);};}
+function noFill(root){root.querySelectorAll('input:not([data-nf]),textarea:not([data-nf])').forEach(i=>{i.dataset.nf=1;if(i.closest('#setup,#lock'))return;i.setAttribute('autocomplete',i.type==='password'?'new-password':'off');i.setAttribute('data-lpignore','true');i.setAttribute('data-1p-ignore','');i.setAttribute('data-form-type','other');if(!i.name)i.name='f'+Math.random().toString(36).slice(2,8);if(i.type!=='password')i.setAttribute('spellcheck','false');});}
+function fxScan(root){noFill(root);root.querySelectorAll('select:not([data-fx])').forEach(fxSelect);root.querySelectorAll('input[type=datetime-local]:not([data-fx])').forEach(fxDate);}
+fxScan(document);new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.nodeType===1&&!n.classList.contains('fx-pop'))fxScan(n.parentNode||n);}).observe(document.body,{childList:true,subtree:true});
+
+/* chart tips: hover (or tap) a bar to see its day and value */
+(()=>{const tip=document.createElement('div');tip.className='ctip';tip.hidden=true;document.body.append(tip);
+  const show=(e)=>{const b=e.target.closest('.bars > div');if(!b)return;const t=b.dataset.tip||b.title;if(!t)return;if(b.title){b.dataset.tip=b.title;b.removeAttribute('title');}
+    tip.textContent='';const[l1,...rest]=String(b.dataset.tip).split(/\n|: /);tip.append(mk('span','',l1),mk('b','',rest.join(' ')));tip.hidden=false;
+    const r=b.getBoundingClientRect(),w=tip.offsetWidth;tip.style.left=Math.max(6,Math.min(innerWidth-w-6,r.left+r.width/2-w/2))+'px';tip.style.top=Math.max(6,r.top-tip.offsetHeight-8)+'px';
+    for(const o of b.parentNode.children)o.classList.toggle('hl',o===b);};
+  const hide=(e)=>{const b=e.target.closest&&e.target.closest('.bars > div');if(b)b.classList.remove('hl');tip.hidden=true;};
+  document.addEventListener('mouseover',show);document.addEventListener('mouseout',hide);document.addEventListener('touchstart',e=>{if(e.target.closest('.bars > div'))show(e);else tip.hidden=true;},{passive:true});})();
+const KMODE={normal:'Classic',endless:'Survival',boss:'Boss rush',hc:'One life',daily:'Daily challenge',sandbox:'Test area'},KMEV={dark:'Blackout',drop:'Supply plane',horde:'Horde rush',moon:'Blood moon'};
+const KGEAR=['Grenade','Barricade','Medkit','Air strike'];
+const KZT=[['0','Walker'],['1','Runner'],['2','Brute'],['4','Spitter'],['5','Bloater'],['6','Shield'],['7','Summoner'],['10','Ghost'],['11','Armoured'],['12','Leaper'],['13','Breeder'],['14','Crawler'],['15','Healer'],['16','Digger'],['17','Screamer'],['18','Frozen']],KBOSS=[['0','Random boss'],['3','Giant'],['8','Queen'],['9','Ram'],['19','Scrap Giant'],['20','Witch']];
+let CTL={cards:new Map(),t:0};
+function ctlDraw(cv,mm){const g=cv.getContext('2d'),W=cv.width,H=cv.height;g.fillStyle='#0b0b0b';g.fillRect(0,0,W,H);if(!mm){g.fillStyle='#555';g.font='12px system-ui';g.textAlign='center';g.fillText('No map yet',W/2,H/2);return;}
+  const[x0,y0,x1,y1]=mm.b,s=Math.min(W/(x1-x0),H/(y1-y0)),ox=(W-(x1-x0)*s)/2,oy=(H-(y1-y0)*s)/2,X=x=>ox+(x-x0)*s,Y=y=>oy+(y-y0)*s;
+  g.fillStyle='#161616';g.fillRect(ox,oy,(x1-x0)*s,(y1-y0)*s);g.fillStyle='#2a2a2a';for(const o of mm.o||[])g.fillRect(X(o[0]),Y(o[1]),Math.max(1,o[2]*s),Math.max(1,o[3]*s));
+  for(const z of mm.z||[]){g.fillStyle=z[2]?'#fff':'#8a8a8a';const r=z[2]?4:1.6;g.beginPath();g.arc(X(z[0]),Y(z[1]),r,0,7);g.fill();}
+  for(const p of mm.p||[]){g.fillStyle=p[2]?'#fff':'#666';g.strokeStyle='#000';g.lineWidth=2;g.beginPath();g.arc(X(p[0]),Y(p[1]),4.5,0,7);g.fill();g.stroke();}}
+async function ctlAct(code,k,extra){try{const r=await admin('kctl',[],Object.assign({code,k},extra||{}));note(r.ok?'Sent':'That game has ended',r.ok?'ok':'bad');}catch(e){note(e.message,'bad');}}
+const KAMT=[['100','100'],['250','250'],['500','500'],['1000','1,000'],['2500','2,500'],['5000','5,000']],KCNT=[['5','5'],['10','10'],['20','20'],['40','40'],['60','60']];
+/* everything the owner can do to one game, as plain controls (no typing): used in the actions window and next to the spectator view */
+function ctlPanel(code,names){const box=mk('div','ctlp'),who=()=>[['','Everyone']].concat((names||[]).map(n=>[n,n]));
+  const sel=(opts,val)=>{const e=document.createElement('select');for(const[v,t]of opts){const o=document.createElement('option');o.value=v;o.textContent=t;e.append(o);}if(val!=null)e.value=val;return e;};
+  const grp=(title,...kids)=>{const g=mk('section','ctlp-g');g.append(mk('h3','',title));const r=mk('div','ctlp-r');r.append(...kids);g.append(r);box.append(g);return g;};
+  const go=(label,fn,cls)=>{const b=mk('button',cls||'',label);b.type='button';b.onclick=async()=>{b.disabled=true;try{await fn();}finally{b.disabled=false;}};return b;};
+  const lab=(t,el)=>{const l=mk('label','ctlp-f');l.append(mk('span','',t),el);return l;};
+  const zt=sel(KZT),zn=sel(KCNT,'10');grp('Zombies',lab('Type',zt),lab('How many',zn),go('Send zombies',()=>ctlAct(code,'zombie',{t:+zt.value,n:+zn.value})));
+  const hn=sel([['20','20'],['30','30'],['50','50'],['80','80']],'30');const bt=sel(KBOSS);grp('Pressure',lab('Boss',bt),go('Send this boss',()=>ctlAct(code,'boss',{t:+bt.value})),lab('Runners',hn),go('Send a runner horde',()=>ctlAct(code,'horde',{n:+hn.value})));
+  const mv=sel(Object.entries(KMEV));grp('Map event',lab('Event',mv),go('Start this event',()=>ctlAct(code,'mev',{q:mv.value})));
+  const gw=sel(who()),ga=sel(KAMT,'500');grp('Gold',lab('Player',gw),lab('Amount',ga),go('Give gold',()=>ctlAct(code,'gold',{who:gw.value,n:+ga.value})));
+  const iw=sel(who()),ii=sel(KGEAR.map((x,i)=>[String(i),x])),inn=sel([['1','1'],['2','2'],['3','3'],['5','5']],'2');grp('Items',lab('Player',iw),lab('Item',ii),lab('How many',inn),go('Give items',()=>ctlAct(code,'item',{who:iw.value,i:+ii.value,n:+inn.value})));
+  {const mt=mk('textarea');mt.rows=2;mt.maxLength=300;mt.placeholder='Message everyone in this game';const send=go('Send message',async()=>{const t=mt.value.trim();if(!t)return note('Write a message first','bad');try{const r=await admin('kroom',[],{code,op:'msg',text:t});note(r.n?'Sent to '+r.n+' player'+(r.n===1?'':'s'):'Nobody there now',r.n?'ok':'bad');if(r.n)mt.value='';}catch(e){note(e.message,'bad');}});const g=grp('Message',send);g.insertBefore(mt,g.lastChild);if(!/^s/.test(code))g.append(go('Close the room',()=>kRoomClose(code),'danger'));}
+  return box;}
+function ctlActions(r){const S=sheet('Actions · '+r.title,true);S.c.append(ctlPanel(r.code,r.names));}
+const GAMEURL=()=>{let o='';try{o=localStorage.getItem('kgame')||'';}catch(e){}return o||location.origin+'/kusatma/';};
+/* watch a game unseen: the game opens a spectator door only for us; players are never told */
+async function ctlWatch(r){const S=sheet('Watching · '+r.title,true);S.d.classList.add('watch');const body=mk('div','watchw'),view=mk('div','watchv'),side=mk('div','watchs');body.append(view,side);S.c.append(body);
+  const msg=mk('p','sub','Opening a hidden view of this game…');view.append(msg);side.append(mk('p','sub','Players cannot see you. Everything you do here reaches the game at once.'),ctlPanel(r.code,r.names));
+  let k;try{k=(await admin('kspec',[],{code:r.code})).k;}catch(e){msg.textContent=e.message==='gone'?'This game has ended.':e.message;return;}
+  let id='';for(let i=0;i<20&&!id&&S.d.isConnected;i++){await new Promise(z=>setTimeout(z,1000));try{id=(await admin('kspecget',[],{k})).id;}catch(e){}}
+  if(!S.d.isConnected)return;if(!id){msg.textContent='The game did not answer. It may be on an older build, or it just ended.';return;}
+  const f=document.createElement('iframe');f.className='watchf';f.setAttribute('allow','autoplay');f.src=GAMEURL()+'?spec='+encodeURIComponent(id)+'&k='+encodeURIComponent(k);view.replaceChildren(f);}
+function ctlCard(r){const c=mk('div','ctl-card'),h=mk('div','ctl-h'),cv=mk('canvas');cv.width=300;cv.height=190;pTag(c,{r:/^s/.test(r.code)?'':r.code,c:r.code,n:r.host||'',g:'k'});c.dataset.ctl=r.code;
+  const t=mk('div');t.append(mk('b','',r.title),mk('span','d',r.sub));h.append(t);
+  const info=mk('div','ctl-i');info.append(mk('span','d','Asking the host…'));
+  const b=mk('div','btns');
+  b.append(mk('button','',''),smallBtn('Actions',()=>ctlActions(r),''),smallBtn('Details',()=>kRoom(r.code,r.title)),smallBtn('Boss',()=>ctlAct(r.code,'boss')));
+  b.firstChild.replaceWith(smallBtn('Watch',()=>ctlWatch(r),''));
+  c.append(h,cv,info,b);c._r=r;return{el:c,cv,info,code:r.code};}
+async function kCtl(){let j;try{j=await admin('kdash');}catch(e){say('#ctlMsg',e.message,'bad');return;}
+  const G=new Map();for(const p of j.players){const code=p.mode==='solo'?'s'+p.id:p.room;if(!code||(p.mode!=='solo'&&!p.room))continue;const live=p.st==='combat'||p.st==='break';if(!live&&!$('#ctlLobby').checked)continue;
+    const g=G.get(code)||{code,title:'',sub:'',names:[],n:0,wave:0};g.n++;g.names.push(p.name);g.wave=Math.max(g.wave,p.wave||0);if(p.mode==='host'||p.mode==='solo'){g.title=(p.mode==='solo'?'Solo · ':'Room '+code+' · ')+p.name;g.st=p.st;g.host=p.name;}G.set(code,g);}
+  for(const g of G.values()){if(!g.title)g.title='Room '+g.code;g.sub=g.n+' player'+(g.n===1?'':'s')+(g.wave?' · wave '+g.wave:'')+' · '+(KST[g.st]||g.st||'');}
+  $('#ctlN').textContent=G.size+' game'+(G.size===1?'':'s');const grid=$('#ctlGrid'),cq=$('#ctlQ').value.trim().toLowerCase();
+  const all=[...G.values()].filter(g=>!cq||g.code.toLowerCase().includes(cq)||g.names.some(n=>String(n||'').toLowerCase().includes(cq))).sort((a,b)=>b.n-a.n||b.wave-a.wave),per=12,pages=Math.max(1,Math.ceil(all.length/per));CTL.p=Math.max(0,Math.min(pages-1,CTL.p|0));
+  const show=all.slice(CTL.p*per,CTL.p*per+per),keep=new Set(show.map(g=>g.code));$('#ctlPg').textContent='page '+(CTL.p+1)+' / '+pages;$('#ctlPrev').disabled=CTL.p<=0;$('#ctlNext').disabled=CTL.p>=pages-1;
+  for(const[code,cd]of CTL.cards)if(!keep.has(code)){cd.el.remove();CTL.cards.delete(code);}
+  for(const g of show){let cd=CTL.cards.get(g.code);if(!cd){cd=ctlCard(g);CTL.cards.set(g.code,cd);grid.append(cd.el);}else{cd.el.querySelector('.ctl-h .d').textContent=g.sub;cd.el._r.names=g.names;}}
+  say('#ctlMsg',G.size?(all.length?'':'No match.'):'No games running right now.');CTL.t=0;ctlPoll();}
+$('#ctlPrev').onclick=()=>{CTL.p--;kCtl();};$('#ctlNext').onclick=()=>{CTL.p++;kCtl();};$('#ctlQ').addEventListener('input',()=>{CTL.p=0;clearTimeout(CTL.qt);CTL.qt=setTimeout(kCtl,250);});
+const CTLIO='IntersectionObserver' in window?new IntersectionObserver(es=>{for(const e of es)e.target._vis=e.isIntersecting;}):null;
+async function ctlPoll(){if(curTab()!=='kctl')return;const now=Date.now();if(now-CTL.t<3500)return;CTL.t=now;
+  await Promise.all([...CTL.cards.values()].filter(cd=>{if(CTLIO&&!cd.io){cd.io=1;CTLIO.observe(cd.el);cd.el._vis=true;}return cd.el._vis!==false;}).map(async cd=>{try{const r=await admin('kwatch',[],{code:cd.code});const d=r.detail;ctlDraw(cd.cv,d&&d.mm);cd.info.textContent='';
+    if(!r.open){cd.info.append(mk('span','d','Game closed'));return;}if(!d){cd.info.append(mk('span','d','Waiting for the host…'));return;}
+    cd.info.append(mk('span','chip',KMODE[d.mode]||'Classic'),mk('span','d',d.map+' · '+d.diff),mk('span','d',d.z+' zombies left'),d.ev?mk('span','chip',KMEV[d.ev]||d.ev):'',mk('span','d',d.p.filter(p=>p[2]===1).length+'/'+d.p.length+' alive'));}catch(e){}}));}
+setInterval(()=>{if(KEY&&!document.hidden&&curTab()==='kctl'&&!document.querySelector('.dlg'))ctlPoll();},4000);
+$('#ctlLobby').onchange=kCtl;
+
+const SCK={gems:'Gem weekend',sale:'Sale',gift:'Gift',news:'News',maint:'Maintenance'},SCST=['Waiting','Running','Done'];
+let SC={list:[],m:0};
+const dtl=ms=>{const d=new Date(ms-new Date().getTimezoneOffset()*6e4);return d.toISOString().slice(0,16);};
+function scForm(){const k=$('#scK').value;for(const l of document.querySelectorAll('[data-sc]'))l.hidden=!l.dataset.sc.split(' ').includes(k);}
+$('#scK').onchange=scForm;
+async function kSched(){try{const j=await admin('ksched');SC.list=j.list;}catch(e){say('#scMsg',e.message,'bad');return;}
+  if(!$('#scFrom').value){const t=new Date();t.setMinutes(0,0,0);t.setHours(t.getHours()+1);$('#scFrom').value=dtl(+t);$('#scTo').value=dtl(+t+48*36e5);}
+  const sel=$('#scItem');if(sel.options.length<2){try{const e=KECO&&KECO.cat?KECO:(KECO=await admin('keco'));for(const id of Object.keys(e.cat).filter(x=>!(e.cat[x][1]==='R'||e.cat[x][1]==='S')).sort()){const o=mk('option','',kItemName(id));o.value=id;sel.append(o);}}catch(e){}}
+  scForm();scDraw();}
+function scDesc(x){return x.k==='gems'?x.mul+'× gems':x.k==='sale'?'-'+x.pct+'% '+(x.item?kItemName(x.item):'whole shop'):x.k==='gift'?x.n+' gems each'+(x.text?' · '+x.text:''):x.text||'';}
+function scDraw(){const box=$('#scList');box.textContent='';const L=SC.list.slice().sort((a,b)=>a.from-b.from);
+  for(const x of L){const it=mk('div','item');it.append(mk('span','chip',SCK[x.k]),mk('span','k',x.name||scDesc(x)),x.name?mk('span','d',scDesc(x)):'',mk('span','d',when(x.from)+' → '+when(x.to)),mk('span','chip'+(x.st===1?' green':''),SCST[x.st]||''),mk('span','sp'),
+      x.st<2?smallBtn(x.st===1?'End now':'Delete',async()=>{if(!(await sure((x.st===1?'End':'Delete')+' this scheduled event?',x.st===1?'End':'Delete')))return;try{const j=await admin('kscheddel',[x.id]);SC.list=j.list;scDraw();note('Done','ok');}catch(e){note(e.message,'bad');}},'danger'):'');box.append(it);}
+  if(!L.length)box.append(mk('p','sub','Nothing scheduled.'));
+  const base=new Date();base.setDate(1);base.setHours(0,0,0,0);base.setMonth(base.getMonth()+SC.m);const y=base.getFullYear(),mo=base.getMonth();$('#scMonth').textContent=base.toLocaleDateString([], {month:'long',year:'numeric'});
+  const cal=$('#scCal');cal.textContent='';for(const d of['Mon','Tue','Wed','Thu','Fri','Sat','Sun'])cal.append(mk('span','cal-h',d));
+  const first=(new Date(y,mo,1).getDay()+6)%7,days=new Date(y,mo+1,0).getDate();for(let i=0;i<first;i++)cal.append(mk('span','cal-e'));
+  const today=new Date();today.setHours(0,0,0,0);
+  for(let d=1;d<=days;d++){const s=+new Date(y,mo,d),e=s+864e5,c=mk('div','cal-d'+(s===+today?' now':''));c.append(mk('span','cal-n',String(d)));
+    for(const x of L)if(x.from<e&&x.to>s)c.append(mk('span','cal-x'+(x.st===1?' on':''),SCK[x.k]));cal.append(c);}}
+$('#scPrev').onclick=()=>{SC.m--;scDraw();};$('#scNext').onclick=()=>{SC.m++;scDraw();};
+$('#scAdd').onclick=async()=>{const k=$('#scK').value,from=+new Date($('#scFrom').value),to=+new Date($('#scTo').value);if(!from||!to||to<=from){say('#scMsg','Pick a start before the end.','bad');return;}
+  try{const j=await admin('kschedadd',[],{k,from,to,name:$('#scName').value.trim(),mul:+$('#scMul').value,pct:+$('#scPct').value,item:$('#scItem').value,n:+$('#scN').value,text:$('#scText').value.trim()});SC.list=j.list;scDraw();say('#scMsg','Added. It starts and ends by itself.','ok');$('#scName').value='';}catch(e){say('#scMsg',e.message==='time'?'The end has to be in the future.':e.message,'bad');}};
+
+async function kMod(){try{const j=await admin('kfilt');$('#mfBad').value=j.cfg.bad.join('\n');$('#mfFlag').value=j.cfg.flag.join('\n');$('#mfBase').textContent=j.base.join(', ');}catch(e){say('#mfMsg',e.message,'bad');}
+  mqLoad();acDraw();}
+const ACK={'hız':'Speed','hasar':'Damage','atış':'Hit rate','öldürme':'Kills'};
+async function acDraw(){let j;try{j=await admin('kac');}catch(e){return;}const box=$('#acList');box.textContent='';$('#acN').textContent=j.list.length?j.list.length+' reports':'';
+  for(const r of j.list.slice(0,100)){const it=mk('div','item');pTag(it,{a:r.acct,n:r.name,d:r.dev,r:r.room,g:'k'});it.append(mk('span','chip',ACK[r.kind]||r.kind),mk('span','k',r.name||'?'),mk('span','d',r.d||''),r.room?mk('span','d','room '+r.room):'',mk('span','d','wave '+(r.w||0)),mk('span','d','by '+(r.by||'?')),mk('span','sp'),mk('span','d',when(r.t)),
+      r.acct?smallBtn('Profile',()=>kAcct(r.acct)):'',smallBtn('Ban',async()=>{const v=await ask({title:'Ban '+(r.name||'this player'),fields:[{id:'t',label:'Reason',max:120,value:'hile'},{id:'m',label:'Length',type:'select',options:[['1440','1 day'],['10080','7 days'],['43200','30 days'],['0','Forever']]}],ok:'Ban',danger:true});if(!v)return;try{await admin('kban',[],{acct:r.acct||'',dev:r.dev||'',name:r.name,why:v.t,mins:+v.m});note('Banned','ok');mtDraw();}catch(e){note(e.message,'bad');}},'danger'));box.append(it);}
+  if(!j.list.length)box.append(mk('p','sub','No reports.'));}
+$('#acClr').onclick=async()=>{if(!(await sure('Clear all anti-cheat reports?','Clear')))return;try{await admin('kacclr');acDraw();}catch(e){note(e.message,'bad');}};
+$('#mfSave').onclick=async()=>{const sp=v=>v.split(/[\n,]/).map(x=>x.trim()).filter(Boolean);try{const j=await admin('kfiltset',[],{bad:sp($('#mfBad').value),flag:sp($('#mfFlag').value)});say('#mfMsg','Saved: '+j.cfg.bad.length+' filtered, '+j.cfg.flag.length+' flagging. Open games get it now.','ok');}catch(e){say('#mfMsg',e.message,'bad');}};
+/* Moderation: every account, filtered, sorted and paged on the server (made for thousands of accounts) */
+const MQF=[['all','All'],['online','Online'],['flagged','Flagged'],['reported','Reported'],['cheat','Anti-cheat'],['muted','Muted'],['banned','Banned'],['new','New (7 days)'],['hidden','Hidden']];
+const MQ={f:'all',p:0,seq:0};
+(()=>{const box=$('#mqF');for(const[k,l]of MQF){const b=mk('button','chip');b.type='button';b.dataset.f=k;b.append(document.createTextNode(l+' '),mk('b','',''));box.append(b);}
+  box.onclick=e=>{const b=e.target.closest('button.chip');if(!b)return;MQ.f=b.dataset.f;MQ.p=0;mqLoad();};})();
+async function mqLoad(){const seq=++MQ.seq;let j;try{j=await admin('kmodq',[],{q:$('#mqQ').value.trim(),f:MQ.f,s:$('#mqS').value,p:MQ.p,per:50});}catch(e){say('#mqMsg',e.message,'bad');return;}if(seq!==MQ.seq)return;
+  for(const b of $('#mqF').children){b.setAttribute('aria-pressed',String(b.dataset.f===MQ.f));b.querySelector('b').textContent=(j.cnt[b.dataset.f]||0).toLocaleString();}
+  MQ.p=j.p;$('#mqN').textContent=j.total.toLocaleString()+' of '+j.accounts.toLocaleString()+' accounts';$('#mqPg').textContent='page '+(j.p+1)+' / '+j.pages;$('#mqPrev').disabled=j.p<=0;$('#mqNext').disabled=j.p>=j.pages-1;
+  const box=$('#mqList');box.textContent='';const now=Date.now();
+  const hd=mk('div','mq-row mq-h');for(const t of['Player','Flags','Reports','Cheat','Last seen','Build','Gems',''])hd.append(mk('span','',t));box.append(hd);
+  for(const r of j.rows){const it=mk('div','mq-row');pTag(it,{a:r.id,n:r.name,d:r.dev,g:'k'});
+    const who=mk('span','mq-who');if(r.online)who.append(mk('span','dot'));const nb=mk('button','plink',r.name);nb.type='button';nb.onclick=e=>pCard(e.currentTarget,{a:r.id,n:r.name,d:r.dev,g:'k'});who.append(nb,mk('span','d','lv '+r.lvl));
+    if(r.ban)who.append(mk('span','chip off',r.ban.until?'banned until '+when(r.ban.until):'banned'));if(r.muted)who.append(mk('span','chip','muted'));if(r.isnew)who.append(mk('span','chip','new'));if(r.hideLb)who.append(mk('span','chip','hidden'));if(r.note)who.append(mk('span','d mq-note',r.note));
+    const num=(v)=>mk('span','n'+(v?' hot':''),v?String(v):'·');
+    const more=mk('button','ghost small mq-more','⋯');more.type='button';more.title='Actions';more.onclick=e=>{e.stopPropagation();const rr=e.currentTarget.getBoundingClientRect();ctxOpen(rr.left,rr.bottom+4,pItems({a:r.id,n:r.name,d:r.dev,g:'k'}));};
+    const acts=mk('span','mq-act');acts.append(smallBtn('Profile',()=>kAcct(r.id)),more);
+    it.append(who,num(r.sus),num(r.rep),num(r.ac),mk('span','d',r.online?'online now':r.last?ago(r.last):'never'),mk('span','d',r.ver?'build '+r.ver:'·'),mk('span','n',(r.gems||0).toLocaleString()),acts);box.append(it);}
+  if(!j.rows.length)box.append(mk('p','sub','Nobody here.'));say('#mqMsg','');}
+$('#mqGo').onclick=()=>{MQ.p=0;mqLoad();};$('#mqQ').addEventListener('keydown',e=>{if(e.key==='Enter'){MQ.p=0;mqLoad();}});$('#mqS').addEventListener('change',()=>{MQ.p=0;mqLoad();});
+$('#mqPrev').onclick=()=>{MQ.p=Math.max(0,MQ.p-1);mqLoad();};$('#mqNext').onclick=()=>{MQ.p++;mqLoad();};
+const mtDraw=()=>{if(curTab()==='kmod')mqLoad();};
+
+/* right-click menus and player cards, everywhere a player, account or room shows up */
+function pager(box,nodes,per,empty){per=per||100;box.textContent='';let i=0;const more=mk('button','ghost small list-more');more.type='button';
+  const step=()=>{const end=Math.min(nodes.length,i+per);for(;i<end;i++)box.insertBefore(nodes[i],more.isConnected?more:null);if(i>=nodes.length)more.remove();else{more.textContent='Show '+Math.min(per,nodes.length-i)+' more ('+(nodes.length-i).toLocaleString()+' left)';if(!more.isConnected)box.append(more);}};
+  more.onclick=step;if(!nodes.length&&empty)box.append(mk('p','sub',empty));step();}
+const pTag=(e,o)=>{for(const[k,v]of Object.entries(o))if(v)e.dataset['p'+k]=v;return e;};
+const pOf=e=>({c:e.dataset.pc||'',a:e.dataset.pa||'',n:e.dataset.pn||'',d:e.dataset.pd||'',r:e.dataset.pr||'',g:e.dataset.pg||'k',s:e.dataset.ps||''});
+const copy=(t)=>navigator.clipboard.writeText(t).then(()=>note('Copied','ok'),()=>note('Could not copy','bad'));
+const logsFor=(v)=>{openTab('logs');$('#lgN').value=v;$('#lgR').value='';lgLoad(false);};
+const banAsk=async(o)=>{const v=await ask({title:'Ban '+(o.n||'this player'),fields:[{id:'t',label:'Reason',max:120},{id:'m',label:'Length',type:'select',options:[['60','1 hour'],['1440','1 day'],['10080','7 days'],['43200','30 days'],['0','Forever']]}],ok:'Ban',danger:true});if(!v)return;
+  try{await admin('kban',[],{acct:o.a,dev:o.d,name:o.n,why:v.t,mins:+v.m});note('Banned','ok');ctxDone();}catch(e){note(e.message,'bad');}};
+const ctxDone=()=>{const t=curTab();({kmod:mqLoad,kpl:kSearch,klive:kLoad,logs:()=>lgLoad(false)})[t]?.();};
+function pItems(o){const L=[];
+  if(o.a&&o.g==='k'){L.push(['Player card',()=>pCard(null,o)],['Open profile',()=>kAcct(o.a)]);}
+  else if(o.d)L.push(['Player card (guest)',()=>pCard(null,o)]);
+  L.push(['Logs for this player',()=>logsFor(o.a||o.n||o.d)]);
+  {const card=document.querySelector('.ctl-card[data-ctl="'+(o.c||o.r||'')+'"]');if(card&&card._r)L.unshift(['Watch this game',()=>ctlWatch(card._r)],['Actions for this game',()=>ctlActions(card._r)]);}
+  if(o.r&&o.g==='k')L.push(['Message room '+o.r,()=>kRoomMsg(o.r)]);
+  if(o.r)L.push(['Logs for room '+o.r,()=>{openTab('logs');$('#lgN').value='';$('#lgR').value=o.r;lgLoad(false);}]);
+  if(o.a&&o.g==='k'){L.push(null,
+    ['Message',async()=>{const v=await ask({title:'Message '+o.n,text:'Only reaches them while they are online.',fields:[{id:'ti',label:'Title',max:120},{id:'t',label:'Message',type:'area',max:300}],ok:'Send'});if(!v||!v.t.trim())return;try{const r=await admin('kmsg',[],{text:v.t.trim(),title:v.ti.trim(),acct:o.a});note(r.n?'Sent':'They are offline',r.n?'ok':'bad');}catch(e){note(e.message,'bad');}}],
+    ['Give gems',async()=>{const v=await ask({title:'Give gems to '+o.n,fields:[{id:'n',label:'Gems (negative takes)',type:'number',value:'100'},{id:'t',label:'Note they see (optional)',max:120}],ok:'Give'});if(!v)return;try{await admin('kagem',[],{id:o.a,n:+v.n||0,tell:1,title:'Biri sana elmas gönderdi!',text:v.t});note('Sent','ok');ctxDone();}catch(e){note(e.message,'bad');}}],
+    ['Add kills',async()=>{const v=await ask({title:'Add kills for '+o.n,text:'Use a minus number to take kills away.',fields:[{id:'n',label:'Kills',type:'number',value:'100'}],ok:'Add'});if(!v)return;try{await admin('kaset',[],{id:o.a,addKills:+v.n|0});note('Kills changed','ok');ctxDone();}catch(e){note(e.message,'bad');}}],
+    ['Set kills',async()=>{const v=await ask({title:'Set kills for '+o.n,fields:[{id:'n',label:'Total kills',type:'number',value:'0'}],ok:'Save'});if(!v)return;try{await admin('kaset',[],{id:o.a,kills:Math.max(0,+v.n|0)});note('Kills saved','ok');ctxDone();}catch(e){note(e.message,'bad');}}],
+    ['Mute 1 hour',async()=>{try{await admin('kaset',[],{id:o.a,mute:Date.now()+36e5});note('Muted','ok');ctxDone();}catch(e){note(e.message,'bad');}}],
+    ['Mute 24 hours',async()=>{try{await admin('kaset',[],{id:o.a,mute:Date.now()+864e5});note('Muted','ok');ctxDone();}catch(e){note(e.message,'bad');}}],
+    ['Unmute',async()=>{try{await admin('kaset',[],{id:o.a,mute:0});note('Unmuted','ok');ctxDone();}catch(e){note(e.message,'bad');}}]);}
+  if(o.s&&o.g==='k'&&!o.a)L.push(['Message',async()=>{const v=await ask({title:'Message '+(o.n||'this player'),fields:[{id:'t',label:'Message',type:'area',max:300}],ok:'Send'});if(!v||!v.t.trim())return;try{const r=await admin('kmsg',[o.s],{text:v.t});note(r.n?'Sent':'They went offline',r.n?'ok':'bad');}catch(e){note(e.message,'bad');}}]);
+  if(o.s&&o.g==='k')L.push(['Kick',async()=>{const v=await ask({title:'Kick '+o.n,fields:[{id:'t',label:'Reason (optional)',max:200}],ok:'Kick',danger:true});if(!v)return;try{await admin('kkick',[o.s],{text:v.t});note('Kicked','ok');ctxDone();}catch(e){note(e.message,'bad');}}]);
+  if((o.a||o.d)&&o.g==='k')L.push(['Ban',()=>banAsk(o),'danger']);
+  L.push(null);if(o.n)L.push(['Copy name',()=>copy(o.n)]);if(o.a)L.push(['Copy account id',()=>copy(o.a)]);if(o.d)L.push(['Copy device id',()=>copy(o.d)]);if(o.r)L.push(['Copy room code',()=>copy(o.r)]);
+  return L;}
+let CTX=null;
+function ctxClose(){if(CTX){CTX.remove();CTX=null;}}
+function ctxOpen(x,y,items){ctxClose();const m=mk('div','ctx');m.setAttribute('role','menu');let last=null;
+  for(const it of items){if(!it){if(last&&last.className!=='ctx-sep')m.append(last=mk('div','ctx-sep'));continue;}const b=mk('button','ctx-i'+(it[2]==='danger'?' danger':''),it[0]);b.type='button';b.setAttribute('role','menuitem');b.onclick=()=>{ctxClose();it[1]();};m.append(last=b);}
+  if(last&&last.className==='ctx-sep')last.remove();document.body.append(m);CTX=m;const w=m.offsetWidth,h=m.offsetHeight;m.style.left=Math.max(6,Math.min(innerWidth-w-6,x))+'px';m.style.top=Math.max(6,Math.min(innerHeight-h-6,y))+'px';const f=m.querySelector('button');if(f)f.focus({preventScroll:true});}
+document.addEventListener('contextmenu',e=>{if(e.target.closest('input,textarea,select'))return;const t=e.target.closest('#app [data-pa],#app [data-pn],#app [data-pr],#app [data-pd],#app [data-pc]');
+  if(t){e.preventDefault();ctxOpen(e.clientX,e.clientY,pItems(pOf(t)));return;}
+  if(!e.target.closest('#app')&&!e.target.closest('.dlg'))return;
+  /* anywhere else: page tools */
+  e.preventDefault();const sel=String(getSelection()||'').trim(),L=[];
+  if(sel)L.push(['Copy selected text',()=>copy(sel)],['Search logs for this',()=>{openTab('logs');$('#lgN').value='';$('#lgX').value=sel.slice(0,60);lgLoad(false);}],null);
+  const tb=e.target.closest('.tabs button[data-tab]');if(tb)L.push(['Open '+tb.textContent.trim(),()=>openTab(tb.dataset.tab)],null);
+  L.push(['Refresh this page',()=>$('#refresh').click()],['Dashboard',()=>openTab('home')],['Logs',()=>openTab('logs')],['Moderation',()=>openTab('kmod')],['Control room',()=>openTab('kctl')],null,['Lock the panel',()=>$('#navLock').click(),'danger']);
+  ctxOpen(e.clientX,e.clientY,L);});
+document.addEventListener('pointerdown',e=>{if(CTX&&!e.target.closest('.ctx'))ctxClose();if(PC&&!e.target.closest('.pcard,.plink'))pcClose();},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(CTX){ctxClose();e.stopPropagation();}else if(PC){pcClose();e.stopPropagation();}}if(CTX&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();const B=[...CTX.querySelectorAll('button')],i=B.indexOf(document.activeElement);B[(i+(e.key==='ArrowDown'?1:-1)+B.length)%B.length].focus();}},true);
+addEventListener('scroll',()=>{ctxClose();},true);addEventListener('resize',()=>{ctxClose();pcClose();});
+/* touch: hold a row to open the same menu */
+(()=>{let t=0,sx=0,sy=0;document.addEventListener('touchstart',e=>{const el=e.target.closest('#app [data-pa],#app [data-pn],#app [data-pr]');if(!el)return;const p=e.touches[0];sx=p.clientX;sy=p.clientY;clearTimeout(t);t=setTimeout(()=>ctxOpen(sx,sy,pItems(pOf(el))),550);},{passive:true});
+  for(const ev of['touchend','touchcancel'])document.addEventListener(ev,()=>clearTimeout(t),{passive:true});document.addEventListener('touchmove',e=>{const p=e.touches[0];if(Math.hypot(p.clientX-sx,p.clientY-sy)>10)clearTimeout(t);},{passive:true});})();
+/* player card: a quick look without leaving the page */
+let PC=null;
+function pcClose(){if(PC){PC.remove();PC=null;}}
+async function pCard(anchor,o){pcClose();const c=mk('div','pcard');PC=c;document.body.append(c);
+  const place=()=>{const w=c.offsetWidth,h=c.offsetHeight;let x=innerWidth/2-w/2,y=innerHeight/2-h/2;if(anchor){const r=anchor.getBoundingClientRect();x=r.left;y=r.bottom+6;if(y+h>innerHeight-8)y=Math.max(8,r.top-h-6);}c.style.left=Math.max(8,Math.min(innerWidth-w-8,x))+'px';c.style.top=Math.max(8,Math.min(innerHeight-h-8,y))+'px';};
+  const head=mk('div','pc-h');head.append(mk('strong','',o.n||o.a||o.d||'?'));c.append(head);
+  if(!(o.a&&o.g==='k')&&o.d){c.append(mk('p','d','Loading…'));place();let j;try{j=await admin('kpget',[],{dev:o.d});}catch(e){if(PC===c)c.lastChild.textContent=e.message==='gone'?'No history for this device yet.':e.message;return;}if(PC!==c)return;c.lastChild.remove();
+    const P=j.p||{},L=j.live,dv=(L&&L.dv)||P.dv||null,g=mk('div','pc-g');const kv=(k,v)=>{g.append(mk('span','d',k),mk('span','',v));};head.append(mk('span','chip','guest'));
+    kv('Status',L?('online · '+(L.mode==='solo'?'solo':L.room?'room '+L.room:'menu')+(L.wave?' · wave '+L.wave:'')):'last seen '+(P.last?ago(P.last):'never'));
+    kv('Names used',(P.names||[]).slice(-6).join(', ')||'·');kv('Device',dv?[dv.p,dv.os,dv.b,dv.app?'app v'+dv.app:'',dv.w&&dv.h?dv.w+'×'+dv.h:''].filter(Boolean).join(' · '):'·');
+    kv('Build',String((L&&L.ver)||P.ver||'·'));kv('Sessions',String(P.sess||0));kv('Time played',(P.mins||0)+' min');kv('Best wave',String(P.best||0));kv('Kills',(P.kills||0).toLocaleString());
+    if(P.first)kv('First seen',when(P.first));kv('Device id',o.d);if(j.ban)kv('Banned',(j.ban.until?'until '+when(j.ban.until):'forever')+(j.ban.why?' · '+j.ban.why:''));if(P.note)kv('Note',P.note);c.append(g);}
+  else if(!(o.a&&o.g==='k')){c.append(mk('p','d',o.a?'Account '+o.a:'No account or device known'));}
+  else{c.append(mk('p','d','Loading…'));place();let j;try{j=await admin('kaget',[],{id:o.a});}catch(e){if(PC===c)c.lastChild.textContent=e.message;return;}if(PC!==c)return;c.lastChild.remove();
+    const P=j.a,now=Date.now();head.append(mk('span','d','lv '+P.lvl));
+    const g=mk('div','pc-g');const kv=(k,v)=>{g.append(mk('span','d',k),mk('span','',v));};
+    kv('Status',j.live?('online · '+(j.live.mode==='solo'?'solo':j.live.room?'room '+j.live.room:'menu')+(j.live.wave?' · wave '+j.live.wave:'')):'last seen '+(P.last?ago(P.last):'never'));
+    kv('Build',P.ver?String(P.ver):'·');kv('Gems',(P.gems||0).toLocaleString());kv('Best wave',String(P.best||0));kv('Kills',(P.kills||0).toLocaleString());kv('Games',String(P.games||0));kv('Joined',P.made?when(P.made):'·');kv('Devices',String((P.devs||[]).length));
+    if(P.sus)kv('Flags',String(P.sus));if(j.reps&&j.reps.length)kv('Reports',String(j.reps.filter(r=>r.who===P.id).length));if(P.mute>now)kv('Muted until',when(P.mute));if(j.ban)kv('Banned',(j.ban.until?'until '+when(j.ban.until):'forever')+(j.ban.why?' · '+j.ban.why:''));if(P.note)kv('Note',P.note);c.append(g);}
+  const b=mk('div','row pc-b');if(!o.a&&o.d&&o.g==='k')b.append(smallBtn('Ban device',()=>{pcClose();banAsk(o);},'danger'));if(o.a&&o.g==='k')b.append(smallBtn('Profile',()=>{pcClose();kAcct(o.a);},''));b.append(smallBtn('Logs',()=>{pcClose();logsFor(o.a||o.n||o.d);}),smallBtn('More',e=>{const r=e.currentTarget.getBoundingClientRect();const it=pItems(o).filter(x=>!x||x[0]!=='Player card');pcClose();ctxOpen(r.left,r.bottom+4,it);}));c.append(b);place();}
+
+/* what players' devices tell us (only from players who allowed statistics), and who they are */
+const DT={p:0};const CCN=(c)=>{try{return new Intl.DisplayNames(['en'],{type:'region'}).of(c);}catch(e){return c;}};
+async function kData(keep){const q=$('#dtQ').value.trim(),f=$('#dtF').value,so=$('#dtSo').value;if(!keep)DT.p=0;let j;say('#dtMsg','Loading…');
+  try{j=await admin('kdata',[],{q,f,s:so,p:DT.p,per:50});}catch(e){say('#dtMsg',e.message,'bad');return;}DT.p=j.p;say('#dtMsg','');
+  const T=j.T,pc=(a,b)=>b?Math.round(a/b*100)+'%':'–',kk=$('#dtK');kk.textContent='';
+  for(const[v,l]of[[T.accounts,'accounts'],[pc(T.consent,T.accounts),'allow statistics'],[T.withData,'with device data'],[pc(T.app,T.app+T.web),'play in the app'],[pc(T.touch,T.withData),'touch screens'],[T.live,'online now']]){const k=mk('div','kpi');k.append(mk('b','',typeof v==='number'?v.toLocaleString():v),mk('span','',l));kk.append(k);}
+  const hl=(el,L,nm)=>{const box=$(el);box.textContent='';const mx=Math.max(1,...L.map(x=>x[1]));for(const[x,n]of L.slice(0,12)){const r=mk('div','hbar'),bar=mk('div'),i=mk('i');i.style.width=Math.round(n/mx*100)+'%';bar.append(i);r.append(mk('span','',nm?nm(x):x),bar,mk('span','',String(n)));box.append(r);}if(!L.length)box.append(mk('p','sub','No data yet.'));};
+  const SC={small:'Phone-sized',medium:'Tablet / laptop',large:'Large screen','?':'Unknown'},LN=(c)=>{try{return new Intl.DisplayNames(['en'],{type:'language'}).of(c);}catch(e){return c;}};
+  hl('#dtCc',j.B.cc,x=>x+' · '+CCN(x));hl('#dtP',j.B.p);hl('#dtB',j.B.b);hl('#dtOs',j.B.os);hl('#dtL',j.B.lang,x=>x==='?'?'Unknown':LN(x));hl('#dtTz',j.B.tz);hl('#dtS',j.B.scr,x=>SC[x]||x);hl('#dtN',j.B.net,x=>x==='?'?'Unknown':x);
+  hl('#dtLc',j.live.cc,x=>x+' · '+CCN(x));hl('#dtLm',j.live.mode,x=>({host:'Hosting a room',client:'In a room',solo:'Playing alone',menu:'Menus'})[x]||x);
+  $('#dtPg').textContent='page '+(j.p+1)+' / '+j.pages+' · '+j.total.toLocaleString()+' players';$('#dtPrev').disabled=j.p<=0;$('#dtNext').disabled=j.p>=j.pages-1;
+  const box=$('#dtList');box.textContent='';
+  for(const r of j.rows){const it=mk('div','item');pTag(it,{a:r.id,n:r.name,g:'k'});const di=r.di||{};
+    const nb=mk('button','plink',r.name);nb.type='button';nb.onclick=()=>kAcct(r.id);
+    it.append(nb,mk('span','chip',r.cs?'stats on':'stats off'),mk('span','d',r.cc?r.cc+' · '+CCN(r.cc):'country unknown'),mk('span','d',[di.p,di.os,di.app?'app v'+di.app:di.b].filter(Boolean).join(' · ')||'no device data'),
+      mk('span','d',[di.lang,di.tz].filter(Boolean).join(' · ')),mk('span','d',di.w?di.w+'×'+di.h+(di.tc?' touch':''):''),mk('span','sp'),mk('span','d',(r.mins||0)+' min · '+(r.plays||0)+' sessions'),mk('span','d',r.last?'seen '+ago(r.last):'never played'));box.append(it);}
+  if(!j.rows.length)box.append(mk('p','sub','Nobody matches.'));}
+$('#dtQ').addEventListener('keydown',e=>{if(e.key==='Enter')kData();});$('#dtF').onchange=()=>kData();$('#dtSo').onchange=()=>kData();
+$('#dtPrev').onclick=()=>{DT.p--;kData(true);};$('#dtNext').onclick=()=>{DT.p++;kData(true);};
+$('#dtCsv').onclick=async()=>{const b=$('#dtCsv');b.disabled=true;try{const j=await admin('kdata',[],{q:$('#dtQ').value.trim(),f:$('#dtF').value,s:$('#dtSo').value,p:0,per:5000});
+    const esc=v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};const H=['id','name','country','stats_allowed','platform','system','browser','app','language','timezone','screen','touch','memory_gb','cpu_cores','network','sessions','minutes','level','build','devices','made','last_seen'];
+    const L=[H.join(',')].concat(j.rows.map(r=>{const d=r.di||{};return[r.id,r.name,r.cc,r.cs,d.p,d.os,d.b,d.app||'',d.lang,d.tz,d.w?d.w+'x'+d.h:'',d.tc,d.mem||'',d.cpu||'',d.net,r.plays,r.mins,r.lvl,r.ver||'',r.devs,r.made?new Date(r.made).toISOString():'',r.last?new Date(r.last).toISOString():''].map(esc).join(',');}));
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/csv'}));a.download='players-'+new Date().toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);note(j.rows.length+' rows','ok');}catch(e){note(e.message,'bad');}finally{b.disabled=false;}};
+async function kAn(){let j;try{j=await admin('kan');}catch(e){say('#anMsg',e.message,'bad');return;}
+  const D=j.days.slice().reverse(),sum=(f)=>D.reduce((a,d)=>a+f(d),0);const gn=sum(d=>d.gn),gt=sum(d=>d.gt);
+  const C=Object.entries(j.coh).sort((a,b)=>b[0].localeCompare(a[0])),e1=C.reduce((a,[,c])=>a+c.e1,0),d1=C.reduce((a,[,c])=>a+c.d1,0),e7=C.reduce((a,[,c])=>a+c.e7,0),d7=C.reduce((a,[,c])=>a+c.d7,0);
+  const pc=(a,b)=>b?Math.round(a/b*100)+'%':'–';
+  const kk=$('#anK');kk.textContent='';for(const[v,l]of[[j.acc,'accounts'],[j.act1,'active today'],[j.act7,'active this week'],[pc(d1,e1),'next-day return (30 days)'],[pc(d7,e7),'week-later return (30 days)'],[gn?(gt/gn/60).toFixed(1)+' min':'–','average game']]){const k=mk('div','kpi');k.append(mk('b','',typeof v==='number'?v.toLocaleString():v),mk('span','',l));kk.append(k);}
+  const rt=$('#anRet');rt.textContent='';for(const[d,c]of C.slice(0,14)){const it=mk('div','item');it.append(mk('span','k',d.slice(5)),mk('span','d',c.n+' new'),mk('span','d','day 1: '+(c.e1?pc(c.d1,c.e1):'–')),mk('span','d','day 7: '+(c.e7?pc(c.d7,c.e7):'–')));rt.append(it);}
+  if(!C.length)rt.append(mk('p','sub','No new accounts in the last 30 days.'));
+  const hl=(el,T,names)=>{const L=Object.entries(T).sort((a,b)=>b[1]-a[1]).slice(0,12),mx=Math.max(1,...L.map(x=>x[1])),box=$(el);box.textContent='';for(const[x,n]of L){const r=mk('div','hbar'),bar=mk('div'),i=mk('i');i.style.width=Math.round(n/mx*100)+'%';bar.append(i);r.append(mk('span','',names?names(x):x),bar,mk('span','',String(n)));box.append(r);}if(!L.length)box.append(mk('p','','No data yet.'));};
+  const B={},M={},Q={},CW={};for(const d of D){for(const[x,n]of Object.entries(d.buy))B[x]=(B[x]||0)+n;for(const[x,n]of Object.entries(d.mode))M[x]=(M[x]||0)+n;for(const[x,n]of Object.entries(d.qw))Q[x]=(Q[x]||0)+n;for(const[c,v]of Object.entries(d.cw)){const o=CW[c]||[0,0,0];CW[c]=[o[0]+v[0],o[1]+v[1],o[2]+v[2]];}}
+  hl('#anBuy',B,x=>x==='sezon'?'Season pass':kItemName(x));hl('#anMode',M,x=>KMODE[x]||x);
+  const bx=(el,ax,vals,labels,fmt)=>{const box=$(el);box.textContent='';const mx=Math.max(1,...vals);vals.forEach((v,i)=>{const b=mk('div');b.style.height=Math.max(2,Math.round(v/mx*100))+'%';b.dataset.tip=labels[i]+'\n'+fmt(v);box.append(b);});const a=$(ax);a.textContent='';if(vals.length)a.append(mk('span','',labels[0]),mk('span','','max '+fmt(mx)),mk('span','',labels[labels.length-1]));};
+  bx('#anGL','#anGLa',D.map(d=>d.gn?d.gt/d.gn/60:0),D.map(d=>d.d.slice(5)),v=>v.toFixed(1)+' min');
+  const W=[];for(let w=0;w<=40;w++)W.push(Q[w]||0);W[40]+=Object.entries(Q).filter(([w])=>+w>40).reduce((a,[,n])=>a+n,0);bx('#anQ','#anQa',W,W.map((_,i)=>i===40?'wave 40+':'wave '+i),v=>v+' games');
+  const cl=$('#anCls');cl.textContent='';for(const[c,v]of Object.entries(CW).sort((a,b)=>b[1][1]/b[1][0]-a[1][1]/a[1][0])){const it=mk('div','item');it.append(mk('span','k',KCN[c]||c),mk('span','d',v[0]+' games'),mk('span','d','average wave '+(v[1]/v[0]).toFixed(1)),mk('span','d','wave 10+: '+pc(v[2],v[0])));cl.append(it);}
+  if(!Object.keys(CW).length)cl.append(mk('p','sub','No data yet. It fills in as games end on the new version.'));
+  say('#anMsg','');}
+
+let SS=null;
+async function kSeason(){try{SS=await admin('kss');}catch(e){say('#ssMsg',e.message,'bad');return;}if(!KECO||!KECO.cat)try{KECO=await admin('keco');}catch(e){}
+  const k=$('#ssK');k.textContent='';const days=Math.max(0,Math.ceil((SS.end-Date.now())/864e5));for(const[v,l]of[[SS.s,'season'],[days,'days left'],[SS.stats.players,'players this season'],[SS.stats.prem,'premium passes'],[(SS.stats.prem*SS.cfg.price).toLocaleString(),'gems spent on premium']]){const e=mk('div','kpi');e.append(mk('b','',typeof v==='number'?v.toLocaleString():v),mk('span','',l));k.append(e);}
+  $('#ssName').value=SS.cfg.name;$('#ssXp').value=SS.cfg.xp;$('#ssPrice').value=SS.cfg.price;ssTiers(SS.cfg.tiers);
+  const T=SS.stats.tiers;const box=$('#ssTB');box.textContent='';const mx=Math.max(1,...T);T.forEach((v,i)=>{const b=mk('div');b.style.height=Math.max(2,Math.round(v/mx*100))+'%';b.dataset.tip='tier '+i+'\n'+v+' players';box.append(b);});const a=$('#ssTBa');a.textContent='';a.append(mk('span','','tier 0'),mk('span','','max '+mx),mk('span','','tier 30'));}
+function ssOpts(){const o=[['g','Gems']];for(const id of SS.items)o.push([id,'Season · '+kItemName(id)]);if(KECO&&KECO.cat)for(const id of Object.keys(KECO.cat).filter(x=>x[0]!=='c'&&KECO.cat[x][1]!=='R'&&KECO.cat[x][1]!=='S').sort())o.push([id,kItemName(id)]);return o;}
+function ssTiers(T){const box=$('#ssT');box.textContent='';const O=ssOpts();
+  const cell=(r)=>{const w=mk('span','ss-cell'),s=mk('select'),n=mk('input');n.type='number';n.min=0;n.max=5000;for(const[v,t]of O){const op=mk('option','',t);op.value=v;s.append(op);}s.value=r.i||'g';n.value=r.g||0;n.hidden=!!r.i;s.onchange=()=>{n.hidden=s.value!=='g';};w.append(s,n);return w;};
+  T.forEach((t,i)=>{const it=mk('div','item ss-row');it.append(mk('span','k','Tier '+(i+1)),mk('span','d','Free'),cell(t.f),mk('span','d','Premium'),cell(t.p));box.append(it);});}
+const ssRead=()=>[...document.querySelectorAll('#ssT .ss-row')].map(r=>{const c=r.querySelectorAll('.ss-cell'),g=x=>{const s=x.querySelector('select'),n=x.querySelector('input');return s.value==='g'?{g:+n.value||0}:{i:s.value};};return{f:g(c[0]),p:g(c[1])};});
+$('#ssSave').onclick=async()=>{if(!(await sure('Save the season? Players see the new rewards right away.','Save',false)))return;try{const j=await admin('ksset',[],{name:$('#ssName').value.trim(),xp:+$('#ssXp').value,price:+$('#ssPrice').value,tiers:ssRead()});SS.cfg=j.cfg;say('#ssMsg','Saved.','ok');}catch(e){say('#ssMsg',e.message,'bad');}};
+$('#ssReset').onclick=async()=>{if(!(await sure('Restore the default rewards? This saves at once.','Reset',false)))return;try{const j=await admin('ksset',[],{name:$('#ssName').value.trim(),xp:+$('#ssXp').value,price:+$('#ssPrice').value,tiers:null});SS.cfg=j.cfg;ssTiers(j.cfg.tiers);say('#ssMsg','Default tiers saved.','ok');}catch(e){say('#ssMsg',e.message,'bad');}};
+</script>
+</body>
+</html>

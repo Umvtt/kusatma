@@ -1,3 +1,4 @@
+import { statsOk, onConsent } from './consent.js';
 import { ITEMS, cleanEq, nkey } from './catalog.js';
 export { nkey };
 // Live link to the owner's server: news, maintenance, messages, kicks and bans from the admin panel,
@@ -63,10 +64,12 @@ const DV = (() => {
   const os = (UA.match(/Android [\d.]+/) || UA.match(/OS [\d_]+ like Mac/) || UA.match(/Windows NT [\d.]+/) || [''])[0].replace(/_/g, '.').replace(' like Mac', '');
   const b = app ? 'Uygulama' : /Edg\//.test(UA) ? 'Edge ' + (UA.match(/Edg\/(\d+)/) || [])[1] : /OPR\//.test(UA) ? 'Opera' : /SamsungBrowser/.test(UA) ? 'Samsung' : /Firefox\//.test(UA) ? 'Firefox ' + (UA.match(/Firefox\/(\d+)/) || [])[1] : /Chrome\//.test(UA) ? 'Chrome ' + (UA.match(/Chrome\/(\d+)/) || [])[1] : /Safari\//.test(UA) ? 'Safari' : 'Tarayıcı';
   const c = navigator.connection || {};
-  return { p, os, b, app: app | 0, w: screen.width | 0, h: screen.height | 0, dpr: window.devicePixelRatio || 1, tc: 'ontouchstart' in window ? 1 : 0, lang: navigator.language || '', mem: navigator.deviceMemory | 0, cpu: navigator.hardwareConcurrency | 0, net: c.effectiveType || '' };
+  return { p, os, b, app: app | 0, w: screen.width | 0, h: screen.height | 0, dpr: window.devicePixelRatio || 1, tc: 'ontouchstart' in window ? 1 : 0, lang: navigator.language || '', mem: navigator.deviceMemory | 0, cpu: navigator.hardwareConcurrency | 0, net: c.effectiveType || '', tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; } })() };
 })();
 export const deviceLine = () => `${DV.p}${DV.os ? ' · ' + DV.os : ''} · ${DV.b}`;
 let ws = null, idx = 0, delay = 3000, last = '', H = null, ping = 0;
+// a new cookie choice goes to the server with the next hello
+onConsent(() => { last = ''; if (H) hi(true); });
 
 const str = (v, n) => String(v == null ? '' : v).slice(0, n);
 function cleanCfg(c) {
@@ -79,7 +82,7 @@ function send(o) { if (ws && ws.readyState === 1) try { ws.send(JSON.stringify(o
 
 function hi(force) {
   const s = H.state();
-  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '', bn: LIVE.ban !== null ? 1 : 0, pub: PUB ? 1 : 0, dv: DV, rn: str(s.rn, 24), mx: s.mx | 0, df: str(s.df, 12), gm: str(s.gm, 8) };
+  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '', bn: LIVE.ban !== null ? 1 : 0, pub: PUB ? 1 : 0, dv: statsOk() ? DV : null, cs: statsOk() ? 1 : 0, rn: str(s.rn, 24), mx: s.mx | 0, df: str(s.df, 12), gm: str(s.gm, 8) };
   const j = JSON.stringify(m);
   if (force || j !== last) { last = j; send(m); }
 }
