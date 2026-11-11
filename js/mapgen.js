@@ -37,7 +37,8 @@ export function generateMap(theme, seed) {
     for (const p of parts) obs.push({ ...p, x: Math.round(p.x), y: Math.round(p.y), w: Math.round(p.w), h: Math.round(p.h) });
     return true;
   };
-  const tries = (n, fn) => { for (let i = 0; i < n; i++) fn(i); };
+  const AF = (WORLD_W * WORLD_H) / (4400 * 3000); // the world grew: keep the same density of things
+  const tries = (n, fn) => { const m = Math.round(n * AF); for (let i = 0; i < m; i++) fn(i); };
   const rx = (w) => between(EDGE, WORLD_W - EDGE - w);
   const ry = (h) => between(EDGE, WORLD_H - EDGE - h);
 

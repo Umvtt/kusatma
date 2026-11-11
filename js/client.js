@@ -6,6 +6,7 @@ import * as sfx from './sfx.js';
 import { SETTINGS } from './settings.js';
 
 const SEND_INTERVAL = 0.05;
+const PEND_T = 0.45; // how long a hit we predicted counts before the host's own numbers take over
 import { QUAL } from './settings.js';
 const MAX_PARTS_CAP = 700;
 
@@ -106,6 +107,12 @@ export class ClientGame {
   }
 
   onSnap(s) {
+    // snapshots on the fast channel can arrive late or twice: only newer ones count (a new host starts counting again)
+    if (s.q) {
+      if (s.hi !== this.snapHi) { this.snapHi = s.hi; this.lastQ = 0; this.lastEv = 0; }
+      if (s.q <= this.lastQ) return;
+      this.lastQ = s.q;
+    }
     const prevPhase = this.phase;
     this.lastSnapAt = performance.now();
     this.phase = s.ph === 'c' ? 'combat' : 'break';
@@ -210,7 +217,9 @@ export class ClientGame {
       this.visualShot(pid, x, y, a);
     }
 
-    for (const ev of s.E) this.onEvent(ev);
+    if (s.es) { // numbered events: each one once, even when it comes again in a later snapshot
+      for (let i = 0; i < s.E.length; i++) { const n = s.es + i; if (n > (this.lastEv || 0)) { this.lastEv = n; this.onEvent(s.E[i]); } }
+    } else for (const ev of s.E) this.onEvent(ev);
   }
 
   onEvent(ev) {
@@ -292,7 +301,8 @@ export class ClientGame {
         if (hit) { this.bashHit(x + Math.cos(a) * 40, y + Math.sin(a) * 40); sfx.bashHit(x, y); if (pid === this.me) this.shake = Math.min(10, this.shake + 5); }
         break;
       }
-      case 'ae': this.notices.push({ k: 'adm', e: ev[1], n: ev[2], i: ev[3], who: ev[4], later: ev[5], q: ev[6], t: ev[7] }); break;
+      case 'cu': if (ev[1] === this.me) this.notices.push({ k: 'cu', n: ev[2] }); break;
+      case 'ae': if (ev[8] && ev[8] !== this.me) break; this.notices.push({ k: 'adm', e: ev[1], n: ev[2], i: ev[3], who: ev[4], later: ev[5], q: ev[6], t: ev[7] }); break;
       case 'we': this.notices.push({ k: 'clear', w: ev[1], bonus: ev[2] }); sfx.waveClear(); break;
       default: break;
     }
@@ -403,8 +413,11 @@ export class ClientGame {
       z.walk += moved * 0.12;
       if (z.st === ZS.WINDUP || z.st === ZS.DASH && z.t === 2) z.face = lerpAngle(z.face, z.cdir, 0.3);
       else if (moved > 0.05) z.face = lerpAngle(z.face, Math.atan2(z.y - oy, z.x - ox), 0.18);
-      z.pend = z.pend.filter((e) => this.time - e.t < 1);
-      if (z.dying && this.time - z.dying > 1) { z.dying = 0; z.pend = []; }
+      // our own hits not confirmed by the host yet: the host has applied them well within 0.45 s, so anything older was
+      // damage it reduced (armour, elites, shields) - forget it, or the zombie stays "dead" here with a sliver of health
+      // left and our shots pass through it until the guess expires
+      if (z.pend.length && this.time - z.pend[0].t > PEND_T) { z.pend = z.pend.filter((e) => this.time - e.t < PEND_T); if (z.dying && z.hp - z.pend.reduce((a, e) => a + e.d, 0) > 0) z.dying = 0; }
+      if (z.dying && this.time - z.dying > PEND_T) { z.dying = 0; z.pend = []; }
       z.flash = Math.max(0, z.flash - dt);
     }
     for (const t of this.ts.values()) { t.a = lerpAngle(t.a, t.ta, kf); if (t.k === 1 || t.k === 2) { t.x += (t.tx - t.x) * Math.min(1, kf * 1.5); t.y += (t.ty - t.y) * Math.min(1, kf * 1.5); } }
@@ -421,8 +434,9 @@ export class ClientGame {
       if (S.inGame) {
         const h = this.hitsQ.splice(0, 60);
         const s = this.shotsQ.splice(0, 12);
-        this.send({ t: 'in', x: Math.round(S.x), y: Math.round(S.y), a: Math.round(S.a * 100) / 100, h, s });
-      }
+        this.inN = (this.inN || 0) + 1;
+        this.send({ t: 'in', x: Math.round(S.x), y: Math.round(S.y), a: Math.round(S.a * 100) / 100, h, s, n: this.inN, k: this.lastQ || 0 });
+      } else if (this.lastQ && this.lastQ !== this.ackSent) { this.ackSent = this.lastQ; this.send({ t: 'in', k: this.lastQ }); } // watching or waiting: still confirm snapshots
     }
 
     // who the camera follows
@@ -531,11 +545,20 @@ export class ClientGame {
         if (dx * dx + dy * dy > r * r) continue;
         if (b.hit && b.hit.has(z.id)) continue;
         if (b.kind === 'g') { this.grenadeBlast(b); alive = false; break; }
-        if (b.kind === 'b' && z.t === 6 && !(z.fl & 2) && !(z.fl & 32) && !b.noShield && this.blocks(z, b)) { this.sparks(b.x, b.y); sfx.clang(b.x, b.y); alive = false; break; }
+        if (b.kind === 'b' && z.t === 6 && !(z.fl & 2) && !(z.fl & 32) && !b.noShield && this.blocks(z, b)) {
+          this.sparks(b.x, b.y); sfx.clang(b.x, b.y);
+          // Delici rounds punch through the shield once, losing 40 % of their power
+          if (b.pk === 3 && !b.shPass) { b.shPass = 1; b.dmg *= 0.6; } else { alive = false; break; }
+        }
         if (b.own) this.dealHit(z, b.dmg, true, b.crit);
         if (b.kind === 'b') this.blood(b.x, b.y, Math.atan2(b.vy, b.vx), 4);
         if (b.pk) this.hitFx(b.pk, b.x, b.y, b.tier);
-        if (b.pierce > 0) { b.pierce--; (b.hit || (b.hit = new Set())).add(z.id); }
+        if (b.pierce > 0 || (b.shPass === 1 && b.pk === 3)) {
+          // a Delici round loses 15 % with every zombie it goes through (the shield pass itself never costs a pierce)
+          if (b.shPass === 1) b.shPass = 2; else b.pierce--;
+          if (b.pk === 3) b.dmg *= 0.85;
+          (b.hit || (b.hit = new Set())).add(z.id);
+        }
         else if (b.rico && Math.random() < b.rico) {
           // Fırtına's top level: the bullet bounces to the nearest other zombie
           (b.hit || (b.hit = new Set())).add(z.id);

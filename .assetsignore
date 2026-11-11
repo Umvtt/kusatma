@@ -1,0 +1,10 @@
+.git
+.github
+android
+node_modules
+CLAUDE.md
+README.md
+wrangler.toml
+.assetsignore
+.nojekyll
+404.html

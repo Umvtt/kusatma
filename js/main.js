@@ -1,12 +1,12 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
+import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { Renderer, drawCharacter, drawWeaponPreview } from './render.js';
 import { startScene } from './scene.js';
 import { dashPage, dashGo } from './dash.js';
-import { dashInit, dashShow, dashRefresh, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar } from './dash.js';
+import { dashInit, dashShow, dashRefresh, dashSoft, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar } from './dash.js';
 import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
 import { consentStart, manage as cookieSettings } from './consent.js';
@@ -305,7 +305,7 @@ function onMessage(m) {
     case 'o': if (S.role === 'spec') { S.over = m; break; } if (S.roster && m.P) m.tm = m.time; if (S.roster) recentAdd(S.roster.players.filter((p) => p.pid !== S.me)); liveGameEnd(); S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '', tm: m.time | 0, gm: S.roster ? S.roster.mode || 'normal' : 'normal', solo: S.role === 'host' && !online() ? 1 : 0 }); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
-    case 'bk': if (S.role === 'client' && m.s && typeof m.s === 'object') S.backup = m.s; break;
+    case 'bk': if (S.role === 'client') { if (m.s && typeof m.s === 'object') S.backup = m.s; else if (typeof m.j === 'string' && m.j.length < 400000) { try { const b = JSON.parse(m.j); if (b && typeof b === 'object') S.backup = b; } catch (e) { /* ignore */ } } } break;
     default: break;
   }
 }
@@ -390,8 +390,16 @@ function renderLobby() {
     } else li.append(el('span'));
     list.append(li);
   }
-  if (r.code && r.players.length < 3) {
-    list.append(el('li', 'empty-slot', 'Arkadaşlarına oda kodunu gönder, buraya katılsınlar.'));
+  if (r.code && r.players.length < (r.max || MAX_PLAYERS)) {
+    const li = el('li', 'empty-slot inv-slot');
+    const on = ACCT ? frList().filter((f) => f.on && !r.players.some((p) => p.name === f.name)).length : 0;
+    const acts = el('div', 'inv-acts');
+    if (ACCT && online()) { const b = el('button', 'btn small primary', on ? `Arkadaş davet et (${on} çevrimiçi)` : 'Arkadaş davet et'); b.type = 'button'; b.onclick = () => $('#btn-invite').click(); acts.append(b); }
+    const cp = el('button', 'btn small', 'Bağlantıyı kopyala'); cp.type = 'button';
+    cp.onclick = async () => { const url = location.origin + (window.KROOT || '/') + '?oda=' + r.code; try { if (navigator.share && IS_TOUCH) await navigator.share({ title: 'Kuşatma', text: 'Odama gel!', url }); else { await navigator.clipboard.writeText(url); toast('Bağlantı kopyalandı. Arkadaşın açınca direkt odana gelir.', 'good'); } } catch (e) { /* cancelled */ } };
+    acts.append(cp);
+    li.append(el('span', '', `Oda kodu ${r.code}. Bağlantıyı açan arkadaşın direkt odana gelir.`), acts);
+    list.append(li);
   }
 
   renderSettings(r, isHost);
@@ -468,12 +476,14 @@ function renderSettings(r, isHost) {
     const dl = $('#diff-list');
     for (const id of DIFF_ORDER) {
       const b = el('button', '', DIFFS[id].name); b.type = 'button'; b.dataset.v = id; b.setAttribute('role', 'radio');
+      if (gemTag(GEM_DIFF[id])) b.append(el('small', 'gem-x', gemTag(GEM_DIFF[id])));
       b.addEventListener('click', () => send({ t: 'set', diff: id }));
       dl.append(b);
     }
     const mo = $('#mode-list');
     for (const id of MODE_ORDER.concat('sandbox')) {
       const b = el('button', '', MODES[id].name); b.type = 'button'; b.dataset.v = id; b.setAttribute('role', 'radio');
+      if (gemTag(GEM_MODE[id])) b.append(el('small', 'gem-x', gemTag(GEM_MODE[id])));
       b.addEventListener('click', () => send({ t: 'set', mode: id }));
       mo.append(b);
     }
@@ -784,6 +794,7 @@ function notice(n) {
   if (n.k === 'kill') { killFeed(n); return; }
   if (n.k === 'streak') { streak(n.n); return; }
   if (n.k === 'adm') { adminNote(n); return; }
+  if (n.k === 'cu') { toast(`Takıma yetişmen için +${n.n} altın`, 'good'); return; }
   if (n.k === 'wave') {
     if (n.w === 1) { S.gameGems = 0; $('#kfeed').replaceChildren(); }
     liveGame();
@@ -824,7 +835,7 @@ const ELITE = ['', 'Hızlı', 'Patlayan', 'Yenilenen', 'Zırhlı'];
 function killFeed(n) {
   const g = S.game, box = $('#kfeed'), zt = ZTYPES[n.t];
   if (!g || !box || !zt) return;
-  const li = el('li', (n.pid === S.me ? 'me' : '') + (zt.boss ? ' boss' : ''));
+  const li = el('li', (n.pid === S.me ? 'me' : '') + (zt.boss ? ' kf-boss' : ''));
   const who = el('b', '', n.pid === S.me ? 'Sen' : g.nameOf(n.pid));
   const r = g.roster.get(n.pid); if (r && r.color && n.pid !== S.me) who.style.color = r.color;
   li.append(who, el('span', 'kf-x', '›'), el('span', '', (n.el && ELITE[n.el] ? ELITE[n.el] + ' ' : '') + zt.name));
@@ -1585,6 +1596,10 @@ const gaDone = () => { $('#getapp').hidden = true; try { sessionStorage.setItem(
 $('#ga-skip').onclick = gaDone;
 $('#ga-dl').addEventListener('click', () => { setTimeout(() => { $('#ga-dl').textContent = 'İndiriliyor… Bitince dosyayı aç'; }, 300); });
 window.kusatmaBack = () => {
+  if (!$('#acct-dlg').hidden) { authClose(); return 'handled'; }
+  { const ck = document.getElementById('ck-dlg'); if (ck) { ck.remove(); return 'handled'; } }
+  { const sp = document.querySelector('.spin-pop'); if (sp) { sp.remove(); return 'handled'; } }
+  if (!$('#inv-pop').hidden) { $('#inv-no').click(); return 'handled'; }
   const open = [...document.querySelectorAll('.confirm')].find((d) => !d.hidden);
   if (open) { open.hidden = true; return 'handled'; }
   if (!$('#dm').hidden) { $('#dm').hidden = true; return 'handled'; }
@@ -1812,7 +1827,7 @@ $('#diag-copy').onclick = async () => { try { await navigator.clipboard.writeTex
 let roomVis = 0;
 function roomVisSet(v) { roomVis = v; for (const b of document.querySelectorAll('.vis-opt')) b.setAttribute('aria-pressed', String(+b.dataset.v === v)); }
 function chipRow(box, items, cur, onPick) {
-  box.replaceChildren(...items.map(([v, t]) => { const b = el('button', 'chip-opt', t); b.type = 'button'; b.setAttribute('aria-pressed', String(v === cur)); b.onclick = () => { for (const x of box.children) x.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-pressed', 'true'); onPick(v); }; return b; }));
+  box.replaceChildren(...items.map(([v, t, x]) => { const b = el('button', 'chip-opt', t); if (x) b.append(el('small', 'gem-x', x)); b.type = 'button'; b.setAttribute('aria-pressed', String(v === cur)); b.onclick = () => { for (const x of box.children) x.setAttribute('aria-pressed', 'false'); b.setAttribute('aria-pressed', 'true'); onPick(v); }; return b; }));
 }
 const ROOM = { map: 'meydan', diff: 'normal', mode: 'normal', max: MAX_PLAYERS };
 try { Object.assign(ROOM, JSON.parse(localStorage.getItem('kusatma-oda') || '{}')); } catch (e) { /* ignore */ }
@@ -1824,8 +1839,8 @@ function roomDlg() {
   roomVisSet(pubOk && PUB ? 1 : 0);
   $('#room-note').textContent = pubOk ? 'İstersen sonradan oda kodunu da paylaşabilirsin.' : 'Açık oda kurmak için hesap gerekir. Ana menüden Giriş yap.';
   chipRow($('#room-map'), [...MAP_ORDER.map((id) => [id, MAPS[id].name]), ['rastgele', 'Rastgele']], ROOM.map, (v) => { ROOM.map = v; });
-  chipRow($('#room-diff'), DIFF_ORDER.map((id) => [id, DIFFS[id].name]), ROOM.diff, (v) => { ROOM.diff = v; });
-  chipRow($('#room-mode'), MODE_ORDER.map((id) => [id, MODES[id].name]), MODE_ORDER.includes(ROOM.mode) ? ROOM.mode : 'normal', (v) => { ROOM.mode = v; });
+  chipRow($('#room-diff'), DIFF_ORDER.map((id) => [id, DIFFS[id].name, gemTag(GEM_DIFF[id])]), ROOM.diff, (v) => { ROOM.diff = v; });
+  chipRow($('#room-mode'), MODE_ORDER.map((id) => [id, MODES[id].name, gemTag(GEM_MODE[id])]), MODE_ORDER.includes(ROOM.mode) ? ROOM.mode : 'normal', (v) => { ROOM.mode = v; });
   chipRow($('#room-max'), [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [MAX_PLAYERS, String(MAX_PLAYERS)]], ROOM.max, (v) => { ROOM.max = v; });
   $('#room-name').value = ACCT ? (ROOM.name || '') : ''; $('#room-name-row').hidden = !ACCT;
   $('#room-dlg').hidden = false;
@@ -1861,27 +1876,41 @@ function invDraw() {
     b.onclick = async () => { b.disabled = true; b.textContent = '…'; const j = await inviteSend(f.id); b.textContent = j.ok ? 'Gönderildi ✓' : 'Olmadı'; if (!j.ok) { b.disabled = false; toast({ off: `${f.name} şu an çevrimdışı.`, slow: 'Çok fazla davet. Biraz bekle.', room: 'Önce bir oda kur.' }[j.reason] || 'Davet gönderilemedi.', 'bad'); } };
     li.append(cv, tx, b); return li;
   }) : [el('li', 'empty', 'Şu an çevrimiçi arkadaşın yok.')]));
+  const all = $('#inv-all'), can = L.filter((f) => !here.has(f.name));
+  all.hidden = can.length < 2; all.textContent = `Hepsini davet et (${can.length})`;
+  all.onclick = async () => { all.disabled = true; let n = 0; for (const f of can) { const j = await inviteSend(f.id); if (j.ok) n++; } all.disabled = false; toast(n ? `${n} arkadaşına davet gitti.` : 'Davet gönderilemedi.', n ? 'good' : 'bad'); for (const b of ul.querySelectorAll('button')) if (!b.disabled) { b.textContent = 'Gönderildi ✓'; b.disabled = true; } };
 }
 $('#btn-invite').onclick = () => { $('#inv-dlg').hidden = false; invDraw(); friendsGet().then((d) => { if (d) { onFriends(d); invDraw(); } }); };
 $('#inv-close').onclick = () => { $('#inv-dlg').hidden = true; };
-let invNow = null, invTimer = 0;
+// invites stay on screen until answered (Katıl, Reddet or ×); several wait in line, newest first
+let invNow = null;
+const invQ = [];
+function invShow() {
+  const v = invQ[0]; invNow = v || null;
+  if (!v) { $('#inv-pop').hidden = true; return; }
+  drawAvatar($('#inv-pop-av'), v.eq || {}, { size: 48 });
+  $('#inv-pop-t').textContent = `${v.f} seni odasına çağırıyor`;
+  $('#inv-pop-s').textContent = `${v.rn ? v.rn + ' · ' : ''}${v.n || 1}/${v.mx || MAX_PLAYERS} oyuncu${S.role ? ' · Katılırsan bu oyundan çıkarsın' : ''}${invQ.length > 1 ? ` · ${invQ.length - 1} davet daha` : ''}`;
+  const p = $('#inv-pop'); p.hidden = false; p.classList.remove('pulse'); void p.offsetWidth; p.classList.add('pulse');
+}
 function invIn(v) {
   if (!v.room || (S.roster && S.roster.code === v.room)) return;
   notify('inv', `${v.f} seni odasına çağırıyor`, v.rn ? `Oda: ${v.rn}` : `Oda kodu ${v.room}`);
-  invNow = v;
-  drawAvatar($('#inv-pop-av'), v.eq || {}, { size: 48 });
-  $('#inv-pop-t').textContent = `${v.f} seni odasına çağırıyor`;
-  $('#inv-pop-s').textContent = `${v.rn ? v.rn + ' · ' : ''}${v.n || 1}/${v.mx || MAX_PLAYERS} oyuncu${S.role ? ' · Katılırsan bu oyundan çıkarsın' : ''}`;
-  $('#inv-pop').hidden = false;
+  for (let i = invQ.length - 1; i >= 0; i--) if (invQ[i].room === v.room || invQ[i].f === v.f) invQ.splice(i, 1);
+  invQ.unshift(v); if (invQ.length > 5) invQ.length = 5;
+  invShow(); buzz([60, 40, 60]);
   sfx.waveClear && sfx.waveClear();
-  clearTimeout(invTimer); invTimer = setTimeout(() => { $('#inv-pop').hidden = true; }, 30000);
 }
-$('#inv-no').onclick = () => { $('#inv-pop').hidden = true; invNow = null; };
+const invDone = () => { invQ.shift(); invShow(); };
+$('#inv-no').onclick = invDone;
+$('#inv-x').onclick = invDone;
 $('#inv-yes').onclick = () => {
-  $('#inv-pop').hidden = true; const v = invNow; invNow = null; if (!v) return;
+  const v = invQ.shift(); invQ.length = 0; invShow(); if (!v) return;
   if (S.role) leave('');
   $('#code').value = v.room; setTimeout(joinRoom, S.role ? 300 : 0);
 };
+// a shared room link (?oda=CODE) joins that room straight away
+{ const q = new URLSearchParams(location.search), c = cleanCode(q.get('oda') || ''); if (c.length === CODE_LEN) { q.delete('oda'); const r = q.toString(); try { history.replaceState(history.state, '', location.pathname + (r ? '?' + r : '') + location.hash); } catch (e) { /* ignore */ } setTimeout(() => { $('#code').value = c; joinRoom(); }, 900); } }
 
 function liveNote(title, text) {
   let b = $('#live-note');
@@ -1932,7 +1961,7 @@ if (!WATCH) liveStart({
     gm: S.roster && S.roster.mode !== 'normal' ? S.roster.mode || '' : '',
     ver: BUILD,
   }),
-  onCfg: () => { if (S.host) S.host.badWords = LIVE.filter; acctUi(); dashTop(); liveNews(); if (online() && LIVE.maint.on) leave(''); },
+  onCfg: (shopChanged) => { if (S.host) S.host.badWords = LIVE.filter; acctUi(); dashTop(); liveNews(); if (shopChanged) dashSoft(); if (online() && LIVE.maint.on) leave(''); },
   onMsg: (t, title) => { notify('msg', title || 'Yöneticiden mesaj', t); liveNote(title || 'Yöneticiden mesaj', t); },
   onKick: (t) => { if (online()) leave('Yönetici seni oyundan çıkardı.' + (t ? ' Sebep: ' + t : '')); else liveNote('Yönetici', t || 'Oyundan çıkarıldın.'); },
   onEv: (k, n, t, x) => {

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.workers.dev https://*.pages.dev https://*.deno.net wss://*.deno.net; img-src data:; frame-src 'self' https://umvtt.github.io https://umvtt-games.umvtt.deno.net http://localhost:*; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://*.workers.dev https://*.pages.dev https://*.deno.net wss://*.deno.net; img-src data:; frame-src 'self' https://umvtt.github.io https://umvtt-games.umvtt.deno.net https://kusatma.umvtt.workers.dev http://localhost:*; base-uri 'none'; form-action 'none'">
 <title>Sign in</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23000'/%3E%3Crect x='.5' y='.5' width='31' height='31' rx='7.5' fill='none' stroke='%23333'/%3E%3Crect x='8' y='8' width='7' height='7' rx='1.5' fill='%23fff'/%3E%3Crect x='17' y='8' width='7' height='7' rx='1.5' fill='%23fff' opacity='.45'/%3E%3Crect x='8' y='17' width='7' height='7' rx='1.5' fill='%23fff' opacity='.45'/%3E%3Crect x='17' y='17' width='7' height='7' rx='1.5' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
@@ -1116,7 +1116,7 @@ function ctlPanel(code,names){const box=mk('div','ctlp'),who=()=>[['','Everyone'
   {const mt=mk('textarea');mt.rows=2;mt.maxLength=300;mt.placeholder='Message everyone in this game';const send=go('Send message',async()=>{const t=mt.value.trim();if(!t)return note('Write a message first','bad');try{const r=await admin('kroom',[],{code,op:'msg',text:t});note(r.n?'Sent to '+r.n+' player'+(r.n===1?'':'s'):'Nobody there now',r.n?'ok':'bad');if(r.n)mt.value='';}catch(e){note(e.message,'bad');}});const g=grp('Message',send);g.insertBefore(mt,g.lastChild);if(!/^s/.test(code))g.append(go('Close the room',()=>kRoomClose(code),'danger'));}
   return box;}
 function ctlActions(r){const S=sheet('Actions · '+r.title,true);S.c.append(ctlPanel(r.code,r.names));}
-const GAMEURL=()=>{let o='';try{o=localStorage.getItem('kgame')||'';}catch(e){}return o||location.origin+'/kusatma/';};
+const GAMEURL=()=>{let o='';try{o=localStorage.getItem('kgame')||'';}catch(e){}return o||location.origin+(/\.workers\.dev$/.test(location.hostname)?'/':'/kusatma/');};
 /* watch a game unseen: the game opens a spectator door only for us; players are never told */
 async function ctlWatch(r){const S=sheet('Watching · '+r.title,true);S.d.classList.add('watch');const body=mk('div','watchw'),view=mk('div','watchv'),side=mk('div','watchs');body.append(view,side);S.c.append(body);
   const msg=mk('p','sub','Opening a hidden view of this game…');view.append(msg);side.append(mk('p','sub','Players cannot see you. Everything you do here reaches the game at once.'),ctlPanel(r.code,r.names));

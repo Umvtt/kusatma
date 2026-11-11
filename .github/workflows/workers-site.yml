@@ -1,0 +1,25 @@
+# Publishes the same files to the workers.dev copy of the site on every push to main.
+# Needs the repository secrets CLOUDFLARE_API_TOKEN (template "Edit Cloudflare Workers") and CLOUDFLARE_ACCOUNT_ID;
+# without them the job is skipped.
+name: workers.dev site
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the secrets
+        id: s
+        env:
+          T: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: echo "ok=$([ -n "$T" ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        if: steps.s.outputs.ok == '1'
+      - name: Deploy
+        if: steps.s.outputs.ok == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy

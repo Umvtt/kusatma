@@ -1,0 +1,9 @@
+# The game as a second site on workers.dev (kusatma.umvtt.workers.dev): static files only, served by Cloudflare
+# for free; unknown paths (/oyun/gorevler...) get index.html.
+name = "kusatma"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[assets]
+directory = "."
+not_found_handling = "single-page-application"

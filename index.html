@@ -2,7 +2,8 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>(function () { var q = new URLSearchParams(location.search), r = q.get('r'), p = location.pathname, i = p.indexOf('/oyun'); var root = i >= 0 ? p.slice(0, i + 1) : p.replace(/[^/]*$/, ''); window.KROOT = root; if (r && /^oyun(\/[a-z]+)?$/.test(r)) { q.delete('r'); var s = q.toString(); history.replaceState(null, '', root + r + (s ? '?' + s : '') + location.hash); } document.write('<base href="' + root + '">'); })();</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Kuşatma</title>
   <meta name="description" content="Arkadaşlarınla birlikte zombi sürülerine karşı dayan. 15 kişiye kadar, tarayıcıda, ücretsiz.">
   <meta name="theme-color" content="#0d110f">
@@ -10,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=40b">
-  <link rel="stylesheet" href="css/dash.css?v=40">
+  <link rel="stylesheet" href="css/style.css?v=41">
+  <link rel="stylesheet" href="css/dash.css?v=41">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -447,6 +448,7 @@
     <div class="card settings-dlg inv-dlg" role="dialog" aria-modal="true" aria-labelledby="inv-title">
       <div class="card-head"><h3 id="inv-title">Arkadaşını davet et</h3><button id="inv-close" class="btn small" type="button">Kapat</button></div>
       <ul id="inv-list" class="inv-list"></ul>
+      <button id="inv-all" class="btn primary" type="button" hidden>Hepsini davet et</button>
       <p class="note">Sadece çevrimiçi arkadaşların davet edilebilir. Davet ettiğin kişiye bir pencere açılır, tek tıkla odana gelir.</p>
     </div>
   </div>
@@ -454,6 +456,7 @@
     <canvas id="inv-pop-av" width="48" height="48" aria-hidden="true"></canvas>
     <div><strong id="inv-pop-t"></strong><span id="inv-pop-s"></span></div>
     <div class="row"><button id="inv-no" class="btn small ghost" type="button">Reddet</button><button id="inv-yes" class="btn small primary" type="button">Katıl</button></div>
+    <button id="inv-x" class="inv-x" type="button" aria-label="Kapat">×</button>
   </div>
   <div id="diag-dlg" class="confirm" hidden>
     <div class="card settings-dlg diag-dlg" role="dialog" aria-modal="true" aria-labelledby="diag-title">
@@ -560,7 +563,7 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=40","./js/client.js":"./js/client.js?v=40","./js/config.js":"./js/config.js?v=40","./js/consent.js":"./js/consent.js?v=40","./js/dash.js":"./js/dash.js?v=40b","./js/host.js":"./js/host.js?v=40","./js/live.js":"./js/live.js?v=40","./js/mapgen.js":"./js/mapgen.js?v=40","./js/net.js":"./js/net.js?v=40","./js/render.js":"./js/render.js?v=40","./js/scene.js":"./js/scene.js?v=40","./js/settings.js":"./js/settings.js?v=40","./js/sfx.js":"./js/sfx.js?v=40","./js/world.js":"./js/world.js?v=40"}}</script>
-  <script type="module" src="js/main.js?v=40"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=41","./js/client.js":"./js/client.js?v=41","./js/config.js":"./js/config.js?v=41","./js/consent.js":"./js/consent.js?v=41","./js/dash.js":"./js/dash.js?v=41","./js/host.js":"./js/host.js?v=41","./js/live.js":"./js/live.js?v=41","./js/mapgen.js":"./js/mapgen.js?v=41","./js/net.js":"./js/net.js?v=41","./js/render.js":"./js/render.js?v=41","./js/scene.js":"./js/scene.js?v=41","./js/settings.js":"./js/settings.js?v=41","./js/sfx.js":"./js/sfx.js?v=41","./js/world.js":"./js/world.js?v=41"}}</script>
+  <script type="module" src="js/main.js?v=41"></script>
 </body>
 </html>

@@ -1,15 +1,15 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 15;
+export const VERSION = 16;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 40;
+export const BUILD = 41;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
 
 // The whole world is generated up front; only the playable area inside it grows with the player count.
-export const WORLD_W = 4400;
-export const WORLD_H = 3000;
+export const WORLD_W = 6000;
+export const WORLD_H = 4000;
 export const CX = WORLD_W / 2;
 export const CY = WORLD_H / 2;
 export const PLAYER_R = 16;
@@ -17,10 +17,10 @@ export const PLAYER_R = 16;
 export const ZOOM_MIN = 0.7;
 export const ZOOM_MAX = 1.6;
 
-// Playable size for n players: 1800x1200 alone, 4320x2880 with 15.
+// Playable size for n players: 3600x2400 alone, growing with every player (capped by the world)
 export function areaFor(n) {
   const k = Math.min(MAX_PLAYERS, Math.max(1, n)) - 1;
-  return { w: 1800 + k * 180, h: 1200 + k * 120 };
+  return { w: Math.min(WORLD_W - 160, 3600 + k * 240), h: Math.min(WORLD_H - 160, 2400 + k * 160) };
 }
 
 export const MAP_ORDER = ['meydan', 'benzinlik', 'hastane', 'orman', 'liman', 'kar'];
@@ -36,6 +36,10 @@ export const MAPS = {
 export const DIFF_ORDER = ['kolay', 'normal', 'zor', 'kabus'];
 
 // game modes: the room's host picks one in the lobby; the daily challenge has its own button
+// extra gems for harder games (the server applies the same table; difficulty × mode)
+export const GEM_DIFF = { kolay: 0.75, normal: 1, zor: 1.3, kabus: 1.7 };
+export const GEM_MODE = { normal: 1, endless: 1.2, boss: 1.5, hc: 2, daily: 1.3, sandbox: 0 };
+export const gemTag = (m) => (m === 0 ? 'elmas yok' : m === 1 ? '' : `×${String(m).replace('.', ',')} elmas`);
 export const MODES = {
   normal: { name: 'Klasik', desc: 'Dalgalar arasında mola, her 5 dalgada bir boss.' },
   endless: { name: 'Hayatta Kalma', desc: '5. dalgadan sonra mola yok ve zombiler daha sık gelir. Kendi sıralaması var.' },

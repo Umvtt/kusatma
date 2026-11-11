@@ -220,8 +220,21 @@ function topBar() {
 
 // ---------- pages ----------
 const PAGES = { season: seasonPage, quests: questsPage, home: homePage, play: playPage, profile: profilePage, locker: lockerPage, shop: shopPage, friends: friendsPage, top: topPage, account: accountPage };
-export function dashGo(p, arg) {
+// each page has its own address under the game's root: /oyun, /oyun/gorevler, /oyun/magaza...
+const SLUG = { home: '', play: 'oyna', quests: 'gorevler', season: 'sezon', shop: 'magaza', profile: 'profil', locker: 'dolap', friends: 'arkadaslar', top: 'siralama', account: 'ayarlar' };
+const ROOT = () => window.KROOT || './';
+export function pageFromPath() { const m = location.pathname.slice(ROOT().length).match(/^oyun(?:\/([a-z]+))?\/?$/); if (!m) return null; const s = m[1] || ''; return Object.keys(SLUG).find((k) => SLUG[k] === s) || null; }
+function setPath(p, replace) {
+  // the home page lives at the site root, every other page at oyun/<slug>
+  const want = SLUG[p] ? ROOT() + 'oyun/' + SLUG[p] : ROOT();
+  if (location.pathname === want || (!SLUG[p] && !pageFromPath() && location.pathname.startsWith(ROOT()))) { if (!history.state || history.state.dp !== p) { try { history.replaceState({ dp: p }, '', location.href); } catch (e) { /* ignore */ } } return; }
+  try { history[replace ? 'replaceState' : 'pushState']({ dp: p }, '', want + location.search); } catch (e) { /* ignore */ }
+}
+addEventListener('popstate', (e) => { const p = (e.state && e.state.dp) || pageFromPath() || 'home'; if (p && ACCT && !$('#dashpage').hidden && p !== page) dashGo(p, undefined, true); });
+export function dashGo(p, arg, fromHistory) {
   if (!PAGES[p]) p = 'home';
+  if (!fromHistory && ACCT && !$('#dashpage').hidden) setPath(p, !shown2);
+  shown2 = true;
   page = p;
   for (const b of document.querySelectorAll('[data-dp]')) b.setAttribute('aria-selected', String(b.dataset.dp === p || ((p === 'locker' || ((p === 'top' || p === 'account') && innerWidth <= 880)) && b.dataset.dp === 'profile')));
   if (!ACCT) return;
@@ -330,6 +343,7 @@ function homePage(sec) {
   const row2 = el('div', 'dp-cols');
   const rooms = card('Açık odalar', btn('btn small ghost', 'Tümü', () => dashGo('play')));
   const ul = el('ul', 'dp-rooms'); ul.append(el('li', 'empty', 'Yükleniyor…')); rooms.append(ul);
+  ul.dataset.rooms = '4';
   roomsGet().then((j) => ul.replaceChildren(...H.roomItems(j.ok ? j.rooms : null, 4)));
   const st = card('İstatistiklerin');
   st.append(statList());
@@ -338,7 +352,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Her sınıfın kendi silah yolları var: Zehir Kimyager\'in, Elektrik Tesla\'nın, Ateş Alevci\'nin, Buz Nişancı\'nın. Doktor artık uyutucu dart atıyor.', 'Oyun lobideki oyuncu sayısına göre zorlaşır ve harita büyür.', 'Harita kayarken oyuncular ve zombiler artık sıkışmıyor.', 'Yeni giriş sayfası, tema önizlemesi, daha detaylı karakter ve zombi modelleri.']
+const WHATS_NEW = ['Çok oyunculuda takılmalar giderildi: kaybolan bir paket artık oyunu dondurmuyor.', 'Harita iki kat büyük; zorluk ve mod artık daha fazla elmas veriyor (lobide yazıyor).', 'Davetler kolay: tek dokunuşla davet, ekranda kalan davet penceresi, oda bağlantısı paylaşma. Geç katılana takıma yetişsin diye altın.', 'Delici mermiler kalkanı deler; son can damlasında takılma ve öldürme bildirimi hataları düzeltildi.']
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -631,6 +645,7 @@ function playPage(sec) {
   const rc = card('Açık odalar', rb);
   const ul = el('ul', 'dp-rooms'); rc.append(el('p', 'note', 'Hesabı olan oyuncuların açık kurduğu odalar.'), ul);
   sec.append(rc);
+  ul.dataset.rooms = '50';
   const load = () => roomsGet().then((j) => ul.replaceChildren(...H.roomItems(j.ok ? j.rooms : null, 50)));
   ul.append(el('li', 'empty', 'Yükleniyor…')); load();
 }
@@ -1271,15 +1286,38 @@ export function dashInit(hooks) {
   document.addEventListener('visibilitychange', () => { if (!document.hidden && page === 'home') heroStart(); });
   // friends' online status stays fresh while the panel is open
   setInterval(() => { if (ACCT && !document.hidden && !$('#dashpage').hidden && (page === 'home' || page === 'friends' || page === 'play')) refreshFriends(); }, 30000);
+  // lists that change by themselves stay fresh while someone is looking at them (paused after 5 idle minutes)
+  for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart']) addEventListener(ev, () => { lastAct = Date.now(); }, { passive: true, capture: true });
+  setInterval(() => {
+    if (!ACCT || document.hidden || $('#dashpage').hidden || Date.now() - lastAct > 300000) return;
+    if (softLater) dashSoft();
+    for (const ul of document.querySelectorAll('#dp-page ul[data-rooms]')) roomsGet().then((j) => { if (ul.isConnected && j.ok) ul.replaceChildren(...H.roomItems(j.rooms, +ul.dataset.rooms)); });
+    if (page === 'top' && Date.now() - topAt > 60000) { topAt = Date.now(); dashSoft(); }
+  }, 15000);
 }
-let shown = false;
+let shown = false, shown2 = false, lastAct = Date.now(), topAt = Date.now();
 export function dashShow(on) {
-  if (!on) { shown = false; return; }
+  if (!on) { shown = false; shown2 = false; if (pageFromPath()) { try { history.replaceState(null, '', ROOT() + location.search); } catch (e) { /* ignore */ } } return; }
   applyTheme();
   topBar();
-  if (!shown) { shown = true; let p = 'home'; try { p = localStorage.getItem('kusatma-dp') || 'home'; } catch (e) { /* ignore */ } dashGo(PAGES[p] ? p : 'home'); }
+  if (!shown) { shown = true; let p = pageFromPath(); if (!p) { try { p = localStorage.getItem('kusatma-dp') || 'home'; } catch (e) { p = 'home'; } } dashGo(PAGES[p] ? p : 'home'); }
 }
-export function dashRefresh() { if (!ACCT || $('#dashpage').hidden) return; applyTheme(); topBar(); if (page !== 'locker') dashGo(page); }
+export function dashRefresh() { if (!ACCT || $('#dashpage').hidden) return; applyTheme(); topBar(); dashSoft(); }
+// draw the open page again with fresh data, in place: same scroll position, no entrance animation, never while the
+// player is typing or has a window open on top
+export function dashSoft() {
+  if (!ACCT || $('#dashpage').hidden || page === 'locker') return;
+  if (document.querySelector('#buy-dlg:not([hidden]), #prof-dlg:not([hidden]), #form-dlg:not([hidden]), #rep-dlg:not([hidden]), #dm:not([hidden]), .spin-pop, #thm-pv:not([hidden])')) { softLater = true; return; }
+  const a = document.activeElement;
+  if (a && a.closest && a.closest('#dp-page') && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) { softLater = true; return; }
+  softLater = false;
+  const main = $('#dp-page'), y = main.scrollTop;
+  main.classList.add('soft');
+  dashGo(page);
+  main.scrollTop = y;
+  setTimeout(() => main.classList.remove('soft'), 400);
+}
+let softLater = false;
 export function dashTop() { if (ACCT) topBar(); }
 export const dashPage = () => page;
 export { openProfile, acctCheck };

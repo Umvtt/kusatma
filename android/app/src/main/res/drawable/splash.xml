@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shown by Android the instant the app starts, before any code runs: no blank screen -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><color android:color="#0D110F" /></item>
+    <item android:width="92dp" android:height="92dp" android:gravity="center"><bitmap android:src="@mipmap/ic_launcher" android:gravity="fill" /></item>
+</layer-list>

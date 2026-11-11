@@ -435,6 +435,8 @@ export class Renderer {
     const bw = B.x1 - B.x0, bh = B.y1 - B.y0;
     const w = game.touch && this.vw < 760 ? 130 : game.touch && this.vh < 420 ? 155 : MINI_W, s = w / bw, h = bh * s;
     const x0 = this.vw - w - 16, y0 = 16;
+    // the kill feed sits right under the minimap, whatever its height
+    { const b = Math.round(y0 + h + 10); if (Math.abs(b - (this.mmB || 0)) > 3) { this.mmB = b; document.documentElement.style.setProperty('--mm-b', b + 'px'); } }
     const mx = (x) => x0 + (x - B.x0) * s, my = (y) => y0 + (y - B.y0) * s;
     g.fillStyle = 'rgba(10,14,12,0.78)';
     g.fillRect(x0, y0, w, h);
@@ -466,7 +468,7 @@ export class Renderer {
 }
 
 // ---------- ground ----------
-const GROUND_SCALE = 0.5;
+const GROUND_SCALE = 0.38; // the whole map's ground in one canvas: about the same memory as before the map grew
 function makeGround(theme, seed, decor) {
   const s = GROUND_SCALE;
   const cv = document.createElement('canvas');

@@ -59,7 +59,7 @@ import java.net.URL;
  * downloaded and installed from inside the app (Android's own installer asks to confirm).
  */
 public class MainActivity extends Activity {
-    private static final String[] SITES = { "https://umvtt.github.io/kusatma/", "https://umvtt-games.umvtt.deno.net/kusatma/" };
+    private static final String[] SITES = { "https://umvtt.github.io/kusatma/", "https://umvtt-games.umvtt.deno.net/kusatma/", "https://kusatma.umvtt.workers.dev/" };
     private static final String VERSION_URL = "app/version.json";
     private static final String DOWNLOAD = "app/kusatma.apk";
     private static final String INSTALL_DONE = "com.umvtt.kusatma.INSTALL_DONE";
@@ -118,6 +118,15 @@ public class MainActivity extends Activity {
         web.setBackgroundColor(BG);
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
         web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        // a game, not a page: no text-selection menu on long press, no system haptics on top of the game's own
+        web.setLongClickable(false);
+        web.setOnLongClickListener(v -> true);
+        web.setHapticFeedbackEnabled(false);
+        web.setVerticalScrollBarEnabled(false);
+        web.setHorizontalScrollBarEnabled(false);
+        if (Build.VERSION.SDK_INT >= 26) web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
+        // keyboard: with the system bars hidden, push the page up by the keyboard's height ourselves
+        if (Build.VERSION.SDK_INT >= 30) root.setOnApplyWindowInsetsListener((v, ins) -> { int b = ins.getInsets(WindowInsets.Type.ime()).bottom; web.setPadding(0, 0, 0, 0); FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) web.getLayoutParams(); if (lp.bottomMargin != b) { lp.bottomMargin = b; web.setLayoutParams(lp); } return ins; });
         root.addView(web);
         root.addView(buildSplash(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
@@ -133,6 +142,9 @@ public class MainActivity extends Activity {
         s.setDisplayZoomControls(false);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         s.setOffscreenPreRaster(true);                // smoother first frames
+        s.setTextZoom(100);                           // the phone's font size setting must not break the game's layout
+        s.setLoadWithOverviewMode(true);
+        s.setUseWideViewPort(true);
         s.setUserAgentString(s.getUserAgentString() + " KusatmaApp/" + BuildConfig.VERSION_CODE);
         web.addJavascriptInterface(new Bridge(), "KusatmaApp");
 
@@ -170,7 +182,7 @@ public class MainActivity extends Activity {
         });
 
         load();
-        // no update prompts: the game itself always comes fresh from the site, so the app never needs reinstalling
+        checkForNewApp(); // only when app/version.json on the site names a newer app (the game itself always comes fresh)
     }
 
     private View buildSplash() {
@@ -253,7 +265,7 @@ public class MainActivity extends Activity {
     private void load() {
         loaded = false;
         ui.removeCallbacks(slow);
-        ui.postDelayed(slow, 12000); // no page after 12 s: try the next address
+        ui.postDelayed(slow, 10000); // no page after 10 s: try the next address
         status.setText(site == 0 ? "Sunucuya bağlanılıyor…" : "Yedek sunucu deneniyor…");
         web.loadUrl(SITES[site] + "?app=" + BuildConfig.VERSION_CODE);
     }
@@ -317,8 +329,9 @@ public class MainActivity extends Activity {
                 c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
         } else {
-            // older Android: hide the navigation bar only, so the keyboard can still push the page up
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+            // older Android: hide both bars, swipe from the edge to see them for a moment
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
         }
     }
 

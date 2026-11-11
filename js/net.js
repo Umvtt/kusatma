@@ -82,6 +82,16 @@ export class HostNet {
   }
 
   accept(conn) {
+    // the second, unordered channel of a player (snapshots out, inputs in): one late packet never holds up the others
+    if (conn.label === 'u') {
+      conn.on('open', () => {
+        const attach = () => { for (const i of this.conns.values()) if (i.conn.peer === conn.peer) { i.u = conn; conn.on('data', (d) => this.receive(i, d)); return true; } return false; };
+        if (!attach()) { let n = 0; const t = setInterval(() => { if (attach() || ++n > 20) clearInterval(t); }, 250); }
+        const off = () => { for (const i of this.conns.values()) if (i.u === conn) i.u = null; };
+        conn.on('close', off); conn.on('error', off);
+      });
+      return;
+    }
     conn.on('open', () => {
       const info = { pid: this.nextPid++, conn, player: false, tokens: MSG_BURST, win: performance.now(), last: performance.now() };
       this.conns.set(info.pid, info);
@@ -135,15 +145,17 @@ export class HostNet {
   canSnap(pid) {
     const i = this.conns.get(pid);
     if (!i || !i.player || !i.conn.open) return false;
-    const dc = i.conn.dataChannel;
-    if ((dc && dc.bufferedAmount > 64000) || i.conn.bufferSize > 0) { i.skipped = (i.skipped || 0) + 1; return false; }
+    const c = i.u && i.u.open ? i.u : i.conn, dc = c.dataChannel;
+    if ((dc && dc.bufferedAmount > 64000) || c.bufferSize > 0) { i.skipped = (i.skipped || 0) + 1; return false; }
     return true;
   }
   sendSnap(pid, msg) {
     const i = this.conns.get(pid);
     if (!i || !i.conn.open) return;
-    for (const part of pack(msg)) { try { i.conn.send(part); } catch (e) { /* closed mid-send */ } }
+    const c = i.u && i.u.open ? i.u : i.conn;
+    for (const part of pack(msg)) { try { c.send(part); } catch (e) { /* closed mid-send */ } }
   }
+  fast(pid) { const i = this.conns.get(pid); return !!(i && i.u && i.u.open); }
 
   broadcast(msg) {
     let parts = null;
@@ -167,6 +179,7 @@ export class HostNet {
     const i = this.conns.get(pid);
     if (!i) return;
     try { i.conn.close(); } catch (e) { /* ignore */ }
+    try { if (i.u) i.u.close(); } catch (e) { /* ignore */ }
     this.drop(i);
   }
 
@@ -185,7 +198,7 @@ export class HostNet {
 
   destroy() {
     this.closing = true;
-    for (const i of this.conns.values()) { try { i.conn.close(); } catch (e) { /* ignore */ } }
+    for (const i of this.conns.values()) { try { i.conn.close(); } catch (e) { /* ignore */ } try { if (i.u) i.u.close(); } catch (e) { /* ignore */ } }
     this.conns.clear();
     if (this.peer) { try { this.peer.destroy(); } catch (e) { /* ignore */ } }
     this.peer = null;
@@ -212,7 +225,8 @@ export class ClientNet {
     this.onClose = null;
     this.last = performance.now();
     this.closed = false;
-    this.parts = null; // pieces of a split message being put back together
+    this.parts = new Map(); // pieces of split messages being put back together (they can arrive mixed on the fast channel)
+    this.u = null;          // the second, unordered channel
   }
 
   // Puts split messages back together; returns the whole message once every piece is in.
@@ -220,12 +234,12 @@ export class ClientNet {
     if (!d || d.t !== 'ck') return d;
     const { id, i, n } = d;
     if (!Number.isInteger(n) || n < 1 || n > 400 || !Number.isInteger(i) || i < 0 || i >= n || typeof d.d !== 'string') return null;
-    if (!this.parts || this.parts.id !== id) this.parts = { id, n, got: 0, d: new Array(n) };
-    const P = this.parts;
+    let P = this.parts.get(id);
+    if (!P) { P = { n, got: 0, d: new Array(n) }; this.parts.set(id, P); if (this.parts.size > 6) this.parts.delete(this.parts.keys().next().value); }
     if (P.n !== n || P.d[i] != null) return null;
     P.d[i] = d.d; P.got++;
     if (P.got < n) return null;
-    this.parts = null;
+    this.parts.delete(id);
     try { return JSON.parse(P.d.join('')); } catch (e) { return null; }
   }
 
@@ -245,13 +259,24 @@ export class ClientNet {
       peer.on('open', () => {
         const conn = peer.connect(rawId || PREFIX + code.toLowerCase(), { reliable: true, serialization: 'json' });
         this.conn = conn;
-        conn.on('open', () => { if (settled) return; settled = true; clearTimeout(timer); this.last = performance.now(); resolve(); });
-        conn.on('data', (d) => {
+        const onData = (d) => {
           this.last = performance.now();
           if (d && d.t === 'p') return;
           const m = this.unpack(d);
           if (m && this.onMsg) this.onMsg(m);
+        };
+        conn.on('open', () => {
+          if (settled) return; settled = true; clearTimeout(timer); this.last = performance.now(); resolve();
+          // the fast channel: unordered, so one packet lost on Wi-Fi never freezes the game while it is sent again
+          try {
+            const u = peer.connect(rawId || PREFIX + code.toLowerCase(), { reliable: false, serialization: 'json', label: 'u' });
+            u.on('open', () => { this.u = u; });
+            u.on('data', onData);
+            const off = () => { if (this.u === u) this.u = null; };
+            u.on('close', off); u.on('error', off);
+          } catch (e) { /* the main channel carries everything */ }
         });
+        conn.on('data', onData);
         conn.on('close', () => { if (settled) this.lost(); else fail('closed'); });
         conn.on('error', (e) => { if (e && e.type === 'message-too-big') return; if (settled) this.lost(); else fail('closed'); });
       });
@@ -261,7 +286,8 @@ export class ClientNet {
   }
 
   send(msg) {
-    if (this.conn && this.conn.open) { try { this.conn.send(msg); } catch (e) { /* ignore */ } }
+    const c = msg && msg.t === 'in' && this.u && this.u.open ? this.u : this.conn;
+    if (c && c.open) { try { c.send(msg); } catch (e) { /* ignore */ } }
   }
 
   maintain() {
@@ -279,6 +305,7 @@ export class ClientNet {
   destroy() {
     this.closed = true;
     try { if (this.conn) this.conn.close(); } catch (e) { /* ignore */ }
+    try { if (this.u) this.u.close(); } catch (e) { /* ignore */ }
     try { if (this.peer) this.peer.destroy(); } catch (e) { /* ignore */ }
   }
 }

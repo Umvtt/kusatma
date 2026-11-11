@@ -105,28 +105,43 @@ export class HostGame {
     this.snapN = (this.snapN || 0) + 1;
     if (this.spec && this.spec.count && (this.snapN & 1)) this.spec.send(s); // hidden spectators: the whole picture, 7 times a second
     if (!this.net.sendSnap) { this.net.broadcast(s); return; }
+    // events get numbers; a guest is sent every event it has not confirmed yet, so a lost snapshot loses nothing
+    if (!this.hid) { this.hid = Math.floor(Math.random() * 1e9) + 1; this.evSeq = 0; this.evLog = []; }
+    const es0 = this.evSeq + 1;
+    for (const e of s.E) { this.evSeq++; this.evLog.push(e); }
+    if (this.evLog.length > 600) this.evLog.splice(0, this.evLog.length - 600);
+    const logFirst = this.evSeq - this.evLog.length + 1;
     const far = this.snapN % 4 === 0 ? s.Z.map((z) => [z[1], z[2] >> 3, z[3] >> 3]) : null;
-    const R2 = 1800 * 1800, N2 = 1000 * 1000, odd = this.snapN & 1;
+    const R2 = 1800 * 1800, N2 = 1000 * 1000, odd = this.snapN & 1, q = this.snapN;
     for (const p of this.players.values()) {
       if (p.pid === this.hostPid || !this.net.canSnap(p.pid)) continue;
-      const full = !p.inGame || !p.alive, sent = p.zsent || (p.zsent = new Map()), keep = new Set(), Z = [];
+      // zombies are described against what the guest has confirmed (not what was last sent), so lost or late snapshots heal by themselves
+      const zh = p.zh || (p.zh = { ack: 0, hist: new Map(), ev0: es0 - 1 });
+      const base = (zh.ack && zh.hist.get(zh.ack)) || null, bz = base ? base.zk : null;
+      const full = !p.inGame || !p.alive, cur = new Map(), Z = [];
       for (const z of s.Z) {
         const boss = isBoss(z[1]), d2 = (z[2] - p.x) ** 2 + (z[3] - p.y) ** 2;
         if (!full && !boss && d2 >= R2) continue;
-        keep.add(z[0]);
-        const key = z[4] + ',' + z[5] + ',' + z[6] + ',' + z[7] + ',' + z[8], prev = sent.get(z[0]);
-        if (prev !== key) { Z.push(z); sent.set(z[0], key); }
+        const key = z[4] + ',' + z[5] + ',' + z[6] + ',' + z[7] + ',' + z[8];
+        cur.set(z[0], key);
+        if (!bz || bz.get(z[0]) !== key) Z.push(z);
         else if (boss || d2 < N2 || odd) Z.push([z[0], z[2], z[3]]); // far, unchanged zombies move every other snapshot
       }
       const ZD = [];
-      for (const id of sent.keys()) if (!keep.has(id)) { ZD.push(id); sent.delete(id); }
-      const m = Object.assign({}, s, { Z, ZD, zd: 1 });
+      if (bz) for (const id of bz.keys()) if (!cur.has(id)) ZD.push(id);
+      const evFrom = Math.max((base ? base.ev : zh.ev0) + 1, logFirst, this.evSeq - 299);
+      const E = evFrom <= this.evSeq ? this.evLog.slice(evFrom - logFirst) : [];
+      zh.hist.set(q, { zk: cur, ev: this.evSeq });
+      if (zh.hist.size > 48) zh.hist.delete(zh.hist.keys().next().value);
+      const m = Object.assign({}, s, { Z, ZD, zd: 1, q, hi: this.hid, E, es: evFrom });
       if (far && !full) m.ZF = far;
       this.net.sendSnap(p.pid, m);
     }
   }
+  // the guest confirms the newest snapshot it has applied
+  snapAck(p, k) { const zh = p.zh; if (!zh || !Number.isInteger(k) || k <= zh.ack || !zh.hist.has(k)) return; zh.ack = k; for (const q of [...zh.hist.keys()]) if (q < k) zh.hist.delete(q); }
   // a guest that lost track asks for everything again
-  resyncZ(p) { if (p) p.zsent = null; }
+  resyncZ(p) { if (p) p.zh = null; }
 
   sendTo(pid, msg) { if (pid === this.hostPid) this.deliverLocal(msg); else this.net.send(pid, msg); }
   ev(e) { if (this.events.length < 220) this.events.push(e); }
@@ -155,7 +170,7 @@ export class HostGame {
   }
 
   addPlayer(pid, name) {
-    { const old = this.players.get(pid); if (old) old.zsent = null; }
+    { const old = this.players.get(pid); if (old) old.zh = null; }
     const used = new Set([...this.players.values()].map((p) => p.color));
     const color = PLAYER_COLORS.find((c) => !used.has(c)) || PLAYER_COLORS[pid % PLAYER_COLORS.length];
     const tok = token();
@@ -211,7 +226,7 @@ export class HostGame {
         const old = this.players.get(rj.pid);
         if (old && old.tok === rj.tok && rj.pid !== this.hostPid && this.net.rebind(pid, rj.pid)) {
           this.net.markPlayer(rj.pid);
-          if (old.ghost) { old.ghost = false; old.inGame = !!old.wasInGame; }
+          if (old.ghost) { old.ghost = false; old.inGame = !!old.wasInGame; if (old.inGame) this.catchUp(old); }
           this.sendTo(rj.pid, { t: 'w', pid: rj.pid, tok: old.tok });
           this.pushRoster();
           return;
@@ -278,7 +293,12 @@ export class HostGame {
   }
 
   onInput(p, m) {
+    if (Number.isInteger(m.k)) this.snapAck(p, m.k);
     if (!p.inGame) return;
+    // inputs travel on the unordered channel: an older one arriving late still counts its hits, but not its position
+    const stale = Number.isInteger(m.n) && m.n <= (p.inN || 0);
+    if (Number.isInteger(m.n) && !stale) p.inN = m.n;
+    if (stale) m = { h: m.h, s: m.s };
     if (p.pid !== this.hostPid && this.phase === 'combat') this.acInput(p, m);
     const B = WORLD.bounds;
     if (p.alive && num(m.x) && num(m.y)) { p.x = clamp(m.x, B.x0, B.x1); p.y = clamp(m.y, B.y0, B.y1); }
@@ -729,7 +749,7 @@ export class HostGame {
   onBuy(p, m) {
     if (this.phase !== 'break' || !p.inGame || typeof m.k !== 'string') return;
     if (m.k === 'heal') {
-      if (p.alive && p.gold >= HEAL_COST && p.hp < p.maxHp) { p.gold -= HEAL_COST; p.hp = p.maxHp; }
+      if (p.alive && p.gold >= HEAL_COST && p.hp < p.maxHp) { this.pay(p, HEAL_COST); p.hp = p.maxHp; }
       return;
     }
     if (m.k === 'wpn') {
@@ -743,24 +763,24 @@ export class HostGame {
         if (m.b !== 1 && m.b !== 2) return;
         p.wb = m.b;
       }
-      p.gold -= WEAPON_COST[p.wt + 1]; p.wt++;
+      this.pay(p, WEAPON_COST[p.wt + 1]); p.wt++;
       return;
     }
     if (m.k === 'wswap') {
       if (p.wt < 3 || p.gold < BRANCH_SWAP) return;
-      p.gold -= BRANCH_SWAP; p.wb = 3 - p.wb;
+      this.pay(p, BRANCH_SWAP); p.wb = 3 - p.wb;
       return;
     }
     if (m.k === 'wreset') {
       if (p.wt < 1) return;
-      p.gold += Math.floor(weaponSpent(p.wt) / 2);
+      { const back = Math.floor(weaponSpent(p.wt) / 2); p.gold += back; p.spent = Math.max(0, (p.spent || 0) - back); }
       p.wt = 0; p.wp = 0; p.wb = 0;
       return;
     }
     if (m.k === 'ab') {
       const l = p.lv.ab | 0;
       if (l >= AB_COST.length || p.gold < AB_COST[l]) return;
-      p.gold -= AB_COST[l]; p.lv.ab = l + 1;
+      this.pay(p, AB_COST[l]); p.lv.ab = l + 1;
       return;
     }
     if (m.k === 'gear') {
@@ -769,7 +789,7 @@ export class HostGame {
       if (!p.inv) p.inv = GEAR.map(() => 0);
       const cost = gearCost(p.cls, i);
       if (p.inv[i] >= gearMax(p.cls, i) || p.gold < cost) return;
-      p.gold -= cost; p.inv[i]++;
+      this.pay(p, cost); p.inv[i]++;
       return;
     }
     if (m.k === 'team') {
@@ -781,7 +801,7 @@ export class HostGame {
       const left = Math.max(0, cost - this.teamFund[i]);
       const pay = m.all ? left : Math.min(TEAM_CHUNK, left, p.gold);
       if (pay <= 0 || p.gold < pay) return;
-      p.gold -= pay; this.teamFund[i] += pay;
+      this.pay(p, pay); this.teamFund[i] += pay;
       p.given = (p.given || 0) + pay;
       if (this.teamFund[i] >= cost) { this.team[i] = lv + 1; this.teamFund[i] = 0; this.ev(['tu', i, lv + 1, p.pid]); }
       return;
@@ -792,7 +812,7 @@ export class HostGame {
     if (lv >= u.max) return;
     const cost = upgradeCost(u, lv);
     if (p.gold < cost) return;
-    p.gold -= cost;
+    this.pay(p, cost);
     p.lv[u.k]++;
     if (u.k === 'hp') {
       p.maxHp = stats(p.cls, p.lv).maxHp;
@@ -802,7 +822,7 @@ export class HostGame {
 
   // ---------- game flow ----------
   start() {
-    for (const q of this.players.values()) q.zsent = null;
+    for (const q of this.players.values()) q.zh = null;
     this.resetWorld();
     this.theme = this.mapPick === 'rastgele' ? MAP_ORDER[Math.floor(Math.random() * MAP_ORDER.length)] : this.mapPick;
     this.seed = (Math.random() * 2 ** 31) | 0;
@@ -822,6 +842,18 @@ export class HostGame {
       if (p.ghost) { p.wasInGame = true; p.inGame = false; }
     });
     this.pushRoster();
+  }
+
+  // gold paid in the armory; with what is left this is a player's "worth" in this game
+  pay(p, n) { p.gold -= n; p.spent = (p.spent || 0) + n; }
+  worth(p) { return (p.gold || 0) + (p.spent || 0); }
+  // someone joining late or coming back gets 75 % of what the others have earned on average, so they can keep up
+  catchUp(p) {
+    if (this.wave < 1) return;
+    const o = this.inGame().filter((q) => q !== p && !q.ghost);
+    if (!o.length) return;
+    const want = Math.round(0.75 * o.reduce((a, q) => a + this.worth(q), 0) / o.length), have = this.worth(p);
+    if (want > have) { p.gold += want - have; this.ev(['cu', p.pid, want - have]); }
   }
 
   enter(p, index = 0, total = 1, ring = false) {
@@ -846,6 +878,8 @@ export class HostGame {
     p.hp = p.maxHp;
     p.alive = true;
     p.gold = START_GOLD + this.wave * 30;
+    p.spent = 0;
+    if (!ring) this.catchUp(p);
     p.kills = 0;
     p.dmg = 0;
     p.abAt = 0;
@@ -959,7 +993,9 @@ export class HostGame {
   // events sent from the owner's admin panel
   adminEvent(k, n, x = {}) {
     // everyone in the game sees a short note about it (deferred ones say they come with the next wave)
-    if (!x.re) this.ev(['ae', k, n | 0, x.i | 0, String(x.who || '').slice(0, 16), (k === 'horde' || k === 'zombie' || k === 'mev' || k === 'boss') && this.phase !== 'combat' ? 1 : 0, String(x.q || '').slice(0, 8), x.t | 0]);
+    // a gift to one player is told to that player only; anything for everyone is told to everyone
+    const target = x.who && (k === 'gold' || k === 'item') ? ([...this.players.values()].find((p) => p.name === x.who) || {}).pid | 0 : 0;
+    if (!x.re) this.ev(['ae', k, n | 0, x.i | 0, String(x.who || '').slice(0, 16), (k === 'horde' || k === 'zombie' || k === 'mev' || k === 'boss') && this.phase !== 'combat' ? 1 : 0, String(x.q || '').slice(0, 8), x.t | 0, target]);
     if (k === 'gold') {
       const g = Math.max(10, Math.min(5000, n | 0));
       for (const p of this.inGame()) if (!x.who || p.name === x.who) p.gold += g;
@@ -1039,8 +1075,9 @@ export class HostGame {
       }
     }
     if (gone) { this.pushRoster(); if (this.phase === 'combat') this.checkOver(); }
+    // the backup for whoever takes over if the host drops: every 5 s, and only when that player's link is free
     this.backupAcc += dt;
-    if (this.backupAcc >= 1) { this.backupAcc = 0; this.sendBackup(); }
+    if (this.backupAcc >= 5) { this.backupAcc = 0; this.sendBackup(); }
     if (this.paused || (this.phase !== 'combat' && this.phase !== 'break')) return;
     this.tick(dt);
     if (this.phase !== 'combat' && this.phase !== 'break') return;
@@ -1191,6 +1228,15 @@ export class HostGame {
     const alive = this.inGame().filter((p) => p.alive);
     const B = WORLD.bounds;
     let x = 0, y = 0, ok = false;
+    // the arena is big: come in a little off screen around someone, not from the far edge
+    if (alive.length) {
+      for (let tries = 0; tries < 16; tries++) {
+        const p = alive[Math.floor(Math.random() * alive.length)], a = Math.random() * Math.PI * 2, d = 950 + Math.random() * 500;
+        x = clamp(p.x + Math.cos(a) * d, B.x0 + T.r + 2, B.x1 - T.r - 2); y = clamp(p.y + Math.sin(a) * d, B.y0 + T.r + 2, B.y1 - T.r - 2);
+        if (pointInObstacle(x, y, T.r + 4) || alive.some((q) => Math.hypot(q.x - x, q.y - y) < 750)) continue;
+        this.addZombie(t, x, y); return;
+      }
+    }
     for (let tries = 0; tries < 24; tries++) {
       const side = Math.floor(Math.random() * 4);
       const along = Math.random();
@@ -1824,7 +1870,10 @@ export class HostGame {
   sendBackup() {
     const succ = this.successor();
     if (succ == null || !this.net.code) return;
-    this.net.send(succ, { t: 'bk', s: this.backup() });
+    if (this.net.canSnap && !this.net.canSnap(succ)) { this.backupAcc = 4; return; } // busy: try again in a second
+    // rounded numbers and no per-hit bookkeeping: about a third of the size
+    const j = JSON.stringify(this.backup(), (k, v) => (k === 'pend' || k === 'hitSet' || k === 'zsent' || k === 'zh' || k === '_c' ? undefined : typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 10) / 10 : v));
+    this.net.send(succ, { t: 'bk', j });
   }
 
   backup() {

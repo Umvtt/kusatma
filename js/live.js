@@ -90,7 +90,8 @@ function hi(force) {
 function onData(raw) {
   let d; try { d = JSON.parse(raw); } catch (e) { return; }
   if (!d || typeof d !== 'object') return;
-  if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; LIVE.filter = Array.isArray(d.cfg && d.cfg.filter) ? d.cfg.filter.slice(0, 400).map((x) => str(x, 24)).filter(Boolean) : []; if (d.cfg && d.cfg.shop) LIVE.shop = cleanShop(d.cfg.shop); LIVE.on = Math.max(0, Math.min(1e6, (d.cfg && d.cfg.on) | 0)); H.onCfg(); }
+  if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; LIVE.filter = Array.isArray(d.cfg && d.cfg.filter) ? d.cfg.filter.slice(0, 400).map((x) => str(x, 24)).filter(Boolean) : []; const shop0 = JSON.stringify(LIVE.shop || null); if (d.cfg && d.cfg.shop) LIVE.shop = cleanShop(d.cfg.shop); LIVE.on = Math.max(0, Math.min(1e6, (d.cfg && d.cfg.on) | 0)); H.onCfg(JSON.stringify(LIVE.shop || null) !== shop0); }
+  else if (d.e === 'rooms') { if (roomsWait) roomsWait(cleanRooms(d.L)); }
   else if (d.e === 'gem') { const n = Math.max(0, d.n | 0); ME.gems += n; ME.gd += n; addXp(Math.max(0, d.xp | 0)); if (H.onGem) H.onGem(n, d.xp | 0, !!d.cap); }
   else if (d.e === 'fl') { if (H.onFriends) H.onFriends(cleanFl(d)); }
   else if (d.e === 'dm') { if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
@@ -235,7 +236,17 @@ export function dmSend(to, x) {
   if (sockOk()) { const c = ++dmc; return new Promise((res) => { DMW.set('c' + c, res); send({ e: 'dm', to, x, c }); setTimeout(() => { if (DMW.get('c' + c) === res) { DMW.delete('c' + c); res({ ok: false, reason: 'net' }); } }, 8000); }); }
   return acctOp('dm', { to, x });
 }
-export const roomsGet = () => api('/krooms');
+// the open rooms list: asked over the live socket when it is up (far cheaper for the server), otherwise as a request
+let roomsWait = null;
+const cleanRooms = (L) => (Array.isArray(L) ? L : []).slice(0, 60).map((r) => ({ code: str(r.code, 6).replace(/[^A-Z0-9]/g, ''), name: str(r.name, 16), rn: str(r.rn, 24), mx: r.mx | 0, diff: str(r.diff, 12), n: r.n | 0, st: str(r.st, 8), wave: r.wave | 0, ver: r.ver | 0 })).filter((r) => r.code);
+export function roomsGet() {
+  if (!ws || ws.readyState !== 1 || roomsWait) return api('/krooms');
+  return new Promise((res) => {
+    const t = setTimeout(() => { roomsWait = null; api('/krooms').then(res); }, 2500);
+    roomsWait = (L) => { clearTimeout(t); roomsWait = null; res({ ok: true, rooms: L }); };
+    send({ e: 'kr' });
+  });
+}
 let turnP = null, turnIce = [];
 // relay details from our server; waits at most 2.5 s so a slow network never holds up making or joining a room
 export function turnReady(add) {

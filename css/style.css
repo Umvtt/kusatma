@@ -1017,17 +1017,18 @@ body.touch .fps { bottom: auto; top: 2px; }
 body.touch .mode-tag, body.touch .mev-chip { position: static !important; margin-top: 5px; font-size: 11px; padding: 2px 7px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 
 /* kill feed and streaks */
-.kfeed { position: absolute; right: 16px; top: 150px; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; pointer-events: none; z-index: 2; }
+.kfeed { position: absolute; right: 16px; top: var(--mm-b, 150px); max-width: min(320px, 40vw); list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; pointer-events: none; z-index: 2; }
 .kfeed li { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; background: rgba(10,13,12,.72); border: 1px solid rgba(255,255,255,.06); font-size: 12.5px; color: var(--dim); white-space: nowrap; animation: kfIn .2s ease-out; transition: opacity .4s, transform .4s; }
 .kfeed li b { color: var(--text); font-weight: 700; }
 .kfeed li.me { border-color: rgba(255,107,44,.45); }
-.kfeed li.boss { color: #ffd6a8; border-color: rgba(255,180,80,.5); }
+.kfeed li.kf-boss { color: #ffd6a8; border-color: rgba(255,180,80,.5); background: rgba(40,22,8,.8); }
+.kfeed li { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .kfeed .kf-x { color: var(--accent); font-weight: 800; }
 .kfeed li.out { opacity: 0; transform: translateX(12px); }
 @keyframes kfIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
-body.touch .kfeed { top: 128px; right: 12px; }
+body.touch .kfeed { top: var(--mm-b, 128px); right: 16px; }
 body.touch .kfeed li { font-size: 11px; padding: 3px 8px; }
-@media (max-width: 760px) { body.touch .kfeed { top: 108px; } }
+
 .streak { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 3; text-shadow: 0 2px 12px rgba(0,0,0,.6); }
 .streak strong { font: 800 30px var(--display, var(--body)); color: #ffb35c; letter-spacing: .02em; }
 .streak span { font-size: 13px; font-weight: 700; color: var(--text); opacity: .85; }
@@ -1311,3 +1312,23 @@ body.authing #menu .menu-wrap, body.authing #menu .lp-top { visibility: hidden; 
 .legal-links a:hover, .legal-links button:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 .set-legal { justify-content: flex-start; margin: 2px 0 8px; }
 body.playing .ck-bar { display: none; }
+
+/* extra gems for harder difficulties and modes, under the option's name */
+.gem-x { display: block; margin-top: 2px; font-size: 11px; font-weight: 700; color: #7fe3ff; letter-spacing: .02em; }
+.chip-opt .gem-x { display: inline; margin: 0 0 0 6px; font-size: 11px; }
+
+/* invites: easy to send, impossible to miss */
+.inv-slot { display: flex; flex-direction: column; gap: 8px; color: var(--dim); }
+.inv-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+#inv-all { width: 100%; margin-top: 8px; }
+.inv-pop { padding-right: 40px; z-index: 125; }
+.inv-pop.pulse { animation: invIn .35s ease-out, invPulse 1.6s ease-in-out .4s 3; }
+@keyframes invPulse { 50% { box-shadow: 0 16px 40px rgba(0,0,0,.55), 0 0 0 6px rgba(255,138,61,.25); } }
+.inv-x { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--dim); font-size: 20px; line-height: 1; cursor: pointer; }
+.inv-x:hover { background: rgba(255,255,255,.08); color: var(--text); }
+
+/* phones and the app: no grey flash on taps, no callout or text selection on long press, buttons react at once */
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body.touch { -webkit-touch-callout: none; overscroll-behavior: none; }
+body.touch button, body.touch .btn, body.touch [role="tab"], body.touch a { -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+body.touch .btn:not(.t-btn):active { transform: scale(.97); }
