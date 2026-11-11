@@ -65,7 +65,7 @@ export function drawAvatar(cv, eq, opts = {}) {
   g.strokeStyle = gr; g.lineWidth = Math.max(2.5, S / 16);
   g.beginPath(); g.arc(r, r, r - g.lineWidth / 2, 0, Math.PI * 2); g.stroke();
 }
-function avatar(eq, size, cls) { const c = el('canvas', 'av'); drawAvatar(c, eq, { size, cls }); return c; }
+function avatar(eq, size, cls) { const c = el('canvas', 'av'); drawAvatar(c, eq, { size, cls, noPet: size < 60 }); return c; }
 const lvlBadge = (l) => el('span', 'lvl-b', String(l || 1));
 
 // ---------- themes ----------
@@ -804,8 +804,8 @@ function itemCard(id, big, o = {}) {
   const b = el('button', `item-card r-${it.r}${big ? ' big' : ''}${have && !o.equip ? ' owned' : ''}`); b.type = 'button';
   const pv = el('div', 'ic-prev');
   if (kind === 'c') { const cv = el('canvas'); drawClassPic(cv, it.cls, big ? 110 : 96, {}); pv.append(cv); }
-  else if (kind === 'h' || kind === 'r' || kind === 'w') { const cv = el('canvas'); const eq = Object.assign({}, ME.eq, { [SLOT_OF[kind].k]: id }); drawAvatar(cv, eq, { size: big ? 110 : 84, cls: kind === 'w' ? heroCls() : 'asker', angle: kind === 'w' ? -0.25 : -0.55 }); pv.append(cv); }
-  else if (kind === 'f') { const cv = el('canvas'); drawAvatar(cv, Object.assign({}, ME.eq, { frm: id }), { size: big ? 110 : 84 }); pv.append(cv); }
+  else if (kind === 'h' || kind === 'r' || kind === 'w') { const cv = el('canvas'); const eq = Object.assign({}, ME.eq, { [SLOT_OF[kind].k]: id }); drawAvatar(cv, eq, { noPet: true, size: big ? 110 : 84, cls: kind === 'w' ? heroCls() : 'asker', angle: kind === 'w' ? -0.25 : -0.55 }); pv.append(cv); }
+  else if (kind === 'f') { const cv = el('canvas'); drawAvatar(cv, Object.assign({}, ME.eq, { frm: id }), { noPet: true, size: big ? 110 : 84 }); pv.append(cv); }
   else if (kind === 'n') { const n = nameEl(ACCT.name, { nc: id }, 'span', 'nm big'); pv.append(n); }
   else if (kind === 'u') { pv.append(el('span', 'ttl-prev', it.name)); }
   else if (kind === 't') { const sw = el('div', 'theme-sw'); sw.dataset.theme = id.slice(2); pv.append(sw); }
