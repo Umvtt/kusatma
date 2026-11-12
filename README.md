@@ -2,7 +2,13 @@
 
 Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda çalışan ortak bir hayatta kalma oyunu. 15 kişiye kadar oynanır, kurulum ya da hesap gerekmez.
 
-https://umvtt.github.io/kusatma/ /////// https://umvtt-games.umvtt.deno.net/kusatma/
+Oyna:
+
+- https://umvtt.github.io/kusatma/ (ana site)
+- https://kusatma.umvtt.workers.dev/ (yedek)
+- https://umvtt-games.umvtt.deno.net/kusatma/ (okul aynası)
+
+Üç adres de aynı oyunu ve aynı sunucuyu kullanır; birine ulaşamazsan diğerini dene.
 
 ## Nasıl oynanır
 
@@ -145,6 +151,10 @@ Cephanelik dört sekmedir: **Silah**, **Gelişim**, **Eşya**, **Takım**.
 1. Depoda **Settings → Pages**'e git.
 2. **Source** olarak **Deploy from a branch** seç, **main** dalını ve **/ (root)** klasörünü seçip kaydet.
 3. Bir dakika içinde oyun `https://<kullanıcı-adı>.github.io/kusatma/` adresinde açılır.
+
+## workers.dev yedeği
+
+`https://kusatma.umvtt.workers.dev/` aynı dosyaları Cloudflare'den sunar (`wrangler.toml`, `.assetsignore`). `main` dalına her gönderimde `.github/workflows/workers-site.yml` siteyi oraya da yükler. Bunun için depoda iki gizli değer gerekir: `CLOUDFLARE_API_TOKEN` (yalnızca Workers yükleme yetkisi olan bir token) ve `CLOUDFLARE_ACCOUNT_ID`. Bunlar yoksa yükleme adımı atlanır.
 
 ## Yerelde çalıştırma
 
