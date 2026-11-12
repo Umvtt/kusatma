@@ -34,6 +34,7 @@ Kuşatma is a co-op top-down zombie survival game for the browser (1–15 player
 - After edits, `node --check` every changed module.
 - Test in a headless browser (Playwright) on desktop and on phones (390×844 and 844×390), with the local server (miniflare) for anything that talks to the server; check for page errors.
 - Balance changes should be checked with quick simulations, not guesses.
+- Every update also updates `README.md` (Turkish, player-facing: classes, maps, modes, zombies, weapons, gems, technical notes, the three site addresses) so it matches the build; check it against the code, not memory.
 - Commit messages: a Turkish title and short player-facing `- ` bullets.
 - The owner speaks English and Turkish (lives in Turkey), plays on desktop and phone, and plays co-op with friends. Ask before big features or anything destructive; never push before the owner approves when they ask for that.
 - After every update, end the reply with the links (in chat only; never write the panel's address into the repo): the admin panel, Kuşatma https://umvtt.github.io/kusatma/, the school mirror https://umvtt-games.umvtt.deno.net/, the workers.dev copy https://kusatma.umvtt.workers.dev/.
