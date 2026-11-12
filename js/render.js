@@ -230,12 +230,28 @@ export class Renderer {
         g.fillStyle = p.col;
         g.beginPath(); g.arc(p.x, p.y, p.size, 0, Math.PI * 2); g.fill();
         g.globalAlpha = 1;
-      } else if (p.kind === 'slash') { // a sword swing: a bright crescent
+      } else if (p.kind === 'slash') { // a sword swing: the blade's path as a crescent that sweeps across the arc
         g.save(); g.translate(p.x, p.y); g.rotate(p.a);
-        const sw = (1 - kk) * 1.6 - 0.8;
-        g.globalAlpha = kk * 0.9; g.strokeStyle = p.col; g.lineWidth = 7 * kk + 2; g.lineCap = 'round';
-        g.beginPath(); g.arc(0, 0, p.size * 0.82, sw - 0.9, sw + 0.35); g.stroke();
-        g.globalAlpha = kk * 0.35; g.lineWidth = 16 * kk; g.beginPath(); g.arc(0, 0, p.size * 0.7, sw - 0.8, sw + 0.3); g.stroke();
+        const t = 1 - kk, e = 1 - (1 - Math.min(1, t * 1.6)) ** 3, A = p.arc || 1, dir = p.sd ? -1 : 1;
+        const a0 = dir * A, a1 = dir * (A - 2 * A * e), lo = Math.min(a0, a1), hi = Math.max(a0, a1), R = p.size, Ri = R * 0.38;
+        if (hi - lo > 0.02) {
+          // the swept area: soft fill fading out behind the blade
+          const gr = g.createRadialGradient(0, 0, Ri, 0, 0, R);
+          gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.7, p.col); gr.addColorStop(1, 'rgba(255,255,255,0.9)');
+          g.globalAlpha = 0.32 * kk; g.fillStyle = gr;
+          g.beginPath(); g.arc(0, 0, R, lo, hi); g.arc(0, 0, Ri, hi, lo, true); g.closePath(); g.fill();
+          // the outer edge, brightest where the blade is now
+          g.lineCap = 'round'; g.strokeStyle = p.col;
+          g.globalAlpha = 0.85 * kk; g.lineWidth = 5;
+          g.beginPath(); g.arc(0, 0, R * 0.97, lo, hi); g.stroke();
+          g.globalAlpha = kk; g.strokeStyle = '#ffffff'; g.lineWidth = 2;
+          const lead = a1, back = a1 - dir * Math.min(0.5, hi - lo);
+          g.beginPath(); g.arc(0, 0, R * 0.97, Math.min(lead, back), Math.max(lead, back)); g.stroke();
+          // the blade itself at its current angle, and a spark at the tip
+          g.globalAlpha = kk; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 3;
+          g.beginPath(); g.moveTo(Math.cos(a1) * Ri, Math.sin(a1) * Ri); g.lineTo(Math.cos(a1) * R, Math.sin(a1) * R); g.stroke();
+          g.fillStyle = '#fff'; g.beginPath(); g.arc(Math.cos(a1) * R, Math.sin(a1) * R, 3.5 * kk + 1, 0, Math.PI * 2); g.fill();
+        }
         g.restore(); g.globalAlpha = 1; g.lineCap = 'butt';
       } else if (p.kind === 'shard') {
         g.globalAlpha = kk;
@@ -1169,7 +1185,7 @@ function drawPlayer(g, game, pid, p, info, alive) {
   const cls = info ? info.cls : 'asker';
   const col = info ? info.color : '#ccc';
   const fx = game.fx.get(pid);
-  const fxk = fx && game.time < fx.until ? fx.k : (p.shield ? 'shield' : null);
+  const fxk = fx && game.time < fx.until ? fx.k : (p.pfl & 8) ? 'spin' : (p.shield ? 'shield' : null);
   const pv = game.pv, foe = !!pv && pid !== game.me && (pv[0] === 'ffa' || p.tm !== game.self.tm);
   // an Ajan in the shadows: faint to friends, almost nothing to enemies (gone when far away)
   let alpha = 1;
@@ -1189,9 +1205,30 @@ function drawPlayer(g, game, pid, p, info, alive) {
     if (p.pfl & 4) { g.fillStyle = '#4cf0d0'; g.font = '700 11px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('⦸', 0, -34); }
   }
   if (p.flash > 0) { p.flash -= 1 / 60; g.fillStyle = 'rgba(255,90,90,0.35)'; g.beginPath(); g.arc(0, 0, 22, 0, Math.PI * 2); g.fill(); }
-  if (alive && fxk === 'spin') { // the Kılıççı's whirlwind
-    g.strokeStyle = 'rgba(232,241,255,0.55)'; g.lineWidth = 4;
-    for (let i = 0; i < 3; i++) { const a0 = game.time * 14 + i * 2.1; g.beginPath(); g.arc(0, 0, 70 + i * 14, a0, a0 + 1.1); g.stroke(); }
+  if (alive && fxk === 'spin') { // the Kılıççı's whirlwind (Kasırga): the blade circles all around, everything inside is cut
+    const T = game.time, R = 64, sp = T * 16;
+    // the ground under the storm
+    const gr = g.createRadialGradient(0, 0, 18, 0, 0, R + 18);
+    gr.addColorStop(0, 'rgba(232,241,255,0)'); gr.addColorStop(0.75, 'rgba(232,241,255,0.10)'); gr.addColorStop(1, 'rgba(232,241,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, R + 18, 0, Math.PI * 2); g.fill();
+    g.setLineDash([10, 14]); g.lineDashOffset = -T * 120; g.strokeStyle = 'rgba(232,241,255,0.35)'; g.lineWidth = 2;
+    g.beginPath(); g.arc(0, 0, R + 10, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+    // the blade's trail: a fading sweep behind it, two passes for the doubled image of a fast spin
+    g.lineCap = 'round';
+    for (const off of [0, Math.PI]) {
+      for (let k = 0; k < 7; k++) {
+        const a = sp + off - k * 0.16;
+        g.globalAlpha = (1 - k / 7) * 0.55; g.strokeStyle = k === 0 ? '#ffffff' : '#e8f1ff'; g.lineWidth = k === 0 ? 4 : 6 - k * 0.6;
+        g.beginPath(); g.arc(0, 0, R - 6, a - 0.16, a); g.stroke();
+      }
+      const a = sp + off;
+      g.globalAlpha = 0.9; g.strokeStyle = '#ffffff'; g.lineWidth = 2.5;
+      g.beginPath(); g.moveTo(Math.cos(a) * 20, Math.sin(a) * 20); g.lineTo(Math.cos(a) * (R + 2), Math.sin(a) * (R + 2)); g.stroke();
+    }
+    // wind streaks
+    g.strokeStyle = 'rgba(232,241,255,0.4)'; g.lineWidth = 1.5;
+    for (let i = 0; i < 5; i++) { const a0 = T * 9 + i * 1.257, r = 34 + ((i * 13 + T * 60) % 34); g.globalAlpha = 0.25 + 0.3 * Math.sin(T * 7 + i); g.beginPath(); g.arc(0, 0, r, a0, a0 + 0.7); g.stroke(); }
+    g.globalAlpha = alpha; g.lineCap = 'butt';
   }
   if (alive && fxk && fxk !== 'shadow' && fxk !== 'spin') drawAura(g, fxk, game.time);
   if (alive && p.power > 0) { g.fillStyle = `rgba(255,107,44,${0.18 + 0.1 * Math.sin(game.time * 10)})`; g.beginPath(); g.arc(0, 0, 30, 0, Math.PI * 2); g.fill(); }
@@ -1210,7 +1247,8 @@ function drawPlayer(g, game, pid, p, info, alive) {
   }
   g.scale(1.15, 1.15);
   const eq = (info && info.eq) || {};
-  drawCharacter(g, cls, col, alive ? (fxk === 'spin' ? game.time * 16 : p.a || 0) : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time, hat: eq.hat, wsk: eq.wsk });
+  const swg = cls === 'kilicci' && game.swings && game.swings.get(pid), swp = swg ? (game.time - swg.t) / 0.2 : -1;
+  drawCharacter(g, cls, col, alive ? (fxk === 'spin' ? game.time * 16 : p.a || 0) : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time, hat: eq.hat, wsk: eq.wsk, sw: swp, sd: swg ? swg.d : 0 });
   g.restore();
 }
 
@@ -1302,6 +1340,12 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
   const thrust = opts.bash > 0 ? Math.sin((1 - opts.bash / 0.25) * Math.PI) * 9 : 0;
   g.save();
   if (thrust) g.translate(thrust, 0);
+  // a sword swing: the blade sweeps from one side to the other (opts.sw: 0..1 through the swing, opts.sd: direction)
+  if (opts.sw != null && opts.sw >= 0 && opts.sw < 1) {
+    const e = 1 - (1 - opts.sw) ** 3, from = 1.25, to = -1.05;
+    g.rotate((opts.sd ? -1 : 1) * (from + (to - from) * e));
+    g.translate(Math.sin(opts.sw * Math.PI) * 4, 0);
+  }
   drawWeapon(g, cls, COS[opts.wsk]);
   if (opts.wt) drawWeaponMod(g, cls, opts.wt, opts.wp || 1, opts.time || 0, opts.wb || 0);
   drawArms(g, cls, dark);

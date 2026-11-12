@@ -407,7 +407,7 @@ export class ClientGame {
         this.abLock = 0.6;
         const ax = S.x + Math.cos(S.a) * 40, ay = S.y + Math.sin(S.a) * 40;
         this.send({ t: 'ab', x: Math.round(ax), y: Math.round(ay) });
-        const k = { asker: 'rage', nisanci: 'focus', izci: 'sprint', kalkanci: 'shield' }[cls];
+        const k = { asker: 'rage', nisanci: 'focus', izci: 'sprint', kalkanci: 'shield', kilicci: 'spin' }[cls];
         if (k) { this.fx.set(this.me, { k, until: this.time + abDur(cls, S.lv.ab) }); this.ring(S.x, S.y, AB_COL[cls], 60); }
         if (cls !== 'doktor' && cls !== 'alevci') sfx.ability(cls, S.x, S.y);
       }
@@ -618,14 +618,19 @@ export class ClientGame {
       this.dealPHit(pid, p, crit ? dmg * critX : dmg, 9, crit);
       this.blood(p.x, p.y, S.a, 5);
     }
-    this.slash(S.x, S.y, S.a, reach, c.col || '#e8f1ff', true);
+    this.slash(S.x, S.y, S.a, reach, c.col || '#e8f1ff', true, arc, this.swingMark(this.me));
     this.shotsQ.push([Math.round(S.x), Math.round(S.y), Math.round(S.a * 100) / 100]);
     if (n || this.pHitMark > 0.15) this.shake = Math.min(8, this.shake + 2);
     sfx.bash(S.x, S.y, true);
   }
-  slash(x, y, a, reach, col, mine) {
+  // remember a swing so the player's sword arm can sweep across; swings go left and right in turn
+  swingMark(pid) {
+    const m = this.swings || (this.swings = new Map()), old = m.get(pid), d = old && this.time - old.t < 0.9 ? 1 - old.d : 0;
+    m.set(pid, { t: this.time, d }); return d;
+  }
+  slash(x, y, a, reach, col, mine, arc, dir) {
     if (this.parts.length > QUAL.parts) return;
-    this.addPart({ x, y, vx: 0, vy: 0, life: 0.16, max: 0.16, col: col || '#e8f1ff', size: reach, kind: 'slash', a, mine: !!mine });
+    this.addPart({ x, y, vx: 0, vy: 0, life: 0.22, max: 0.22, col: col || '#e8f1ff', size: reach, kind: 'slash', a, mine: !!mine, arc: arc || 1, sd: dir | 0 });
   }
   // the Hacker's bullets turn toward the nearest target ahead of them
   steer(b, dt, foes) {
@@ -658,7 +663,7 @@ export class ClientGame {
     const cls = this.clsOf(pid);
     const pl = this.ps.get(pid);
     const c = weaponOf(cls, pl ? pl.wt : 0, pl ? pl.wp : 0, pl ? pl.wb : 0);
-    if (c.kind === 'm') { this.slash(x, y, a, c.reach, c.col || '#e8f1ff'); sfx.bash(x, y, false); return; }
+    if (c.kind === 'm') { this.slash(x, y, a, c.reach, c.col || '#e8f1ff', false, c.arc, this.swingMark(pid)); sfx.bash(x, y, false); return; }
     if (c.kind === 'f') this.flameAt.set(pid, { t: this.time, x, y });
     for (let i = 0; i < c.pellets; i++) this.bullets.push(this.makeBullet(c, x, y, a, 0, c.pierce, false));
     if (c.kind !== 'f') this.flash(x, y, a);
