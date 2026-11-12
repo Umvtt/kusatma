@@ -1455,7 +1455,10 @@ function buildTeamTab(list, g) {
       bt.textContent = maxed ? 'Tamamlandı ✓' : `${fmt(fund)} / ${fmt(cost)} · Seviye ${ROMAN[lv + 1]} için`;
       li.classList.toggle('maxed', maxed);
       give.disabled = maxed || !alive() || gold() <= 0;
-      giveT.textContent = `${Math.min(TEAM_CHUNK, Math.max(left, 1))} koy`;
+      // the button names exactly what it will take: never more than you have or than the level still needs
+      const put = Math.max(0, Math.min(TEAM_CHUNK, left, Math.floor(gold())));
+      giveT.textContent = `${fmt(Math.max(put, 1))} koy`;
+      give.title = put < TEAM_CHUNK && put < left ? `Altının yetmiyor: ${fmt(put)} koyabilirsin` : '';
       all.disabled = maxed || !alive() || gold() < left || left <= 0;
       allT.textContent = maxed ? 'Tamam' : `${fmt(left)} ile tamamla`;
       row.hidden = maxed;
