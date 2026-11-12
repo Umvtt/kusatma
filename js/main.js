@@ -1,5 +1,5 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
+import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, APP_BUILD, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
@@ -378,6 +378,7 @@ function renderLobby() {
     const nc = p.eq && COS[p.eq.nc] ? COS[p.eq.nc].c : null;
     if (nc === 'rainbow') pn.classList.add('rainbow'); else if (nc) pn.style.color = nc;
     if (p.lvl) pn.prepend(el('span', 'lvl-b', String(p.lvl)));
+    if (p.ct) pn.prepend(el('span', 'clan-t', '[' + p.ct + ']'));
     const tt = titleOf(p.eq);
     nm.append(pn, el('small', '', CLASSES[p.cls].name + (tt ? ' · ' + tt : '')));
     let chip;
@@ -1846,6 +1847,14 @@ if (/Android/i.test(navigator.userAgent) && !IN_APP && !/[?&](debug|nogetapp)/.t
 document.addEventListener('focusin', (e) => { if (IS_TOUCH && e.target.matches('.confirm input, .dm input')) { document.body.classList.add('kb'); setTimeout(() => e.target.scrollIntoView({ block: 'center' }), 250); } });
 document.addEventListener('focusout', () => setTimeout(() => { if (!document.activeElement || !document.activeElement.matches('.confirm input, .dm input')) document.body.classList.remove('kb'); }, 100));
 $('#acct-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#acct-pw').focus(); } });
+// the app download is named after the app's build; the app's "important update" screen opens the site with ?guncelle=1
+{ const f = `app/kusatma-${APP_BUILD}.0.apk`, n = `Kuşatma ${APP_BUILD}.0.apk`;
+  for (const a of document.querySelectorAll('a[href="app/kusatma.apk"]')) { a.href = f; a.download = n; }
+  if (/[?&]guncelle=1/.test(location.search)) {
+    $('#getapp').hidden = false; $('.ga-h').textContent = 'Önemli güncelleme'; $('#ga-dl').textContent = 'Güncelle';
+    $('.ga-list').replaceChildren(el('li', '', 'Uygulamanın yeni sürümü gerekiyor'), el('li', '', 'Hesabın ve ilerlemen aynı kalır'), el('li', '', 'Eskisini silmene gerek yok, üstüne kurulur'));
+    $('.ga-how').textContent = 'Güncelle\'ye bas, inen "' + n + '" dosyasını aç ve Güncelle\'ye dokun.';
+  } }
 const gaDone = () => { $('#getapp').hidden = true; try { sessionStorage.setItem('kusatma-getapp', '1'); } catch (e) { /* ignore */ } };
 $('#ga-skip').onclick = gaDone;
 $('#ga-dl').addEventListener('click', () => { setTimeout(() => { $('#ga-dl').textContent = 'İndiriliyor… Bitince dosyayı aç'; }, 300); });
@@ -2235,6 +2244,9 @@ if (!WATCH) liveStart({
   },
   onGift: (name, n) => { if (S.host) S.host.adminGift(name, n); },
   onBan: () => { blockUi(); if (online()) leave(''); },
+  onClv: (c, l, g) => { toast(`${(CLASSES[c] || {}).name || c} seviye ${l}! +${g} elmas`, 'good'); },
+  onClan: () => { acctCheck().then(() => { if (/\/oyun\/klan\/?$/.test(location.pathname)) dashGo('clan'); }); },
+  onCinv: (n, by) => { toast(`${by} seni ${n} klanına davet etti. Klan sayfasından katılabilirsin.`, 'good'); acctCheck(); },
   onPvp: (d) => { S.pvpRank = { rp: d.rp | 0, d: d.d | 0, up: !!d.up }; if (S.screen === 'over' && S.over && S.over.pvp) renderOver(); if (d.up) toast(`Yeni lig: ${league(d.rp).name}!`, 'good'); },
   onGem: (n, xp, cap) => {
     S.gameGems = (S.gameGems | 0) + n;

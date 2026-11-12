@@ -158,7 +158,7 @@ export class HostGame {
       players: [...this.players.values()].map((p) => ({
         pid: p.pid, name: p.name, cls: p.cls, ready: p.ready, color: p.color, inGame: p.inGame || !!p.ghost, away: !!p.ghost,
         eq: p.eq || {}, lvl: p.lvl || 0, acct: p.acct ? 1 : 0, tm: p.tm | 0,
-        vo: p.vo ? 1 : 0, vp: p.vo ? (p.pid === this.hostPid ? (this.net.peer && this.net.peer.id) || null : (this.net.peerIdOf ? this.net.peerIdOf(p.pid) : null)) : null,
+        ct: p.ct || '', vo: p.vo ? 1 : 0, vp: p.vo ? (p.pid === this.hostPid ? (this.net.peer && this.net.peer.id) || null : (this.net.peerIdOf ? this.net.peerIdOf(p.pid) : null)) : null,
       })),
     };
   }
@@ -191,7 +191,7 @@ export class HostGame {
     const info = await checkPass(pass);
     const p = this.players.get(pid);
     if (!p || !info || nkey(info.name) !== nkey(p.name)) return;
-    p.own = info.own; p.eq = info.eq; p.lvl = info.lvl; p.acct = info.id;
+    p.own = info.own; p.eq = info.eq; p.lvl = info.lvl; p.acct = info.id; p.ct = info.ct || '';
     const want = info.eq.col && COS[info.eq.col] ? COS[info.eq.col].c : null;
     if (want && ![...this.players.values()].some((q) => q !== p && q.color === want)) p.color = want;
     this.pushRoster();

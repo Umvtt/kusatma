@@ -351,6 +351,11 @@ public class MainActivity extends Activity {
     }
 
     /** app/version.json on the site holds the newest app number; a higher number than this app's means a new APK is out. */
+    /**
+     * The app only asks for an update when it has to: app/version.json carries "min", the oldest app build that may still
+     * be used. Below it (an important change, such as a new permission) a screen that can't be skipped sends the player to
+     * the site's update page; above it nothing is ever asked, because the game itself always comes fresh from the site.
+     */
     private void checkForNewApp() {
         new Thread(() -> {
             try {
@@ -363,17 +368,20 @@ public class MainActivity extends Activity {
                     while ((line = r.readLine()) != null) sb.append(line);
                 }
                 JSONObject j = new JSONObject(sb.toString());
-                int latest = j.optInt("v", 0);
-                if (latest <= BuildConfig.VERSION_CODE) return;
+                int min = j.optInt("min", 0);
+                if (min <= BuildConfig.VERSION_CODE) return;
                 String notes = j.optString("notes", "");
                 ui.postDelayed(() -> new AlertDialog.Builder(this)
-                    .setTitle("Uygulama güncellemesi")
-                    .setMessage("Kuşatma uygulamasının yeni sürümü çıktı." + (notes.isEmpty() ? "" : "\n\n" + notes) + "\n\nOyunun kendisi zaten hep güncel; bu sadece uygulamayı yeniler.")
-                    .setPositiveButton("Güncelle", (d, w) -> downloadUpdate())
-                    .setNegativeButton("Sonra", null)
-                    .show(), 1500);
+                    .setTitle("Önemli güncelleme")
+                    .setMessage("Kuşatma'nın bu sürümü artık kullanılamıyor. Oynamaya devam etmek için uygulamayı güncelle." + (notes.isEmpty() ? "" : "\n\n" + notes) + "\n\nHesabın ve ilerlemen aynı kalır.")
+                    .setCancelable(false)
+                    .setPositiveButton("Güncelle", (d, w) -> {
+                        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(SITES[0] + "?guncelle=1"))); } catch (Exception ignored) { }
+                        finish();
+                    })
+                    .show(), 800);
             } catch (Exception ignored) {
-                // offline or no release yet
+                // offline: play on
             }
         }).start();
     }

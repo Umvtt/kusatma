@@ -1695,12 +1695,13 @@ function drawTag(g, p, info, isMe, game) {
   g.font = '600 12px Rubik, system-ui, sans-serif';
   g.textAlign = 'center';
   g.fillStyle = 'rgba(0,0,0,0.75)';
-  g.fillText(info.name, p.x + 1, y - 5);
+  const tagged = info.ct ? `[${info.ct}] ${info.name}` : info.name;
+  g.fillText(tagged, p.x + 1, y - 5);
   const nc = info.eq && COS[info.eq.nc] ? COS[info.eq.nc].c : null;
   g.fillStyle = !p.alive ? '#9aa39a' : pv ? (isMe ? '#ffffff' : foe ? '#ff7b7f' : '#8fdcff') : nc === 'rainbow' ? `hsl(${(performance.now() / 8) % 360},90%,65%)` : nc || (isMe ? '#ffffff' : info.color);
-  g.fillText(info.name, p.x, y - 6);
+  g.fillText(tagged, p.x, y - 6);
   if (p.wt > 0) { // weapon level badge after the name
-    const tw = g.measureText(info.name).width;
+    const tw = g.measureText(tagged).width;
     const bx = p.x + tw / 2 + 4, by = y - 16, txt = ROMAN[p.wt] || '';
     g.font = '700 9px Rubik, system-ui, sans-serif';
     const bw = g.measureText(txt).width + 7;

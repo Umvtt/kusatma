@@ -34,6 +34,10 @@ const keepMe = (j) => {
   ME.ls = Math.max(0, Math.min(7, j.ls | 0)); if (Array.isArray(j.lsm) && j.lsm.length === 7) ME.lsm = j.lsm.map((x) => +x || 1);
   if ('bio' in j) ME.bio = String(j.bio || '').slice(0, 120);
   if (Array.isArray(j.show)) ME.show = j.show.map((x) => String(x).slice(0, 4)).slice(0, 3);
+  if (j.cx && typeof j.cx === 'object') { ME.cx = {}; for (const [k, v] of Object.entries(j.cx)) if (/^[a-z]{2,12}$/.test(k)) ME.cx[k] = Math.max(0, v | 0); }
+  if (Array.isArray(j.bdg)) ME.bdg = j.bdg.filter((x) => typeof x === 'string').map((x) => x.slice(0, 4)).slice(0, 40);
+  if ('clan' in j) ME.clan = j.clan && typeof j.clan === 'object' ? { id: String(j.clan.id || '').slice(0, 12), tag: String(j.clan.tag || '').slice(0, 4) } : null;
+  if (Array.isArray(j.cinv)) ME.cinv = j.cinv.slice(0, 10).map((x) => ({ c: String(x.c || '').slice(0, 12), n: String(x.n || '').slice(0, 20), t: String(x.t || '').slice(0, 4), by: String(x.by || '').slice(0, 16) }));
   if (j.pvp && typeof j.pvp === 'object') { const v = j.pvp, n = (x) => Math.max(0, x | 0); ME.pvp = { rp: n(v.rp), w: n(v.w), l: n(v.l), dr: n(v.dr), k: n(v.k), dt: n(v.dt), m: n(v.m), best: n(v.best), last: v.last && typeof v.last === 'object' ? { lg: Math.min(4, n(v.last.lg)), rp: n(v.last.rp), cl: v.last.cl ? 1 : 0, s: String(v.last.s || '').slice(0, 7) } : null }; }
   if (j.spin && typeof j.spin === 'object') ME.spin = { free: !!j.spin.free, n: Math.max(0, j.spin.n | 0) };
   if ('dc' in j) ME.dc = j.dc && typeof j.dc === 'object' ? { w: Math.max(0, j.dc.w | 0), k: Math.max(0, j.dc.k | 0) } : null;
@@ -93,16 +97,19 @@ function onData(raw) {
   if (!d || typeof d !== 'object') return;
   if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; LIVE.filter = Array.isArray(d.cfg && d.cfg.filter) ? d.cfg.filter.slice(0, 400).map((x) => str(x, 24)).filter(Boolean) : []; const shop0 = JSON.stringify(LIVE.shop || null); if (d.cfg && d.cfg.shop) LIVE.shop = cleanShop(d.cfg.shop); LIVE.on = Math.max(0, Math.min(1e6, (d.cfg && d.cfg.on) | 0)); H.onCfg(JSON.stringify(LIVE.shop || null) !== shop0); }
   else if (d.e === 'rooms') { if (roomsWait) roomsWait(cleanRooms(d.L)); }
+  else if (d.e === 'clv') { if (Array.isArray(d.L)) for (const r of d.L.slice(0, 20)) { ME.gems += r.g | 0; if (H.onClv) H.onClv(String(r.c || '').slice(0, 12), r.l | 0, r.g | 0); } }
+  else if (d.e === 'clan') { if (H.onClan) H.onClan(); }
+  else if (d.e === 'cinv') { sysNotify('Klan daveti', `${str(d.by, 16)} seni ${str(d.n, 20)} klanına çağırıyor.`); if (H.onCinv) H.onCinv(str(d.n, 20), str(d.by, 16)); }
   else if (d.e === 'pvp') { ME.gems += Math.max(0, d.g | 0); ME.pvp = Object.assign({}, ME.pvp || {}, { rp: d.rp | 0 }); if (H.onPvp) H.onPvp(d); }
   else if (d.e === 'gem') { const n = Math.max(0, d.n | 0); ME.gems += n; ME.gd += n; addXp(Math.max(0, d.xp | 0)); if (H.onGem) H.onGem(n, d.xp | 0, !!d.cap); }
   else if (d.e === 'fl') { if (H.onFriends) H.onFriends(cleanFl(d)); }
-  else if (d.e === 'dm') { if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
+  else if (d.e === 'dm') { sysNotify(str(d.n, 16), str(d.x, 120)); if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
   else if (d.e === 'dmh') { const w = DMW.get(str(d.w, 12)); if (w) { DMW.delete(str(d.w, 12)); w(d.ok ? cleanMsgs(d.L) : null); } }
   else if (d.e === 'dmok') { const w = DMW.get('c' + (d.c | 0)); if (w) { DMW.delete('c' + (d.c | 0)); w(d); } }
   else if (d.e === 'lvl') { if (Array.isArray(d.L)) for (const r of d.L.slice(0, 20)) { ME.gems += r.g | 0; if (r.it && ITEMS[r.it] && !ME.own.includes(r.it)) ME.own.push(r.it); if (H.onRoad) H.onRoad(r.l | 0, r.g | 0, ITEMS[r.it] ? r.it : ''); } }
-  else if (d.e === 'inv') { if (H.onInv) H.onInv({ fid: str(d.fid, 12), f: str(d.f, 16), room: str(d.room, 6).toUpperCase().replace(/[^A-Z0-9]/g, ''), rn: str(d.rn, 24), n: d.n | 0, mx: d.mx | 0, eq: d.eq && typeof d.eq === 'object' ? cleanEq(d.eq) : {} }); }
+  else if (d.e === 'inv') { sysNotify('Oda daveti', `${str(d.f, 16)} seni odasına çağırıyor.`); if (H.onInv) H.onInv({ fid: str(d.fid, 12), f: str(d.f, 16), room: str(d.room, 6).toUpperCase().replace(/[^A-Z0-9]/g, ''), rn: str(d.rn, 24), n: d.n | 0, mx: d.mx | 0, eq: d.eq && typeof d.eq === 'object' ? cleanEq(d.eq) : {} }); }
   else if (d.e === 'invok') { const w = DMW.get('i' + str(d.to, 12)); if (w) { DMW.delete('i' + str(d.to, 12)); w(d); } }
-  else if (d.e === 'fr') { if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }
+  else if (d.e === 'fr') { if (d.k !== 'acc') sysNotify('Arkadaşlık isteği', `${str(d.n, 16)} seni arkadaş olarak eklemek istiyor.`); if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }
   else if (d.e === 'msg') H.onMsg(str(d.text, 300), str(d.title, 120));
   else if (d.e === 'kick') H.onKick(str(d.text, 200));
   else if (d.e === 'ban') { LIVE.ban = str(d.text, 120); try { localStorage.setItem(BAN_KEY, LIVE.ban); } catch (e) { /* ignore */ } H.onBan(); }
@@ -298,6 +305,21 @@ export async function diagRun(step) {
 
 // a finished game (only the host's report counts it as a game; everyone's counts for the best wave)
 // the room's host reports a finished PvP match; the server rates the signed-in players in the room
+// browser notifications: only when the player switched them on, allowed them, and the game is in a background tab
+export const sysNotifyOn = () => { try { return localStorage.getItem('kusatma-sysbildirim') === '1' && typeof Notification !== 'undefined' && Notification.permission === 'granted'; } catch (e) { return false; } };
+export async function sysNotifySet(on) {
+  try {
+    if (!on) { localStorage.setItem('kusatma-sysbildirim', '0'); return true; }
+    if (typeof Notification === 'undefined') return false;
+    const p = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    localStorage.setItem('kusatma-sysbildirim', p === 'granted' ? '1' : '0');
+    return p === 'granted';
+  } catch (e) { return false; }
+}
+export function sysNotify(title, body) {
+  if (!sysNotifyOn() || !document.hidden) return;
+  try { const n = new Notification(String(title).slice(0, 60), { body: String(body).slice(0, 160), icon: (window.KROOT || './') + 'app/icon.png', tag: 'kusatma-' + String(title).slice(0, 20) }); n.onclick = () => { window.focus(); n.close(); }; } catch (e) { /* ignore */ }
+}
 export function livePvp(o) {
   const v = o.pvp; if (!v) return;
   send({ e: 'pvr', k: v.k, win: v.k === 'ffa' ? -1 : v.win, t: o.time | 0, P: (o.P || []).slice(0, 16).map((p) => [p.name, p.tm | 0, p.pk | 0, p.dth | 0]) });

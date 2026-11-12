@@ -598,3 +598,30 @@ body.signed .build { z-index: 41; }
 .pv-badge strong { font: 400 15px/1 var(--display, 'Russo One', sans-serif); color: #fff; }
 .pv-badge span { font-weight: 700; color: var(--lc); margin-top: 3px; }
 .pv-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+/* clans, badges, class levels */
+.clan-t.big { font-size: 15px; }
+.clan-head .clan-title { display: flex; gap: 10px; align-items: baseline; }
+.clan-head .clan-title strong { font: 400 24px/1.2 var(--display, 'Russo One', sans-serif); }
+.clan-meta { color: var(--dim, #9aa496); font-size: 13px; }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.btn.danger { color: #ff8a8d; border-color: rgba(255,90,95,.4); }
+.clan-form, .clan-inv { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.clan-form input, .clan-inv input, .clan-wrap textarea, .clan-wrap input[placeholder] { flex: 1; min-width: 140px; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.25); color: inherit; font: inherit; }
+.clan-wrap textarea { width: 100%; resize: vertical; margin-bottom: 6px; }
+.clan-mem, .clan-req { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.clan-mem li, .clan-req li, .clan-invrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.clan-mem li .top-row { flex: 1; min-width: 220px; }
+.clan-mem li.on .tv { color: #7ee08a; }
+.role { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.07); }
+.role.r-l { background: rgba(255,210,63,.18); color: #ffd23f; } .role.r-o { background: rgba(76,201,240,.16); color: #8fdcff; }
+.cl-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bdg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.bdg { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); opacity: .45; filter: grayscale(1); }
+.bdg.on { opacity: 1; filter: none; border-color: rgba(255,210,63,.35); background: rgba(255,210,63,.06); }
+.bdg .bi { font-size: 22px; } .bdg small { color: var(--dim, #9aa496); font-size: 11.5px; }
+.cls-chip .cl-lv { font-size: 11px; font-weight: 700; color: #ffd23f; }
+.cl-bar { width: 80%; height: 4px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; } .cl-bar i { display: block; height: 100%; background: #ffd23f; }
+.voice-open { display: flex !important; justify-content: flex-start; align-items: center; gap: 8px; text-align: left; margin: 6px 0; }
+.voice-open input[type="checkbox"] { width: 18px !important; height: 18px; flex: 0 0 auto; margin: 0; min-height: 0; }
+.voice-open span { flex: 1; }
+@media (max-width: 480px) { .dp-nav button span { font-size: 10px; letter-spacing: -.1px; white-space: nowrap; } .dp-nav button { padding-left: 2px; padding-right: 2px; min-width: 0; } }

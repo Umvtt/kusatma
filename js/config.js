@@ -1,8 +1,10 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 18;
+export const VERSION = 19;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 43;
+export const BUILD = 44;
+// the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
+export const APP_BUILD = 44;
 export const MAX_PLAYERS = 20;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
@@ -61,6 +63,16 @@ export const PVP = {
   duel: { name: 'Düello', short: '1v1', desc: 'Bire bir. Üç raundu ilk alan kazanır; her raunt en çok 90 saniye.', goal: 3, time: 90, resp: 0 },
 };
 export const PVP_ORDER = ['tdm', 'ffa', 'duel'];
+// class levels (the server uses the same numbers): each cleared wave gives that class 10 + 2·wave XP
+export const clsLvl = (x) => Math.min(30, 1 + Math.floor(Math.sqrt((x | 0) / 60)));
+export const clsNext = (x) => { const l = clsLvl(x); if (l >= 30) return { l, pct: 1, need: 0 }; const a = (l - 1) ** 2 * 60, b = l ** 2 * 60; return { l, pct: ((x | 0) - a) / (b - a), need: b - (x | 0) }; };
+// badges are worked out by the server from the account; this is how they look
+export const BADGES = {
+  d25: ['Dayanıklı', '25. dalgaya ulaş', '🛡'], d50: ['Kale', '50. dalgaya ulaş', '🏰'], k1: ['Avcı', '1.000 zombi öldür', '🎯'], k10: ['Katliam', '10.000 zombi öldür', '💀'],
+  p1: ['İlk zafer', 'Bir PvP maçı kazan', '⚔'], p50: ['Gladyatör', '50 PvP maçı kazan', '🏟'], lA: ['Altın lig', 'PvP\'de Altın lige çık', '🥇'], lP: ['Platin lig', 'PvP\'de Platin lige çık', '💠'], lE: ['Elmas lig', 'PvP\'de Elmas lige çık', '💎'],
+  c10: ['Usta', 'Bir sınıfı 10. seviyeye çıkar', '⭐'], c30: ['Büyük usta', 'Bir sınıfı 30. seviyeye çıkar', '🌟'], c5: ['Çok yönlü', '5 sınıfı 5. seviyeye çıkar', '🎭'],
+  kl: ['Klan üyesi', 'Bir klana katıl', '🏳'], kf: ['Kurucu', 'Bir klan kur', '👑'], v50: ['Veteran', '50. seviyeye ulaş', '🎖'], s7: ['Sadık', '7 gün üst üste giriş yap', '📅'],
+};
 export const PVP_WARM = 15; // seconds to shop before the fight
 export const PVP_HP = 1.6; // more health in PvP so fights last a few seconds
 export const PVP_DMG = 0.55; // weapons are tuned for zombies: player damage is scaled down

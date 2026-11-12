@@ -84,6 +84,13 @@ Oda kurarken (ya da lobide) mod olarak **PvP** seçilince oyuncular birbirine ka
 - Hesabı olanlar **dereceli** oynar: kazanınca puan alır, kaybedince puan kaybeder (rakiplerin puanına göre). Ligler **Bronz → Gümüş → Altın → Platin → Elmas**, her biri üç kademe. Her maç biraz elmas da verir.
 - Her ay yeni sezon başlar; puanın %60'ı kalır ve geçen sezon ulaştığın en yüksek lige göre elmas ödülü alırsın (profilindeki PvP kartından). Sıralamada ayrı bir PvP sekmesi var.
 
+## Klanlar, sınıf seviyeleri ve rozetler
+
+- **Klan:** 1.000 elmasla klan kur (ad 3–20 harf, etiket 2–4 harf/rakam) ya da bir klana katıl. Klanlar herkese açık ya da istekle olabilir. Lider ve yardımcılar istekleri kabul eder, oyuncu davet eder ve üye çıkarır; lider yardımcı atar ve liderliği devredebilir. En çok 20 üye. Etiketin oyunda ve lobide adının önünde görünür (ör. **[GK] Ahmet**). Klan puanı, üyelerin o sezon kazandığı sezon XP'sinin toplamıdır; sıralamada **Klanlar** sekmesi var.
+- **Sınıf seviyeleri:** her sınıf, onunla temizlediğin her dalgada 10 + 2×dalga XP kazanır; seviye en çok 30. Her seviye 20 elmas verir. Seviyeler profilindeki sınıf kartlarında görünür.
+- **Rozetler:** dalga rekoru, öldürme sayısı, PvP galibiyetleri ve ligi, sınıf seviyeleri, klan, oyuncu seviyesi ve giriş serisi için 16 rozet. Oynadıkça kendiliğinden kazanılır, profilinde koleksiyon olarak görünür.
+- **Tarayıcı bildirimleri:** Ayarlar'dan açarsan site arka plandaki bir sekmedeyken mesaj, arkadaşlık isteği, oda ve klan davetleri bildirim olarak gelir.
+
 ## Hesap, elmas ve mağaza
 
 Hesap isteğe bağlıdır ama açınca oyun bir siteye dönüşür:
@@ -102,7 +109,7 @@ Elmaslar sunucuda tutulur ve kontrol edilir; odadaki herkes, sunucunun imzaladı
 
 Android telefonda siteyi açınca üstte **Android uygulaması** düğmesi çıkar (ya da `https://umvtt.github.io/kusatma/app/kusatma.apk`). İndirip kur; tarayıcına "bilinmeyen uygulamaları yükle" izni vermen gerekebilir. Uygulama oyunu doğrudan siteden açar, bu yüzden her oyun güncellemesi uygulamaya da anında gelir; tekrar kurman gerekmez. Ana adrese ulaşılamazsa okul aynasını dener. Geri tuşu oyundaki Esc gibi çalışır.
 
-Uygulamanın kendisi değişirse (nadiren), uygulama `app/version.json` dosyasından yeni sürümü görüp indirmeyi önerir. Yeni APK'yı yapmak için `android/` klasöründe aynı imza anahtarıyla `gradle assembleRelease -PversionCode=<yeni numara>` çalıştırılır, çıkan dosya `app/kusatma.apk` olarak konur ve `app/version.json` içindeki `v` bir artırılır. İmza anahtarı depoda değildir; aynı anahtar olmadan yeni sürüm eskisinin üstüne kurulamaz.
+Uygulamanın dosyası yapı numarasıyla adlanır (ör. **Kuşatma 44.0.apk**). Uygulama normal güncellemelerde hiçbir şey sormaz. Yalnızca uygulamanın kendisinde önemli bir değişiklik olduğunda (`app/version.json` içindeki `min` uygulamanın sürümünden büyükse) atlanamayan bir "Önemli güncelleme" ekranı gösterir ve **Güncelle** ile sitedeki güncelleme sayfasını açar; yeni dosya eskisinin üstüne kurulur. Yeni APK'yı yapmak için `android/` klasöründe aynı imza anahtarıyla `gradle assembleRelease -PversionCode=<yeni numara>` çalıştırılır, çıkan dosya `app/kusatma.apk` olarak konur ve `app/version.json` içindeki `v` bir artırılır. İmza anahtarı depoda değildir; aynı anahtar olmadan yeni sürüm eskisinin üstüne kurulamaz.
 
 ## Haritalar
 

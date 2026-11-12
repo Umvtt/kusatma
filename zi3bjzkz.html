@@ -275,6 +275,9 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
 .fx-quick{display:flex;flex-wrap:wrap;gap:6px}.fx-quick button{height:26px;padding:0 9px;font-size:12px;background:#151515;color:var(--text);border:1px solid #242424;border-radius:999px}.fx-quick button:hover{border-color:#3a3a3a;background:#1c1c1c}
 .fx-foot{display:flex;justify-content:flex-end;gap:6px}
 @media (max-width:820px){.shell{grid-template-rows:auto auto 1fr}.topbar{height:50px;padding:0 12px;gap:10px}.tb-brand{padding-right:12px;font-size:14px;margin:12px 0}.seg button{padding:0 10px;font-size:14px}.side{position:static;top:auto;height:auto}}
+
+.side [data-n]:not([data-n=""])::after{content:attr(data-n);margin-left:6px;padding:0 6px;border-radius:9px;background:#fff;color:#000;font-size:11px;font-weight:700}
+@media (max-width:820px){button,.btn,input,select{min-height:38px}.item{flex-wrap:wrap;row-gap:6px}.item .sp{flex-basis:100%;height:0}.dash{grid-template-columns:1fr!important}.card{padding:12px}table{display:block;overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -313,6 +316,7 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
     <button type="button" data-tab="krp" data-g="k" aria-selected="false">Reports</button>
     <button type="button" data-tab="kmod" data-g="k" aria-selected="false">Moderation</button>
     <button type="button" data-tab="klb" data-g="k" aria-selected="false">Leaderboard</button>
+    <button type="button" data-tab="kcl" data-g="k" aria-selected="false">Clans</button>
     <button type="button" data-tab="kstats" data-g="k" aria-selected="false">Stats</button>
     <button type="button" data-tab="kan" data-g="k" aria-selected="false">Analytics</button>
     <button type="button" data-tab="kdat" data-g="k" aria-selected="false">Data</button>
@@ -382,6 +386,9 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
     <div class="row"><input id="kpQ" maxlength="24" placeholder="Name, account id or device" style="flex:1;min-width:160px"><button id="kpGo" type="button">Search</button></div>
     <div class="row mq-pager" style="justify-content:flex-end"><button class="ghost small" id="kpPrev" type="button">Previous</button><span class="d" id="kpPg"></span><button class="ghost small" id="kpNext" type="button">Next</button></div>
     <div class="list" id="kpList"></div><div class="msg" id="kpMsg"></div>
+  </section>
+  <section class="card" data-pane="kcl" hidden>
+    <div class="list" id="kclList"></div><div class="msg" id="kclMsg"></div>
   </section>
   <section class="card" data-pane="klb" hidden>
     <div class="dash" id="klbCols"></div><div class="msg" id="klbMsg"></div>
@@ -623,13 +630,13 @@ $('#aGo').onclick=async()=>{const o=$('#aOld').value,n=$('#aNew').value;
   if(!strongEnough(n))return say('#aMsg','Pick a stronger new password.','bad');if(n!==$('#aNew2').value)return say('#aMsg','The two new passwords are different.','bad');
   say('#aMsg','Changing…');try{const obj=await unseal(o);await seal(n,obj);const st=load();st.url=obj.url;keep(st);for(const s of['#aOld','#aNew','#aNew2'])$(s).value='';say('#aMsg','Password changed.','ok');}
   catch(e){say('#aMsg','The current password is wrong.','bad');}};
-const KTABS=['kdat','klive','kpl','kec','ksh','krp','klb','kbn','kev','kset','kstats','kctl','ksc','kmod','kan','kss'],SHARED=['alog','acct','home','logs'];let GAME='k';const gameOf=()=>'k';
+const KTABS=['kcl','kdat','klive','kpl','kec','ksh','krp','klb','kbn','kev','kset','kstats','kctl','ksc','kmod','kan','kss'],SHARED=['alog','acct','home','logs'];let GAME='k';const gameOf=()=>'k';
 function setGame(g){GAME='k';document.body.dataset.game='k';}
 
 
 const startTab=()=>'home';
 function openTab(t){const pn=document.querySelector('[data-pane="'+t+'"]');if(pn&&!pn.dataset.seen){pn.dataset.seen=1;ENTER_T=performance.now();STAG=0;}else ENTER_T=0;setGame(gameOf(t));if(!SHARED.includes(t))try{localStorage.setItem('ptab_'+GAME,t);}catch(e){}const tb=document.querySelector('.tabs button[data-tab="'+t+'"]');if(tb){$('#pgT').textContent=tb.textContent;$('#crumb').textContent=SHARED.includes(t)||t==='home'?'Panel':'Kuşatma';$('#tbSec').textContent='';document.title=tb.textContent+' · Admin';}for(const b of document.querySelectorAll('.tabs button[data-tab]'))b.setAttribute('aria-selected',String(b.dataset.tab===t));
-  for(const p of document.querySelectorAll('[data-pane]'))p.hidden=p.dataset.pane!==t;({alog:loadAlog,klive:kLoad,kset:kLoad,kstats:kLoad,kpl:kSearch,klb:kLb,kec:kEco,ksh:kEco,krp:kRep,home:hLoad,kbn:()=>banTab(1),kctl:kCtl,ksc:kSched,kmod:kMod,kan:kAn,kdat:()=>kData(),kss:kSeason,logs:()=>lgLoad(false)})[t]?.();if(t!=='logs')lgAutoOff();}
+  for(const p of document.querySelectorAll('[data-pane]'))p.hidden=p.dataset.pane!==t;({alog:loadAlog,klive:kLoad,kset:kLoad,kstats:kLoad,kpl:kSearch,klb:kLb,kcl:kClans,kec:kEco,ksh:kEco,krp:kRep,home:hLoad,kbn:()=>banTab(1),kctl:kCtl,ksc:kSched,kmod:kMod,kan:kAn,kdat:()=>kData(),kss:kSeason,logs:()=>lgLoad(false)})[t]?.();if(t!=='logs')lgAutoOff();}
 for(const b of document.querySelectorAll('.tabs button[data-tab]'))b.onclick=()=>openTab(b.dataset.tab);
 const toLocal=ms=>{if(!ms)return '';const d=new Date(ms),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());};
 const fromLocal=v=>v?new Date(v).getTime()||0:0;
@@ -823,6 +830,7 @@ async function kAcct(id){let j;try{j=await admin('kaget',[],{id});}catch(e){retu
     P.sus?smallBtn('Clear flags',()=>act(()=>admin('kaset',[],{id,sus:0}),'Cleared')):null,
     smallBtn('Rename',async()=>{const v=await ask({title:'Rename '+P.name,text:'The old name becomes free. Their game picks up the new name right away.',fields:[{id:'n',label:'New name (6–16 letters A–Z or digits)',max:16,value:P.name}],ok:'Rename'});if(!v)return;const nn=v.n.trim();if(!/^[A-Za-z0-9]{6,16}$/.test(nn))return note('Names are 6–16 characters, English letters and digits only','bad');act(()=>admin('karen',[],{id,name:nn}),'Renamed');}),
     smallBtn('Reset stats',async()=>{if(await sure('Set '+P.name+'\'s best wave, kills, games and time played back to zero?','Reset'))act(()=>admin('kareset',[],{id}),'Stats reset');}),
+    smallBtn('Reset PvP',async()=>{if(await sure('Set '+P.name+'\'s PvP points and record back to zero?','Reset'))act(()=>admin('kpvpreset',[],{id}),'PvP reset');}),
     smallBtn('Reset password',async()=>{const v=await ask({title:'New password for '+P.name,text:'They are signed out everywhere and sign in with this.',fields:[{id:'p',label:'New password (6+ characters)',max:64}],ok:'Set password'});if(!v)return;if(v.p.length<6)return note('At least 6 characters','bad');act(()=>admin('kapw',[],{id,pw:v.p}),'Password changed');}),
     !j.ban?smallBtn('Ban',async()=>{const v=await ask({title:'Ban '+P.name,text:'Blocks online play and sign-in for this account and its devices.',fields:[{id:'t',label:'Reason',max:120},{id:'m',label:'Length',type:'select',options:[['0','Forever'],['60','1 hour'],['1440','1 day'],['10080','7 days'],['43200','30 days']]}],ok:'Ban',danger:true});if(!v)return;act(()=>admin('kban',[],{acct:id,dev:j.live?j.live.dev:(P.devs||[]).slice(-1)[0]||'',name:P.name,why:v.t,mins:+v.m}),'Banned');},'danger'):smallBtn('Unban',()=>act(()=>admin('kunban',[j.ban.id]),'Unbanned')),
     smallBtn('Delete account',async()=>{if(!(await sure('Delete the account '+P.name+'? Their stats are lost and the name becomes free. This cannot be undone.','Delete')))return;try{await admin('kadel',[],{id});note('Account deleted','ok');S.close();if(curTab()==='kpl')kSearch();}catch(e){note(e.message,'bad');}},'danger')]);}
@@ -914,7 +922,7 @@ async function kRep(){let j,k;try{[j,k]=await Promise.all([admin('krep'),admin('
   say('#ksusMsg',k.list.length?'':'Nobody flagged. Accounts show up here when their wave reports look too fast or they hit the daily gem limit.');}
 $('#krpAll').onchange=kRep;
 async function kLb(){const box=$('#klbCols');say('#klbMsg','Loading…');try{const L=(await admin('klb')).lb;box.textContent='';
-    for(const[k,h,f]of[['best','Best wave',r=>'wave '+r.best],['kills','Most kills',r=>r.kills.toLocaleString()+' kills']]){const c=mk('section','card');c.append(mk('h2','',h));const list=mk('div','list');
+    for(const[k,h,f]of[['best','Best wave',r=>'wave '+r.best],['kills','Most kills',r=>r.kills.toLocaleString()+' kills'],['pvp','PvP points',r=>(r.pv||0)+' pts · '+(r.pvw||0)+' wins']]){if(!L[k])continue;const c=mk('section','card');c.append(mk('h2','',h));const list=mk('div','list');
       L[k].forEach((r,i)=>{const it=mk('div','item');pTag(it,{a:r.id,n:r.name,g:'k'});it.append(mk('span','d','#'+(i+1)),mk('span','k',r.name),mk('span','d',f(r)),r.hide?mk('span','chip','hidden'):'',mk('span','sp'),smallBtn(r.hide?'Show':'Hide',async()=>{try{await admin('kalb',[],{id:r.id,hide:!r.hide});kLb();}catch(e){note(e.message,'bad');}}),smallBtn('Profile',()=>kAcct(r.id)));list.append(it);});
       if(!L[k].length)list.append(mk('div','item d','Nobody yet.'));c.append(list);box.append(c);}
     say('#klbMsg','Shown in the game\'s main menu (top 10). Only accounts appear.');}catch(e){say('#klbMsg',e.message,'bad');}}
@@ -1335,6 +1343,22 @@ function ssTiers(T){const box=$('#ssT');box.textContent='';const O=ssOpts();
 const ssRead=()=>[...document.querySelectorAll('#ssT .ss-row')].map(r=>{const c=r.querySelectorAll('.ss-cell'),g=x=>{const s=x.querySelector('select'),n=x.querySelector('input');return s.value==='g'?{g:+n.value||0}:{i:s.value};};return{f:g(c[0]),p:g(c[1])};});
 $('#ssSave').onclick=async()=>{if(!(await sure('Save the season? Players see the new rewards right away.','Save',false)))return;try{const j=await admin('ksset',[],{name:$('#ssName').value.trim(),xp:+$('#ssXp').value,price:+$('#ssPrice').value,tiers:ssRead()});SS.cfg=j.cfg;say('#ssMsg','Saved.','ok');}catch(e){say('#ssMsg',e.message,'bad');}};
 $('#ssReset').onclick=async()=>{if(!(await sure('Restore the default rewards? This saves at once.','Reset',false)))return;try{const j=await admin('ksset',[],{name:$('#ssName').value.trim(),xp:+$('#ssXp').value,price:+$('#ssPrice').value,tiers:null});SS.cfg=j.cfg;ssTiers(j.cfg.tiers);say('#ssMsg','Default tiers saved.','ok');}catch(e){say('#ssMsg',e.message,'bad');}};
+
+async function kClans(){const box=$('#kclList');say('#kclMsg','Loading…');try{const L=(await admin('kclans')).L;box.textContent='';
+  for(const c of L){const it=mk('div','item');it.append(mk('span','k','['+c.tag+'] '+c.name),mk('span','d',c.n+'/'+c.max+' · '+c.score+' pts · '+(c.open?'open':'by request')),mk('span','sp'),
+    smallBtn('Members',async()=>{try{const x=(await admin('kclan',[],{id:c.id})).c;const l=mk('div','list');for(const m of x.mem){const r=mk('div','item');pTag(r,{a:m.i,n:m.name,g:'k'});r.append(mk('span','k',m.name),mk('span','d',({l:'leader',o:'officer',m:'member'})[m.r]+' · lvl '+m.lvl+' · '+m.x+' pts'+(m.on?' · online':'')),mk('span','sp'),smallBtn('Profile',()=>kAcct(m.i)));l.append(r);}it.after(l);}catch(e){note(e.message,'bad');}}),
+    smallBtn('Rename',async()=>{const n=prompt('New clan name',c.name);if(!n)return;try{await admin('kclanset',[],{id:c.id,name:n});kClans();}catch(e){note(e.message,'bad');}}),
+    smallBtn('Disband',async()=>{if(await sure('Disband ['+c.tag+'] '+c.name+'? Every member leaves the clan.','Disband'))act(()=>admin('kclandel',[],{id:c.id}),'Clan disbanded').then(kClans);}));box.append(it);}
+  if(!L.length)box.append(mk('div','item d','No clans yet.'));say('#kclMsg',L.length+' clans. Score is the members\' season XP.');}catch(e){say('#kclMsg',e.message,'bad');}}
+/* live alerts: new player reports and anti-cheat reports, checked every minute while the panel is open */
+const ALR={rep:null,ac:null};
+async function alertTick(){if(document.querySelector('#app')?.hidden)return;try{
+  const r=await admin('krep'),a=await admin('kac');const nr=(r.L||r.list||r.reports||[]).filter(x=>!x.done).length,na=(a.L||a.list||[]).length;
+  const tell=(t,b)=>{note(t+' — '+b,'bad');try{if(Notification.permission==='granted'&&document.hidden)new Notification(t,{body:b});}catch(e){}};
+  if(ALR.rep!=null&&nr>ALR.rep)tell('New report',(nr-ALR.rep)+' new player report(s)');if(ALR.ac!=null&&na>ALR.ac)tell('Anti-cheat',(na-ALR.ac)+' new anti-cheat report(s)');
+  ALR.rep=nr;ALR.ac=na;for(const[t,n]of[['krp',nr],['kmod',na]]){const b=document.querySelector('[data-tab="'+t+'"]');if(b)b.dataset.n=n?String(n):'';}}catch(e){}}
+setInterval(alertTick,60e3);setTimeout(alertTick,8e3);
+try{if(typeof Notification!=='undefined'&&Notification.permission==='default')document.addEventListener('click',()=>Notification.requestPermission().catch(()=>{}),{once:true});}catch(e){}
 </script>
 </body>
 </html>

@@ -149,7 +149,7 @@ export async function checkPass(pass) {
     if (!ok) return null;
     const p = JSON.parse(new TextDecoder().decode(b64(body)));
     if (!p || typeof p !== 'object' || !(p.x > Date.now()) || !Array.isArray(p.o)) return null;
-    return { id: String(p.i || ''), name: String(p.n || '').slice(0, 16), own: p.o.filter((x) => typeof x === 'string').slice(0, 200), eq: cleanEq(p.e), lvl: Math.max(1, Math.min(100, p.l | 0)) };
+    return { id: String(p.i || ''), name: String(p.n || '').slice(0, 16), own: p.o.filter((x) => typeof x === 'string').slice(0, 200), eq: cleanEq(p.e), lvl: Math.max(1, Math.min(100, p.l | 0)), ct: String(p.t || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) };
   } catch (e) { return null; }
 }
 // only real item ids, each in its own slot

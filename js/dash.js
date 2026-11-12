@@ -1,9 +1,9 @@
 // The signed-in player's home: a full website around the game (home, play, profile and wardrobe, gem shop,
 // friends and private messages, leaderboard, account settings and themes). Text from the server only ever goes
 // into textContent.
-import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, dailyGet, roomsGet, acctCheck } from './live.js';
+import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, dailyGet, roomsGet, acctCheck, sysNotifyOn, sysNotifySet } from './live.js';
 import { ITEMS, SLOTS, SLOT_OF, RARITY, FREE_CLS, isFree, titleOf } from './catalog.js';
-import { CLASSES, CLASS_ORDER, DIFFS, MAPS, MAX_PLAYERS, BUILD, dailyRules, league, LEAGUES } from './config.js';
+import { CLASSES, CLASS_ORDER, DIFFS, MAPS, MAX_PLAYERS, BUILD, dailyRules, league, LEAGUES, clsNext, BADGES, APP_BUILD } from './config.js';
 import { drawCharacter, drawPet } from './render.js';
 
 const $ = (s) => document.querySelector(s);
@@ -219,9 +219,9 @@ function topBar() {
 }
 
 // ---------- pages ----------
-const PAGES = { season: seasonPage, quests: questsPage, home: homePage, play: playPage, profile: profilePage, locker: lockerPage, shop: shopPage, friends: friendsPage, top: topPage, account: accountPage };
+const PAGES = { clan: clanPage, season: seasonPage, quests: questsPage, home: homePage, play: playPage, profile: profilePage, locker: lockerPage, shop: shopPage, friends: friendsPage, top: topPage, account: accountPage };
 // each page has its own address under the game's root: /oyun, /oyun/gorevler, /oyun/magaza...
-const SLUG = { home: '', play: 'oyna', quests: 'gorevler', season: 'sezon', shop: 'magaza', profile: 'profil', locker: 'dolap', friends: 'arkadaslar', top: 'siralama', account: 'ayarlar' };
+const SLUG = { clan: 'klan', home: '', play: 'oyna', quests: 'gorevler', season: 'sezon', shop: 'magaza', profile: 'profil', locker: 'dolap', friends: 'arkadaslar', top: 'siralama', account: 'ayarlar' };
 const ROOT = () => window.KROOT || './';
 export function pageFromPath() { const m = location.pathname.slice(ROOT().length).match(/^oyun(?:\/([a-z]+))?\/?$/); if (!m) return null; const s = m[1] || ''; return Object.keys(SLUG).find((k) => SLUG[k] === s) || null; }
 function setPath(p, replace) {
@@ -352,7 +352,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Dört yeni harita: Metro İstasyonu (trenlere dikkat), Alışveriş Merkezi, Askerî Üs ve Lunapark.', 'Yeni düşmanlar: yarasa sürüleri, zombi köpekler ve yerin altından gelen Dev Solucan.', 'Sesli sohbet: odada V\'ye basılı tutup konuş (telefonda mikrofon düğmesi).', 'Odalar artık 20 kişilik; skor tablosunda herkesin pingi görünüyor.', 'PvP: Takım Savaşı, Herkes Herkese, Düello ve dereceli lig. Dört yeni sınıf: Kılıççı, Eğitmen, Ajan, Hacker.'];
+const WHATS_NEW = ['Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -719,9 +719,11 @@ function profilePage(sec) {
     const cv = el('canvas'); drawClassPic(cv, c, 56);
     b.append(cv, el('span', '', CLASSES[c] ? CLASSES[c].name : it ? it.name : c));
     if (!have) b.append(el('span', 'lock', it && it.soon ? 'Yakında' : 'Kilitli'));
+    else { const n = clsNext((ME.cx || {})[c] | 0), bar = el('div', 'cl-bar'), f = el('i'); f.style.width = Math.round(100 * n.pct) + '%'; bar.append(f); b.append(el('span', 'cl-lv', `Sv ${n.l}`), bar); b.title = n.l >= 30 ? 'En yüksek seviye' : `Sonraki seviyeye ${fmt(n.need)} XP · her seviye 20 elmas`; }
     grid.append(b);
   }
-  cc.append(grid);
+  cc.append(grid, el('p', 'note', 'Sınıf seviyesi o sınıfla temizlediğin dalgalarla artar (en çok 30). Her seviye 20 elmas verir.'));
+  sec.append(badgesCard(ME.bdg || []));
   sec.append(cc);
 }
 function drawClassPic(cv, cls, S, eq) {
@@ -1160,6 +1162,75 @@ function questsPage(sec) {
   });
 }
 
+// ---------- badges ----------
+function badgesCard(have) {
+  const c = card('Rozetler'), grid = el('div', 'bdg-grid'), got = new Set(have);
+  for (const [id, [n, d, ic]] of Object.entries(BADGES)) { const b = el('div', 'bdg' + (got.has(id) ? ' on' : '')); b.title = d; b.append(el('span', 'bi', ic), el('b', '', n), el('small', '', d)); grid.append(b); }
+  c.append(el('p', 'note', `${got.size} / ${Object.keys(BADGES).length} rozet. Oynadıkça kendiliğinden kazanılır.`), grid);
+  return c;
+}
+
+// ---------- clans ----------
+const CL_ROLE = { l: 'Lider', o: 'Yardımcı', m: 'Üye' };
+const CL_ERR = { name: 'Klan adı 3–20 harf ya da rakam olmalı.', tag: 'Etiket 2–4 harf ya da rakam olmalı.', bad: 'Bu ad kullanılamaz.', taken: 'Bu ad alınmış.', tagtaken: 'Bu etiket alınmış.', gems: 'Klan kurmak 1.000 elmas.', inclan: 'Zaten bir klandasın.', full: 'Klan dolu.', role: 'Bunu yapmaya yetkin yok.', nouser: 'Böyle bir oyuncu yok.', gone: 'Bulunamadı.', slow: 'Biraz yavaş, birazdan tekrar dene.' };
+const clErr = (r) => H.toast(CL_ERR[r.reason] || 'Olmadı.', 'bad');
+function clanPage(sec, arg) {
+  const mine = ME.clan && ME.clan.id;
+  head(sec, 'Klan', arg && arg !== mine ? 'Klan' : mine ? 'Klanın' : 'Klanlar');
+  const box = el('div', 'clan-wrap'); box.append(el('p', 'note', 'Yükleniyor…')); sec.append(box);
+  const id = arg || mine;
+  if (!id) { clanBrowse(box); return; }
+  acctOp('cget', { id }).then((j) => {
+    if (!j.ok) { if (!arg) { ME.clan = null; clanBrowse(box); } else box.replaceChildren(el('p', 'note', 'Bu klan artık yok.')); return; }
+    const c = j.c, me = j.me, off = me === 'l' || me === 'o';
+    const top = card(''); top.classList.add('clan-head');
+    const t = el('div', 'clan-title'); t.append(el('span', 'clan-t big', '[' + c.tag + ']'), el('strong', '', c.name));
+    top.append(t, el('p', 'note', c.desc || 'Açıklama yok.'), el('p', 'clan-meta', `${c.n}/${c.max} üye · bu sezon ${fmt(c.score)} puan · ${c.open ? 'herkes katılabilir' : 'istekle katılım'}`));
+    const acts = el('div', 'row-btns');
+    if (!me && !mine) acts.append(btn('btn primary', c.open ? 'Katıl' : 'Katılma isteği gönder', async () => { const r = await acctOp('cjoin', { id: c.id }); if (!r.ok) { clErr(r); return; } H.toast(r.joined ? 'Klana katıldın!' : 'İstek gönderildi.', 'good'); await acctCheck(); dashGo('clan'); }));
+    if (me) acts.append(btn('btn ghost', me === 'l' && c.n > 1 ? 'Klandan ayrıl (liderlik devredilir)' : 'Klandan ayrıl', async () => { if (!confirm('Klandan ayrılmak istediğine emin misin?')) return; const r = await acctOp('cleave'); if (!r.ok) { clErr(r); return; } ME.clan = null; dashGo('clan'); }));
+    if (me === 'l') acts.append(btn('btn ghost danger', 'Klanı dağıt', async () => { if (!confirm('Klan tamamen silinecek. Emin misin?')) return; const r = await acctOp('cdel'); if (!r.ok) { clErr(r); return; } ME.clan = null; dashGo('clan'); }));
+    top.append(acts); box.replaceChildren(top);
+    if (off) {
+      const st = card('Klan ayarları'), desc = el('textarea'); desc.maxLength = 120; desc.value = c.desc || ''; desc.rows = 2;
+      const op = el('label', 'voice-open'); const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!c.open; op.append(cb, el('span', '', 'Herkes istek beklemeden katılabilsin'));
+      const inv = el('input'); inv.placeholder = 'Oyuncu adı'; inv.maxLength = 16;
+      st.append(desc, op, btn('btn small', 'Kaydet', async () => { const r = await acctOp('cset', { desc: desc.value, open: cb.checked ? 1 : 0 }); if (!r.ok) clErr(r); else { H.toast('Kaydedildi.', 'good'); dashGo('clan'); } }),
+        el('div', 'clan-inv'), btn('btn small primary', 'Davet et', async () => { const r = await acctOp('cinv', { name: inv.value.trim() }); if (!r.ok) clErr(r); else { H.toast('Davet gönderildi.', 'good'); inv.value = ''; } }));
+      st.querySelector('.clan-inv').append(inv);
+      if (c.req && c.req.length) { const rq = el('ul', 'clan-req'); for (const q of c.req) { const li = el('li'); li.append(el('b', '', q.name), el('small', '', 'Sv ' + q.lvl), btn('btn small primary', 'Kabul', async () => { const r = await acctOp('cacc', { i: q.i }); if (!r.ok) clErr(r); dashGo('clan'); }), btn('btn small ghost', 'Reddet', async () => { await acctOp('cno', { i: q.i }); dashGo('clan'); })); rq.append(li); } st.append(el('p', 'note', 'Katılma istekleri'), rq); }
+      box.append(st);
+    }
+    const ml = card('Üyeler'), ul = el('ul', 'clan-mem');
+    for (const m of c.mem) {
+      const li = el('li', m.on ? 'on' : ''); const who = btn('top-row', '', () => openProfile({ name: m.name }));
+      who.append(avatar(m.eq || {}, 32), nameEl(m.name, m.eq || {}), lvlBadge(m.lvl), el('span', 'role r-' + m.r, CL_ROLE[m.r] || ''), el('span', 'tv', `${fmt(m.x)} puan${m.on ? ' · çevrimiçi' : ''}`));
+      li.append(who);
+      if (me === 'l' && m.r !== 'l') li.append(btn('btn small ghost', m.r === 'o' ? 'Üye yap' : 'Yardımcı yap', async () => { await acctOp('crole', { i: m.i, r: m.r === 'o' ? 'm' : 'o' }); dashGo('clan'); }), btn('btn small ghost', 'Lider yap', async () => { if (!confirm(m.name + ' klan lideri olsun mu?')) return; await acctOp('clead', { i: m.i }); dashGo('clan'); }));
+      if (off && m.r !== 'l' && (me === 'l' || m.r === 'm')) li.append(btn('btn small ghost danger', 'Çıkar', async () => { if (!confirm(m.name + ' klandan çıkarılsın mı?')) return; await acctOp('ckick', { i: m.i }); dashGo('clan'); }));
+      ul.append(li);
+    }
+    ml.append(ul, el('p', 'note', 'Klan puanı, üyelerin bu sezon kazandığı sezon XP\'sinin toplamıdır.')); box.append(ml);
+  });
+}
+function clanBrowse(box) {
+  box.replaceChildren();
+  if (ME.cinv && ME.cinv.length) {
+    const ic = card('Klan davetlerin');
+    for (const v of ME.cinv) { const r = el('div', 'clan-invrow'); r.append(el('span', 'clan-t', '[' + v.t + ']'), el('b', '', v.n), el('small', '', v.by + ' davet etti'), btn('btn small primary', 'Katıl', async () => { const j = await acctOp('cjoin', { id: v.c }); if (!j.ok) { clErr(j); return; } await acctCheck(); dashGo('clan'); }), btn('btn small ghost', 'Reddet', async () => { await acctOp('cinvno', { c: v.c }); ME.cinv = ME.cinv.filter((x) => x !== v); dashGo('clan'); })); ic.append(r); }
+    box.append(ic);
+  }
+  const mk = card('Klan kur');
+  const n = el('input'); n.placeholder = 'Klan adı (3–20)'; n.maxLength = 20; const t = el('input'); t.placeholder = 'Etiket (2–4, ör. KRT)'; t.maxLength = 4; t.oninput = () => { t.value = t.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+  const op = el('label', 'voice-open'); const cb = el('input'); cb.type = 'checkbox'; cb.checked = true; op.append(cb, el('span', '', 'Herkes istek beklemeden katılabilsin'));
+  const go = btn('btn primary', 'Klanı kur · 1.000 elmas', async () => { go.disabled = true; const r = await acctOp('cmake', { name: n.value, tag: t.value, open: cb.checked ? 1 : 0 }); go.disabled = false; if (!r.ok) { clErr(r); return; } ME.gems = r.gems; ME.clan = { id: r.c.id, tag: r.c.tag }; H.toast('Klan kuruldu!', 'good'); dashGo('clan'); });
+  const f = el('div', 'clan-form'); f.append(n, t); mk.append(el('p', 'note', 'En çok 20 kişi. Etiketin oyunda adının önünde görünür.'), f, op, go); box.append(mk);
+  const ls = card('Klan ara'); const q = el('input'); q.placeholder = 'Ad ya da etiket'; const ul = el('ol', 'top-rows');
+  const load = () => acctOp('clist', { q: q.value }).then((j) => { if (!j.ok) return; ul.replaceChildren(...(j.L.length ? j.L : []).map((c) => { const li = el('li'); const b = btn('top-row', '', () => dashGo('clan', c.id)); b.append(el('span', 'clan-t big', '[' + c.tag + ']'), el('b', 'cl-name', c.name), el('span', 'tv', `${c.n}/${c.max} · ${c.open ? 'açık' : 'istekle'}`)); li.append(b); return li; })); if (!j.L.length) ul.append(el('li', 'empty', 'Klan bulunamadı.')); });
+  let tq = 0; q.oninput = () => { clearTimeout(tq); tq = setTimeout(load, 350); };
+  ls.append(q, ul); box.append(ls); load();
+}
+
 // ---------- PvP rank ----------
 function pvpCard() {
   const v = ME.pvp || { rp: 0, w: 0, l: 0, dr: 0, k: 0, dt: 0, m: 0 }, L = league(v.rp);
@@ -1186,10 +1257,18 @@ let topTab = 'xp';
 function topPage(sec) {
   head(sec, 'Sıralama', 'En iyiler');
   const tabs = el('div', 'seg-tabs');
-  for (const [k, n] of [['xp', 'Seviye'], ['best', 'En iyi dalga'], ['end', 'Hayatta Kalma'], ['daily', 'Günün görevi'], ['pvp', 'PvP'], ['kills', 'En çok öldürme']]) { const b = btn('', n, () => { topTab = k; dashGo('top'); }); b.setAttribute('aria-selected', String(k === topTab)); tabs.append(b); }
+  for (const [k, n] of [['xp', 'Seviye'], ['best', 'En iyi dalga'], ['end', 'Hayatta Kalma'], ['daily', 'Günün görevi'], ['pvp', 'PvP'], ['clans', 'Klanlar'], ['kills', 'En çok öldürme']]) { const b = btn('', n, () => { topTab = k; dashGo('top'); }); b.setAttribute('aria-selected', String(k === topTab)); tabs.append(b); }
   sec.append(segTabs(tabs));
   const ol = el('ol', 'top-rows'); ol.append(el('li', 'empty', 'Yükleniyor…'));
   sec.append(ol);
+  if (topTab === 'clans') {
+    acctOp('clist').then((j) => {
+      if (!j.ok) { ol.replaceChildren(el('li', 'empty', 'Sıralama yüklenemedi.')); return; }
+      if (!j.L.length) { ol.replaceChildren(el('li', 'empty', 'Henüz klan yok. İlk klanı sen kur!')); return; }
+      ol.replaceChildren(...j.L.map((c, i) => { const li = el('li', i < 3 ? 'podium p' + (i + 1) : ''); const b = btn('top-row', '', () => dashGo('clan', c.id)); b.append(el('span', 'rk', String(i + 1)), el('span', 'clan-t big', '[' + c.tag + ']'), el('b', 'cl-name', c.name), el('span', 'tv', `${fmt(c.score)} puan · ${c.n}/${c.max}`)); li.append(b); return li; }));
+    });
+    return;
+  }
   (topTab === 'daily' ? dailyGet() : topGet()).then((j) => {
     if (!j.ok) { ol.replaceChildren(el('li', 'empty', 'Sıralama yüklenemedi.')); return; }
     const L = topTab === 'daily' ? j.top : (j.top[topTab] || []);
@@ -1207,6 +1286,10 @@ function topPage(sec) {
 // ---------- account settings ----------
 function accountPage(sec) {
   head(sec, 'Ayarlar', 'Hesap ve görünüm');
+  { const nc = card('Tarayıcı bildirimleri'), lab = el('label', 'voice-open'), cb = el('input'); cb.type = 'checkbox'; cb.checked = sysNotifyOn();
+    cb.onchange = async () => { const ok = await sysNotifySet(cb.checked); cb.checked = ok && cb.checked; if (!ok && cb.checked === false && typeof Notification !== 'undefined' && Notification.permission === 'denied') H.toast('Tarayıcı bildirimleri engellemiş. Adres çubuğundaki kilit simgesinden izin verebilirsin.', 'bad'); };
+    lab.append(cb, el('span', '', 'Oyun arka plandaki bir sekmedeyken mesaj, arkadaşlık isteği, oda ve klan davetlerini bildir'));
+    nc.append(lab, el('p', 'note', 'Bildirimler yalnızca site açıkken (arka planda bile olsa) gelir. Uygulama kapalıyken gelen bildirimler ileride eklenecek.')); sec.append(nc); }
   const th = card('Tema');
   const tg = el('div', 'theme-grid');
   for (const id of Object.keys(THEMES)) {
@@ -1257,7 +1340,7 @@ function accountPage(sec) {
     if (j.ok) { H.toast('Şifren değişti.', 'good'); return ''; }
     return { wrong: 'Şu anki şifre yanlış.', pw: 'Yeni şifre en az 6 karakter olmalı.', slow: 'Çok fazla deneme. Sonra tekrar dene.' }[j.reason] || 'Değiştirilemedi.';
   }))));
-  if (/Android/i.test(navigator.userAgent) && !/KusatmaApp\//.test(navigator.userAgent)) { const a = el('a', 'btn small', 'İndir'); a.href = 'app/kusatma.apk'; a.download = ''; ac.append(row('Android uygulaması', 'Kuşatma\'yı telefonuna uygulama olarak kur. Güncellemeler kendiliğinden gelir.', a)); }
+  if (/Android/i.test(navigator.userAgent) && !/KusatmaApp\//.test(navigator.userAgent)) { const a = el('a', 'btn small', 'İndir'); a.href = `app/kusatma-${APP_BUILD}.0.apk`; a.download = `Kuşatma ${APP_BUILD}.0.apk`; ac.append(row('Android uygulaması', 'Kuşatma\'yı telefonuna uygulama olarak kur. Güncellemeler kendiliğinden gelir.', a)); }
   ac.append(row('Oyun ayarları', 'Ses, karanlık, yakınlaştırma, ekran sarsıntısı.', btn('btn small', 'Aç', () => H.openSettings())));
   ac.append(row('Bağlantı testi', 'Oyuna bağlanamıyorsan nedenini bul.', btn('btn small', 'Başlat', () => H.openDiag())));
   ac.append(row('Çıkış yap', 'Bu cihazda hesabından çık.', btn('btn small ghost', 'Çıkış yap', () => H.signOut())));
