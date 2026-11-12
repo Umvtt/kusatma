@@ -283,7 +283,7 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
 <body>
 <main>
 <section class="card" id="setup" hidden>
-<form onsubmit="return false"><input type="text" autocomplete="username" value="panel" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" data-nf="1">
+<form onsubmit="return false" autocomplete="off"><input type="text" autocomplete="username" value="panel" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" data-nf="1">
   <label>Address <input id="sUrl" autocomplete="off" spellcheck="false"></label>
   <label>Key <input id="sKey" type="password" autocomplete="off"></label>
   <label>Password <input id="sPw" type="password" autocomplete="new-password"></label>
@@ -381,8 +381,8 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
       <div class="list" id="kPl"></div></section>
     <section class="card"><h2>Rooms</h2><div class="list" id="kRm"></div></section>
     <section class="card"><h2>Phone notification</h2><p>Goes to every Android app that allowed notifications, even when the game is closed.</p>
-      <label>Title <input id="kpT" maxlength="60"></label><label>Text <input id="kpB" maxlength="160"></label>
-      <div class="row"><button id="kpGo" type="button">Send notification</button></div></section>
+      <label>Title <input id="pnT" maxlength="60"></label><label>Text <input id="pnB" maxlength="160"></label>
+      <div class="row"><button id="pnGo" type="button">Send notification</button></div></section>
     <div class="dash"><section class="card"><h2>Bans</h2><div class="list" id="kBn"></div></section><section class="card"><h2>Game versions online</h2><div class="list" id="kVer"></div></section></div>
   </div>
   <section class="card" data-pane="kpl" hidden>
@@ -768,7 +768,7 @@ async function kLoad(){const t=curTab();let j;try{j=await admin('kdash');}catch(
       for(const[x,n]of L){const r=mk('div','hbar'),bar=mk('div'),i=mk('i');i.style.width=Math.round(n/mx*100)+'%';bar.append(i);r.append(mk('span','',names[x]||x),bar,mk('span','',String(n)));box.append(r);}if(!L.length)box.append(mk('p','','No data yet.'));};
     top('#kTopC','cls',KCN);top('#kTopM','map',KMN);top('#kTopD','diff',KDN);say('#kStMsg',D.length?'':'No data yet. It starts once players open the new version.');}}
 $('#kPlQ').addEventListener('input',()=>{clearTimeout(KPQT);KPQT=setTimeout(kLoad,250);});let KPQT=0;
-$('#kpGo').onclick=async()=>{const t=$('#kpT').value.trim(),x=$('#kpB').value.trim();if(!t)return note('Title needed','bad');if(!await ask({title:'Send phone notification',text:'Every phone that allowed notifications gets it.',ok:'Send'}))return;try{const r=await admin('kpush',[],{title:t,body:x});$('#kpT').value=$('#kpB').value='';note('Sent to '+r.sent+' phone'+(r.sent===1?'':'s'),'ok');}catch(e){note(e.message,'bad');}};
+$('#pnGo').onclick=async()=>{const t=$('#pnT').value.trim(),x=$('#pnB').value.trim();if(!t)return note('Title needed','bad');if(!await ask({title:'Send phone notification',text:'Every phone that allowed notifications gets it.',ok:'Send'}))return;try{const r=await admin('kpush',[],{title:t,body:x});$('#pnT').value=$('#pnB').value='';note('Sent to '+r.sent+' phone'+(r.sent===1?'':'s'),'ok');}catch(e){note(e.message,'bad');}};
 $('#kAllGo').onclick=async()=>{const t=$('#kAll').value.trim();if(!t)return;try{const r=await admin('kmsg',[],{text:t});$('#kAll').value='';note('Sent to '+r.n+' player'+(r.n===1?'':'s'),'ok');}catch(e){note(e.message,'bad');}};
 $('#kSave').onclick=async()=>{if($('#kMaintOn').checked&&!(await sure('Close Kuşatma online play for everyone now?','Start maintenance')))return;
   try{const r=await admin('kcfgset',[],{news:{on:$('#kNewsOn').checked,text:$('#kNewsTx').value.trim()},maint:{on:$('#kMaintOn').checked,text:$('#kMaintTx').value.trim()}});say('#kSetMsg','Saved. Sent to '+r.n+' open game'+(r.n===1?'':'s')+'.','ok');}catch(e){say('#kSetMsg',e.message,'bad');}};

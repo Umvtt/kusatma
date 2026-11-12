@@ -291,7 +291,7 @@ function homePage(sec) {
   lv.append(lvlBadge(ME.lvl), el('span', '', `Seviye ${ME.lvl}`), bar, el('span', 'dim', `${fmt(ME.lx)} / ${fmt(ME.ln)} XP`));
   txt.append(lv);
   const acts = el('div', 'dp-hero-acts');
-  acts.append(btn('btn primary big play-btn', 'Oyna', () => dashGo('play')), btn('btn ghost', 'Tek başına', () => H.solo()), btn('btn ghost', 'Oda kur', () => H.roomDlg()));
+  acts.append(btn('btn primary big play-btn', 'Oyna', () => dashGo('play')), btn('btn ghost', 'Tek başına', () => H.solo()), btn('btn ghost', 'Oda kur', () => H.roomDlg()), btn('btn ghost phone-only', 'Sıralama', () => dashGo('top')));
   txt.append(acts);
   heroBox.append(cv, txt);
   sec.append(heroBox);
