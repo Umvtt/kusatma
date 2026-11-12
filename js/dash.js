@@ -56,10 +56,16 @@ export function drawAvatar(cv, eq, opts = {}) {
   bg.addColorStop(0, th.a2); bg.addColorStop(1, th.b2);
   g.fillStyle = bg; g.beginPath(); g.arc(r, r, r - 2, 0, Math.PI * 2); g.fill();
   g.save(); g.beginPath(); g.arc(r, r, r - 3, 0, Math.PI * 2); g.clip();
-  const k = S / (opts.zoom || 58); g.translate(r - 6 * k, r + 1 * k); g.scale(k, k);
-  drawCharacter(g, opts.cls || 'asker', colorOf(eq), opts.angle != null ? opts.angle : -0.55, opts.walk || 0, { alive: true, hat: eq && eq.hat, wsk: eq && eq.wsk, time: opts.time || 0 });
+  // the whole character (gun or blade included) stays inside the circle, slightly left of centre to leave room for the pet
+  const k = S / (opts.zoom || 76); g.translate(r - 3 * k, r + 3 * k); g.scale(k, k);
+  drawCharacter(g, opts.cls || 'asker', colorOf(eq), opts.angle != null ? opts.angle : -0.8, opts.walk || 0, { alive: true, hat: eq && eq.hat, wsk: eq && eq.wsk, time: opts.time || 0 });
   g.restore();
-  if (eq && eq.pet && S >= 56 && !opts.noPet) { g.save(); const pk = S / 70; g.translate(r + S * 0.24, r + S * 0.26); g.scale(pk * 1.6, pk * 1.6); drawPet(g, eq.pet, 0, 0, -2.4, opts.time || 0, 0, true); g.restore(); }
+  if (eq && eq.pet && S >= 56 && !opts.noPet) {
+    // the pet sits in the lower right, clipped to the circle so nothing spills past the frame
+    g.save(); g.beginPath(); g.arc(r, r, r - 3, 0, Math.PI * 2); g.clip();
+    const pk = S / 70; g.translate(r + S * 0.25, r + S * 0.25); g.scale(pk * 1.1, pk * 1.1);
+    drawPet(g, eq.pet, 0, 0, -2.4, opts.time || 0, 0, true); g.restore();
+  }
   const gr = g.createLinearGradient(0, 0, S, S);
   gr.addColorStop(0, fr.c[0]); gr.addColorStop(1, fr.c[1]);
   g.strokeStyle = gr; g.lineWidth = Math.max(2.5, S / 16);
@@ -747,7 +753,7 @@ function lockerPage(sec) {
     const b = btn('chip-opt', CLASSES[c].name, () => { lockCls = c; dashGo('locker'); }); b.setAttribute('aria-pressed', String(c === lockCls)); cs.append(b);
   }
   left.append(el('p', 'note', 'Önizleme sınıfı'), cs);
-  const spin = { a: -0.5 };
+  const spin = { a: -0.8 };
   const draw = () => { drawAvatar(cv, ME.eq, { size: 220, cls: lockCls, angle: spin.a }); };
   draw();
   cv.addEventListener('pointermove', (e) => { const r = cv.getBoundingClientRect(); spin.a = Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2); draw(); });
@@ -758,15 +764,19 @@ function lockerPage(sec) {
   const slot = SLOTS.find((s) => s.k === lockSlot);
   const grid = el('div', 'item-grid small');
   const cur = ME.eq[slot.k] || '';
-  const none = el('button', 'item-card' + (!cur ? ' on' : '')); none.type = 'button';
-  none.append(el('div', 'ic-prev none', '∅'), el('span', 'ic-name', slot.none));
-  none.onclick = () => equip(slot.k, '');
-  grid.append(none);
   const ids = Object.keys(ITEMS).filter((id) => id.startsWith(slot.p + '.') && (owns(id) || isFree(id)));
+  // a free item that is the slot's default (the Gece theme and banner) stands in for "nothing worn"
+  const dflt = ids.find((id) => isFree(id) && ITEMS[id].name === slot.none);
+  if (!dflt) {
+    const none = el('button', 'item-card' + (!cur ? ' on' : '')); none.type = 'button';
+    none.append(el('div', 'ic-prev none', '∅'), el('span', 'ic-name', slot.none));
+    none.onclick = () => equip(slot.k, '');
+    grid.append(none);
+  }
   for (const id of ids) {
     const b = itemCard(id, false, { equip: true });
-    b.classList.toggle('on', cur === id);
-    b.onclick = () => equip(slot.k, id);
+    b.classList.toggle('on', id === dflt ? !cur || cur === id : cur === id);
+    b.onclick = () => equip(slot.k, id === dflt ? '' : id);
     grid.append(b);
   }
   right.append(grid);
