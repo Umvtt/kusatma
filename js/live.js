@@ -3,7 +3,7 @@ import { ITEMS, cleanEq, nkey } from './catalog.js';
 export { nkey };
 // Live link to the owner's server: news, maintenance, messages, kicks and bans from the admin panel,
 // plus who is online and how far games get. Tries each address in turn (some networks block one of them).
-let ADDRS = ['wss://ironfield-api.umvtt.deno.net', 'wss://ironfield-codes.umvtt.workers.dev', 'wss://ironfield-api.pages.dev'];
+let ADDRS = ['wss://kusatma-api.umvtt.deno.net', 'wss://kusatma-api.umvtt.workers.dev', 'wss://kusatma-api.pages.dev'];
 // local tests only: point the game at a test server
 try { const t = new URLSearchParams(location.search).get('api'); if (t && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /^ws:\/\/(localhost|127\.0\.0\.1):\d+$/.test(t)) ADDRS = [t]; } catch (e) { /* ignore */ }
 const BAN_KEY = 'kusatma-ban';

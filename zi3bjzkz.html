@@ -280,6 +280,7 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
 <body>
 <main>
 <section class="card" id="setup" hidden>
+<form onsubmit="return false"><input type="text" autocomplete="username" value="panel" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" data-nf="1">
   <label>Address <input id="sUrl" autocomplete="off" spellcheck="false"></label>
   <label>Key <input id="sKey" type="password" autocomplete="off"></label>
   <label>Password <input id="sPw" type="password" autocomplete="new-password"></label>
@@ -287,12 +288,13 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
   <label>Repeat <input id="sPw2" type="password" autocomplete="new-password"></label>
   <div class="row"><button id="sGo" type="button">Save</button></div>
   <div class="msg" id="sMsg"></div>
-</section>
+</form></section>
 <section class="card" id="lock" hidden>
+<form onsubmit="return false"><input type="text" autocomplete="username" value="panel" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" data-nf="1">
   <label>Password <input id="lPw" type="password" autocomplete="current-password"></label>
   <div class="row"><button id="lGo" type="button">Sign in</button><button class="ghost small" id="lReset" type="button">Reset</button></div>
   <div class="msg" id="lMsg"></div>
-</section>
+</form></section>
 <div id="app" class="shell" hidden>
   <div class="topbar"><div class="tb-brand">Admin</div><div class="tb-sec" id="tbSec"></div></div>
   <nav class="side tabs" role="tablist">
@@ -518,12 +520,14 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
   
   <section class="card" data-pane="acct" hidden>
     <h2>Change password</h2>
+<form onsubmit="return false"><input type="text" autocomplete="username" value="panel" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" data-nf="1">
     <label>Current password <input id="aOld" type="password" autocomplete="current-password"></label>
     <label>New password <input id="aNew" type="password" autocomplete="new-password"></label>
     <div class="meter"><i id="aMeter"></i></div>
     <label>Type it again <input id="aNew2" type="password" autocomplete="new-password"></label>
     <div class="row"><button id="aGo" type="button">Change password</button></div>
     <div class="msg" id="aMsg"></div>
+</form>
     <h2>This device</h2>
     <p>The panel locks itself after 10 minutes without use, or 2 minutes after you switch away from it.</p>
     <div class="row"><button class="ghost" id="lockNow" type="button">Lock now</button><button class="danger" id="wipe" type="button">Remove the key from this device</button></div>
@@ -536,9 +540,11 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
 'use strict';
 if(window.top!==window.self){document.documentElement.textContent='';throw new Error('framed');}
 const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',enc=new TextEncoder(),dec=new TextDecoder(),$=s=>document.querySelector(s);
-const STORE='ironfield-admin',ROUNDS=600000,IDLE=10*60e3,AWAY=2*60e3;
+const STORE='kusatma-admin',ROUNDS=600000,IDLE=10*60e3,AWAY=2*60e3;
 let KEY=null,URL0='',ALT=[],pIdx=0;
-ALT=['https://ironfield-codes.umvtt.workers.dev','https://ironfield-api.umvtt.deno.net','https://ironfield-api.pages.dev'];
+ALT=['https://kusatma-api.umvtt.workers.dev','https://kusatma-api.umvtt.deno.net','https://kusatma-api.pages.dev'];
+try{localStorage.removeItem('ironfield-admin');}catch(e){}
+$('#sUrl').value=ALT[0];
 const urls=u=>{const a=[(u||URL0).replace(/\/$/,'')];for(const x of ALT)if(!a.includes(x))a.push(x);return a;};
 const b64=u=>btoa(String.fromCharCode(...u)),unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const load=()=>{try{return JSON.parse(localStorage.getItem(STORE)||'{}');}catch(e){return{};}};
@@ -557,7 +563,7 @@ function note(t,kind){const e=document.createElement('div');e.className='toast'+
 function sheet(title,wide){const d=document.createElement('div');d.className='dlg'+(wide?' wide':'');const c=document.createElement('div');c.className='card';const h=document.createElement('h2');const t=document.createElement('span');t.textContent=title;const x=document.createElement('button');x.type='button';x.className='ghost small';x.textContent='Close';h.append(t,x);c.append(h);d.append(c);
   const close=()=>{d.remove();d.onclose&&d.onclose();};x.onclick=close;d.onclick=e=>{if(e.target===d)close();};document.body.append(d);return{d,c,close,title:t};}
 const say=(sel,t,cls)=>{if(t==='Loading…')return;const e=$(sel);e.textContent=t;e.className='msg'+(cls?' '+cls:'');};
-const COMMON=['password','passw0rd','123456','qwerty','letmein','iloveyou','admin','welcome','ironfield','monkey','dragon','football','sifre','şifre','galatasaray','fenerbahce','besiktas','trabzonspor'];
+const COMMON=['password','passw0rd','123456','qwerty','letmein','iloveyou','admin','welcome','kusatma','monkey','dragon','football','sifre','şifre','galatasaray','fenerbahce','besiktas','trabzonspor'];
 function strength(pw){if(!pw)return 0;const cls=[/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/].filter(r=>r.test(pw)).length,lo=pw.toLowerCase();
   if(COMMON.some(w=>lo.includes(w))||/^(.)\1+$/.test(pw)||/(0123|1234|2345|3456|4567|5678|6789|abcd|qwer|asdf)/i.test(pw))return Math.min(1,pw.length/40);
   const pool=[26,26,10,33].reduce((a,n,i)=>a+([/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/][i].test(pw)?n:0),0),bits=pw.length*Math.log2(pool||1);
@@ -970,11 +976,11 @@ async function hLoad(fresh){let j;try{j=await admin('usage',[],fresh?{fresh:1}:u
     const a=$(ax);a.textContent='';a.append(mk('span','',D30[0].slice(5)),mk('span','','max '+f(mx)),mk('span','',D30[29].slice(5)));};
   bars('#hcR','#haR',d=>cf&&cf.days[d]?cf.days[d].w:0,fmtN,'requests');bars('#hcW','#haW',d=>cf&&cf.days[d]?cf.days[d].rw:0,fmtN,'writes');bars('#hcT','#haT',d=>cf&&cf.days[d]?(cf.days[d].te||0)+(cf.days[d].ti||0):0,fmtB,'relayed');
   bars('#hcD','#haD',d=>dsum(x=>x===d,'r'),fmtN,'requests');bars('#hcE','#haE',d=>dsum(x=>x===d,'eg'),fmtB,'sent');
-  const DV={'ironfield-api':'Server forwarder','umvtt-games':'Site mirror'};const ap=$('#hDnApps');ap.textContent='';
+  const DV={'kusatma-api':'Server forwarder','umvtt-games':'Site mirror'};const ap=$('#hDnApps');ap.textContent='';
   if(dn)for(const[app,days]of Object.entries(dn)){const z=Object.values(days),it=mk('div','item');it.append(mk('span','k',DV[app]||app),mk('span','d',fmtN((days[today]||{}).r)+' today'),mk('span','sp'),mk('span','d',fmtN(z.reduce((a,b)=>a+b.r,0))+' req · '+fmtB(z.reduce((a,b)=>a+b.eg,0))+' (30 d)'));ap.append(it);}
   const T=$('#hSvc');T.textContent='';const tr=(cells,th)=>{const r=document.createElement('tr');cells.forEach((c,i)=>{const e=document.createElement(th?'th':'td');e.textContent=c;if(i)e.className='n';r.append(e);});T.append(r);};
   tr(['Service','Today','Last 30 days','Data sent (30 days)'],1);
-  const SV={'ironfield-codes':'Cloudflare · game server','ironfield-api':'Cloudflare · Pages forwarder'};if(cf)for(const[sname,days]of Object.entries(cf.scripts)){const tot=Object.values(days).reduce((a,b)=>a+b,0);tr([SV[sname]||'Cloudflare · '+sname,fmtN(days[today]||0),fmtN(tot),'—']);}
+  const SV={'kusatma-api':'Cloudflare · game server','kusatma':'Cloudflare · site copy'};if(cf)for(const[sname,days]of Object.entries(cf.scripts)){const tot=Object.values(days).reduce((a,b)=>a+b,0);tr([SV[sname]||'Cloudflare · '+sname,fmtN(days[today]||0),fmtN(tot),'—']);}
   if(cf){const T30=Object.values(cf.days).reduce((a,z)=>a+(z.te||0),0);tr(['Cloudflare · TURN relay',fmtB((C.te||0)+(C.ti||0)),fmtB(T30+Object.values(cf.days).reduce((a,z)=>a+(z.ti||0),0)),fmtB(T30)]);}
   if(dn)for(const[app,days]of Object.entries(dn)){const z=Object.values(days);tr(['Deno · '+(DV[app]||app),fmtN((days[today]||{}).r),fmtN(z.reduce((a,b)=>a+b.r,0)),fmtB(z.reduce((a,b)=>a+b.eg,0))]);}
   if(!cf&&!dn)tr(['Not connected yet','','','']);
@@ -1079,7 +1085,7 @@ function fxDate(inp){if(inp.dataset.fx)return;inp.dataset.fx=1;inp.classList.add
       const f=document.createElement('div');f.className='fx-foot';const cl=document.createElement('button'),ok=document.createElement('button');cl.type=ok.type='button';cl.className='ghost small';ok.className='small';cl.textContent='Clear';ok.textContent='Done';
       cl.onclick=()=>{set('');FX.close();};ok.onclick=()=>{if(sel)set(fxVal(sel));FX.close();};ok.disabled=!sel;f.append(cl,ok);pop.append(f);};
     draw();fxPlace(pop,b);};}
-function noFill(root){root.querySelectorAll('input:not([data-nf]),textarea:not([data-nf])').forEach(i=>{i.dataset.nf=1;if(i.closest('#setup,#lock'))return;i.setAttribute('autocomplete',i.type==='password'?'new-password':'off');i.setAttribute('data-lpignore','true');i.setAttribute('data-1p-ignore','');i.setAttribute('data-form-type','other');if(!i.name)i.name='f'+Math.random().toString(36).slice(2,8);if(i.type!=='password')i.setAttribute('spellcheck','false');});}
+function noFill(root){root.querySelectorAll('input:not([data-nf]),textarea:not([data-nf])').forEach(i=>{i.dataset.nf=1;if(i.closest('#setup,#lock'))return;i.setAttribute('autocomplete',i.type==='password'?'new-password':'off');i.setAttribute('data-lpignore','true');i.setAttribute('data-1p-ignore','');i.setAttribute('data-form-type','other');if(!i.name)i.name='f'+Math.random().toString(36).slice(2,8);if(i.type!=='password')i.setAttribute('spellcheck','false');if(!i.closest('form')&&i.type!=='password'){const on=()=>{i.dataset.ut=1;};for(const e of['focus','pointerdown','keydown','paste','drop'])i.addEventListener(e,on);i.addEventListener('input',()=>{if(!i.dataset.ut&&document.activeElement!==i)i.value='';});}});}
 function fxScan(root){noFill(root);root.querySelectorAll('select:not([data-fx])').forEach(fxSelect);root.querySelectorAll('input[type=datetime-local]:not([data-fx])').forEach(fxDate);}
 fxScan(document);new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.nodeType===1&&!n.classList.contains('fx-pop'))fxScan(n.parentNode||n);}).observe(document.body,{childList:true,subtree:true});
 
