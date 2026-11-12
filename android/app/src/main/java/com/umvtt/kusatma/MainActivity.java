@@ -287,7 +287,6 @@ public class MainActivity extends Activity {
         String link = i.getStringExtra("link");
         if (link != null && link.matches("[a-z/]{0,40}") && web != null && loaded) web.loadUrl(SITES[site] + link + "?app=" + BuildConfig.VERSION_CODE);
     }
-    static boolean open = false;
 
 
     /** The mirror, then the offline page with a retry button. */
@@ -302,7 +301,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void ready() { ui.post(MainActivity.this::hideSplash); }
         // push notifications: the page sends this token to the server with the player's account
         @JavascriptInterface public String pushToken() { return getSharedPreferences("kusatma", MODE_PRIVATE).getString("push", ""); }
-        @JavascriptInterface public boolean pushAllowed() { return Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED; }
+        @JavascriptInterface public boolean pushAllowed() { android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class); return (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) && (nm == null || nm.areNotificationsEnabled()); }
         @JavascriptInterface public void pushAsk() { ui.post(() -> { if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 78); }); }
         @JavascriptInterface public int version() { return BuildConfig.VERSION_CODE; }
         @JavascriptInterface public void vibrate(String pattern) {
@@ -327,10 +326,10 @@ public class MainActivity extends Activity {
     public void onWindowFocusChanged(boolean hasFocus) { super.onWindowFocusChanged(hasFocus); if (hasFocus) immersive(); }
 
     @Override
-    protected void onPause() { super.onPause(); open = false; web.onPause(); }
+    protected void onPause() { super.onPause(); web.onPause(); }
 
     @Override
-    protected void onResume() { super.onResume(); open = true; web.onResume(); immersive(); }
+    protected void onResume() { super.onResume(); web.onResume(); immersive(); }
 
     /** Back works like Esc in the game (menus, dialogs); on the main menu, pressing twice closes the app. */
     @Override

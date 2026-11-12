@@ -12,8 +12,8 @@ import com.google.firebase.messaging.RemoteMessage;
 
 /**
  * Push notifications from the game's server (through Firebase): friend requests, messages, clan invites and the
- * owner's announcements. When the app is in the background Android shows them itself; when the game is open the
- * game shows its own in-game notice, so nothing is shown twice.
+ * owner's announcements. The server only sends player notices while that player is not connected, so they are shown
+ * even when the app is in front (the owner's announcements included).
  */
 public class Push extends FirebaseMessagingService {
     static final String CHANNEL = "kusatma";
@@ -32,7 +32,6 @@ public class Push extends FirebaseMessagingService {
     }
 
     @Override public void onMessageReceived(RemoteMessage m) {
-        if (MainActivity.open) return; // the game is on screen: it shows its own notice
         String title = m.getData().get("title"), body = m.getData().get("body"), link = m.getData().get("link");
         if (m.getNotification() != null) { title = m.getNotification().getTitle(); body = m.getNotification().getBody(); }
         if (title == null) return;

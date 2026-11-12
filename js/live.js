@@ -71,6 +71,8 @@ const DV = (() => {
   const c = navigator.connection || {};
   return { p, os, b, app: app | 0, w: screen.width | 0, h: screen.height | 0, dpr: window.devicePixelRatio || 1, tc: 'ontouchstart' in window ? 1 : 0, lang: navigator.language || '', mem: navigator.deviceMemory | 0, cpu: navigator.hardwareConcurrency | 0, net: c.effectiveType || '', tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; } })() };
 })();
+// coarse device type for the owner's live list (no personal data; kept only while connected)
+const PF = DV.app ? 'app' : DV.tc && Math.min(DV.w, DV.h) < 600 ? 'phone' : DV.tc && /Android|iOS/.test(DV.p) ? 'tablet' : 'pc';
 export const deviceLine = () => `${DV.p}${DV.os ? ' · ' + DV.os : ''} · ${DV.b}`;
 let ws = null, idx = 0, delay = 3000, last = '', H = null, ping = 0;
 // a new cookie choice goes to the server with the next hello
@@ -87,7 +89,7 @@ function send(o) { if (ws && ws.readyState === 1) try { ws.send(JSON.stringify(o
 
 function hi(force) {
   const s = H.state();
-  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '', bn: LIVE.ban !== null ? 1 : 0, pub: PUB ? 1 : 0, dv: statsOk() ? DV : null, cs: statsOk() ? 1 : 0, rn: str(s.rn, 24), mx: s.mx | 0, df: str(s.df, 12), gm: str(s.gm, 8) };
+  const m = { e: 'hi', dev, name: str(s.name, 16), room: str(s.room, 6), mode: s.mode || '', st: str(s.st, 8), wave: s.wave | 0, n: s.n | 0, ver: s.ver | 0, cls: str(s.cls, 12), tk: ACCT ? ACCT.tk : '', bn: LIVE.ban !== null ? 1 : 0, pub: PUB ? 1 : 0, dv: statsOk() ? DV : null, cs: statsOk() ? 1 : 0, pf: PF, rn: str(s.rn, 24), mx: s.mx | 0, df: str(s.df, 12), gm: str(s.gm, 8) };
   const j = JSON.stringify(m);
   if (force || j !== last) { last = j; send(m); }
 }
@@ -179,19 +181,23 @@ export async function appPushSet(on) {
   try { localStorage.setItem('kusatma-push-off', on ? '0' : '1'); } catch (e) { /* ignore */ }
   if (on && !b.pushAllowed()) b.pushAsk();
   const t = appPushToken(); if (!t) return false;
-  const j = await api('/kacct', { op: 'push', tk: ACCT.tk, t, on: on ? 1 : 0 });
-  try { localStorage.setItem('kusatma-push', on && j.ok ? ACCT.id + ':' + t : ''); } catch (e) { /* ignore */ }
+  const al = b.pushAllowed() ? 1 : 0;
+  const j = await api('/kacct', { op: 'push', tk: ACCT.tk, t, on: on ? 1 : 0, al });
+  try { localStorage.setItem('kusatma-push', on && j.ok ? ACCT.id + ':' + t + ':' + al : ''); } catch (e) { /* ignore */ }
   return !!j.ok;
 }
 // once per account and phone: ask for permission the first time and register the token
 let pushTry = 0;
+// coming back from Android's settings may have turned notifications on or off
+try { document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') appPushAuto(); }); } catch (e) { /* ignore */ }
 function appPushAuto() {
   const b = appBridge(); if (!b || !ACCT) return;
   let off = false, sent = ''; try { off = localStorage.getItem('kusatma-push-off') === '1'; sent = localStorage.getItem('kusatma-push') || ''; } catch (e) { /* ignore */ }
   if (off) return;
   if (!b.pushAllowed()) { let asked = false; try { asked = localStorage.getItem('kusatma-push-asked') === '1'; localStorage.setItem('kusatma-push-asked', '1'); } catch (e) { /* ignore */ } if (!asked) b.pushAsk(); }
   const t = appPushToken();
-  if (t && sent !== ACCT.id + ':' + t) appPushSet(true);
+  // registered again when the token or the phone's notification permission changes, so the panel knows which phones can be reached
+  if (t && sent !== ACCT.id + ':' + t + ':' + (b.pushAllowed() ? 1 : 0)) appPushSet(true);
   else if (!t && pushTry++ < 3) setTimeout(appPushAuto, 15000); // the token can take a moment on a fresh install
 }
 try { const m = JSON.parse(localStorage.getItem('kusatma-ben') || 'null'); if (m && ACCT) keepMe(m); } catch (e) { /* ignore */ }
