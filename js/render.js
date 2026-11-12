@@ -163,6 +163,7 @@ export class Renderer {
     for (const [pid, q] of game.pets) { const p = game.ps.get(pid); if (p && inView(q.x, q.y)) { g.save(); g.translate(q.x, q.y); g.scale(1.5, 1.5); drawPet(g, q.id, 0, 0, q.a, game.time, q.mv, p.alive); g.restore(); } }
     for (const [pid, p] of game.ps) if (p.alive && inView(p.x, p.y)) drawPlayer(g, game, pid, p, roster.get(pid), true);
     for (const w of game.walls) if (inView(w[1], w[2])) drawWall(g, w);
+    if (game.trains && game.trains.length) for (const q of game.trains) drawTrain(g, q, view, game.time);
     for (const l of game.lobs) drawLob(g, l);
 
     // projectiles
@@ -502,7 +503,7 @@ function makeGround(theme, seed, decor) {
   g.scale(s, s);
   let st = (seed >>> 0) || 7;
   const rnd = () => { st = (st * 16807) % 2147483647; return st / 2147483647; };
-  const base = { meydan: '#1b231d', benzinlik: '#1c201e', hastane: '#1e2a1b', orman: '#18221a', liman: '#1d2328', kar: '#46525c' }[theme] || '#1b231d';
+  const base = { meydan: '#1b231d', benzinlik: '#1c201e', hastane: '#1e2a1b', orman: '#18221a', liman: '#1d2328', kar: '#46525c', metro: '#16181d', avm: '#2b2a30', us: '#2c2a1f', luna: '#191624' }[theme] || '#1b231d';
   g.fillStyle = base;
   g.fillRect(0, 0, WORLD_W, WORLD_H);
   const blotches = (n, dark, light, rmin, rmax) => {
@@ -526,6 +527,14 @@ function makeGround(theme, seed, decor) {
     for (let y = 0; y <= WORLD_H; y += 120) { g.beginPath(); g.moveTo(0, y); g.lineTo(WORLD_W, y); g.stroke(); }
     blotches(1400, 'rgba(0,0,0,0.05)', 'rgba(140,170,190,0.02)', 15, 90);
     for (let i = 0; i < 60; i++) { g.fillStyle = 'rgba(214,182,92,0.25)'; g.fillRect(rnd() * WORLD_W, 480 + rnd() * (WORLD_H - 500), 60, 6); }
+  } else if (theme === 'metro') {
+    blotches(1400, 'rgba(0,0,0,0.06)', 'rgba(120,140,170,0.02)', 15, 80);
+  } else if (theme === 'avm') {
+    blotches(600, 'rgba(255,255,255,0.015)', 'rgba(0,0,0,0.03)', 40, 160);
+  } else if (theme === 'us') {
+    blotches(2200, 'rgba(0,0,0,0.07)', 'rgba(160,140,90,0.05)', 15, 100);
+  } else if (theme === 'luna') {
+    blotches(1800, 'rgba(0,0,0,0.06)', 'rgba(120,80,160,0.035)', 20, 110);
   } else if (theme === 'kar') {
     blotches(1600, 'rgba(255,255,255,0.03)', 'rgba(20,30,40,0.035)', 30, 140);
     for (let i = 0; i < 3000; i++) { g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(rnd() * WORLD_W, rnd() * WORLD_H, 2, 2); }
@@ -582,6 +591,24 @@ function makeGround(theme, seed, decor) {
     } else if (d.k === 'snowpath') {
       g.strokeStyle = 'rgba(60,70,80,0.55)'; g.lineWidth = 60; g.lineCap = 'round';
       g.beginPath(); g.moveTo(d.x1, d.y1); g.quadraticCurveTo((d.x1 + d.x2) / 2 + (rnd() - 0.5) * 500, (d.y1 + d.y2) / 2 + (rnd() - 0.5) * 500, d.x2, d.y2); g.stroke();
+    } else if (d.k === 'tiles') {
+      g.strokeStyle = d.c; g.lineWidth = 2;
+      for (let x = d.x; x <= d.x + d.w; x += d.s) { g.beginPath(); g.moveTo(x, d.y); g.lineTo(x, d.y + d.h); g.stroke(); }
+      for (let y = d.y; y <= d.y + d.h; y += d.s) { g.beginPath(); g.moveTo(d.x, y); g.lineTo(d.x + d.w, y); g.stroke(); }
+    } else if (d.k === 'platform') {
+      g.fillStyle = '#c9a227'; g.fillRect(d.x, d.y, d.w, d.h); g.fillStyle = 'rgba(0,0,0,0.35)'; for (let x = d.x; x < d.x + d.w; x += 22) g.fillRect(x, d.y, 10, d.h);
+    } else if (d.k === 'dirt') {
+      for (let i = 0; i < 900; i++) { g.fillStyle = 'rgba(90,75,45,0.25)'; g.fillRect(rnd() * d.w, rnd() * d.h, 6, 3); }
+    } else if (d.k === 'helipad') {
+      g.fillStyle = '#353a33'; g.beginPath(); g.arc(d.x, d.y, d.r, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#e8e6df'; g.lineWidth = 8; g.beginPath(); g.arc(d.x, d.y, d.r - 16, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = '#e8e6df'; g.fillRect(d.x - 50, d.y - 60, 18, 120); g.fillRect(d.x + 32, d.y - 60, 18, 120); g.fillRect(d.x - 32, d.y - 9, 64, 18);
+    } else if (d.k === 'park') {
+      for (let i = 0; i < 1600; i++) { g.fillStyle = rnd() < 0.5 ? 'rgba(60,90,60,0.25)' : 'rgba(90,60,110,0.18)'; g.fillRect(rnd() * d.w, rnd() * d.h, 4, 2); }
+    } else if (d.k === 'lights') {
+      g.strokeStyle = 'rgba(30,26,36,0.8)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(d.x1, d.y1); g.lineTo(d.x2, d.y2); g.stroke();
+      const L = Math.hypot(d.x2 - d.x1, d.y2 - d.y1), n = Math.floor(L / 34), cols = ['#ffd23f', '#ff5a5f', '#4cc9f0', '#9ef01a', '#f15bb5'];
+      for (let i = 0; i <= n; i++) { const k = i / Math.max(1, n); g.fillStyle = cols[i % 5]; g.beginPath(); g.arc(d.x1 + (d.x2 - d.x1) * k, d.y1 + (d.y2 - d.y1) * k, 3.5, 0, Math.PI * 2); g.fill(); }
     } else if (d.k === 'sandbags') {
       for (let i = 0; i < 40; i++) {
         const a = (i / 40) * Math.PI * 2;
@@ -615,9 +642,44 @@ function drawObstacle(g, o) {
     g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(o.x, o.y + o.h - 6, o.w, 6);
     return;
   }
-  const round = o.k === 'agac' || o.k === 'kaya' || o.k === 'cam' || o.k === 'kar' || o.k === 'baba' || o.k === 'kuyu';
+  const round = o.k === 'agac' || o.k === 'kaya' || o.k === 'cam' || o.k === 'kar' || o.k === 'baba' || o.k === 'kuyu' || o.k === 'saksi' || o.k === 'atli';
   if (!round) { g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(o.x + 6, o.y + 8, o.w, o.h); }
   switch (o.k) {
+    case 'kolon': // metro pillar
+      g.fillStyle = '#3a3f48'; g.fillRect(o.x, o.y, o.w, o.h); g.fillStyle = '#4a505a'; g.fillRect(o.x, o.y, o.w, 6);
+      g.fillStyle = '#c9a227'; g.fillRect(o.x, o.y + o.h * 0.45, o.w, 6); g.strokeStyle = '#22252b'; g.lineWidth = 2; g.strokeRect(o.x + 1, o.y + 1, o.w - 2, o.h - 2); break;
+    case 'stand': // mall kiosk
+      g.fillStyle = '#2f2f36'; g.fillRect(o.x, o.y, o.w, o.h); g.fillStyle = o.c || '#ff9f43'; g.fillRect(o.x + 4, o.y + 4, o.w - 8, 10);
+      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(o.x + 8, o.y + 20, o.w - 16, o.h - 28); break;
+    case 'saksi': { const cx = o.x + o.w / 2, cy = o.y + o.h / 2, r = o.w / 2;
+      g.fillStyle = '#8a6a4a'; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#3e7a3a'; for (let i = 0; i < 5; i++) { const a = i * 1.26; g.beginPath(); g.arc(cx + Math.cos(a) * r * 0.4, cy + Math.sin(a) * r * 0.4, r * 0.5, 0, Math.PI * 2); g.fill(); } break; }
+    case 'kumtorba': { // sandbag wall
+      g.fillStyle = '#7a6a48'; g.fillRect(o.x, o.y, o.w, o.h); g.strokeStyle = '#4a4030'; g.lineWidth = 2;
+      const hz = o.w >= o.h, n = Math.max(2, Math.round((hz ? o.w : o.h) / 28));
+      for (let i = 1; i < n; i++) { g.beginPath(); if (hz) { g.moveTo(o.x + (o.w * i) / n, o.y); g.lineTo(o.x + (o.w * i) / n, o.y + o.h); } else { g.moveTo(o.x, o.y + (o.h * i) / n); g.lineTo(o.x + o.w, o.y + (o.h * i) / n); } g.stroke(); }
+      g.strokeRect(o.x + 1, o.y + 1, o.w - 2, o.h - 2); break; }
+    case 'kule': // watchtower seen from above
+      g.fillStyle = '#4a3a28'; g.fillRect(o.x, o.y, o.w, o.h); g.strokeStyle = '#2a2018'; g.lineWidth = 3; g.beginPath(); g.moveTo(o.x, o.y); g.lineTo(o.x + o.w, o.y + o.h); g.moveTo(o.x + o.w, o.y); g.lineTo(o.x, o.y + o.h); g.stroke();
+      g.fillStyle = '#5a4a36'; g.fillRect(o.x + 10, o.y + 10, o.w - 20, o.h - 20); break;
+    case 'cadir': // tent
+      g.fillStyle = o.c || '#4a5a32'; g.fillRect(o.x, o.y, o.w, o.h);
+      if (o.stripe) { g.fillStyle = 'rgba(255,255,255,0.75)'; for (let x = o.x + 10; x < o.x + o.w; x += 28) g.fillRect(x, o.y, 12, o.h); }
+      g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 3; g.beginPath(); g.moveTo(o.x + o.w / 2, o.y); g.lineTo(o.x + o.w / 2, o.y + o.h); g.stroke(); g.strokeRect(o.x + 1, o.y + 1, o.w - 2, o.h - 2); break;
+    case 'tank': { // wrecked tank
+      g.fillStyle = '#3d4530'; g.fillRect(o.x, o.y, o.w, o.h); g.fillStyle = '#23281c';
+      if (o.d) { g.fillRect(o.x, o.y, 12, o.h); g.fillRect(o.x + o.w - 12, o.y, 12, o.h); } else { g.fillRect(o.x, o.y, o.w, 12); g.fillRect(o.x, o.y + o.h - 12, o.w, 12); }
+      const cx = o.x + o.w / 2, cy = o.y + o.h / 2; g.fillStyle = '#4a5338'; g.beginPath(); g.arc(cx, cy, 22, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#2a2f20'; g.save(); g.translate(cx, cy); g.rotate(o.d ? 2.2 : 0.6); g.fillRect(0, -4, 58, 8); g.restore();
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(cx - 18, cy + 10, 10, 0, Math.PI * 2); g.fill(); break; }
+    case 'atli': { // carousel
+      const cx = o.x + o.w / 2, cy = o.y + o.h / 2, r = o.w / 2, cols = ['#e5484d', '#ffd23f', '#4cc9f0', '#f15bb5', '#9ef01a', '#ff9f43'];
+      for (let i = 0; i < 12; i++) { g.fillStyle = cols[i % 6]; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, r, (i / 12) * Math.PI * 2, ((i + 1) / 12) * Math.PI * 2); g.closePath(); g.fill(); }
+      g.fillStyle = '#ffe9a8'; g.beginPath(); g.arc(cx, cy, r * 0.22, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#3a2a1a'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, r - 1, 0, Math.PI * 2); g.stroke(); break; }
+    case 'bufe': // food stall with a striped roof
+      g.fillStyle = '#3a2f2a'; g.fillRect(o.x, o.y, o.w, o.h);
+      for (let x = o.x; x < o.x + o.w; x += 18) { g.fillStyle = Math.round((x - o.x) / 18) % 2 ? '#f4f1ea' : (o.c || '#e5484d'); g.fillRect(x, o.y, Math.min(18, o.x + o.w - x), o.h * 0.55); }
+      g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 2; g.strokeRect(o.x + 1, o.y + 1, o.w - 2, o.h - 2); break;
     case 'konteyner': {
       g.fillStyle = o.c || '#8e3b2e'; g.fillRect(o.x, o.y, o.w, o.h);
       const hor = o.w > o.h; g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = 3;
@@ -672,6 +734,13 @@ function drawObstacle(g, o) {
           g.fillStyle = 'rgba(200,214,228,0.9)'; g.fillRect(o.x + 4, o.y + o.h * 0.42, o.w - 8, 4);
           g.fillStyle = 'rgba(236,242,248,0.85)'; g.fillRect(o.x + o.w * 0.7 - 2, o.y + 12, 28, 8);
         }
+      } else if (o.shop) { // mall shop: a coloured awning and a window
+        g.fillStyle = o.a || '#ffd23f'; g.fillRect(o.x + 6, o.y + o.h - 24, o.w - 12, 14);
+        g.fillStyle = 'rgba(160,200,230,0.18)'; g.fillRect(o.x + 16, o.y + 16, o.w - 32, o.h - 48);
+      } else if (o.haunt) { // the haunted house
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(o.x + 16, o.y + 16, o.w - 32, o.h - 32);
+        g.fillStyle = '#b07ad8'; for (const fx of [0.25, 0.62]) { g.beginPath(); g.arc(o.x + o.w * fx + 12, o.y + o.h * 0.42, 9, 0, Math.PI * 2); g.fill(); }
+        g.fillStyle = '#120c18'; g.fillRect(o.x + o.w / 2 - 22, o.y + o.h - 46, 44, 46);
       } else if (o.hosp) {
         g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(o.x + 16, o.y + 16, o.w - 32, o.h - 32);
         const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
@@ -902,6 +971,7 @@ function drawZombie(g, z, time) {
     g.fillStyle = 'rgba(229,72,77,0.13)';
     g.beginPath(); g.arc(0, 0, r + 10 + Math.sin(time * 5) * 3, 0, Math.PI * 2); g.fill();
   }
+  if (z.t === 21 || z.t === 22 || z.t === 23) { drawNewZombie(g, z, r, time); g.restore(); return; }
   g.rotate(z.t === 6 && z.sface ? z.sface : z.face);
   const sway = Math.sin(z.walk + z.id) * 0.25;
   const fl = z.flash > 0;
@@ -1790,8 +1860,8 @@ function petsStep(game, roster) {
     else { let da = fa - q.a; da = Math.atan2(Math.sin(da), Math.cos(da)); q.a += da * Math.min(1, dt * 3); }
   }
 }
-const PET_KIND = { k9: 'dog', 'p.kopek': 'dog', 'p.kedi': 'cat', 'p.tilki': 'fox', 'p.kurt': 'wolf', 'p.karga': 'bird', 'p.serce': 'bird', 'p.robot': 'robot', 'p.ejder': 'dragon' };
-const PET_COL = { k9: ['#8a6234', '#2a2018'], 'p.kopek': ['#b07a45', '#6e4524'], 'p.kedi': ['#e0a050', '#9a5f22'], 'p.tilki': ['#e06a2c', '#8a3510'], 'p.kurt': ['#9aa3ad', '#59616b'], 'p.karga': ['#2b2f3a', '#11131a'], 'p.serce': ['#9c7b55', '#5a4228'], 'p.robot': ['#8fa3b8', '#4a5a6b'], 'p.ejder': ['#4fbf6a', '#1f6a34'] };
+const PET_KIND = { zdog: 'wolf', k9: 'dog', 'p.kopek': 'dog', 'p.kedi': 'cat', 'p.tilki': 'fox', 'p.kurt': 'wolf', 'p.karga': 'bird', 'p.serce': 'bird', 'p.robot': 'robot', 'p.ejder': 'dragon' };
+const PET_COL = { zdog: ['#6f6a4a', '#2f2a1a'], k9: ['#8a6234', '#2a2018'], 'p.kopek': ['#b07a45', '#6e4524'], 'p.kedi': ['#e0a050', '#9a5f22'], 'p.tilki': ['#e06a2c', '#8a3510'], 'p.kurt': ['#9aa3ad', '#59616b'], 'p.karga': ['#2b2f3a', '#11131a'], 'p.serce': ['#9c7b55', '#5a4228'], 'p.robot': ['#8fa3b8', '#4a5a6b'], 'p.ejder': ['#4fbf6a', '#1f6a34'] };
 export function drawPet(g, id, x, y, a, t, mv = 0, happy = true) {
   const kind = PET_KIND[id]; if (!kind) return;
   const [c1, c2] = PET_COL[id];
@@ -1864,4 +1934,55 @@ function drawCoil(g, t) {
   for (let i = 0; i < 3; i++) { const a = now * 7 + i * 2.1; g.beginPath(); g.moveTo(0, -4); g.lineTo(Math.cos(a) * 10 + (Math.random() - 0.5) * 4, -4 + Math.sin(a) * 10); g.stroke(); }
   if (t.life != null && t.life < 3) { g.globalAlpha = 0.6; g.fillStyle = '#fff'; g.font = '700 10px Rubik, sans-serif'; g.textAlign = 'center'; g.fillText(String(Math.ceil(t.life)), 0, 24); }
   g.restore();
+}
+
+// metro: a flashing red lane while the horn sounds, then the train sweeps through
+function drawTrain(g, q, view, time) {
+  const B = WORLD.bounds;
+  if (!q.go) {
+    g.fillStyle = `rgba(229,72,77,${0.12 + 0.12 * Math.sin(time * 14)})`; g.fillRect(B.x0, q.y - 56, B.x1 - B.x0, 112);
+    g.strokeStyle = 'rgba(255,90,90,0.7)'; g.lineWidth = 3; g.setLineDash([18, 12]);
+    g.beginPath(); g.moveTo(B.x0, q.y - 56); g.lineTo(B.x1, q.y - 56); g.moveTo(B.x0, q.y + 56); g.lineTo(B.x1, q.y + 56); g.stroke(); g.setLineDash([]);
+    return;
+  }
+  const W = B.x1 - B.x0, len = 1100, k = q.t / 1.2, head = q.dir > 0 ? B.x0 - len + (W + len * 2) * k : B.x1 + len - (W + len * 2) * k;
+  for (let i = 0; i < 4; i++) {
+    const x = q.dir > 0 ? head - i * 270 - 260 : head + i * 270;
+    if (x > view.r + 300 || x + 260 < view.l - 300) continue;
+    g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(x + 6, q.y - 40, 260, 88);
+    g.fillStyle = '#b8bec6'; g.fillRect(x, q.y - 46, 260, 92);
+    g.fillStyle = '#c0392b'; g.fillRect(x, q.y - 8, 260, 14);
+    g.fillStyle = '#2a3440'; for (let w = 14; w < 250; w += 40) g.fillRect(x + w, q.y - 38, 26, 22);
+  }
+}
+
+// build 43: bats (wings flapping), zombie dogs and the Dev Solucan
+function drawNewZombie(g, z, r, time) {
+  const hit = z.flash > 0;
+  if (z.t === 21) { // bat
+    g.rotate(z.face || 0);
+    const f = Math.sin(time * 26 + z.id) * 0.6;
+    g.fillStyle = hit ? '#fff' : '#3a2e3a';
+    for (const s of [-1, 1]) { g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-4, s * (14 + f * 8), -12, s * (20 + f * 10)); g.quadraticCurveTo(-6, s * 10, -14, s * 6); g.closePath(); g.fill(); }
+    g.fillStyle = hit ? '#fff' : '#5a4a5a'; g.beginPath(); g.ellipse(0, 0, 9, 6, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ff4040'; g.beginPath(); g.arc(5, -2.5, 1.5, 0, Math.PI * 2); g.arc(5, 2.5, 1.5, 0, Math.PI * 2); g.fill();
+    return;
+  }
+  if (z.t === 22) { // zombie dog: the wolf model in rotten colours, red eyes
+    g.scale(1.6, 1.6);
+    drawPet(g, 'zdog', 0, 0, z.face || 0, time, 1, false);
+    if (hit) { g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.arc(0, 0, 9, 0, Math.PI * 2); g.fill(); }
+    return;
+  }
+  // Dev Solucan: a fat ringed worm with a round mouth of teeth
+  g.rotate(z.face || 0);
+  for (let i = 4; i >= 0; i--) {
+    const x = -i * r * 0.45, w = Math.sin(time * 5 + i) * 4;
+    g.fillStyle = hit ? '#fff' : i % 2 ? '#8a5656' : '#a06a6a';
+    g.beginPath(); g.ellipse(x, w, r * (1 - i * 0.12), r * (0.9 - i * 0.1), 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 3; g.stroke();
+  }
+  g.fillStyle = '#2a0e0e'; g.beginPath(); g.arc(r * 0.35, 0, r * 0.5, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#f4ead2';
+  for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; g.beginPath(); g.moveTo(r * 0.35 + Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5); g.lineTo(r * 0.35 + Math.cos(a + 0.2) * r * 0.25, Math.sin(a + 0.2) * r * 0.25); g.lineTo(r * 0.35 + Math.cos(a + 0.4) * r * 0.5, Math.sin(a + 0.4) * r * 0.5); g.fill(); }
 }

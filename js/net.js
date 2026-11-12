@@ -118,6 +118,7 @@ export class HostNet {
   }
 
   markPlayer(pid) { const i = this.conns.get(pid); if (i) i.player = true; }
+  peerIdOf(pid) { const i = this.conns.get(pid); return i && i.conn ? i.conn.peer : null; }
 
   // A reconnecting player gets their old player number back. A stale link still holding that number is closed quietly.
   rebind(from, to) {

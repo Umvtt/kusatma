@@ -26,7 +26,10 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -148,8 +151,20 @@ public class MainActivity extends Activity {
         s.setUserAgentString(s.getUserAgentString() + " KusatmaApp/" + BuildConfig.VERSION_CODE);
         web.addJavascriptInterface(new Bridge(), "KusatmaApp");
 
+        s.setMediaPlaybackRequiresUserGesture(false);  // teammates' voices play without a tap
         web.setWebChromeClient(new WebChromeClient() {
             @Override public void onProgressChanged(WebView view, int p) { if (p > 60 && !loaded) status.setText("Oyun hazırlanıyor…"); }
+            // voice chat: the page asks for the microphone; Android asks the player once, then the page gets it
+            @Override public void onPermissionRequest(final PermissionRequest req) {
+                ui.post(() -> {
+                    boolean mic = false;
+                    for (String r : req.getResources()) if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) mic = true;
+                    if (!mic) { req.deny(); return; }
+                    if (Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { req.grant(new String[] { PermissionRequest.RESOURCE_AUDIO_CAPTURE }); return; }
+                    micReq = req;
+                    requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, 77);
+                });
+            }
         });
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -433,5 +448,14 @@ public class MainActivity extends Activity {
         };
         IntentFilter f = new IntentFilter(INSTALL_DONE);
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(r, f, Context.RECEIVER_NOT_EXPORTED); else registerReceiver(r, f);
+    }
+
+    private PermissionRequest micReq;
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(code, perms, res);
+        if (code != 77 || micReq == null) return;
+        if (res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED) micReq.grant(new String[] { PermissionRequest.RESOURCE_AUDIO_CAPTURE }); else micReq.deny();
+        micReq = null;
     }
 }

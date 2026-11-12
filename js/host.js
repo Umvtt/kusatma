@@ -9,7 +9,7 @@ import {
 } from './config.js';
 import { PvpMixin } from './pvp.js';
 import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldDir, fieldAhead, fieldAt, outOfMap, GW, GH, escapePocket, resolveCircle } from './world.js';
-import { generateMap } from './mapgen.js';
+import { generateMap, METRO_TRACKS } from './mapgen.js';
 import { ITEMS as COS, checkPass, ownsCls, nkey } from './catalog.js';
 
 const num = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -81,6 +81,7 @@ export class HostGame {
     this.hordeT = 0;
     this.cars = []; // wrecked cars thrown by Dev Hurda, in the air
     this.graves = []; // where zombies died lately (the Cadı raises them)
+    this.train = null; this.trainAt = null; this.hauntAt = null;
     this.pvpOver = null; this.roundPause = 0; this.score = [0, 0]; this.rounds = [0, 0]; this.round = 0; this.pvT = 0; this.matchT = 0;
   }
 
@@ -134,7 +135,7 @@ export class HostGame {
       if (bz) for (const id of bz.keys()) if (!cur.has(id)) ZD.push(id);
       const evFrom = Math.max((base ? base.ev : zh.ev0) + 1, logFirst, this.evSeq - 299);
       const E = evFrom <= this.evSeq ? this.evLog.slice(evFrom - logFirst) : [];
-      zh.hist.set(q, { zk: cur, ev: this.evSeq });
+      zh.hist.set(q, { zk: cur, ev: this.evSeq, t: performance.now() });
       if (zh.hist.size > 48) zh.hist.delete(zh.hist.keys().next().value);
       const m = Object.assign({}, s, { Z, ZD, zd: 1, q, hi: this.hid, E, es: evFrom });
       if (far && !full) m.ZF = far;
@@ -142,7 +143,8 @@ export class HostGame {
     }
   }
   // the guest confirms the newest snapshot it has applied
-  snapAck(p, k) { const zh = p.zh; if (!zh || !Number.isInteger(k) || k <= zh.ack || !zh.hist.has(k)) return; zh.ack = k; for (const q of [...zh.hist.keys()]) if (q < k) zh.hist.delete(q); }
+  snapAck(p, k) { const zh = p.zh; if (!zh || !Number.isInteger(k) || k <= zh.ack || !zh.hist.has(k)) return; zh.ack = k;
+    { const h = zh.hist.get(k), rtt = h && h.t ? Math.max(0, performance.now() - h.t - 25) : null; if (rtt != null && rtt < 5000) p.ping = p.ping == null ? rtt : p.ping * 0.8 + rtt * 0.2; } for (const q of [...zh.hist.keys()]) if (q < k) zh.hist.delete(q); }
   // a guest that lost track asks for everything again
   resyncZ(p) { if (p) p.zh = null; }
 
@@ -156,6 +158,7 @@ export class HostGame {
       players: [...this.players.values()].map((p) => ({
         pid: p.pid, name: p.name, cls: p.cls, ready: p.ready, color: p.color, inGame: p.inGame || !!p.ghost, away: !!p.ghost,
         eq: p.eq || {}, lvl: p.lvl || 0, acct: p.acct ? 1 : 0, tm: p.tm | 0,
+        vo: p.vo ? 1 : 0, vp: p.vo ? (p.pid === this.hostPid ? (this.net.peer && this.net.peer.id) || null : (this.net.peerIdOf ? this.net.peerIdOf(p.pid) : null)) : null,
       })),
     };
   }
@@ -300,6 +303,7 @@ export class HostGame {
         }
         break;
       case 'chat': this.onChat(p, m); break;
+      case 'voice': if (!this.net.offline) { p.vo = !!m.on; this.pushRoster(); } break;
       case 'pause': if (isHost && this.net.code == null) this.paused = !!m.on; break;
       case 'lobby': if (isHost && this.phase === 'over') this.toLobby(); break;
       case 'kick':
@@ -995,12 +999,15 @@ export class HostGame {
     const pDig = w >= 7 ? Math.min(0.04, 0.012 + (w - 7) * 0.004) : 0;
     const pScream = w >= 9 ? Math.min(0.025, 0.01 + (w - 9) * 0.003) : 0;
     const pFrost = w >= 6 ? Math.min(0.04, 0.012 + (w - 6) * 0.004) : 0;
-    const table = [[16, pDig], [17, pScream], [18, pFrost], [2, pBig], [4, pSpit], [5, pBoom], [6, pShield], [7, pSummon], [10, pGhost], [11, pArmor], [12, pLeap], [13, pBloat], [15, pHeal], [14, pCrawl], [1, pRun]];
+    const pBat = w >= 7 ? Math.min(0.025, 0.008 + (w - 7) * 0.003) : 0;
+    const pDog = w >= 5 ? Math.min(0.025, 0.008 + (w - 5) * 0.003) : 0;
+    const table = [[21, pBat], [22, pDog], [16, pDig], [17, pScream], [18, pFrost], [2, pBig], [4, pSpit], [5, pBoom], [6, pShield], [7, pSummon], [10, pGhost], [11, pArmor], [12, pLeap], [13, pBloat], [15, pHeal], [14, pCrawl], [1, pRun]];
     this.queue = [];
     for (let i = 0; i < total; i++) {
       let r = Math.random(), t = 0;
       for (const [type, pr] of table) { if (r < pr) { t = type; break; } r -= pr; }
       this.queue.push(t);
+      if (t === 21) this.queue.push(21, 21, 21, 21); else if (t === 22) this.queue.push(22, 22, 22);
     }
     this.bossWave = 0;
     if (w % 5 === 0 || this.mode === 'boss') {
@@ -1208,6 +1215,7 @@ export class HostGame {
     this.updateWalls(dt);
     this.updateItems(dt);
     this.updateMev();
+    this.updateMap(dt);
     if (this.cars && this.cars.length) {
       for (const c of this.cars) {
         c.t -= dt; if (c.t > 0) continue;
@@ -1288,6 +1296,7 @@ export class HostGame {
     };
     if (t === 11) z.armor = z.hp * 0.6;
     if (t === 16) { z.st = ZS.BURROW; z.stT = 9; }
+    if (t === 23) { z.st = ZS.BURROW; z.stT = 6; }
     // elites: from wave 8, now and then a zombie gets one random power
     if (!isBoss(t) && t !== 14 && this.wave >= 8 && Math.random() < Math.min(0.06, 0.025 + (this.wave - 8) * 0.002)) {
       z.el = 1 + Math.floor(Math.random() * 4); z.hp *= 2.5; z.mx = z.hp;
@@ -1436,6 +1445,7 @@ export class HostGame {
         z.rt = 0.35 + Math.random() * 0.2;
         let best = null, bd = Infinity;
         for (const p of players) { const d = (p.x - z.x) ** 2 + (p.y - z.y) ** 2; if (d < bd) { bd = d; best = p; } }
+        if (z.t === 22) { let w = null, wk = 2; for (const p of players) { const k = p.hp / p.maxHp; if (k < wk && (p.x - z.x) ** 2 + (p.y - z.y) ** 2 < 900 * 900) { wk = k; w = p; } } if (w) best = w; }
         z.tg = best ? best.pid : null;
       }
       const tp = z.tg != null ? this.players.get(z.tg) : null;
@@ -1503,6 +1513,24 @@ export class HostGame {
         z.face = a;
         if (dist < reach + 3) this.hurt(target, T.dps * dt);
         if (z.stT <= 0 && !pointInObstacle(z.x, z.y, T.r)) { z.st = ZS.NORMAL; z.cd = 3 + Math.random() * 2; }
+        continue;
+      }
+      if (z.st === ZS.BURROW && z.t === 23) { // Dev Solucan: hunts under the ground, a red ring warns, then it bursts out
+        if (z.emT > 0) {
+          z.emT -= dt;
+          if (z.emT <= 0) {
+            z.st = ZS.NORMAL; z.cd = 4.5;
+            this.ev(['sl', Math.round(z.x), Math.round(z.y), 120]);
+            for (const p of players) if (Math.hypot(p.x - z.x, p.y - z.y) < 120) { this.hurt(p, 42); this.knock(p, z.x, z.y, 560); }
+            for (const t of this.turrets) if (t.hp != null && Math.hypot(t.x - z.x, t.y - z.y) < 120) t.hp -= 250;
+          }
+          continue;
+        }
+        z.stT -= dt;
+        const a = Math.atan2(ty - z.y, tx - z.x), sp = T.spd * 2.2 * z.sm, B = WORLD.bounds;
+        z.x = clamp(z.x + Math.cos(a) * Math.min(sp * dt, dist), B.x0 + T.r, B.x1 - T.r); z.y = clamp(z.y + Math.sin(a) * Math.min(sp * dt, dist), B.y0 + T.r, B.y1 - T.r);
+        z.face = a;
+        if ((dist < 30 || z.stT <= 0) && !pointInObstacle(z.x, z.y, 20)) { z.emT = 1.15; this.ev(['wm', Math.round(z.x), Math.round(z.y), 1.15]); }
         continue;
       }
       if (z.st === ZS.BURROW) { // Kazıcı moving underground, straight at its target
@@ -1594,10 +1622,10 @@ export class HostGame {
           if (charge && dist > charge.min && dist < charge.max) { z.st = ZS.WINDUP; z.stT = charge.wind; continue; }
           if (z.t === 3 && dist < 150) { z.st = ZS.SLAM; z.stT = 0.9; continue; }
           if ((z.t === 4 && dist < 470) || (z.t === 8 && dist < 520)) { z.st = ZS.SPIT; z.stT = z.t === 8 ? 0.6 : 0.4; continue; }
-          if (z.t === 1 && dist < 150) { z.st = ZS.DASH; z.stT = 0.45; z.cd = 2.4; }
+          if ((z.t === 1 || z.t === 22) && dist < 150) { z.st = ZS.DASH; z.stT = 0.45; z.cd = 2.4; }
         }
       }
-      if (z.st === ZS.DASH && z.t === 1) { z.stT -= dt; if (z.stT <= 0) z.st = ZS.NORMAL; }
+      if (z.st === ZS.DASH && (z.t === 1 || z.t === 22)) { z.stT -= dt; if (z.stT <= 0) z.st = ZS.NORMAL; }
 
       if (z.t === 10 && z.cd <= 0 && dist < 700 && (!z.los || dist < 300)) { z.st = ZS.PHASE; z.stT = 2.2; continue; }
       if (z.t === 12 && z.cd <= 0 && !z.los && dist < 430 && dist > 120) { z.st = ZS.CROUCH; z.stT = 0.55; continue; }
@@ -1613,6 +1641,14 @@ export class HostGame {
           }
         }
       }
+      if (z.t === 21) { // bats fly over walls and barricades straight at their target, with a flutter
+        const a = Math.atan2(ty - z.y, tx - z.x) + Math.sin(this.time * 7 + z.id) * 0.55, sp = T.spd * z.sm * (z.slowUntil > this.time ? (z.slowK || 0.6) : 1) * (z.stunT > 0 ? 0 : 1), B = WORLD.bounds;
+        if (dist > reach) { z.x = clamp(z.x + Math.cos(a) * sp * dt, B.x0 + T.r, B.x1 - T.r); z.y = clamp(z.y + Math.sin(a) * sp * dt, B.y0 + T.r, B.y1 - T.r); }
+        else this.hurt(target, T.dps * dt);
+        z.face = a; z.dx = Math.cos(a); z.dy = Math.sin(a);
+        continue;
+      }
+      if (z.t === 23 && z.cd <= 0 && z.st === ZS.NORMAL) { z.st = ZS.BURROW; z.stT = 7; z.emT = 0; this.ev(['dg', Math.round(z.x), Math.round(z.y)]); continue; }
       if (z.t === 16 && z.cd <= 0 && dist > 260) { z.st = ZS.BURROW; z.stT = 6; this.ev(['dg', Math.round(z.x), Math.round(z.y)]); continue; }
       if (z.el === 3 && z.hp < (z.mx || z.hp)) z.hp = Math.min(z.mx, z.hp + z.mx * 0.03 * dt);
       if (z.t === 15) { // Şifacı mends the zombies around it
@@ -1650,7 +1686,7 @@ export class HostGame {
         const f = fieldAhead(this.field, z.x, z.y, T.r);
         if (f) { dx = f.x; dy = f.y; } else { dx = (tx - z.x) / dist; dy = (ty - z.y) / dist; }
       }
-      if (z.st === ZS.DASH && z.t === 1) speed *= 1.9;
+      if (z.st === ZS.DASH && (z.t === 1 || z.t === 22)) speed *= 1.9;
       if (dist < reach && !ranged) speed = 0;
 
       // stuck against something? sidestep for a moment
@@ -1969,6 +2005,40 @@ export class HostGame {
     }
   }
 
+  // map hazards: the metro's trains and the funfair's haunted house
+  updateMap(dt) {
+    const B = this.bounds, now = this.time;
+    if (this.theme === 'metro') {
+      if (this.trainAt == null) this.trainAt = now + 25 + Math.random() * 20;
+      if (!this.train && now >= this.trainAt) {
+        const L = METRO_TRACKS.filter((y) => y > B.y0 + 60 && y < B.y1 - 60);
+        if (L.length) { const y = L[Math.floor(Math.random() * L.length)], dir = Math.random() < 0.5 ? 1 : -1; this.train = { y, dir, t: 3 }; this.ev(['tr', y, dir, 3]); }
+        this.trainAt = now + 30 + Math.random() * 25;
+      }
+      if (this.train) {
+        this.train.t -= dt;
+        if (this.train.t <= 0) {
+          const y = this.train.y;
+          for (const q of this.inGame()) if (q.alive && Math.abs(q.y - y) < 56) { this.hurt(q, 55); this.knock(q, q.x, y, 700); }
+          for (const z of this.zombies) if (!z.dead && Math.abs(z.y - y) < 50 + ZTYPES[z.t].r) this.damage(z, isBoss(z.t) ? 400 : 900, null);
+          this.ev(['tx', y, this.train.dir]);
+          this.train = null;
+        }
+      }
+    } else if (this.theme === 'luna' && this.phase === 'combat') {
+      if (this.hauntAt == null) this.hauntAt = now + 18;
+      if (now >= this.hauntAt && this.queue.length) {
+        this.hauntAt = now + 20 + Math.random() * 10;
+        const H = WORLD.obstacles.filter((o) => o.haunt && o.x > B.x0 && o.x + o.w < B.x1 && o.y > B.y0 && o.y + o.h < B.y1);
+        if (H.length) {
+          const o = H[Math.floor(Math.random() * H.length)], dx = o.x + o.w / 2, dy = o.y + o.h + 30;
+          for (let i = 0; i < 4 && this.queue.length; i++) this.spawnAt(this.queue.shift(), dx, dy);
+          this.ev(['hh', Math.round(dx), Math.round(dy)]);
+        }
+      }
+    }
+  }
+
   // map events: blackout, a supply plane, a runner horde or a blood moon
   updateMev() {
     if (this.mev && this.time >= this.mev.until) { this.mev = null; this.ev(['mv', '']); }
@@ -2095,6 +2165,7 @@ export class HostGame {
         Math.max(0, r1(p.powerUntil - this.time)), Math.max(0, r1(p.hasteUntil - this.time)), p.wt, p.wp || 0, p.wb || 0, p.inv || [], Math.max(0, r1((p.chillUntil || 0) - this.time)),
         p.tm | 0, p.pk | 0, p.deaths | 0, !p.alive && p.respAt && p.respAt < Infinity ? Math.max(0, r1(p.respAt - this.time)) : 0,
         (p.protUntil > this.time ? 1 : 0) | (p.invUntil > this.time ? 2 : 0) | (p.silUntil > this.time ? 4 : 0) | (p.spinUntil > this.time ? 8 : 0), p.assists | 0,
+        p.pid === this.hostPid ? 0 : Math.round(p.ping || 0),
       ]);
     }
     const Z = [];

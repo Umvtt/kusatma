@@ -49,6 +49,7 @@ export class ClientGame {
     this.hitsQ = [];
     this.hitsP = []; // hits on enemy players (PvP)
     this.dmgDir = []; // where the last hits on me came from (PvP)
+    this.trains = []; // metro trains: warnings and passing trains
     this.shotsQ = [];
     this.lastHp = null;
     this.hurt = 0;
@@ -139,7 +140,7 @@ export class ClientGame {
 
     const seenP = new Set();
     for (const e of s.P) {
-      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, lv, ab, rdy, shield, rev, pw, hs, wt, wp, wb, inv, chill, tm, pk, dth, resp, pfl, ast] = e;
+      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, lv, ab, rdy, shield, rev, pw, hs, wt, wp, wb, inv, chill, tm, pk, dth, resp, pfl, ast, ping] = e;
       seenP.add(pid);
       if (pid === this.me) {
         const S = this.self;
@@ -159,7 +160,7 @@ export class ClientGame {
       p.tx = x; p.ty = y; p.ta = a; p.hp = hp; p.maxHp = maxHp; p.alive = !!alive;
       p.kills = kills; p.ready = !!rdy; p.shield = !!shield; p.rev = rev || 0; p.wt = wt || 0; p.wp = wp || 0; p.wb = wb || 0; p.power = pw || 0; p.haste = hs || 0; p.chill = chill || 0;
       p.abl = Array.isArray(lv) ? lv[lv.length - 1] | 0 : 0;
-      p.tm = tm | 0; p.pk = pk | 0; p.dth = dth | 0; p.resp = resp || 0; p.pfl = pfl | 0; p.ast = ast | 0;
+      p.tm = tm | 0; p.pk = pk | 0; p.dth = dth | 0; p.resp = resp || 0; p.pfl = pfl | 0; p.ast = ast | 0; p.ping = ping | 0;
     }
     this.pv = Array.isArray(s.PV) ? s.PV : null;
     for (const pid of [...this.ps.keys()]) if (!seenP.has(pid)) this.ps.delete(pid);
@@ -248,7 +249,7 @@ export class ClientGame {
         if (ev[4]) {
           if (ev[4] === this.me) { const now = performance.now(); if (now - (this.stT || 0) > 2600) this.stN = 0; this.stN = (this.stN || 0) + 1; this.stT = now; if (this.stN >= 3) this.notices.push({ k: 'streak', n: this.stN }); }
           const zt = ZTYPES[ev[3]];
-          if (zt && (zt.boss || ev[5] || [6, 7, 13, 15, 16, 17, 18].includes(ev[3]))) this.notices.push({ k: 'kill', pid: ev[4], t: ev[3], el: ev[5] | 0 });
+          if (zt && (zt.boss || ev[5] || [6, 7, 13, 15, 16, 17, 18, 21, 22].includes(ev[3]))) this.notices.push({ k: 'kill', pid: ev[4], t: ev[3], el: ev[5] | 0 });
         }
         break;
       }
@@ -341,6 +342,10 @@ export class ClientGame {
         break;
       }
       case 'hk': this.hackFx(ev[2], ev[3], ev[4], ev[5]); break;
+      case 'tr': this.trains.push({ y: ev[1], dir: ev[2], warn: ev[3] || 3, t: 0 }); sfx.siren(this.self.x, ev[1]); if (Math.abs(this.self.y - ev[1]) < 300) this.notices.push({ k: 'train' }); break;
+      case 'tx': { const tw = this.trains.find((q) => q.y === ev[1] && !q.go); if (tw) { tw.go = 1; tw.t = 0; } else this.trains.push({ y: ev[1], dir: ev[2], warn: 0, go: 1, t: 0 }); this.shake = Math.min(14, this.shake + (Math.abs(this.self.y - ev[1]) < 400 ? 9 : 3)); sfx.slam(this.self.x, ev[1]); break; }
+      case 'wm': this.marks.push({ x: ev[1], y: ev[2], t: 0, max: (ev[3] || 1) + 0.2 }); this.dust(ev[1], ev[2], 80); sfx.slam(ev[1], ev[2]); break;
+      case 'hh': this.ring(ev[1], ev[2], '#b07ad8', 120); this.light(ev[1], ev[2], 260, 0.7, '176,122,216'); sfx.summon(ev[1], ev[2]); break;
       case 'bt': this.blood(ev[1], ev[2], Math.random() * 6, 3); sfx.bashHit(ev[1], ev[2]); break;
       default: break;
     }
@@ -468,6 +473,8 @@ export class ClientGame {
     this.pHitMark = Math.max(0, (this.pHitMark || 0) - dt);
     this.killMark = Math.max(0, (this.killMark || 0) - dt);
     for (const d of this.dmgDir) d.t -= dt;
+    for (const q of this.trains) q.t += dt;
+    if (this.trains.length) this.trains = this.trains.filter((q) => (q.go ? q.t < 1.4 : q.t < q.warn + 1));
     if (this.dmgDir.length && this.dmgDir[0].t <= 0) this.dmgDir = this.dmgDir.filter((d) => d.t > 0);
 
     this.sendT -= dt;

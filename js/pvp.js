@@ -1,6 +1,6 @@
 // PvP on the host: teams, spawns, damage between players, kills, respawns, scores, rounds and the end of a match.
 // These methods are added to HostGame (see the bottom of host.js); in PvE none of them run.
-import { PVP, PVP_WARM, PVP_HP, PVP_DMG, PVP_GOLD, PVP_PROT, CX, CY, WORLD_W, WORLD_H, PLAYER_R, stats, clamp, newLv, GEAR } from './config.js';
+import { MAP_ORDER, PVP, PVP_WARM, PVP_HP, PVP_DMG, PVP_GOLD, PVP_PROT, CX, CY, WORLD_W, WORLD_H, PLAYER_R, stats, clamp, newLv, GEAR } from './config.js';
 import { WORLD, setMap, setBounds, freeSpot } from './world.js';
 import { generateMap } from './mapgen.js';
 
@@ -47,7 +47,7 @@ export const PvpMixin = {
   startPvp() {
     for (const q of this.players.values()) q.zh = null;
     this.resetWorld();
-    this.theme = this.mapPick === 'rastgele' ? ['meydan', 'benzinlik', 'hastane', 'orman', 'liman', 'kar'][Math.floor(Math.random() * 6)] : this.mapPick;
+    this.theme = this.mapPick === 'rastgele' ? MAP_ORDER[Math.floor(Math.random() * MAP_ORDER.length)] : this.mapPick;
     this.seed = (Math.random() * 2 ** 31) | 0;
     const map = generateMap(this.theme, this.seed);
     setMap(map.theme, map.seed, map.obstacles, map.decor);

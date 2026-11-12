@@ -9,6 +9,7 @@ import { dashPage, dashGo } from './dash.js';
 import { dashInit, dashShow, dashRefresh, dashSoft, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar } from './dash.js';
 import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
+import { voiceOn, voiceStart, voiceStop, voiceSync, voicePtt, voiceOpen, voiceLevel, voiceMute, voiceMuted, voiceTalking } from './voice.js';
 import { consentStart, manage as cookieSettings } from './consent.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
@@ -199,6 +200,8 @@ async function joinRoom() {
 }
 
 function leave(reason) {
+  if (TUT.step >= 0) { TUT.step = -1; $('#tut').hidden = true; }
+  if (voiceOn()) voiceStop();
   if (S.host && S.host.spec) { S.host.spec.destroy(); S.host.spec = null; }
   liveGameEnd();
   closeEsc(true);
@@ -287,7 +290,7 @@ function becomeHost(net) {
 const BYE = {
   kick: 'Kurucu seni odadan çıkardı.',
   spam: 'Çok fazla mesaj gönderdiğin için odadan çıkarıldın.',
-  full: 'Oda dolu (15/15).',
+  full: 'Oda dolu.',
   version: 'Oyunun farklı bir sürümü açık. Sayfayı yenileyip tekrar dene.',
 };
 
@@ -313,6 +316,7 @@ function onMessage(m) {
 function onRoster(m) {
   const prevPhase = S.roster ? S.roster.ph : null;
   S.roster = m;
+  voiceUi(); if (voiceOn()) voiceSync(m, S.me);
   // build the same map the host built (the host page shares it already)
   if (m.theme && MAPS[m.theme] && Number.isInteger(m.seed) && (m.theme !== WORLD.theme || m.seed !== WORLD.seed)) {
     const map = generateMap(m.theme, m.seed);
@@ -727,6 +731,52 @@ function renderOver() {
   $('#over-note').textContent = isHost ? 'Lobiye dönünce herkes yeni oyun için sınıf seçebilir.' : 'Kurucu lobiye döndüğünde yeni oyun için hazırlanabilirsin.';
 }
 $('#btn-over-lobby').addEventListener('click', () => send({ t: 'lobby' }));
+// ---------- voice chat ----------
+// push-to-talk: hold V (or hold the mic button on a phone); "Hep açık" in the lobby keeps the microphone open
+let voiceOpenPref = false;
+try { voiceOpenPref = localStorage.getItem('kusatma-mik') === '1'; } catch (e) { /* ignore */ }
+async function toggleVoice() {
+  if (voiceOn()) { voiceStop(); send({ t: 'voice', on: false }); voiceUi(); return; }
+  if (!S.net || !S.net.peer) { toast('Sesli sohbet için bir odada olmalısın.'); return; }
+  const ok = await voiceStart(S.net.peer);
+  if (!ok) { toast('Mikrofona izin verilmedi. Tarayıcının adres çubuğundan izin verebilirsin.', 'bad'); return; }
+  voiceOpen(voiceOpenPref);
+  send({ t: 'voice', on: true });
+  toast(voiceOpenPref ? 'Sesli sohbet açık, mikrofon hep açık.' : IS_TOUCH ? 'Sesli sohbet açık. Konuşmak için mikrofon düğmesine basılı tut.' : 'Sesli sohbet açık. Konuşmak için V tuşuna basılı tut.', 'good');
+  voiceUi();
+}
+function voiceUi() {
+  const r = S.roster, can = !!(r && r.code && S.net && S.net.peer);
+  for (const id of ['#btn-voice', '#lb-voice']) {
+    const b = $(id); if (!b) continue;
+    b.hidden = !can; b.setAttribute('aria-pressed', String(voiceOn()));
+    b.classList.toggle('on', voiceOn()); b.classList.toggle('talk', voiceTalking());
+    const t = !voiceOn() ? '🎙 Sesli sohbet' : voiceOpenPref ? '🎙 Mikrofon açık' : IS_TOUCH ? '🎙 Basılı tut, konuş' : '🎙 V: bas-konuş';
+    if (b.textContent !== t) b.textContent = t;
+  }
+  const o = $('#lb-vopen'); if (o) { o.hidden = !can; o.querySelector('input').checked = voiceOpenPref; }
+}
+(function voiceButtons() {
+  const hb = $('#btn-voice');
+  // phones: a tap turns voice on; once on, holding the button talks and a double tap turns it off
+  let downAt = 0, lastTap = 0;
+  hb.addEventListener('pointerdown', (e) => { e.preventDefault(); downAt = performance.now(); if (voiceOn()) { voicePtt(true); voiceUi(); } });
+  const up = () => { if (!downAt) return; const held = performance.now() - downAt; downAt = 0; voicePtt(false);
+    if (!voiceOn()) { toggleVoice(); return; }
+    if (held < 250) { const now = performance.now(); if (now - lastTap < 400 || !IS_TOUCH) { toggleVoice(); lastTap = 0; } else lastTap = now; }
+    voiceUi(); };
+  hb.addEventListener('pointerup', up); hb.addEventListener('pointercancel', up); hb.addEventListener('pointerleave', up);
+  // the lobby gets the same switch plus "Hep açık"
+  const lc = $('#lchat');
+  if (lc) {
+    const row = el('div', 'voice-row');
+    const lb = el('button', 'btn small voice-btn', '🎙 Sesli sohbet'); lb.type = 'button'; lb.id = 'lb-voice'; lb.hidden = true; lb.onclick = () => toggleVoice();
+    const lab = el('label', 'voice-open'); lab.id = 'lb-vopen'; lab.hidden = true; const cb = el('input'); cb.type = 'checkbox';
+    cb.onchange = () => { voiceOpenPref = cb.checked; try { localStorage.setItem('kusatma-mik', cb.checked ? '1' : '0'); } catch (e) { /* ignore */ } voiceOpen(voiceOpenPref); voiceUi(); };
+    lab.append(cb, el('span', '', 'Mikrofon hep açık'));
+    row.append(lb, lab); lc.before(row);
+  }
+})();
 // the lobby's PvP options: the kind of match and (in team fights) which team you're on
 function lobbyPvp(r, canEdit) {
   let box = $('#pvp-opts');
@@ -934,13 +984,14 @@ function notice(n) {
   if (n.k === 'pvk' || n.k === 'pvw' || n.k === 'pvf' || n.k === 'pvr') { pvpNotice(n); return; }
   if (n.k === 'streak') { streak(n.n); return; }
   if (n.k === 'adm') { adminNote(n); return; }
+  if (n.k === 'train') { toast('Tren geliyor! Raydan çekil.', 'bad'); buzz([80, 40, 80]); return; }
   if (n.k === 'cu') { toast(`Takıma yetişmen için +${n.n} altın`, 'good'); return; }
   if (n.k === 'wave') {
     if (n.w === 1) { S.gameGems = 0; $('#kfeed').replaceChildren(); }
     liveGame();
     if (g.self) liveKills(g.self.kills);
     const boss = n.boss ? ZTYPES[n.boss].name : null;
-    const tip = { 3: 'Yere vurmadan önce kırmızı halkadan çıkın.', 8: 'Asit yağdırır ve koşucu çağırır. Dağılın.', 9: 'Kırmızı çizgiden kaçın, sonra arkasından vurun.', 19: 'Turuncu halkaya araba düşer, hemen çıkın.', 20: 'Ölüleri kaldırır ve ışınlanır. Önce cesetlerden uzak durun.' }[n.boss];
+    const tip = { 3: 'Yere vurmadan önce kırmızı halkadan çıkın.', 8: 'Asit yağdırır ve koşucu çağırır. Dağılın.', 9: 'Kırmızı çizgiden kaçın, sonra arkasından vurun.', 19: 'Turuncu halkaya araba düşer, hemen çıkın.', 20: 'Ölüleri kaldırır ve ışınlanır. Önce cesetlerden uzak durun.', 23: 'Yerin altından gelir. Kırmızı halka görünce durma, koş.' }[n.boss];
     banner(boss ? `${boss} geliyor` : 'Sürü yaklaşıyor', `Dalga ${n.w}`, boss ? tip : 'Sırt sırta verin.');
   }
   else if (n.k === 'clear') { const me = myEntry(); if (me && me.inGame) liveWave(g.wave, g.self.kills); }
@@ -1015,6 +1066,13 @@ function updateHud() {
   lastHpBuzz = me.inGame && me.alive ? me.hp : null;
 
   pvpHud(g);
+  tutTick(g);
+  if (voiceOn() && S.roster) { voiceSync(S.roster, S.me); const b = $('#btn-voice'); if (b) b.classList.toggle('talk', voiceTalking()); }
+  { // my connection to the room's host
+    let pc = $('#hud-ping'); if (!pc) { pc = el('span', 'ping-chip'); pc.id = 'hud-ping'; document.querySelector('.wave-box').append(pc); }
+    const mp = g.ps.get(S.me), v = S.role === 'client' && mp ? mp.ping | 0 : 0; pc.hidden = !v;
+    if (v) { const t = `Ping ${v} ms`; if (pc.textContent !== t) pc.textContent = t; pc.className = 'ping-chip ' + (v < 90 ? 'ok' : v < 180 ? 'mid' : 'bad'); }
+  }
   if (g.pv) {
     const P = PVP[g.pv[0]] || PVP.tdm, t = g.pv[1], mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
     $('#hud-phase').textContent = g.phase === 'combat' ? P.name : 'Hazırlık';
@@ -1048,6 +1106,8 @@ function updateHud() {
     li.className = p.alive ? '' : 'down';
     li.children[0].style.background = g.pv && g.pv[0] !== 'ffa' ? TEAM_COL[p.tm | 0] : info ? info.color : '#888';
     li.children[1].textContent = (info ? info.name : '?') + (pid === S.me ? ' (sen)' : '');
+    li.classList.toggle('talk', voiceLevel(pid) > 6);
+    if (p.ping > 0) { const q = el('small', 'ping ' + (p.ping < 90 ? 'ok' : p.ping < 180 ? 'mid' : 'bad'), ` ${p.ping} ms`); li.children[1].append(q); }
     li.children[2].firstChild.style.width = (p.maxHp ? Math.max(0, p.hp / p.maxHp) * 100 : 0) + '%';
   });
 
@@ -1465,13 +1525,14 @@ function renderBoard() {
     who.append(dot, el('span', '', info.name + (pid === S.me ? ' (sen)' : '')));
     const td = el('td'); td.append(who);
     const act = el('td');
+    if (info.vo && pid !== S.me && voiceOn()) { const mb = el('button', 'btn ghost small', voiceMuted(pid) ? 'Sesi aç' : 'Sustur'); mb.type = 'button'; mb.addEventListener('click', () => { voiceMute(pid, !voiceMuted(pid)); renderBoard(); }); act.append(mb); }
     if (isHost && pid !== S.me) {
       const b = el('button', 'btn ghost small', 'At'); b.type = 'button';
       b.addEventListener('click', () => kickPlayer(info));
       act.append(b);
     }
     if (g.pv && g.pv[0] !== 'ffa') dot.style.background = TEAM_COL[p.tm | 0];
-    tr.append(td, el('td', '', CLASSES[info.cls].name), el('td', 'num', g.pv ? `${p.pk | 0} / ${p.dth | 0} / ${p.ast | 0}` : fmt(p.kills)), el('td', '', g.pv ? (p.alive ? 'Savaşta' : 'Yeniden doğuyor') : p.alive ? 'Ayakta' : 'Düştü'), act);
+    tr.append(td, el('td', '', CLASSES[info.cls].name), el('td', 'num', g.pv ? `${p.pk | 0} / ${p.dth | 0} / ${p.ast | 0}` : fmt(p.kills)), el('td', '', (g.pv ? (p.alive ? 'Savaşta' : 'Yeniden doğuyor') : p.alive ? 'Ayakta' : 'Düştü') + (p.ping > 0 ? ` · ${p.ping} ms` : pid === (S.roster && S.roster.host) ? ' · kurucu' : '')), act);
     body.append(tr);
   }
 }
@@ -1502,6 +1563,7 @@ window.addEventListener('keydown', (e) => {
   S.game.input.keys.add(e.code);
 });
 window.addEventListener('keyup', (e) => {
+  if (e.code === 'KeyV') voicePtt(false);
   if (!S.game) return;
   if (e.code === 'Tab') { $('#board').hidden = true; return; }
   S.game.input.keys.delete(e.code);
@@ -1540,11 +1602,53 @@ $('#btn-mute').addEventListener('click', () => { sfx.unlock(); setMute(sfx.toggl
 // browsers only allow sound after the first click or key press
 window.addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
 window.addEventListener('keydown', () => sfx.unlock(), { capture: true });
+window.addEventListener('keydown', (e) => { if (e.code === 'KeyV' && !e.repeat && voiceOn() && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))) { voicePtt(true); voiceUi(); } });
 
 // ---------- menu ----------
 try { const saved = localStorage.getItem('kusatma-ad'); if (saved) $('#name').value = saved; } catch (e) { /* ignore */ }
 $('#btn-create').addEventListener('click', () => roomDlg());
 $('#btn-solo').addEventListener('click', () => createRoom(true));
+$('#btn-tut').addEventListener('click', () => { TUT.force = true; createRoom(true); });
+// ---------- first-game tutorial: a few short steps that finish themselves as the player does them ----------
+const TUT = { step: -1, force: false, t: 0, x: 0, y: 0, walked: 0, fired: 0 };
+// players who already finished a game (a saved best wave or account games) are not shown the tutorial unless they ask for it
+const tutDone = () => { try { return localStorage.getItem('kusatma-egitim') === '1' || Number(localStorage.getItem('kusatma-rekor')) > 0 || (ACCT && (ME.games | 0) > 0); } catch (e) { return true; } };
+const tutEnd = () => { TUT.step = -1; TUT.force = false; try { localStorage.setItem('kusatma-egitim', '1'); } catch (e) { /* ignore */ } $('#tut').hidden = true; };
+$('#tut-skip').addEventListener('click', tutEnd);
+function tutSteps() {
+  const t = IS_TOUCH;
+  return [
+    ['Yürü', t ? 'Sol taraftaki çubukla yürü.' : 'W A S D (ya da ok tuşları) ile yürü.'],
+    ['Nişan al ve ateş et', t ? 'Sağ çubuğu it: o yöne nişan alır ve ateş edersin.' : 'Fareyle nişan al, sol tıkla ateş et.'],
+    ['Sınıf yeteneği', t ? 'Yetenek düğmesine bas. Her sınıfın yeteneği farklı.' : 'Boşluk tuşu (ya da sağ tık) sınıf yeteneğini kullanır.'],
+    ['Dipçik', t ? 'Dipçik düğmesi önündeki zombileri iter ve sersemletir.' : 'F tuşu: Dipçik önündeki zombileri iter ve sersemletir. Kalkanlı\'nın kalkanını da düşürür.'],
+    ['Cephanelik', 'Dalgayı temizle. Molada cephanelikten silahına bir yol seç: silahın güçlenir.'],
+    ['Hazırsın!', 'Arkadaşlarınla oda kurabilir ya da böyle devam edebilirsin. İyi şanslar.'],
+  ];
+}
+function tutTick(g) {
+  if (TUT.step < 0) {
+    if (!g || !g.self.inGame || !S.roster || S.roster.code || S.roster.mode === 'pvp' || (tutDone() && !TUT.force)) return;
+    TUT.step = 0; TUT.t = 0; TUT.walked = 0; TUT.fired = 0; TUT.x = g.self.x; TUT.y = g.self.y; TUT.force = false;
+  }
+  const L = tutSteps(), me = g.self;
+  TUT.t += 0.1;
+  const next = () => { TUT.step++; TUT.t = 0; sfx.buy(); };
+  switch (TUT.step) {
+    case 0: TUT.walked += Math.hypot(me.x - TUT.x, me.y - TUT.y); TUT.x = me.x; TUT.y = me.y; if (TUT.walked > 260) next(); break;
+    case 1: if (g.input.down || g.input.tfire) TUT.fired += 0.1; if (TUT.fired > 1.2) next(); break;
+    case 2: if (me.abLeft > 0) next(); break;
+    case 3: if (me.bashLeft > 0) next(); break;
+    case 4: if ((me.wt | 0) > 0) next(); break;
+    case 5: if (TUT.t > 6) { tutEnd(); return; } break;
+    default: tutEnd(); return;
+  }
+  if (TUT.step < 0 || TUT.step >= L.length) return;
+  const [h, d] = L[TUT.step];
+  $('#tut').hidden = false;
+  const n = `Eğitim ${TUT.step + 1}/${L.length}`;
+  if ($('#tut-n').textContent !== n) { $('#tut-n').textContent = n; $('#tut-t').textContent = h; $('#tut-d').textContent = d; $('#tut-skip').textContent = TUT.step === L.length - 1 ? 'Kapat' : 'Eğitimi geç'; }
+}
 $('#btn-join').addEventListener('click', joinRoom);
 $('#code').addEventListener('input', (e) => { const v = cleanCode(e.target.value); if (v !== e.target.value) e.target.value = v; });
 $('#code').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); });
@@ -1992,9 +2096,9 @@ function roomDlg() {
   chipRow($('#room-diff'), DIFF_ORDER.map((id) => [id, DIFFS[id].name, gemTag(GEM_DIFF[id])]), ROOM.diff, (v) => { ROOM.diff = v; });
   const pvRow = () => { const on = ROOM.mode === 'pvp'; $('#room-pvp').hidden = !on; $('#room-diff').hidden = on; const dh = $('#room-diff').previousElementSibling; if (dh) dh.hidden = on; };
   chipRow($('#room-mode'), MODE_ORDER.concat('pvp').map((id) => [id, MODES[id].name, id === 'pvp' ? 'dereceli' : gemTag(GEM_MODE[id])]), MODE_ORDER.includes(ROOM.mode) || ROOM.mode === 'pvp' ? ROOM.mode : 'normal', (v) => { ROOM.mode = v; pvRow(); });
-  chipRow($('#room-pvp'), PVP_ORDER.map((id) => [id, PVP[id].name]), PVP[ROOM.pv] ? ROOM.pv : 'tdm', (v) => { ROOM.pv = v; if (v === 'duel') { ROOM.max = 2; chipRow($('#room-max'), [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [MAX_PLAYERS, String(MAX_PLAYERS)]], 2, (x) => { ROOM.max = x; }); } });
+  chipRow($('#room-pvp'), PVP_ORDER.map((id) => [id, PVP[id].name]), PVP[ROOM.pv] ? ROOM.pv : 'tdm', (v) => { ROOM.pv = v; if (v === 'duel') { ROOM.max = 2; chipRow($('#room-max'), [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [12, '12'], [16, '16'], [MAX_PLAYERS, String(MAX_PLAYERS)]], 2, (x) => { ROOM.max = x; }); } });
   pvRow();
-  chipRow($('#room-max'), [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [MAX_PLAYERS, String(MAX_PLAYERS)]], ROOM.max, (v) => { ROOM.max = v; });
+  chipRow($('#room-max'), [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [12, '12'], [16, '16'], [MAX_PLAYERS, String(MAX_PLAYERS)]], ROOM.max, (v) => { ROOM.max = v; });
   $('#room-name').value = ACCT ? (ROOM.name || '') : ''; $('#room-name-row').hidden = !ACCT;
   $('#room-dlg').hidden = false;
 }

@@ -1,6 +1,6 @@
 # Kuşatma
 
-Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda çalışan ortak bir hayatta kalma oyunu. 15 kişiye kadar oynanır, kurulum ya da hesap gerekmez.
+Arkadaşlarınla birlikte zombi sürülerine karşı dayandığın, tarayıcıda çalışan ortak bir hayatta kalma oyunu. 20 kişiye kadar oynanır, kurulum ya da hesap gerekmez.
 
 Oyna:
 
@@ -11,6 +11,8 @@ Oyna:
 Üç adres de aynı oyunu ve aynı sunucuyu kullanır; birine ulaşamazsan diğerini dene.
 
 ## Nasıl oynanır
+
+İlk oyununda kısa bir eğitim seni adım adım gezdirir (ana menüde **Nasıl oynanır?** ile tekrar açabilirsin).
 
 1. Takma adını yaz ve **Oda kur**'a bas.
 2. Ekranda çıkan 6 karakterlik **oda kodunu** arkadaşlarına gönder. Onlar da kodu girip **Katıl**'a bassın.
@@ -104,7 +106,7 @@ Uygulamanın kendisi değişirse (nadiren), uygulama `app/version.json` dosyası
 
 ## Haritalar
 
-Kurucu lobide haritayı, zorluğu ve modu seçer. Harita her oyunda yeniden oluşturulur ve oyuncu sayısıyla birlikte büyür: tek başına 3600×2400, her oyuncuyla 240×160 daha, 15 kişiyle yaklaşık 5840×3840. Oyun sırasında biri katılırsa sınırlar yavaşça genişler. Kalabalık oyunlarda zombiler biraz daha çok ve sağlam olur (her ek oyuncu için +%20 zombi, +%5 can, boss canı +%20).
+Kurucu lobide haritayı, zorluğu ve modu seçer. Harita her oyunda yeniden oluşturulur ve oyuncu sayısıyla birlikte büyür: tek başına 3600×2400, her oyuncuyla 240×160 daha, 20 kişiyle 5840×3840. Oyun sırasında biri katılırsa sınırlar yavaşça genişler. Kalabalık oyunlarda zombiler biraz daha çok ve sağlam olur (her ek oyuncu için +%20 zombi, +%5 can, boss canı +%20).
 
 | Harita | Özellik |
 | --- | --- |
@@ -114,6 +116,10 @@ Kurucu lobide haritayı, zorluğu ve modu seçer. Harita her oyunda yeniden olu�
 | Orman | Sık ağaçlar, kayalar, kütükler |
 | Liman | Konteyner yığınları arasında dar koridorlar, bir yanı deniz |
 | Kış Köyü | Karlı evler, çamlar, kar yığınları, donmuş göl |
+| Metro İstasyonu | Karanlık peronlar ve raylar. Arada bir tren geçer: korna çalıp ray kırmızı yanıp sönünce çekil, önüne çıkan her şeyi ezer |
+| Alışveriş Merkezi | Mağaza sıraları, büfeler, saksılar ve geniş koridorlar |
+| Askerî Üs | Kum torbaları, gözetleme kuleleri, çadırlar, tank enkazları ve helikopter pisti |
+| Lunapark | Atlıkarınca, büfeler, renkli ışıklar; korku evinden arada bir zombi sürüsü fırlar |
 
 Zorluk seviyeleri: Kolay, Normal, Zor, Kâbus.
 
@@ -140,12 +146,14 @@ Dalga ortasında bazen harita olayı çıkar: **Karartma**, **İkmal uçağı**,
 | Kazıcı | Toprağın altına girer; altındayken vurulamaz, yanında çıkar (7. dalga) |
 | Çığlıkçı | Çığlık atar, yakındaki zombiler hızlanır (9. dalga) |
 | Donmuş | Vurduğu oyuncuyu üşütüp yavaşlatır, ölünce parçalanır (6. dalga) |
+| Yarasa | Beşli sürüler halinde duvarların ve barikatların üstünden uçarak gelir (7. dalga) |
+| Zombi köpek | Dörtlü sürüler, çok hızlı; en az canı kalan oyuncuya saldırır (5. dalga) |
 
 8. dalgadan sonra bazı zombiler **seçkin** olur: hızlı, patlayıcı, kendini iyileştiren ya da zırhlı. Canları 2,5 kat, altınları 4 kattır ve ölünce eşya düşürürler.
 
 ### Bosslar
 
-Her 5 dalgada bir boss gelir: sırayla **Dev** (yere vurur), **Kraliçe** (yelpaze şeklinde asit, koşucu çağırır), **Koç** (art arda hücum eder), **Dev Hurda** (araba fırlatır) ve **Cadı** (ölüleri kaldırır, ışınlanır, tükürür). 20. dalgadan sonra iki farklı boss birlikte gelir.
+Her 5 dalgada bir boss gelir: sırayla **Dev** (yere vurur), **Kraliçe** (yelpaze şeklinde asit, koşucu çağırır), **Koç** (art arda hücum eder), **Dev Hurda** (araba fırlatır), **Cadı** (ölüleri kaldırır, ışınlanır, tükürür) ve **Dev Solucan** (yerin altından gelir; kırmızı halka görününce kaç, oradan fırlar). 20. dalgadan sonra iki farklı boss birlikte gelir.
 
 ## Eşyalar ve silahlar
 
@@ -179,6 +187,8 @@ Zehir yalnızca Kimyager'de, elektrik yalnızca Tesla'da, yangın yalnızca Alev
 - Çok oyunculu bağlantı [PeerJS](https://peerjs.com/) (WebRTC) ile kurulur. Oyunu kurucunun tarayıcısı yönetir, diğer oyuncular ona bağlanır. Bu yüzden kurucunun sekmesi açık kalmalı ve internet bağlantısı iyi olmalı.
 - Her oyuncuyla iki kanal açılır: oyunun anlık durumu ve tuşlar sırasız, hızlı bir kanaldan, geri kalan her şey güvenilir kanaldan gider. Kurucu her oyuncuya yalnızca onun onayladığı durumdan bu yana değişenleri yollar, böylece kaybolan bir paket oyunu dondurmaz, kendiliğinden toparlanır.
 - Kurucu ayrılırsa (sekmeyi kapatsa bile) oyun bitmez: en önce katılan oyuncu kurucu olur, diğerleri birkaç saniye içinde altınları, yükseltmeleri ve sınıflarıyla birlikte yeniden bağlanır. Bunun için kurucu 5 saniyede bir, bağlantı boşken oyunun yedeğini sıradaki oyuncuya gönderir.
+- **Sesli sohbet:** odada mikrofon düğmesine bas (lobide ya da oyunda). Konuşmak için **V**'ye basılı tut, telefonda mikrofon düğmesine basılı tut; lobiden "Mikrofon hep açık" seçilebilir. Ses doğrudan oyuncudan oyuncuya gider, sunucudan geçmez. Skor tablosundan istediğin oyuncuyu susturabilirsin. Takım Savaşı'nda yalnızca takım arkadaşların duyar.
+- Kurucu herkesin **pingini** ölçer: takım listesinde ve skor tablosunda görünür, misafirler kendi pinglerini sol üstte görür.
 - Bir oyuncunun bağlantısı kısa süre koparsa oyun onu otomatik olarak yeniden bağlar; altını, yükseltmeleri ve yeri 45 saniye korunur. Oyuna geç katılan ya da geri dönen oyuncu, takımın ortalamasının %75'ine yetişecek kadar altın alır.
 - Büyük mesajlar (örneğin kalabalık dalgalardaki oyun yedeği) parçalara bölünerek gönderilir.
 - Gelen her mesaj biçim ve boyut açısından denetlenir. Uzun süre çok fazla mesaj gönderen oyuncu odadan atılır.

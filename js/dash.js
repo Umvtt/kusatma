@@ -352,7 +352,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['PvP geldi: Takım Savaşı, Herkes Herkese ve Düello. Oda kurarken modu PvP seç.', 'Dereceli lig: Bronz\'dan Elmas\'a puan topla, sezon sonunda elmas ödülü al.', 'Dört yeni sınıf: Kılıççı, Eğitmen (köpekli), Ajan (görünmez) ve Hacker.', 'Sıralamada yeni PvP sekmesi, profilinde lig kartın var.'];
+const WHATS_NEW = ['Dört yeni harita: Metro İstasyonu (trenlere dikkat), Alışveriş Merkezi, Askerî Üs ve Lunapark.', 'Yeni düşmanlar: yarasa sürüleri, zombi köpekler ve yerin altından gelen Dev Solucan.', 'Sesli sohbet: odada V\'ye basılı tutup konuş (telefonda mikrofon düğmesi).', 'Odalar artık 20 kişilik; skor tablosunda herkesin pingi görünüyor.', 'PvP: Takım Savaşı, Herkes Herkese, Düello ve dereceli lig. Dört yeni sınıf: Kılıççı, Eğitmen, Ajan, Hacker.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');

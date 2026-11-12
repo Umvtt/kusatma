@@ -1,9 +1,9 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 17;
+export const VERSION = 18;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 42;
-export const MAX_PLAYERS = 15;
+export const BUILD = 43;
+export const MAX_PLAYERS = 20;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
 
@@ -23,7 +23,7 @@ export function areaFor(n) {
   return { w: Math.min(WORLD_W - 160, 3600 + k * 240), h: Math.min(WORLD_H - 160, 2400 + k * 160) };
 }
 
-export const MAP_ORDER = ['meydan', 'benzinlik', 'hastane', 'orman', 'liman', 'kar'];
+export const MAP_ORDER = ['meydan', 'benzinlik', 'hastane', 'orman', 'liman', 'kar', 'metro', 'avm', 'us', 'luna'];
 export const MAPS = {
   meydan: { name: 'Meydan', desc: 'Beton bloklar ve kasalarla dolu terk edilmiş bir şehir meydanı.' },
   benzinlik: { name: 'Benzinlik', desc: 'Yol kenarı, terk edilmiş arabalar, pompalar ve küçük dükkanlar.' },
@@ -31,6 +31,10 @@ export const MAPS = {
   orman: { name: 'Orman', desc: 'Sık ağaçlar, kayalar ve devrilmiş kütükler. Görüş kısa.' },
   liman: { name: 'Liman', desc: 'Konteyner yığınları arasında dar koridorlar. Bir yanı deniz.' },
   kar: { name: 'Kış Köyü', desc: 'Karla kaplı evler, çamlar ve kar yığınları. Donmuş göl açık alan.' },
+  metro: { name: 'Metro İstasyonu', desc: 'Karanlık peronlar ve raylar. Arada bir tren geçer: korna çalınca raydan çekil, önüne çıkan her şeyi ezer.' },
+  avm: { name: 'Alışveriş Merkezi', desc: 'Mağaza sıraları, büfeler, saksılar ve geniş koridorlar. Kalabalık sürüler için bol köşe.' },
+  us: { name: 'Askerî Üs', desc: 'Kum torbaları, gözetleme kuleleri, çadırlar ve tank enkazları. Helikopter pisti açık alan.' },
+  luna: { name: 'Lunapark', desc: 'Gece lunaparkı: atlıkarınca, büfeler, renkli ışıklar. Korku evinden arada bir zombi sürüsü fırlar.' },
 };
 
 export const DIFF_ORDER = ['kolay', 'normal', 'zor', 'kabus'];
@@ -108,6 +112,7 @@ export const PLAYER_COLORS = [
   '#ff8a3d', '#4cc9f0', '#f15bb5', '#9ef01a', '#ffd23f',
   '#c77dff', '#00f5d4', '#ff595e', '#7bdff2', '#f4a259',
   '#b8f2e6', '#e9c46a', '#ff99c8', '#a0c4ff', '#caffbf',
+  '#ffb4a2', '#80ffdb', '#e0aaff', '#fdffb6', '#90dbf4',
 ];
 
 export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci', 'muhendis', 'kimyager', 'komutan', 'tesla', 'avci', 'kilicci', 'egitmen', 'ajan', 'hacker'];
@@ -574,9 +579,12 @@ export const ZTYPES = [
   { name: 'Donmuş', hp: 100, spd: 62, r: 17, dps: 12, gold: 18, col: '#9ec8e0', dark: '#4a6a80' },
   { name: 'Dev Hurda', hp: 2000, spd: 50, r: 44, dps: 50, gold: 170, col: '#6a5a4a', dark: '#2f2820', boss: true },
   { name: 'Cadı', hp: 1500, spd: 74, r: 30, dps: 25, gold: 170, col: '#6a4a8a', dark: '#2a1a3a', boss: true },
+  { name: 'Yarasa', hp: 22, spd: 150, r: 10, dps: 7, gold: 6, col: '#5a4a5a', dark: '#2a1e2a' },
+  { name: 'Zombi köpek', hp: 34, spd: 185, r: 12, dps: 11, gold: 6, col: '#7a6a4a', dark: '#3a2e1e' },
+  { name: 'Dev Solucan', hp: 1700, spd: 70, r: 42, dps: 40, gold: 180, col: '#a06a6a', dark: '#4a2a2a', boss: true },
 ];
 ZTYPES[3].boss = true;
-export const BOSS_ORDER = [3, 8, 9, 19, 20]; // Dev, Kraliçe, Koç, Dev Hurda, Cadı, then repeat
+export const BOSS_ORDER = [3, 8, 9, 19, 20, 23]; // Dev, Kraliçe, Koç, Dev Hurda, Cadı, Dev Solucan, then repeat
 // build 36: bosses are tougher (1.8x health; the host also gives them 1.4x damage and 35% faster attacks)
 for (const t of BOSS_ORDER) { ZTYPES[t].boss = true; ZTYPES[t].hp = Math.round(ZTYPES[t].hp * 1.8); }
 export const BOSS_DMG = 1.4, BOSS_CD = 1.35;

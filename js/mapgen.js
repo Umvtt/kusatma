@@ -4,6 +4,8 @@ import { WORLD_W, WORLD_H, CX, CY, MAPS } from './config.js';
 
 const CLEAR = 320;     // nothing is placed this close to the starting point
 const EDGE = 30;
+// the metro's tracks (the host sends trains along them)
+export const METRO_TRACKS = [CY - 1150, CY - 380, CY + 380, CY + 1150];
 
 export function rng(seed) {
   let s = seed >>> 0;
@@ -120,6 +122,47 @@ export function generateMap(theme, seed) {
     tries(260, () => { const s = between(34, 52); place([{ x: rx(s), y: ry(s), w: s, h: s, k: 'cam' }], 70); });
     tries(70, () => { const w = between(70, 130), h = between(50, 80); place([{ x: rx(w), y: ry(h), w, h, k: 'kar' }], 80); });
     tries(20, () => place([{ x: rx(44), y: ry(44), w: 44, h: 44, k: 'kuyu' }], 120));
+  }
+  else if (theme === 'metro') {
+    // platforms between three pairs of tracks; trains come along the tracks (the host sends them)
+    decor.push({ k: 'tiles', x: 0, y: 0, w: WORLD_W, h: WORLD_H, c: 'rgba(255,255,255,0.025)', s: 60 });
+    for (const ty of METRO_TRACKS) decor.push({ k: 'rail', x: 0, y: ty - 22, w: WORLD_W, h: 44 }, { k: 'platform', x: 0, y: ty - 60, w: WORLD_W, h: 14 }, { k: 'platform', x: 0, y: ty + 46, w: WORLD_W, h: 14 });
+    const offTrack = (y, h) => METRO_TRACKS.every((ty) => y + h < ty - 70 || y > ty + 70);
+    tries(150, () => { const s2 = between(40, 54), x = rx(s2), y = ry(s2); if (offTrack(y, s2)) place([{ x, y, w: s2, h: s2, k: 'kolon' }], 120); });
+    tries(70, () => { const w = between(70, 110), x = rx(w), y = ry(22); if (offTrack(y, 22)) place([{ x, y, w, h: 22, k: 'bank' }], 80); });
+    tries(40, () => { const w = between(160, 260), h = between(60, 90), x = rx(w), y = ry(h); if (offTrack(y, h)) place([{ x, y, w, h, k: 'beton' }], 110); });
+    tries(30, () => { const x = rx(60), y = ry(36); if (offTrack(y, 36)) place([{ x, y, w: 60, h: 36, k: 'kasa' }], 80); });
+  } else if (theme === 'avm') {
+    // a mall: rows of shops along wide corridors, kiosks, planters and benches
+    decor.push({ k: 'tiles', x: 0, y: 0, w: WORLD_W, h: WORLD_H, c: 'rgba(255,255,255,0.04)', s: 120 });
+    for (const y of [CY - 900, CY, CY + 900]) decor.push({ k: 'path', x: 0, y: y - 110, w: WORLD_W, h: 220, c: 'rgba(255,255,255,0.03)' });
+    tries(46, () => { const w = between(240, 380), h = between(150, 220); place([{ x: rx(w), y: ry(h), w, h, k: 'bina', shop: true, c: pick(['#5a3d4f', '#3d4f5a', '#4f5a3d', '#5a4a3d', '#3d3d5a']), a: pick(['#ff6b6b', '#ffd23f', '#4cc9f0', '#9ef01a', '#f15bb5']) }], 130); });
+    tries(60, () => { const s2 = between(54, 72); place([{ x: rx(s2), y: ry(s2), w: s2, h: s2, k: 'stand', c: pick(['#ff9f43', '#4cc9f0', '#f15bb5', '#9ef01a']) }], 100); });
+    tries(110, () => { const s2 = between(34, 44); place([{ x: rx(s2), y: ry(s2), w: s2, h: s2, k: 'saksi' }], 80); });
+    tries(80, () => { const side = R() < 0.5, w = side ? 70 : 22, h = side ? 22 : 70; place([{ x: rx(w), y: ry(h), w, h, k: 'bank' }], 70); });
+  } else if (theme === 'us') {
+    // an army base: sandbag lines, watchtowers, tents, wrecked tanks and a helipad
+    decor.push({ k: 'dirt', x: 0, y: 0, w: WORLD_W, h: WORLD_H });
+    decor.push({ k: 'road', x: 0, y: CY - 80, w: WORLD_W, h: 160, dir: 'h' });
+    decor.push({ k: 'helipad', x: CX + 1100, y: CY - 700, r: 170 });
+    tries(90, () => { const long = R() < 0.5, l = between(140, 260); const w = long ? l : 30, h = long ? 30 : l; place([{ x: rx(w), y: ry(h), w, h, k: 'kumtorba' }], 90); });
+    tries(24, () => place([{ x: rx(64), y: ry(64), w: 64, h: 64, k: 'kule' }], 140));
+    tries(36, () => { const w = between(120, 170), h = between(90, 120); place([{ x: rx(w), y: ry(h), w, h, k: 'cadir', c: '#4a5a32' }], 110); });
+    tries(22, () => { const side = R() < 0.5, w = side ? 130 : 74, h = side ? 74 : 130; place([{ x: rx(w), y: ry(h), w, h, k: 'tank', d: side ? 0 : 1 }], 120); });
+    tries(30, () => { const side = R() < 0.5, L = 230, W = 84; const w = side ? L : W, h = side ? W : L; place([{ x: rx(w), y: ry(h), w, h, k: 'konteyner', c: pick(['#4a5a32', '#5a5640', '#3d4a2e']) }], 100); });
+    tries(70, () => place([{ x: rx(56), y: ry(40), w: 56, h: 40, k: 'kasa' }], 80));
+  } else if (theme === 'luna') {
+    // a night funfair: carousels, food stalls, striped tents, trees, strings of lights and a haunted house
+    decor.push({ k: 'park', x: 0, y: 0, w: WORLD_W, h: WORLD_H });
+    tries(10, () => { decor.push({ k: 'trail', x1: R() * WORLD_W, y1: R() * WORLD_H, x2: CX + (R() - 0.5) * 200, y2: CY + (R() - 0.5) * 200 }); });
+    tries(26, () => { const x1 = R() * WORLD_W, y1 = R() * WORLD_H, a = R() * Math.PI * 2, L = between(220, 420); decor.push({ k: 'lights', x1, y1, x2: x1 + Math.cos(a) * L, y2: y1 + Math.sin(a) * L }); });
+    tries(10, () => { const s2 = between(150, 190); place([{ x: rx(s2), y: ry(s2), w: s2, h: s2, k: 'atli' }], 140); });
+    tries(40, () => { const w = between(90, 130), h = between(70, 90); place([{ x: rx(w), y: ry(h), w, h, k: 'bufe', c: pick(['#e5484d', '#4cc9f0', '#ffd23f', '#9ef01a', '#f15bb5']) }], 110); });
+    tries(24, () => { const w = between(120, 170), h = between(100, 140); place([{ x: rx(w), y: ry(h), w, h, k: 'cadir', c: pick(['#c0392b', '#2f5a8a', '#7a2e5a']), stripe: true }], 120); });
+    // haunted houses stay near the middle, inside the arena even when one player plays alone
+    for (let i = 0, n = 0; i < 80 && n < 3; i++) { const w = 260, h = 200; if (place([{ x: between(CX - 1500, CX + 1240), y: between(CY - 1000, CY + 800), w, h, k: 'bina', c: '#2a1f33', haunt: true }], 160)) n++; }
+    tries(140, () => { const s2 = between(30, 44); place([{ x: rx(s2), y: ry(s2), w: s2, h: s2, k: 'agac' }], 70); });
+    tries(60, () => { const side = R() < 0.5, w = side ? 64 : 22, h = side ? 22 : 64; place([{ x: rx(w), y: ry(h), w, h, k: 'bank' }], 70); });
   }
   return { theme, seed, obstacles: obs, decor };
 }
