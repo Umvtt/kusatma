@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=41b">
-  <link rel="stylesheet" href="css/dash.css?v=41b">
+  <link rel="stylesheet" href="css/style.css?v=42">
+  <link rel="stylesheet" href="css/dash.css?v=42">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -315,6 +315,8 @@
       <div class="rev" id="rev" hidden><span id="dead-watch"></span><span class="rev-bar"><i id="rev-fill"></i></span></div>
     </div>
 
+    <div id="pvp-bar" class="pvp-bar" hidden></div>
+    <div id="pvp-resp" class="pvp-resp" hidden><span class="eyebrow" id="pvp-resp-by"></span><strong id="pvp-resp-t"></strong><span class="dim" id="pvp-resp-tip"></span></div>
     <ul id="kfeed" class="kfeed" aria-live="off"></ul>
     <div id="streak" class="streak" hidden></div>
     <div id="banner" class="banner" hidden>
@@ -338,14 +340,14 @@
   <section id="over" class="screen over" hidden>
     <div class="over-wrap card">
       <p class="eyebrow">Oyun bitti</p>
-      <h2 class="h2">Kuşatma düştü</h2>
+      <h2 class="h2" id="over-h">Kuşatma düştü</h2>
       <p id="over-sub" class="lead"></p>
       <p id="over-record" class="record" hidden>Yeni rekor!</p>
       <div id="over-me" class="over-me" hidden></div>
       <div id="over-awards" class="awards"></div>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>#</th><th>Oyuncu</th><th>Sınıf</th><th class="num">Leş</th><th class="num">Hasar</th><th class="num">Kaldırma</th><th class="num">Düşme</th></tr></thead>
+          <thead><tr><th>#</th><th>Oyuncu</th><th>Sınıf</th><th class="num">Leş</th><th class="num">Hasar</th><th class="num" id="over-c6">Kaldırma</th><th class="num" id="over-c7">Düşme</th></tr></thead>
           <tbody id="over-body"></tbody>
         </table>
       </div>
@@ -440,6 +442,7 @@
       <div class="room-set"><span class="eyebrow">Harita</span><div class="chip-row" id="room-map"></div></div>
       <div class="room-set"><span class="eyebrow">Zorluk</span><div class="chip-row" id="room-diff"></div></div>
       <div class="room-set"><span class="eyebrow">Mod</span><div class="chip-row" id="room-mode"></div></div>
+      <div class="room-set" id="room-pvp-set"><div class="chip-row" id="room-pvp" hidden></div></div>
       <div class="room-set"><span class="eyebrow">En fazla oyuncu</span><div class="chip-row" id="room-max"></div></div>
       <div class="room-foot"><p id="room-note" class="note"></p><button id="room-go" class="btn primary big" type="button">Odayı kur</button></div>
     </div>
@@ -563,7 +566,7 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=41b","./js/client.js":"./js/client.js?v=41b","./js/config.js":"./js/config.js?v=41b","./js/consent.js":"./js/consent.js?v=41b","./js/dash.js":"./js/dash.js?v=41b","./js/host.js":"./js/host.js?v=41b","./js/live.js":"./js/live.js?v=41b","./js/mapgen.js":"./js/mapgen.js?v=41b","./js/net.js":"./js/net.js?v=41b","./js/render.js":"./js/render.js?v=41b","./js/scene.js":"./js/scene.js?v=41b","./js/settings.js":"./js/settings.js?v=41b","./js/sfx.js":"./js/sfx.js?v=41b","./js/world.js":"./js/world.js?v=41b"}}</script>
-  <script type="module" src="js/main.js?v=41b"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=42","./js/client.js":"./js/client.js?v=42","./js/config.js":"./js/config.js?v=42","./js/consent.js":"./js/consent.js?v=42","./js/dash.js":"./js/dash.js?v=42","./js/host.js":"./js/host.js?v=42","./js/live.js":"./js/live.js?v=42","./js/mapgen.js":"./js/mapgen.js?v=42","./js/net.js":"./js/net.js?v=42","./js/pvp.js":"./js/pvp.js?v=42","./js/render.js":"./js/render.js?v=42","./js/scene.js":"./js/scene.js?v=42","./js/settings.js":"./js/settings.js?v=42","./js/sfx.js":"./js/sfx.js?v=42","./js/world.js":"./js/world.js?v=42"}}</script>
+  <script type="module" src="js/main.js?v=42"></script>
 </body>
 </html>

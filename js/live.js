@@ -34,6 +34,7 @@ const keepMe = (j) => {
   ME.ls = Math.max(0, Math.min(7, j.ls | 0)); if (Array.isArray(j.lsm) && j.lsm.length === 7) ME.lsm = j.lsm.map((x) => +x || 1);
   if ('bio' in j) ME.bio = String(j.bio || '').slice(0, 120);
   if (Array.isArray(j.show)) ME.show = j.show.map((x) => String(x).slice(0, 4)).slice(0, 3);
+  if (j.pvp && typeof j.pvp === 'object') { const v = j.pvp, n = (x) => Math.max(0, x | 0); ME.pvp = { rp: n(v.rp), w: n(v.w), l: n(v.l), dr: n(v.dr), k: n(v.k), dt: n(v.dt), m: n(v.m), best: n(v.best), last: v.last && typeof v.last === 'object' ? { lg: Math.min(4, n(v.last.lg)), rp: n(v.last.rp), cl: v.last.cl ? 1 : 0, s: String(v.last.s || '').slice(0, 7) } : null }; }
   if (j.spin && typeof j.spin === 'object') ME.spin = { free: !!j.spin.free, n: Math.max(0, j.spin.n | 0) };
   if ('dc' in j) ME.dc = j.dc && typeof j.dc === 'object' ? { w: Math.max(0, j.dc.w | 0), k: Math.max(0, j.dc.k | 0) } : null;
   if ('dcc' in j) ME.dcc = String(j.dcc || '').slice(0, 10);
@@ -92,6 +93,7 @@ function onData(raw) {
   if (!d || typeof d !== 'object') return;
   if (d.e === 'cfg') { const c = cleanCfg(d.cfg); LIVE.news = c.news; LIVE.maint = c.maint; LIVE.names = Array.isArray(d.cfg && d.cfg.names) ? d.cfg.names.slice(0, 5000).map((x) => str(x, 24)) : []; LIVE.filter = Array.isArray(d.cfg && d.cfg.filter) ? d.cfg.filter.slice(0, 400).map((x) => str(x, 24)).filter(Boolean) : []; const shop0 = JSON.stringify(LIVE.shop || null); if (d.cfg && d.cfg.shop) LIVE.shop = cleanShop(d.cfg.shop); LIVE.on = Math.max(0, Math.min(1e6, (d.cfg && d.cfg.on) | 0)); H.onCfg(JSON.stringify(LIVE.shop || null) !== shop0); }
   else if (d.e === 'rooms') { if (roomsWait) roomsWait(cleanRooms(d.L)); }
+  else if (d.e === 'pvp') { ME.gems += Math.max(0, d.g | 0); ME.pvp = Object.assign({}, ME.pvp || {}, { rp: d.rp | 0 }); if (H.onPvp) H.onPvp(d); }
   else if (d.e === 'gem') { const n = Math.max(0, d.n | 0); ME.gems += n; ME.gd += n; addXp(Math.max(0, d.xp | 0)); if (H.onGem) H.onGem(n, d.xp | 0, !!d.cap); }
   else if (d.e === 'fl') { if (H.onFriends) H.onFriends(cleanFl(d)); }
   else if (d.e === 'dm') { if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
@@ -295,6 +297,11 @@ export async function diagRun(step) {
 }
 
 // a finished game (only the host's report counts it as a game; everyone's counts for the best wave)
+// the room's host reports a finished PvP match; the server rates the signed-in players in the room
+export function livePvp(o) {
+  const v = o.pvp; if (!v) return;
+  send({ e: 'pvr', k: v.k, win: v.k === 'ffa' ? -1 : v.win, t: o.time | 0, P: (o.P || []).slice(0, 16).map((p) => [p.name, p.tm | 0, p.pk | 0, p.dth | 0]) });
+}
 export function liveStat(wave, host, kills, extra) { send(Object.assign({ e: 'stat', w: wave | 0, host: host ? 1 : 0, k: kills | 0 }, extra || {})); }
 
 // why online play is closed right now, or '' when it's open

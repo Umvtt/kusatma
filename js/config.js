@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 16;
+export const VERSION = 17;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 41;
+export const BUILD = 42;
 export const MAX_PLAYERS = 15;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;
@@ -46,9 +46,39 @@ export const MODES = {
   boss: { name: 'Boss Akını', desc: 'Her dalgada boss gelir, sıradan zombi azdır. Elmaslar 1,5 kat.' },
   hc: { name: 'Tek Can', desc: 'Düşen kalkamaz, dalga bitince de dönmez. Elmaslar 2 kat.' },
   sandbox: { name: 'Deneme Alanı', desc: 'Tek başına her sınıfı dene. Elmas, XP ve görev ilerlemesi vermez.' },
+  pvp: { name: 'PvP', desc: 'Oyuncular birbirine karşı, zombi yok. Türünü aşağıdan seç; hesabı olanlar dereceli puan kazanır.' },
   daily: { name: 'Günün Görevi', desc: 'Herkese aynı harita, sınıf ve zorluk. Günün ilk denemesi sıralamaya girer.' },
 };
 export const MODE_ORDER = ['normal', 'endless', 'boss', 'hc'];
+// PvP: players fight each other (no zombies). Three kinds, picked in the lobby.
+export const PVP = {
+  tdm: { name: 'Takım Savaşı', short: 'Takım', desc: 'İki takım. 30 leşe ilk ulaşan ya da 8 dakika sonunda önde olan kazanır.', goal: 30, time: 480, resp: 5 },
+  ffa: { name: 'Herkes Herkese', short: 'Herkes', desc: 'Herkes tek başına. 20 leşi ilk yapan ya da 8 dakika sonunda en çok leşi olan kazanır.', goal: 20, time: 480, resp: 4 },
+  duel: { name: 'Düello', short: '1v1', desc: 'Bire bir. Üç raundu ilk alan kazanır; her raunt en çok 90 saniye.', goal: 3, time: 90, resp: 0 },
+};
+export const PVP_ORDER = ['tdm', 'ffa', 'duel'];
+export const PVP_WARM = 15; // seconds to shop before the fight
+export const PVP_HP = 1.6; // more health in PvP so fights last a few seconds
+export const PVP_DMG = 0.55; // weapons are tuned for zombies: player damage is scaled down
+export const PVP_GOLD = { start: 1200, kill: 250, assist: 90, round: 500 };
+export const PVP_PROT = 2; // seconds of spawn protection
+export const TEAM_COL = ['#4cc9f0', '#ff5a5f'];
+export const TEAM_NAME = ['Mavi', 'Kırmızı'];
+// ranked leagues (the server uses the same thresholds); every league but Elmas has three divisions
+export const LEAGUES = [
+  { n: 'Bronz', min: 0, c: '#d08a4c' }, { n: 'Gümüş', min: 300, c: '#c9d3dc' }, { n: 'Altın', min: 700, c: '#ffd23f' },
+  { n: 'Platin', min: 1200, c: '#5fe0d2' }, { n: 'Elmas', min: 1800, c: '#8fc2ff' },
+];
+export function league(rp) {
+  rp = Math.max(0, rp | 0);
+  let i = 0;
+  while (i < LEAGUES.length - 1 && rp >= LEAGUES[i + 1].min) i++;
+  const L = LEAGUES[i], top = LEAGUES[i + 1];
+  if (!top) return { i, n: L.n, c: L.c, div: '', name: L.n, from: L.min, to: 0, pct: 1 };
+  const span = (top.min - L.min) / 3, d = Math.min(2, Math.floor((rp - L.min) / span));
+  const from = L.min + d * span, to = from + span;
+  return { i, n: L.n, c: L.c, div: ['III', 'II', 'I'][d], name: L.n + ' ' + ['III', 'II', 'I'][d], from: Math.round(from), to: Math.round(to), pct: (rp - from) / span };
+}
 // the day in Turkey, the same day the server uses
 export const tday = (t = Date.now()) => new Date(t + 3 * 36e5).toISOString().slice(0, 10);
 // the daily challenge's rules come from the date alone, so every player and the server agree on them
@@ -80,7 +110,7 @@ export const PLAYER_COLORS = [
   '#b8f2e6', '#e9c46a', '#ff99c8', '#a0c4ff', '#caffbf',
 ];
 
-export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci', 'muhendis', 'kimyager', 'komutan', 'tesla', 'avci'];
+export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci', 'muhendis', 'kimyager', 'komutan', 'tesla', 'avci', 'kilicci', 'egitmen', 'ajan', 'hacker'];
 
 // kind: 'b' bullet, 'f' flame, 'g' grenade
 export const CLASSES = {
@@ -178,6 +208,38 @@ export const CLASSES = {
     pas: { name: 'Çivileyici', desc: 'Okların zombileri bir an yere çiviler; iri olmayanlar sendeler.' },
     bars: { can: 0.45, hiz: 0.7, hasar: 0.8 },
   },
+  kilicci: {
+    name: 'Kılıççı', weapon: 'Kılıç', tiers: ['Kılıç', 'Keskin kılıç', 'Ejder kılıcı'], desc: 'Yakın dövüşün ustası. Önündeki her şeyi tek savuruşta biçer.',
+    hp: 135, spd: 238, dmg: 44, rate: 2.3, spread: 0, bspd: 0, life: 0, pellets: 1, pierce: 6, kind: 'm', gun: 34, reach: 92, arc: 1.05,
+    ab: { name: 'Kasırga', desc: '3 saniye dönerek etrafındaki her şeyi biçer, aldığın hasar %40 azalır.', cd: 16, dur: 3, r: 115, dmg: 26 },
+    look: 'blade',
+    pas: { name: 'Kan emici', desc: 'Kılıç vuruşlarının bir kısmı sana can olarak döner.' },
+    bars: { can: 0.7, hiz: 0.7, hasar: 0.75 },
+  },
+  egitmen: {
+    name: 'Eğitmen', weapon: 'Tabanca', tiers: ['Tabanca', 'Ağır tabanca', 'Çift tabanca'], desc: 'Sadık köpeği zombileri yakalayıp tutar, o da arkadan bitirir.',
+    hp: 110, spd: 225, dmg: 22, rate: 4.5, spread: 0.035, bspd: 1150, life: 0.6, pellets: 1, pierce: 0, kind: 'b', gun: 22,
+    ab: { name: 'Saldır!', desc: 'Köpeğin nişan aldığın yere fırlar: 4 saniye iki kat sert ısırır ve hedefini olduğu yere çiviler.', cd: 14, dur: 4 },
+    dog: { dmg: 24, rate: 0.6, spd: 360, range: 330 },
+    pas: { name: 'Sadık dost', desc: 'Yanında hep bir saldırı köpeği gezer; en yakın zombiye koşar, ısırır ve yavaşlatır.' },
+    bars: { can: 0.55, hiz: 0.6, hasar: 0.5 },
+  },
+  ajan: {
+    name: 'Ajan', weapon: 'Susturuculu tabanca', tiers: ['Susturuculu tabanca', 'Gizli tabanca', 'Hayalet tabancası'], desc: 'Gölgelerde kaybolur, arkadan vurur, iz bırakmaz.',
+    hp: 95, spd: 240, dmg: 30, rate: 3.6, spread: 0.02, bspd: 1400, life: 0.62, pellets: 1, pierce: 0, kind: 'b', gun: 24,
+    ab: { name: 'Gölge', desc: '5 saniye görünmez olursun: zombiler seni kaybeder. Gölgeden ilk vuruşun iki kat sert, sonra görünürsün.', cd: 20, dur: 5 },
+    look: 'quiet',
+    pas: { name: 'Arkadan vuruş', desc: 'Sırtı sana dönük hedeflere %50 daha sert vurursun.' },
+    bars: { can: 0.4, hiz: 0.8, hasar: 0.6 },
+  },
+  hacker: {
+    name: 'Hacker', weapon: 'Akıllı tabanca', tiers: ['Akıllı tabanca', 'Güdümlü tabanca', 'Kuantum tabancası'], desc: 'Zombileri bir süre kendi tarafına geçirir, takımın makinelerini güçlendirir.',
+    hp: 100, spd: 222, dmg: 17, rate: 6.5, spread: 0.05, bspd: 1150, life: 0.6, pellets: 1, pierce: 0, kind: 'b', gun: 24, home: 4,
+    ab: { name: 'Ele Geçir', desc: 'Nişan aldığın yöndeki 3 zombiyi 8 saniye kendi tarafına geçirir; süre bitince patlarlar. Bosslar etkilenmez.', cd: 22, dur: 8, n: 3, r: 450 },
+    look: 'smart',
+    pas: { name: 'Ağ uzmanı', desc: 'Mermilerin hedefe hafifçe döner. Yakınındaki taret, dron ve bobinler %25 daha sert vurur.' },
+    bars: { can: 0.5, hiz: 0.6, hasar: 0.55 },
+  },
 };
 
 // Order matters: the snapshot sends the levels as an array in this order.
@@ -214,6 +276,10 @@ export const AB_UP = {
   komutan: ['Sandık daha çok iyileştirir ve altın verir', 'İki kat hasar 2 sn uzar', 'Sandık düşenleri de kaldırır'],
   tesla: ['Bobin 4 sn uzar', 'Bobin daha çok zombiye sıçrar', 'Bobin çarptıklarını sersemletir'],
   avci: ['Ok Yağmuru 3 ok daha', 'Oklar %40 daha sert', 'Oklar vurduklarını yavaşlatır'],
+  kilicci: ['Kasırga 1 sn uzar', 'Kasırga alanı ve hasarı büyür', 'Kasırga zombileri savurur'],
+  egitmen: ['Saldırı 2 sn uzar', 'Köpek %40 daha sert ısırır', 'İkinci bir köpek'],
+  ajan: ['Gölge 1,5 sn uzar', 'Gölgedeyken %30 daha hızlı koşarsın', 'Gölgeden ilk vuruş üç kat sert'],
+  hacker: ['Bir zombi daha ele geçirir', 'Ele geçirilenler iki kat sert vurur', 'Süre 4 sn uzar, patlama büyür'],
 };
 // How long a timed ability lasts with mastery level l.
 export function abDur(cls, l) {
@@ -226,6 +292,10 @@ export function abDur(cls, l) {
   if (cls === 'kimyager') return d + (k >= 1 ? 2 : 0);
   if (cls === 'komutan') return d + (k >= 2 ? 2 : 0);
   if (cls === 'tesla') return d + (k >= 1 ? 4 : 0);
+  if (cls === 'kilicci') return d + (k >= 1 ? 1 : 0);
+  if (cls === 'egitmen') return d + (k >= 1 ? 2 : 0);
+  if (cls === 'ajan') return d + 1.5 * Math.min(1, k);
+  if (cls === 'hacker') return d + ((l | 0) >= 3 ? 4 : 0);
   return d;
 }
 
@@ -308,6 +378,7 @@ export const SPECIAL = {
 export const CLASS_PATHS = {
   asker: [1, 2, 3, 8], doktor: [2, 3, 8], tamirci: [1, 2, 8], nisanci: [1, 4, 8], kalkanci: [1, 2, 3], alevci: [7, 2, 3],
   bombaci: [1, 2, 3], izci: [2, 3, 1], muhendis: [2, 1, 3], kimyager: [5, 2, 3], komutan: [1, 2, 3], tesla: [6, 2, 1], avci: [3, 1, 2],
+  kilicci: [1, 2, 3], egitmen: [2, 1, 3], ajan: [3, 1, 2], hacker: [2, 3, 1],
 };
 // the same path reads differently on each class: [name, adjective, description]
 const PFLAV = {
@@ -324,6 +395,10 @@ const PFLAV = {
   komutan: { 1: ['Komuta tüfeği', 'Ağır', 'Daha yavaş ama çok sert vurur'], 2: ['Hücum', 'Hücum', 'Çok daha hızlı ateş eder'], 3: ['Keskin göz', 'Keskin', 'Mermiler deler, menzil artar'] },
   tesla: { 6: ['Yüksek gerilim', 'Gerilimli', 'Vuruşlar yakındaki zombilere sıçrar'], 2: ['Hızlı deşarj', 'Hızlı', 'Çok daha sık ateşler'], 1: ['Kondansatör', 'Yüklü', 'Daha yavaş ama çok sert vurur'] },
   avci: { 3: ['Çelik uç', 'Çelik uçlu', 'Oklar zombileri deler, menzil artar'], 1: ['Ağır yay', 'Ağır', 'Daha yavaş ama çok sert vurur'], 2: ['Çift kiriş', 'Hızlı', 'Okları çok daha sık atar'] },
+  kilicci: { 1: ['Ağır kılıç', 'Ağır', 'Daha yavaş ama çok sert savurur'], 2: ['Çift kılıç', 'Seri', 'Çok daha hızlı savurur'], 3: ['Uzun kılıç', 'Uzun', 'Savuruş daha uzağa yetişir'] },
+  egitmen: { 2: ['Seri tabanca', 'Seri', 'Çok daha hızlı ateş eder'], 1: ['Büyük kalibre', 'Ağır', 'Daha yavaş ama çok sert vurur'], 3: ['Delici mermi', 'Delici', 'Mermiler deler, menzil artar'] },
+  ajan: { 3: ['Zırh delici', 'Delici', 'Mermiler deler, menzil artar'], 1: ['Suikast', 'Ölümcül', 'Daha yavaş ama çok sert vurur'], 2: ['Hızlı tetik', 'Hızlı', 'Çok daha hızlı ateş eder'] },
+  hacker: { 2: ['Aşırı hız', 'Hızlı', 'Çok daha hızlı ateş eder'], 3: ['Delici kod', 'Delici', 'Mermiler deler, menzil artar'], 1: ['Güçlü çekirdek', 'Ağır', 'Daha yavaş ama çok sert vurur'] },
 };
 const PCACHE = new Map();
 export const pathOf = (cls, k) => {

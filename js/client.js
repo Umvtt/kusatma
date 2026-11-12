@@ -1,6 +1,6 @@
 // What every player's browser runs (the host included): own movement and shooting,
 // smoothing of what the host sends, and visual effects.
-import { CX, CY, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS, BASH, bashCd, newLv, lvObj, GEAR, GEAR_RANGE, TEAM, abDur, PATHS } from './config.js';
+import { CX, CY, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS, BASH, bashCd, newLv, lvObj, GEAR, GEAR_RANGE, TEAM, abDur, PATHS, PVP_DMG } from './config.js';
 import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds, WORLD, escapePocket } from './world.js';
 import * as sfx from './sfx.js';
 import { SETTINGS } from './settings.js';
@@ -47,6 +47,8 @@ export class ClientGame {
     this.sendT = 0;
     this.abLock = 0;
     this.hitsQ = [];
+    this.hitsP = []; // hits on enemy players (PvP)
+    this.dmgDir = []; // where the last hits on me came from (PvP)
     this.shotsQ = [];
     this.lastHp = null;
     this.hurt = 0;
@@ -76,10 +78,21 @@ export class ClientGame {
   aimAssist(S, a) {
     const lv = { low: [0.6, 0.28], mid: [0.82, 0.36], high: [0.95, 0.48] }[SETTINGS.aim];
     if (!lv) return a;
-    const w = this.myWeapon, range = Math.max(240, Math.min(950, (w.bspd || 900) * (w.life || 0.6)));
+    const w = this.myWeapon, range = w.kind === 'm' ? w.reach + 60 : Math.max(240, Math.min(950, (w.bspd || 900) * (w.life || 0.6)));
     let best = null, bs = Infinity;
+    // PvP: a weaker pull toward enemy players, so phones and mice stay fair
+    for (const [, p] of this.foes()) {
+      if (p.pfl & 2) continue;
+      const dx = p.x - S.x, dy = p.y - S.y, d = Math.hypot(dx, dy);
+      if (d > range || d < 1) continue;
+      let da = Math.atan2(dy, dx) - a; da = Math.atan2(Math.sin(da), Math.cos(da));
+      const cone = lv[1] * 0.6 + Math.atan2(PLAYER_R, d);
+      if (Math.abs(da) > cone) continue;
+      const sc = Math.abs(da) / cone + (d / range) * 0.4 - 0.2;
+      if (sc < bs) { bs = sc; best = da * 0.6; }
+    }
     for (const z of this.zs.values()) {
-      if (z.dying || (z.fl & 128)) continue;
+      if (z.dying || (z.fl & 128) || (z.fl & 4096)) continue;
       const dx = z.x - S.x, dy = z.y - S.y, d = Math.hypot(dx, dy);
       if (d > range || d < 1) continue;
       let da = Math.atan2(dy, dx) - a; da = Math.atan2(Math.sin(da), Math.cos(da));
@@ -126,7 +139,7 @@ export class ClientGame {
 
     const seenP = new Set();
     for (const e of s.P) {
-      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, lv, ab, rdy, shield, rev, pw, hs, wt, wp, wb, inv, chill] = e;
+      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, lv, ab, rdy, shield, rev, pw, hs, wt, wp, wb, inv, chill, tm, pk, dth, resp, pfl, ast] = e;
       seenP.add(pid);
       if (pid === this.me) {
         const S = this.self;
@@ -138,6 +151,7 @@ export class ClientGame {
         S.lv = lvObj(lv);
         S.abLeft = ab; S.shopReady = !!rdy; S.inGame = true; S.wt = wt || 0; S.wp = wp || 0; S.wb = wb || 0; S.power = pw || 0; S.haste = hs || 0; S.chill = chill || 0;
         S.inv = Array.isArray(inv) ? GEAR.map((g, i) => inv[i] | 0) : GEAR.map(() => 0);
+        S.tm = tm | 0; S.pk = pk | 0; S.dth = dth | 0; S.resp = resp || 0; S.pfl = pfl | 0; S.ast = ast | 0;
       }
       let p = this.ps.get(pid);
       if (!p) { p = { x, y, a, walk: 0 }; this.ps.set(pid, p); }
@@ -145,7 +159,9 @@ export class ClientGame {
       p.tx = x; p.ty = y; p.ta = a; p.hp = hp; p.maxHp = maxHp; p.alive = !!alive;
       p.kills = kills; p.ready = !!rdy; p.shield = !!shield; p.rev = rev || 0; p.wt = wt || 0; p.wp = wp || 0; p.wb = wb || 0; p.power = pw || 0; p.haste = hs || 0; p.chill = chill || 0;
       p.abl = Array.isArray(lv) ? lv[lv.length - 1] | 0 : 0;
+      p.tm = tm | 0; p.pk = pk | 0; p.dth = dth | 0; p.resp = resp || 0; p.pfl = pfl | 0; p.ast = ast | 0;
     }
+    this.pv = Array.isArray(s.PV) ? s.PV : null;
     for (const pid of [...this.ps.keys()]) if (!seenP.has(pid)) this.ps.delete(pid);
     if (!seenP.has(this.me)) this.self.inGame = false;
 
@@ -257,7 +273,7 @@ export class ClientGame {
         const cls = this.clsOf(pid);
         const c = CLASSES[cls];
         const p = this.ps.get(pid);
-        const k = { asker: 'rage', nisanci: 'focus', izci: 'sprint', kalkanci: 'shield' }[cls];
+        const k = { asker: 'rage', nisanci: 'focus', izci: 'sprint', kalkanci: 'shield', kilicci: 'spin', ajan: 'shadow' }[cls];
         if (k && pid !== this.me) this.fx.set(pid, { k, until: this.time + (ev[2] || c.ab.dur) });
         if (p && pid !== this.me && k) this.ring(p.x, p.y, AB_COL[cls], 55);
         if (p && pid !== this.me && cls !== 'doktor' && cls !== 'alevci') sfx.ability(cls, p.x, p.y);
@@ -304,6 +320,28 @@ export class ClientGame {
       case 'cu': if (ev[1] === this.me) this.notices.push({ k: 'cu', n: ev[2] }); break;
       case 'ae': if (ev[8] && ev[8] !== this.me) break; this.notices.push({ k: 'adm', e: ev[1], n: ev[2], i: ev[3], who: ev[4], later: ev[5], q: ev[6], t: ev[7] }); break;
       case 'we': this.notices.push({ k: 'clear', w: ev[1], bonus: ev[2] }); sfx.waveClear(); break;
+      // ---- PvP ----
+      case 'vk': {
+        const [, att, vic, tag, streak] = ev;
+        const v = this.ps.get(vic);
+        if (v) { this.splat(v.x, v.y, 16, true, false); this.blood(v.x, v.y, Math.random() * 6, 10); }
+        if (vic === this.me) { this.deathBy = att; this.deathTag = tag; sfx.down(); this.shake = Math.min(14, this.shake + 8); }
+        if (att === this.me && vic !== this.me) { sfx.waveClear(); this.killMark = 0.5; if (streak >= 2) this.notices.push({ k: 'streak', n: streak }); }
+        this.notices.push({ k: 'pvk', att, vic, tag });
+        break;
+      }
+      case 'vh': if (ev[1] === this.me && ev[2]) { const a = this.ps.get(ev[2]); if (a) this.dmgDir.push({ a: Math.atan2(a.y - this.self.y, a.x - this.self.x), t: 0.9 }); if (this.dmgDir.length > 6) this.dmgDir.shift(); } else { const v = this.ps.get(ev[1]); if (v) v.flash = 0.1; } break;
+      case 'vw': this.notices.push({ k: 'pvw', round: ev[1], t: ev[2] }); break;
+      case 'vf': this.notices.push({ k: 'pvf', round: ev[1] }); sfx.waveStart(); break;
+      case 'vr': this.notices.push({ k: 'pvr', round: ev[1], win: ev[2], r0: ev[3], r1: ev[4] }); sfx.waveClear(); break;
+      case 'iv': {
+        const p = this.ps.get(ev[1]);
+        if (ev[2]) { if (ev[1] !== this.me) this.fx.set(ev[1], { k: 'shadow', until: this.time + CLASSES.ajan.ab.dur + 2 }); if (p) this.puff(p.x, p.y, 40); }
+        else { const f = this.fx.get(ev[1]); if (f && f.k === 'shadow') this.fx.delete(ev[1]); if (p) this.ring(p.x, p.y, '#9a8cff', 40); }
+        break;
+      }
+      case 'hk': this.hackFx(ev[2], ev[3], ev[4], ev[5]); break;
+      case 'bt': this.blood(ev[1], ev[2], Math.random() * 6, 3); sfx.bashHit(ev[1], ev[2]); break;
       default: break;
     }
   }
@@ -329,7 +367,7 @@ export class ClientGame {
       let len = Math.hypot(mx, my), push = 1;
       const tm = this.input.tmove;
       if (len === 0 && tm && (tm.x || tm.y)) { mx = tm.x; my = tm.y; len = Math.hypot(mx, my); push = Math.min(1, len); } // joystick: analog
-      const spd = st.spd * (this.fxOn(this.me, 'sprint') ? 1.6 : 1) * (S.haste > 0 ? 1.4 : 1) * (S.chill > 0 ? 0.6 : 1) * push;
+      const spd = st.spd * (this.fxOn(this.me, 'sprint') ? 1.6 : 1) * (S.haste > 0 ? 1.4 : 1) * (S.chill > 0 ? 0.6 : 1) * (cls === 'ajan' && (S.pfl & 2) && (S.lv.ab | 0) >= 2 ? 1.3 : 1) * push;
       const bx = S.x, by = S.y;
       if (len > 0) moveCircle(S, (mx / len) * spd * dt, (my / len) * spd * dt, PLAYER_R);
       if (S.kvx || S.kvy) {
@@ -339,7 +377,7 @@ export class ClientGame {
         if (Math.abs(S.kvx) + Math.abs(S.kvy) < 5) { S.kvx = 0; S.kvy = 0; }
       }
       for (const z of this.zs.values()) {
-        if (z.dying || (z.fl & 128)) continue;
+        if (z.dying || (z.fl & 128) || (z.fl & 4096)) continue;
         const min = ZTYPES[z.t].r + PLAYER_R;
         const dx = S.x - z.x, dy = S.y - z.y;
         const d = Math.hypot(dx, dy);
@@ -427,6 +465,10 @@ export class ClientGame {
     this.hurt = Math.max(0, this.hurt - dt * 1.4);
     this.shake = Math.max(0, this.shake - dt * 30);
     this.hitMark = Math.max(0, this.hitMark - dt);
+    this.pHitMark = Math.max(0, (this.pHitMark || 0) - dt);
+    this.killMark = Math.max(0, (this.killMark || 0) - dt);
+    for (const d of this.dmgDir) d.t -= dt;
+    if (this.dmgDir.length && this.dmgDir[0].t <= 0) this.dmgDir = this.dmgDir.filter((d) => d.t > 0);
 
     this.sendT -= dt;
     if (this.sendT <= 0) {
@@ -435,13 +477,15 @@ export class ClientGame {
         const h = this.hitsQ.splice(0, 60);
         const s = this.shotsQ.splice(0, 12);
         this.inN = (this.inN || 0) + 1;
-        this.send({ t: 'in', x: Math.round(S.x), y: Math.round(S.y), a: Math.round(S.a * 100) / 100, h, s, n: this.inN, k: this.lastQ || 0 });
+        const m = { t: 'in', x: Math.round(S.x), y: Math.round(S.y), a: Math.round(S.a * 100) / 100, h, s, n: this.inN, k: this.lastQ || 0 };
+        if (this.hitsP.length) m.p = this.hitsP.splice(0, 24);
+        this.send(m);
       } else if (this.lastQ && this.lastQ !== this.ackSent) { this.ackSent = this.lastQ; this.send({ t: 'in', k: this.lastQ }); } // watching or waiting: still confirm snapshots
     }
 
     // who the camera follows
     const watching = S.inGame || this.watcher;
-    if (S.inGame && S.alive) this.spectate = null;
+    if ((S.inGame && S.alive) || (this.pv && S.inGame)) this.spectate = null;
     else if (watching && this.specStep) { // switch to the next / previous living teammate
       const L = [...this.ps.entries()].filter(([pid, p]) => pid !== this.me && p.alive).map(([pid]) => pid);
       if (L.length) { const i = L.indexOf(this.spectate); this.spectate = L[((i < 0 ? 0 : i + this.specStep) % L.length + L.length) % L.length]; }
@@ -473,6 +517,7 @@ export class ClientGame {
     const pierce = focus ? 99 : c.pierce;
     const f = c.fx || {};
     const critP = (st.crit || 0) + (f.crit || 0), critX = f.crit ? f.critX : 2;
+    if (c.kind === 'm') { this.swing(c, dmg, critP, critX); return; }
     const off = c.gun + 6;
     let mx = S.x + Math.cos(S.a) * off, my = S.y + Math.sin(S.a) * off;
     if (this.cls === 'izci') {
@@ -503,8 +548,90 @@ export class ClientGame {
       dmg, pierce, own, hit: null, kind: c.kind || 'b', aoe: c.aoe || 0,
       w: (c.pellets > 1 ? 1.6 : c.gun >= 36 ? 2.6 : 2) + (c.heavy || 0) * 0.6,
       col: c.path ? c.col : null, frost: !!c.frost, pk: c.path || 0, tier: c.tier || 0,
-      rico: c.fx && c.fx.rico ? c.fx.rico : 0, noShield: !!(c.fx && c.fx.noShield), look: c.look || '',
+      rico: c.fx && c.fx.rico ? c.fx.rico : 0, noShield: !!(c.fx && c.fx.noShield), look: c.look || '', home: own ? c.home || 0 : 0,
     };
+  }
+
+  // the Hacker's cone: a cyan sweep
+  hackFx(x, y, a, R) {
+    for (let i = 0; i < 14 && this.parts.length < QUAL.parts; i++) {
+      const aa = a + (Math.random() - 0.5) * 1.1, s = R * (0.6 + Math.random() * 0.6);
+      this.addPart({ x, y, vx: Math.cos(aa) * s * 1.6, vy: Math.sin(aa) * s * 1.6, life: 0.45, max: 0.45, col: '#4cf0d0', size: 2.2, kind: 'dot' });
+    }
+    this.light(x + Math.cos(a) * 80, y + Math.sin(a) * 80, 200, 0.5, '76,240,208');
+  }
+  // ---------- PvP and the new classes ----------
+  isFoe(pid, p) {
+    if (!this.pv || pid === this.me || !p || !p.alive) return false;
+    return this.pv[0] === 'ffa' || p.tm !== this.self.tm;
+  }
+  foes() {
+    const L = [];
+    if (!this.pv || this.phase !== 'combat') return L;
+    for (const [pid, p] of this.ps) if (this.isFoe(pid, p) && !(p.pfl & 1)) L.push([pid, p]);
+    return L;
+  }
+  // the Ajan: +50 % on targets facing away, and the first hit out of the shadows counts double (triple with mastery 3)
+  ajanBonus(face, x, y) {
+    if (this.cls !== 'ajan') return 1;
+    const S = this.self;
+    let k = 1;
+    if (face != null) { let d = Math.atan2(S.y - y, S.x - x) - face; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; if (Math.abs(d) > 1.9) k *= 1.5; }
+    if ((S.pfl & 2) || this.fxOn(this.me, 'shadow')) { k *= (S.lv.ab | 0) >= 3 ? 3 : 2; this.fx.delete(this.me); S.pfl &= ~2; }
+    return k;
+  }
+  dealPHit(pid, p, dmg, tag, crit) {
+    dmg *= this.ajanBonus(p.a, p.x, p.y);
+    this.hitsP.push([pid, Math.round(dmg), tag | 0]);
+    p.flash = 0.1;
+    if (this.hitMark < 0.05) sfx.hit();
+    this.hitMark = 0.16; this.pHitMark = 0.2;
+    if (SETTINGS.dmgNums && this.texts.length < 40) this.texts.push({ x: p.x + (Math.random() - 0.5) * 14, y: p.y - PLAYER_R - 6, txt: String(Math.round(dmg * PVP_DMG / (1 + 0.25 * (this.self.wt | 0)))) + (crit ? '!' : ''), col: crit ? '#ff5a36' : '#ff9a9a', t: 0.5, small: !crit });
+  }
+  // the Kılıççı's sword: everything in an arc in front gets hit at once
+  swing(c, dmg, critP, critX) {
+    const S = this.self, reach = c.reach * (c.path === 3 ? 1 + 0.12 * Math.min(4, c.tier) : 1), arc = c.arc;
+    const inArc = (x, y, r) => {
+      const dx = x - S.x, dy = y - S.y, d = Math.hypot(dx, dy);
+      if (d > reach + r) return false;
+      let da = Math.atan2(dy, dx) - S.a; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+      return Math.abs(da) <= arc || d < r + PLAYER_R;
+    };
+    let n = 0;
+    for (const z of this.zs.values()) {
+      if (z.dying || (z.fl & 128) || (z.fl & 4096) || !inArc(z.x, z.y, ZTYPES[z.t].r)) continue;
+      const crit = critP > 0 && Math.random() < critP;
+      this.dealHit(z, crit ? dmg * critX : dmg, true, crit);
+      this.blood(z.x, z.y, S.a, 5); n++;
+      if (n >= 12) break;
+    }
+    for (const [pid, p] of this.foes()) {
+      if (!inArc(p.x, p.y, PLAYER_R)) continue;
+      const crit = critP > 0 && Math.random() < critP;
+      this.dealPHit(pid, p, crit ? dmg * critX : dmg, 9, crit);
+      this.blood(p.x, p.y, S.a, 5);
+    }
+    this.slash(S.x, S.y, S.a, reach, c.col || '#e8f1ff', true);
+    this.shotsQ.push([Math.round(S.x), Math.round(S.y), Math.round(S.a * 100) / 100]);
+    if (n || this.pHitMark > 0.15) this.shake = Math.min(8, this.shake + 2);
+    sfx.bash(S.x, S.y, true);
+  }
+  slash(x, y, a, reach, col, mine) {
+    if (this.parts.length > QUAL.parts) return;
+    this.addPart({ x, y, vx: 0, vy: 0, life: 0.16, max: 0.16, col: col || '#e8f1ff', size: reach, kind: 'slash', a, mine: !!mine });
+  }
+  // the Hacker's bullets turn toward the nearest target ahead of them
+  steer(b, dt, foes) {
+    let best = null, bd = 230 * 230;
+    const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
+    const look = (x, y) => { const dx = x - b.x, dy = y - b.y, d2 = dx * dx + dy * dy; if (d2 < bd && dx * ux + dy * uy > Math.sqrt(d2) * 0.55) { bd = d2; best = [x, y]; } };
+    for (const z of this.zs.values()) if (!z.dying && !(z.fl & (128 | 4096))) look(z.x, z.y);
+    for (const [, p] of foes) look(p.x, p.y);
+    if (!best) return;
+    const want = Math.atan2(best[1] - b.y, best[0] - b.x), cur = Math.atan2(b.vy, b.vx);
+    let d = want - cur; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+    const na = cur + Math.max(-b.home * dt, Math.min(b.home * dt, d));
+    b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp;
   }
 
   visualShot(pid, x, y, a) {
@@ -524,6 +651,7 @@ export class ClientGame {
     const cls = this.clsOf(pid);
     const pl = this.ps.get(pid);
     const c = weaponOf(cls, pl ? pl.wt : 0, pl ? pl.wp : 0, pl ? pl.wb : 0);
+    if (c.kind === 'm') { this.slash(x, y, a, c.reach, c.col || '#e8f1ff'); sfx.bash(x, y, false); return; }
     if (c.kind === 'f') this.flameAt.set(pid, { t: this.time, x, y });
     for (let i = 0; i < c.pellets; i++) this.bullets.push(this.makeBullet(c, x, y, a, 0, c.pierce, false));
     if (c.kind !== 'f') this.flash(x, y, a);
@@ -531,15 +659,16 @@ export class ClientGame {
   }
 
   updateBullets(dt) {
-    const out = [];
+    const out = [], foes = this.foes();
     for (const b of this.bullets) {
+      if (b.home) this.steer(b, dt, foes);
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
       if (b.kind === 'f') { b.vx *= 0.97; b.vy *= 0.97; }
       if (b.life <= 0 || outOfMap(b.x, b.y)) { if (b.kind === 'g') this.grenadeBlast(b); continue; }
       if (pointInObstacle(b.x, b.y)) { if (b.kind === 'g') this.grenadeBlast(b); else if (b.kind === 'b') this.sparks(b.x, b.y); continue; }
       let alive = true;
       for (const z of this.zs.values()) {
-        if (z.dying || (z.fl & 128)) continue;
+        if (z.dying || (z.fl & 128) || (z.fl & 4096)) continue;
         const r = ZTYPES[z.t].r + (b.kind === 'f' ? 10 : 3);
         const dx = b.x - z.x, dy = b.y - z.y;
         if (dx * dx + dy * dy > r * r) continue;
@@ -576,6 +705,16 @@ export class ClientGame {
           break;
         } else { alive = false; break; }
       }
+      if (alive && b.own && foes.length) {
+        for (const [pid, p] of foes) {
+          const r = PLAYER_R + (b.kind === 'f' ? 10 : 3), dx = b.x - p.x, dy = b.y - p.y;
+          if (dx * dx + dy * dy > r * r || (b.hit && b.hit.has('p' + pid))) continue;
+          if (b.kind === 'g') { this.grenadeBlast(b); alive = false; break; }
+          this.dealPHit(pid, p, b.dmg, b.pk || 0, b.crit);
+          if (b.kind === 'b') this.blood(b.x, b.y, Math.atan2(b.vy, b.vx), 4);
+          if (b.pierce > 0) { b.pierce--; (b.hit || (b.hit = new Set())).add('p' + pid); } else { alive = false; break; }
+        }
+      }
       if (alive) out.push(b);
     }
     this.bullets = out;
@@ -607,6 +746,7 @@ export class ClientGame {
   }
 
   dealHit(z, dmg, eff, crit) {
+    if (this.cls === 'ajan') dmg *= this.ajanBonus(z.face, z.x, z.y);
     this.hitsQ.push(eff ? [z.id, Math.round(dmg), 1] : [z.id, Math.round(dmg)]);
     z.pend.push({ d: dmg, t: this.time });
     z.flash = 0.08;
@@ -625,6 +765,7 @@ export class ClientGame {
         if (z.dying || (z.fl & 128)) continue;
         if (Math.hypot(z.x - b.x, z.y - b.y) < b.aoe + ZTYPES[z.t].r) this.dealHit(z, b.dmg, true, b.crit);
       }
+      for (const [pid, p] of this.foes()) if (Math.hypot(p.x - b.x, p.y - b.y) < b.aoe + PLAYER_R) this.dealPHit(pid, p, b.dmg, b.pk || 0, b.crit);
     }
     this.explode(b.x, b.y, b.aoe);
     if (b.pk) this.ring(b.x, b.y, PATHS[b.pk].col, b.aoe);

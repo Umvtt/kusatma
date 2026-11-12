@@ -591,3 +591,10 @@ body.signed .build { z-index: 41; }
 
 /* refreshing a page in place: no entrance animations */
 .soft, .soft * { animation: none !important; }
+
+/* PvP league card */
+.pv-rank { display: flex; gap: 14px; align-items: center; }
+.pv-badge { flex: 0 0 auto; width: 74px; height: 74px; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--lc) 45%, transparent), rgba(0,0,0,.35)); border: 2px solid var(--lc); box-shadow: 0 0 18px color-mix(in srgb, var(--lc) 35%, transparent); }
+.pv-badge strong { font: 400 15px/1 var(--display, 'Russo One', sans-serif); color: #fff; }
+.pv-badge span { font-weight: 700; color: var(--lc); margin-top: 3px; }
+.pv-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }

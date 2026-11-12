@@ -1,5 +1,5 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp } from './config.js';
+import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
@@ -13,7 +13,7 @@ import { consentStart, manage as cookieSettings } from './consent.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings, QUALITY, QORDER, QUAL } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveChat } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePvp, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveChat } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -161,7 +161,7 @@ async function createRoom(offline, opts) {
   if (opts) {
     S.host.maxP = Math.max(2, Math.min(MAX_PLAYERS, opts.max | 0 || MAX_PLAYERS));
     S.roomName = String(opts.name || '').trim().slice(0, 24);
-    send({ t: 'set', map: opts.map, diff: opts.diff, mode: opts.mode });
+    send({ t: 'set', map: opts.map, diff: opts.diff, mode: opts.mode, pv: opts.pv });
   }
   startTicker();
 }
@@ -302,7 +302,7 @@ function onMessage(m) {
       break;
     case 'r': onRoster(m); break;
     case 's': if (S.game) S.game.onSnap(m); break;
-    case 'o': if (S.role === 'spec') { S.over = m; break; } if (S.roster && m.P) m.tm = m.time; if (S.roster) recentAdd(S.roster.players.filter((p) => p.pid !== S.me)); liveGameEnd(); S.over = m; m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '', tm: m.time | 0, gm: S.roster ? S.roster.mode || 'normal' : 'normal', solo: S.role === 'host' && !online() ? 1 : 0 }); renderOver(); if (S.roster) route(); break;
+    case 'o': if (S.role === 'spec') { S.over = m; break; } if (S.roster && m.P) m.tm = m.time; if (S.roster) recentAdd(S.roster.players.filter((p) => p.pid !== S.me)); liveGameEnd(); S.over = m; if (m.pvp) { S.pvpRank = null; if (S.role === 'host') livePvp(m); renderOver(); if (S.roster) route(); break; } m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '', tm: m.time | 0, gm: S.roster ? S.roster.mode || 'normal' : 'normal', solo: S.role === 'host' && !online() ? 1 : 0 }); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
     case 'bk': if (S.role === 'client') { if (m.s && typeof m.s === 'object') S.backup = m.s; else if (typeof m.j === 'string' && m.j.length < 400000) { try { const b = JSON.parse(m.j); if (b && typeof b === 'object') S.backup = b; } catch (e) { /* ignore */ } } } break;
@@ -367,6 +367,7 @@ function renderLobby() {
   for (const p of r.players) {
     const li = el('li', 'player' + (p.pid === S.me ? ' me' : ''));
     let dot = el('span', 'dot'); dot.style.background = p.color;
+    if (r.mode === 'pvp' && r.pvp !== 'ffa') li.classList.add('pv-t' + (p.tm | 0));
     if (p.eq && Object.keys(p.eq).length) { dot = el('canvas', 'p-av'); drawAvatar(dot, p.eq, { size: 34, cls: p.cls, noPet: true }); dot.style.setProperty('--pc', p.color); }
     const nm = el('div', 'p-name');
     const pn = el('b', '', p.name + (p.pid === S.me ? ' (sen)' : ''));
@@ -443,9 +444,11 @@ function renderLobby() {
   } else if (isHost) {
     const ready = others.filter((p) => p.ready).length, need = Math.ceil(others.length * 0.75);
     btn.textContent = 'Oyunu başlat';
-    btn.disabled = others.length > 0 && ready < need;
+    btn.disabled = (others.length > 0 && ready < need) || (r.mode === 'pvp' && (r.players.length < 2 || (r.pvp === 'duel' && r.players.length !== 2)));
     btn.classList.remove('on');
-    note.textContent = !r.code ? 'Hazır olduğunda başlat. Dalgalar arasında yükseltme alabilirsin.'
+    note.textContent = r.mode === 'pvp' && r.players.length < 2 ? 'PvP için en az iki oyuncu gerekiyor. Kodu ya da bağlantıyı paylaş.'
+      : r.mode === 'pvp' && r.pvp === 'duel' && r.players.length !== 2 ? 'Düello tam iki kişiyle oynanır.'
+      : !r.code ? 'Hazır olduğunda başlat. Dalgalar arasında yükseltme alabilirsin.'
       : others.length ? (ready >= need ? `${ready}/${others.length} oyuncu hazır. Başlatabilirsin.` : `${ready}/${others.length} oyuncu hazır. Başlatmak için en az ${need} kişi hazır olmalı.`)
       : 'Henüz kimse katılmadı. Kodu paylaş ya da tek başına başlat.';
   } else {
@@ -456,7 +459,7 @@ function renderLobby() {
   }
   // the game gets tougher (and the map bigger) with every extra player
   const np = r.players.length;
-  if (np > 1 && !running && r.ph !== 'over') {
+  if (np > 1 && !running && r.ph !== 'over' && r.mode !== 'pvp') {
     const k = scaleFor(np), pc = (v) => Math.round((v - 1) * 100);
     note.textContent += ` ${np} oyuncu: zombiler +%${pc(k.count)}, can +%${pc(k.hp)}, boss canı +%${pc(k.boss)}, harita daha büyük.`;
   }
@@ -481,9 +484,10 @@ function renderSettings(r, isHost) {
       dl.append(b);
     }
     const mo = $('#mode-list');
-    for (const id of MODE_ORDER.concat('sandbox')) {
+    for (const id of MODE_ORDER.concat('sandbox', 'pvp')) {
       const b = el('button', '', MODES[id].name); b.type = 'button'; b.dataset.v = id; b.setAttribute('role', 'radio');
-      if (gemTag(GEM_MODE[id])) b.append(el('small', 'gem-x', gemTag(GEM_MODE[id])));
+      if (id === 'pvp') b.append(el('small', 'gem-x pv', 'dereceli'));
+      else if (gemTag(GEM_MODE[id])) b.append(el('small', 'gem-x', gemTag(GEM_MODE[id])));
       b.addEventListener('click', () => send({ t: 'set', mode: id }));
       mo.append(b);
     }
@@ -491,7 +495,8 @@ function renderSettings(r, isHost) {
   const dly = r.mode === 'daily';
   for (const b of ml.children) { b.setAttribute('aria-checked', b.dataset.v === r.map ? 'true' : 'false'); b.disabled = !canEdit || dly; }
   for (const b of $('#diff-list').children) { b.setAttribute('aria-checked', b.dataset.v === r.diff ? 'true' : 'false'); b.disabled = !canEdit || dly; }
-  for (const b of $('#mode-list').children) { b.setAttribute('aria-checked', b.dataset.v === (r.mode || 'normal') ? 'true' : 'false'); b.disabled = !canEdit || dly; b.hidden = dly || (b.dataset.v === 'sandbox' && !!r.code); }
+  for (const b of $('#mode-list').children) { b.setAttribute('aria-checked', b.dataset.v === (r.mode || 'normal') ? 'true' : 'false'); b.disabled = !canEdit || dly; b.hidden = dly || (b.dataset.v === 'sandbox' && !!r.code) || (b.dataset.v === 'pvp' && !r.code); }
+  lobbyPvp(r, canEdit);
   $('#mode-h').textContent = dly ? 'Mod: ' + MODES.daily.name : 'Mod';
   $('#mode-desc').textContent = dly ? `${MODES.daily.desc} Bugünün sınıfı: ${(CLASSES[r.dly] || {}).name || ''}.` : (MODES[r.mode] || MODES.normal).desc;
   $('#diff-desc').textContent = DIFFS[r.diff] ? DIFFS[r.diff].desc : '';
@@ -676,6 +681,8 @@ $('#btn-over-again').addEventListener('click', () => { S.again = true; send({ t:
 function renderOver() {
   const o = S.over;
   if (!o) return;
+  $('#over-h').textContent = 'Kuşatma düştü'; $('#over-h').classList.remove('win'); $('#over-c6').textContent = 'Kaldırma'; $('#over-c7').textContent = 'Düşme';
+  if (o.pvp) { renderPvpOver(o); return; }
   const mins = Math.floor((o.time || 0) / 60), secs = String((o.time || 0) % 60).padStart(2, '0');
   const parts = [`${o.wave}. dalgaya kadar dayandınız`, `${mins}:${secs} dakika`];
   if (o.theme && MAPS[o.theme]) parts.push(MAPS[o.theme].name);
@@ -720,7 +727,139 @@ function renderOver() {
   $('#over-note').textContent = isHost ? 'Lobiye dönünce herkes yeni oyun için sınıf seçebilir.' : 'Kurucu lobiye döndüğünde yeni oyun için hazırlanabilirsin.';
 }
 $('#btn-over-lobby').addEventListener('click', () => send({ t: 'lobby' }));
+// the lobby's PvP options: the kind of match and (in team fights) which team you're on
+function lobbyPvp(r, canEdit) {
+  let box = $('#pvp-opts');
+  if (!box) {
+    box = el('div', 'pvp-opts'); box.id = 'pvp-opts';
+    const kinds = el('div', 'seg pv-kinds'); kinds.setAttribute('role', 'radiogroup'); kinds.id = 'pvp-kinds';
+    for (const id of PVP_ORDER) { const b = el('button', '', PVP[id].name); b.type = 'button'; b.dataset.v = id; b.setAttribute('role', 'radio'); b.addEventListener('click', () => send({ t: 'set', pv: id })); kinds.append(b); }
+    const teams = el('div', 'pv-teams'); teams.id = 'pvp-teams';
+    for (const t of [0, 1]) { const b = el('button', 'btn ghost small pv-team t' + t, TEAM_NAME[t] + ' takım'); b.type = 'button'; b.dataset.t = t; b.addEventListener('click', () => send({ t: 'team', tm: t })); teams.append(b); }
+    box.append(kinds, el('p', 'dim small', ''), teams);
+    $('#mode-desc').after(box);
+  }
+  const on = r.mode === 'pvp';
+  box.hidden = !on;
+  const dl = $('#diff-list'); if (dl) { const sec = dl.closest('section, .lb-sec, div'); dl.hidden = on; if ($('#diff-desc')) $('#diff-desc').hidden = on; void sec; }
+  if (!on) return;
+  const me = r.players.find((p) => p.pid === S.me);
+  for (const b of $('#pvp-kinds').children) { b.setAttribute('aria-checked', b.dataset.v === r.pvp ? 'true' : 'false'); b.disabled = !canEdit || (b.dataset.v === 'duel' && r.players.length > 2); }
+  box.querySelector('p').textContent = (PVP[r.pvp] || PVP.tdm).desc + (r.pvp === 'duel' && r.players.length > 2 ? '' : '');
+  const tb = $('#pvp-teams'); tb.hidden = r.pvp !== 'tdm';
+  const cnt = [0, 1].map((t) => r.players.filter((p) => (p.tm | 0) === t).length);
+  for (const b of tb.children) { const t = +b.dataset.t; b.textContent = `${TEAM_NAME[t]} takım (${cnt[t]})`; b.classList.toggle('on', !!me && (me.tm | 0) === t); }
+}
 $('#btn-over-leave').addEventListener('click', () => $('#btn-leave').click());
+
+// ---------- PvP: score bar, respawn screen, kill feed, round banners and the end screen ----------
+function pvpHud(g) {
+  const bar = $('#pvp-bar'), rs = $('#pvp-resp');
+  if (!g.pv) { if (!bar.hidden) bar.hidden = true; if (!rs.hidden) rs.hidden = true; return; }
+  const [k, t, s0, s1, r0, r1] = g.pv, P = PVP[k] || PVP.tdm, mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+  const side = (n, i, label) => { const d = el('div', 'pv-side t' + i); d.append(el('span', '', label), el('strong', '', String(n))); return d; };
+  let sig;
+  if (k === 'ffa') {
+    const L = [...g.ps.entries()].sort((a, b) => b[1].pk - a[1].pk), top = L[0];
+    const lead = top ? (top[0] === S.me ? 'Sen öndesin' : `${g.nameOf(top[0])}: ${top[1].pk | 0}`) : '';
+    sig = ['f', g.self.pk, lead, mm].join('|');
+    if (bar.dataset.sig !== sig) { bar.dataset.sig = sig; const mid = el('div', 'pv-mid'); mid.append(el('strong', '', mm), el('span', '', `${P.goal} leşe ilk ulaşan kazanır`)); bar.replaceChildren(side(g.self.pk | 0, 0, 'Sen'), mid, side(top ? top[1].pk | 0 : 0, 1, top && top[0] !== S.me ? g.nameOf(top[0]) : 'Lider')); bar.title = lead; }
+  } else if (k === 'duel') {
+    sig = ['d', r0, r1, mm].join('|');
+    if (bar.dataset.sig !== sig) {
+      bar.dataset.sig = sig;
+      const mine = g.self.tm | 0, dots = (n) => { const d = el('div', 'pv-dots'); for (let i = 0; i < P.goal; i++) d.append(el('i', i < n ? 'on' : '')); return d; };
+      const a = side(mine ? r1 : r0, 0, 'Sen'), b = side(mine ? r0 : r1, 1, 'Rakip'); a.append(dots(mine ? r1 : r0)); b.append(dots(mine ? r0 : r1));
+      const mid = el('div', 'pv-mid'); mid.append(el('strong', '', mm), el('span', '', `Raunt ${g.pv[6] || 1}`)); bar.replaceChildren(a, mid, b);
+    }
+  } else {
+    sig = ['t', s0, s1, mm, g.self.tm].join('|');
+    if (bar.dataset.sig !== sig) {
+      bar.dataset.sig = sig;
+      const mid = el('div', 'pv-mid'); mid.append(el('strong', '', mm), el('span', '', `${P.goal} leşe ilk ulaşan`));
+      const a = side(s0, 0, TEAM_NAME[0] + (g.self.tm === 0 ? ' (sen)' : '')), b = side(s1, 1, TEAM_NAME[1] + (g.self.tm === 1 ? ' (sen)' : ''));
+      const prog = (n, i) => { const q = el('div', 'pv-prog t' + i); const f = el('i'); f.style.width = Math.min(100, 100 * n / P.goal) + '%'; q.append(f); return q; };
+      a.append(prog(s0, 0)); b.append(prog(s1, 1));
+      bar.replaceChildren(a, mid, b);
+    }
+  }
+  if (bar.hidden) bar.hidden = false;
+  // dead: who did it, when you come back
+  const dead = g.self.inGame && !g.self.alive && g.phase === 'combat';
+  if (rs.hidden !== !dead) rs.hidden = !dead;
+  if (dead) {
+    const by = g.deathBy && g.deathBy !== S.me ? `${g.nameOf(g.deathBy)} (${(CLASSES[g.clsOf(g.deathBy)] || {}).name || ''}) seni indirdi` : 'İndin';
+    if ($('#pvp-resp-by').textContent !== by) $('#pvp-resp-by').textContent = by;
+    const tt = k === 'duel' ? 'Raunt bitti' : g.self.resp > 0 ? `${Math.ceil(g.self.resp)} sn` : 'Doğuyorsun…';
+    if ($('#pvp-resp-t').textContent !== tt) $('#pvp-resp-t').textContent = tt;
+    const tip = k === 'duel' ? '' : `${fmt(g.self.gold)} altının var: beklerken cephanelikten alışveriş yapabilirsin.`;
+    if ($('#pvp-resp-tip').textContent !== tip) $('#pvp-resp-tip').textContent = tip;
+  }
+}
+const PV_TAG = { 9: 'kılıç', 7: 'ateş', 5: 'zehir', 6: 'şimşek', 4: 'buz', 3: 'delici' };
+function pvpNotice(n) {
+  const g = S.game;
+  if (!g) return;
+  if (n.k === 'pvk') {
+    const box = $('#kfeed');
+    const li = el('li', (n.att === S.me || n.vic === S.me ? 'me' : '') + ' pv');
+    const nm = (pid) => { const b = el('b', '', pid === S.me ? 'Sen' : pid ? g.nameOf(pid) : 'Dünya'); const p = g.ps.get(pid); if (p && g.pv && g.pv[0] !== 'ffa') b.style.color = TEAM_COL[p.tm | 0]; else if (pid && pid !== S.me) b.style.color = '#ff7b7f'; return b; };
+    li.append(nm(n.att), el('span', 'kf-x', PV_TAG[n.tag] ? `› ${PV_TAG[n.tag]} ›` : '›'), nm(n.vic));
+    box.prepend(li);
+    while (box.children.length > (IS_TOUCH ? 3 : 5)) box.lastChild.remove();
+    setTimeout(() => { li.classList.add('out'); setTimeout(() => li.remove(), 400); }, 4500);
+    if (n.vic === S.me) buzz([120, 60, 180], true);
+    if (n.att === S.me && n.vic !== S.me) buzz(40);
+    return;
+  }
+  const k = g.pv ? g.pv[0] : 'tdm', P = PVP[k] || PVP.tdm;
+  if (n.k === 'pvw') banner(n.round ? `Raunt ${n.round + 1}` : P.name, 'Hazırlık', n.round ? 'Silahını yenile, sonra tekrar.' : 'Cephanelikten silahını ve yolunu seç. Süre bitince savaş başlar.');
+  else if (n.k === 'pvf') { banner('Savaş!', k === 'duel' ? `Raunt ${n.round}` : P.name, k === 'tdm' ? `${P.goal} leşe ilk ulaşan takım kazanır.` : k === 'ffa' ? `${P.goal} leşi ilk yapan kazanır.` : 'Rakibini indir.'); buzz([60, 40, 60]); }
+  else if (n.k === 'pvr') {
+    const mine = g.self.tm | 0, won = n.win === mine, draw = n.win < 0;
+    banner(draw ? 'Berabere' : won ? 'Raundu aldın' : 'Raundu kaybettin', `${mine ? n.r1 : n.r0} – ${mine ? n.r0 : n.r1}`, draw ? 'Kimse kazanamadı, raunt tekrar.' : '');
+  }
+}
+function renderPvpOver(o) {
+  const v = o.pvp, me = o.P.find((p) => p.pid === S.me), P = PVP[v.k] || PVP.tdm;
+  const won = v.k === 'ffa' ? v.win === S.me : me && v.win === me.tm, draw = v.win === -1;
+  const mins = Math.floor((o.time || 0) / 60), secs = String((o.time || 0) % 60).padStart(2, '0');
+  const score = v.k === 'tdm' ? `${v.score[0]} – ${v.score[1]}` : v.k === 'duel' ? `${v.rounds[0]} – ${v.rounds[1]}` : '';
+  $('#over-h').textContent = draw ? 'Berabere' : won ? 'Zafer!' : 'Yenilgi'; $('#over-h').classList.toggle('win', !!won); $('#over-c6').textContent = 'Asist'; $('#over-c7').textContent = 'Ölüm';
+  $('#over-sub').textContent = [draw ? 'Berabere' : won ? 'Kazandın!' : 'Kaybettin', P.name, score, `${mins}:${secs}`, MAPS[o.theme] ? MAPS[o.theme].name : ''].filter(Boolean).join(' · ');
+  $('#over-record').hidden = true;
+  const best = (f) => { let t = null; for (const p of o.P) if (f(p) > 0 && (!t || f(p) > f(t))) t = p; return t; };
+  const awards = [];
+  const mvp = best((p) => p.pk * 3 + p.as + p.dmg / 400 - p.dth);
+  if (mvp) awards.push(['Maçın yıldızı', mvp, `${mvp.pk} leş, ${mvp.as} asist`, true]);
+  const st = best((p) => p.best); if (st && st.best >= 3) awards.push(['Seri katil', st, `${st.best} leş üst üste`]);
+  const d = best((p) => p.dmg); if (d) awards.push(['Yıkıcı', d, `${fmt(d.dmg)} hasar`]);
+  $('#over-awards').replaceChildren(...awards.map(([title, p, s2, gold]) => { const c = el('div', 'award' + (gold ? ' mvp' : '')); const nm = el('b', '', p.name + (p.pid === S.me ? ' (sen)' : '')); nm.style.color = v.k === 'ffa' ? p.color : TEAM_COL[p.tm]; c.append(el('span', 'eyebrow', title), nm, el('small', '', s2)); return c; }));
+  const body = $('#over-body');
+  body.replaceChildren();
+  o.P.forEach((p, i) => {
+    const tr = el('tr'), who = el('div', 'who'), dot = el('span', 'dot');
+    dot.style.background = v.k === 'ffa' ? p.color : TEAM_COL[p.tm];
+    who.append(dot, el('span', '', p.name + (p.pid === S.me ? ' (sen)' : '')));
+    const td = el('td'); td.append(who);
+    tr.append(el('td', '', String(i + 1)), td, el('td', '', (CLASSES[p.cls] || {}).name || ''), el('td', 'num', String(p.pk)), el('td', 'num', fmt(p.dmg)), el('td', 'num', String(p.as)), el('td', 'num', String(p.dth)));
+    body.append(tr);
+  });
+  const box = $('#over-me');
+  if (box && me) {
+    const tile = (val, l, cls) => { const t = el('div', 'om-t' + (cls ? ' ' + cls : '')); t.append(el('strong', '', val), el('span', '', l)); return t; };
+    const tiles = [tile(won ? 'Zafer' : draw ? 'Berabere' : 'Yenilgi', P.name, won ? 'gem' : ''), tile(String(me.pk), 'leş'), tile(String(me.dth), 'ölüm'), tile(String(me.as), 'asist')];
+    const rk = S.pvpRank;
+    if (ACCT && rk) { const L = league(rk.rp), t = el('div', 'om-t om-lv'), b = el('div', 'xpbar'), f = el('i'); f.style.width = Math.round(100 * L.pct) + '%'; f.style.background = L.c; b.append(f); t.append(el('strong', '', `${L.name} ${rk.d > 0 ? '+' : ''}${rk.d} puan`), b, el('span', '', `${rk.rp} puan${rk.up ? ' · yükseldin!' : ''}`)); tiles.push(t); }
+    else if (ACCT) tiles.push(tile('…', 'dereceli puan hesaplanıyor'));
+    else tiles.push(tile('Hesap aç', 'dereceli lige gir', 'cta'));
+    box.replaceChildren(...tiles); box.hidden = false;
+  }
+  const isHost = S.role === 'host';
+  $('#btn-over-lobby').hidden = !isHost;
+  $('#btn-over-again').hidden = true;
+  $('#over-note').textContent = isHost ? 'Lobiye dönünce takımlar ve sınıflar yeniden seçilir.' : 'Kurucu lobiye döndüğünde rövanş için hazırlanabilirsin.';
+}
 
 // ---------- game loop + HUD ----------
 function startLoop() {
@@ -792,6 +931,7 @@ function notice(n) {
   if (n.k === 'wave' && n.boss) buzz([70, 50, 70, 50, 140], true);
   if (n.k === 'mev' && MEV[n.ev]) { banner('Harita olayı', MEV[n.ev].name, MEV[n.ev].desc); return; }
   if (n.k === 'kill') { killFeed(n); return; }
+  if (n.k === 'pvk' || n.k === 'pvw' || n.k === 'pvf' || n.k === 'pvr') { pvpNotice(n); return; }
   if (n.k === 'streak') { streak(n.n); return; }
   if (n.k === 'adm') { adminNote(n); return; }
   if (n.k === 'cu') { toast(`Takıma yetişmen için +${n.n} altın`, 'good'); return; }
@@ -874,7 +1014,13 @@ function updateHud() {
   if (me.inGame && me.alive && lastHpBuzz != null && me.hp < lastHpBuzz - Math.max(8, me.maxHp * 0.06)) buzz(35);
   lastHpBuzz = me.inGame && me.alive ? me.hp : null;
 
-  if (g.phase === 'combat') {
+  pvpHud(g);
+  if (g.pv) {
+    const P = PVP[g.pv[0]] || PVP.tdm, t = g.pv[1], mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+    $('#hud-phase').textContent = g.phase === 'combat' ? P.name : 'Hazırlık';
+    $('#hud-wave').textContent = g.phase === 'combat' ? mm : String(g.breakT);
+    $('#hud-sub').textContent = g.phase === 'combat' ? (g.pv[0] === 'duel' ? `Raunt ${g.pv[6]}` : `Leş: ${g.self.pk | 0} · Ölüm: ${g.self.dth | 0}`) : 'Cephanelikten silahını seç';
+  } else if (g.phase === 'combat') {
     $('#hud-phase').textContent = 'Dalga';
     $('#hud-wave').textContent = String(g.wave);
     $('#hud-sub').textContent = `Kalan zombi: ${fmt(g.zLeft)}`;
@@ -900,7 +1046,7 @@ function updateHud() {
     const li = team.children[i];
     const info = g.roster.get(pid);
     li.className = p.alive ? '' : 'down';
-    li.children[0].style.background = info ? info.color : '#888';
+    li.children[0].style.background = g.pv && g.pv[0] !== 'ffa' ? TEAM_COL[p.tm | 0] : info ? info.color : '#888';
     li.children[1].textContent = (info ? info.name : '?') + (pid === S.me ? ' (sen)' : '');
     li.children[2].firstChild.style.width = (p.maxHp ? Math.max(0, p.hp / p.maxHp) * 100 : 0) + '%';
   });
@@ -963,7 +1109,7 @@ function updateHud() {
   $('#hud-kills').textContent = fmt(me.kills);
 
   // downed
-  $('#dead').hidden = me.alive || !me.inGame || !$('#esc').hidden;
+  $('#dead').hidden = me.alive || !me.inGame || !$('#esc').hidden || !!g.pv;
   $('#dead-sub').textContent = g.ps.size > 1 ? 'Bir arkadaşın yanına gelip seni kaldırabilir · dalga bitince dönersin' : 'Dalga bitince geri döneceksin';
   $('#net-warn').hidden = S.role !== 'client' || performance.now() - g.lastSnapAt < 1500;
   if (!me.alive) {
@@ -1007,6 +1153,7 @@ S.shopUpd = [];
 function shopTabStep(d) {
   const i = SHOP_TABS.findIndex(([k]) => k === S.shopTab);
   S.shopTab = SHOP_TABS[(i + d + SHOP_TABS.length) % SHOP_TABS.length][0];
+  if (S.shopTab === 'team' && S.game && S.game.pv) S.shopTab = SHOP_TABS[(i + 2 * d + SHOP_TABS.length * 2) % SHOP_TABS.length][0];
   S.shopSig = ''; updateShop();
 }
 
@@ -1234,13 +1381,14 @@ $('#shop-heal').addEventListener('click', () => { if (!$('#shop-heal').disabled)
 function updateShop() {
   const g = S.game;
   { const h = $('#shop-heal'), s2 = g.self, full = s2.hp >= s2.maxHp; $('#shop-heal-c').textContent = String(HEAL_COST); h.disabled = !s2.alive || full || s2.gold < HEAL_COST; h.classList.toggle('full', full); h.title = full ? 'Canın zaten dolu' : ''; }
-  const brk = g.phase === 'break' && g.self.inGame, touch = document.body.classList.contains('touch');
+  const brk = (g.phase === 'break' || (!!g.pv && g.phase === 'combat' && !g.self.alive)) && g.self.inGame, touch = document.body.classList.contains('touch');
   // phones: the armory opens full screen at the start of each break; closing it leaves a button on the screen
   if (brk && !S.wasBreak) S.armoryOpen = true;
   S.wasBreak = brk;
   const open = brk && (!touch || S.armoryOpen !== false);
   if ($('#shop').hidden !== !open) $('#shop').hidden = !open;
   $('#shop').classList.toggle('full', touch);
+  { const tt = $('#shop-tabs [data-tab="team"]'), pv = !!g.pv; if (tt && tt.hidden !== pv) tt.hidden = pv; if (pv && S.shopTab === 'team') { S.shopTab = 'wpn'; S.shopSig = ''; } }
   const fab = $('#btn-armory'), showFab = brk && touch && !open;
   if (fab.hidden !== !showFab) fab.hidden = !showFab;
   if (showFab) {
@@ -1265,6 +1413,7 @@ function updateShop() {
   const players = [...g.ps.values()];
   const ready = players.filter((p) => p.ready).length;
   const rb = $('#btn-shop-ready');
+  { const hide = !!g.pv && g.phase === 'combat'; if (rb.hidden !== hide) rb.hidden = hide; const rc = $('#shop-ready-count'); if (rc.hidden !== hide) rc.hidden = hide; }
   rb.textContent = me.shopReady ? 'Hazırsın ✓' : 'Hazırım';
   rb.classList.toggle('on', me.shopReady);
   $('#shop-ready-count').textContent = players.length > 1 ? `${ready}/${players.length} oyuncu hazır` : 'Hazırsan dalgayı hemen başlat.';
@@ -1303,11 +1452,11 @@ $('#btn-shop-ready').addEventListener('click', () => { if (S.game) send({ t: 're
 function renderBoard() {
   const g = S.game;
   if (!g) return;
-  $('#board-wave').textContent = `Dalga ${g.wave}`;
+  $('#board-wave').textContent = g.pv ? (PVP[g.pv[0]] || PVP.tdm).name : `Dalga ${g.wave}`;
   const body = $('#board-body');
   body.replaceChildren();
   const isHost = S.role === 'host';
-  const rows = [...g.ps.entries()].sort((a, b) => b[1].kills - a[1].kills);
+  const rows = [...g.ps.entries()].sort((a, b) => g.pv ? ((a[1].tm - b[1].tm) * (g.pv[0] === 'ffa' ? 0 : 1) || b[1].pk - a[1].pk) : b[1].kills - a[1].kills);
   for (const [pid, p] of rows) {
     const info = g.roster.get(pid);
     if (!info) continue;
@@ -1321,7 +1470,8 @@ function renderBoard() {
       b.addEventListener('click', () => kickPlayer(info));
       act.append(b);
     }
-    tr.append(td, el('td', '', CLASSES[info.cls].name), el('td', 'num', fmt(p.kills)), el('td', '', p.alive ? 'Ayakta' : 'Düştü'), act);
+    if (g.pv && g.pv[0] !== 'ffa') dot.style.background = TEAM_COL[p.tm | 0];
+    tr.append(td, el('td', '', CLASSES[info.cls].name), el('td', 'num', g.pv ? `${p.pk | 0} / ${p.dth | 0} / ${p.ast | 0}` : fmt(p.kills)), el('td', '', g.pv ? (p.alive ? 'Savaşta' : 'Yeniden doğuyor') : p.alive ? 'Ayakta' : 'Düştü'), act);
     body.append(tr);
   }
 }
@@ -1840,7 +1990,10 @@ function roomDlg() {
   $('#room-note').textContent = pubOk ? 'İstersen sonradan oda kodunu da paylaşabilirsin.' : 'Açık oda kurmak için hesap gerekir. Ana menüden Giriş yap.';
   chipRow($('#room-map'), [...MAP_ORDER.map((id) => [id, MAPS[id].name]), ['rastgele', 'Rastgele']], ROOM.map, (v) => { ROOM.map = v; });
   chipRow($('#room-diff'), DIFF_ORDER.map((id) => [id, DIFFS[id].name, gemTag(GEM_DIFF[id])]), ROOM.diff, (v) => { ROOM.diff = v; });
-  chipRow($('#room-mode'), MODE_ORDER.map((id) => [id, MODES[id].name, gemTag(GEM_MODE[id])]), MODE_ORDER.includes(ROOM.mode) ? ROOM.mode : 'normal', (v) => { ROOM.mode = v; });
+  const pvRow = () => { const on = ROOM.mode === 'pvp'; $('#room-pvp').hidden = !on; $('#room-diff').hidden = on; const dh = $('#room-diff').previousElementSibling; if (dh) dh.hidden = on; };
+  chipRow($('#room-mode'), MODE_ORDER.concat('pvp').map((id) => [id, MODES[id].name, id === 'pvp' ? 'dereceli' : gemTag(GEM_MODE[id])]), MODE_ORDER.includes(ROOM.mode) || ROOM.mode === 'pvp' ? ROOM.mode : 'normal', (v) => { ROOM.mode = v; pvRow(); });
+  chipRow($('#room-pvp'), PVP_ORDER.map((id) => [id, PVP[id].name]), PVP[ROOM.pv] ? ROOM.pv : 'tdm', (v) => { ROOM.pv = v; if (v === 'duel') { ROOM.max = 2; chipRow($('#room-max'), [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [MAX_PLAYERS, String(MAX_PLAYERS)]], 2, (x) => { ROOM.max = x; }); } });
+  pvRow();
   chipRow($('#room-max'), [[2, '2'], [4, '4'], [6, '6'], [8, '8'], [MAX_PLAYERS, String(MAX_PLAYERS)]], ROOM.max, (v) => { ROOM.max = v; });
   $('#room-name').value = ACCT ? (ROOM.name || '') : ''; $('#room-name-row').hidden = !ACCT;
   $('#room-dlg').hidden = false;
@@ -1852,7 +2005,7 @@ $('#room-go').onclick = () => {
   ROOM.name = ACCT ? $('#room-name').value.trim().slice(0, 24) : '';
   try { localStorage.setItem('kusatma-oda', JSON.stringify(ROOM)); } catch (e) { /* ignore */ }
   setPub(!!ACCT && roomVis === 1);
-  createRoom(false, { map: ROOM.map, diff: ROOM.diff, mode: MODE_ORDER.includes(ROOM.mode) ? ROOM.mode : 'normal', max: ROOM.max, name: roomVis === 1 ? ROOM.name : '' });
+  createRoom(false, { map: ROOM.map, diff: ROOM.diff, mode: MODE_ORDER.includes(ROOM.mode) || ROOM.mode === 'pvp' ? ROOM.mode : 'normal', pv: PVP[ROOM.pv] ? ROOM.pv : 'tdm', max: ROOM.mode === 'pvp' && ROOM.pv === 'duel' ? 2 : ROOM.max, name: roomVis === 1 ? ROOM.name : '' });
 };
 acctUi();
 acctCheck().then(() => { acctUi(); dashRefresh(); });
@@ -1978,6 +2131,7 @@ if (!WATCH) liveStart({
   },
   onGift: (name, n) => { if (S.host) S.host.adminGift(name, n); },
   onBan: () => { blockUi(); if (online()) leave(''); },
+  onPvp: (d) => { S.pvpRank = { rp: d.rp | 0, d: d.d | 0, up: !!d.up }; if (S.screen === 'over' && S.over && S.over.pvp) renderOver(); if (d.up) toast(`Yeni lig: ${league(d.rp).name}!`, 'good'); },
   onGem: (n, xp, cap) => {
     S.gameGems = (S.gameGems | 0) + n;
     dashTop();

@@ -56,10 +56,31 @@ Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, gece k
 | Komutan | Ağır tabanca | **İkmal Sandığı**: yakındakilere can, altın ve 5 sn iki kat hasar | Yakınındaki herkes %10 sert vurur |
 | Tesla | Tesla tabancası | **Tesla Bobini**: 12 sn yakındaki zombileri zincirleme çarpan bir bobin | Her vuruş iki zombiye daha sıçrar |
 | Avcı | Arbalet | **Ok Yağmuru**: önüne yelpaze gibi dokuz delici ok | Oklar zombileri bir an yere çiviler |
+| Kılıççı | Kılıç (yakın dövüş) | **Kasırga**: 3 sn dönerek etrafındaki her şeyi biçer, %40 az hasar alır | Kılıç vuruşlarının bir kısmı can olarak döner |
+| Eğitmen | Tabanca | **Saldır!**: köpek nişan alınan yere fırlar, 4 sn iki kat sert ısırır ve hedefi çiviler | Yanında hep bir saldırı köpeği gezer, zombileri yakalayıp yavaşlatır |
+| Ajan | Susturuculu tabanca | **Gölge**: 5 sn görünmez olur, zombiler onu kaybeder; gölgeden ilk vuruşu iki kat | Sırtı dönük hedeflere %50 daha sert vurur |
+| Hacker | Akıllı tabanca | **Ele Geçir**: önündeki 3 zombiyi 8 sn kendi tarafına geçirir, süre bitince patlarlar | Mermileri hedefe hafifçe döner; yakınındaki taret, dron ve bobinler %25 sert vurur |
 
 Lobide bir sınıfa tıklayınca (ya da fareyle üstüne gelince) yandaki panel her şeyi gösterir: rolü, değerler, yetenek, pasif, yetenek ustalığı ve silah serisi. Kartlardaki renkli noktalar hangi takım arkadaşının o sınıfı seçtiğini gösterir.
 
-Asker, Doktor, Tamirci ve Nişancı ücretsizdir. Diğerleri elmasla açılır (İzci 450, Kalkancı 500, Alevci 700, Bombacı 800, Mühendis 1400, Kimyager 1500, Komutan 1800, Tesla 2000, Avcı 2000). Kilitli sınıfları **Deneme Alanı** modunda deneyebilirsin ama o mod elmas, XP ve görev ilerlemesi vermez; diğer bütün oyunlarda yalnızca sahip olduğun sınıflar seçilir.
+Asker, Doktor, Tamirci ve Nişancı ücretsizdir. Diğerleri elmasla açılır (İzci 450, Kalkancı 500, Alevci 700, Bombacı 800, Mühendis 1400, Kimyager 1500, Komutan 1800, Tesla 2000, Avcı 2000, Kılıççı 1600, Eğitmen 1700, Ajan 1900, Hacker 2200). Kilitli sınıfları **Deneme Alanı** modunda deneyebilirsin ama o mod elmas, XP ve görev ilerlemesi vermez; diğer bütün oyunlarda yalnızca sahip olduğun sınıflar seçilir.
+
+## PvP
+
+Oda kurarken (ya da lobide) mod olarak **PvP** seçilince oyuncular birbirine karşı dövüşür; zombi gelmez. Üç türü var:
+
+| Tür | Kurallar |
+| --- | --- |
+| Takım Savaşı | Mavi ve Kırmızı takım. 30 leşe ilk ulaşan ya da 8 dakika sonunda önde olan kazanır. Ölen 5 sn sonra kendi tarafında doğar. |
+| Herkes Herkese | Herkes tek başına. 20 leşi ilk yapan ya da 8 dakika sonunda en çok leşi olan kazanır. |
+| Düello | Bire bir. Üç raundu ilk alan kazanır; her raunt en çok 90 saniye. |
+
+- Maç 15 saniyelik **hazırlıkla** başlar: herkes 1200 altınla cephanelikten silah yolunu ve yükseltmelerini seçer. Leş 250, asist 90 altın verir; ölüyken de alışveriş yapılabilir.
+- Doğunca 2 saniye koruma vardır. Takım arkadaşına hasar verilmez.
+- Sınıflar ve yetenekler aynıdır ama oyunculara göre ayarlanır: canlar 1,6 kat, silah hasarı oyunculara daha az işler, silah seviyesinin etkisi azalır. Bir maçta öldürmek birkaç saniye sürer.
+- Ekranda: üstte skor ve süre, leş akışında kim kimi neyle indirdi, vurulduğun yönü gösteren kırmızı oklar, ölünce seni kimin indirdiği ve geri sayım.
+- Hesabı olanlar **dereceli** oynar: kazanınca puan alır, kaybedince puan kaybeder (rakiplerin puanına göre). Ligler **Bronz → Gümüş → Altın → Platin → Elmas**, her biri üç kademe. Her maç biraz elmas da verir.
+- Her ay yeni sezon başlar; puanın %60'ı kalır ve geçen sezon ulaştığın en yüksek lige göre elmas ödülü alırsın (profilindeki PvP kartından). Sıralamada ayrı bir PvP sekmesi var.
 
 ## Hesap, elmas ve mağaza
 

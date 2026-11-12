@@ -1,5 +1,5 @@
 // Canvas drawing: an abandoned plaza at night, seen from above, lit by the team's flashlights.
-import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp } from './config.js';
+import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp, TEAM_COL } from './config.js';
 import { WORLD, obstaclesIn } from './world.js';
 import { SETTINGS, QUALITY } from './settings.js';
 import { ITEMS as COS } from './catalog.js';
@@ -150,7 +150,7 @@ export class Renderer {
     for (const m of game.mines) drawMine(g, m, game.time);
     for (const it of game.items) if (inView(it[2], it[3])) drawItem(g, it, game.time);
     for (const mk of game.marks) drawStrikeMark(g, mk);
-    for (const t of game.ts.values()) drawTurret(g, t);
+    for (const t of game.ts.values()) drawTurret(g, t, game.time);
 
     // downed players lie under everything
     for (const [pid, p] of game.ps) if (!p.alive && inView(p.x, p.y)) drawPlayer(g, game, pid, p, roster.get(pid), false);
@@ -229,6 +229,13 @@ export class Renderer {
         g.fillStyle = p.col;
         g.beginPath(); g.arc(p.x, p.y, p.size, 0, Math.PI * 2); g.fill();
         g.globalAlpha = 1;
+      } else if (p.kind === 'slash') { // a sword swing: a bright crescent
+        g.save(); g.translate(p.x, p.y); g.rotate(p.a);
+        const sw = (1 - kk) * 1.6 - 0.8;
+        g.globalAlpha = kk * 0.9; g.strokeStyle = p.col; g.lineWidth = 7 * kk + 2; g.lineCap = 'round';
+        g.beginPath(); g.arc(0, 0, p.size * 0.82, sw - 0.9, sw + 0.35); g.stroke();
+        g.globalAlpha = kk * 0.35; g.lineWidth = 16 * kk; g.beginPath(); g.arc(0, 0, p.size * 0.7, sw - 0.8, sw + 0.3); g.stroke();
+        g.restore(); g.globalAlpha = 1; g.lineCap = 'butt';
       } else if (p.kind === 'shard') {
         g.globalAlpha = kk;
         g.fillStyle = p.col;
@@ -295,7 +302,7 @@ export class Renderer {
     g.globalCompositeOperation = 'source-over';
     for (const m of game.mines) if (m[3] && Math.sin(game.time * 8 + m[0]) > 0) { g.fillStyle = '#ff3b30'; g.beginPath(); g.arc(m[1], m[2], 2.5, 0, Math.PI * 2); g.fill(); }
     for (const q of game.planes) drawPlane(g, q);
-    for (const [pid, p] of game.ps) if (inView(p.x, p.y)) drawTag(g, p, roster.get(pid), pid === game.me);
+    for (const [pid, p] of game.ps) if (inView(p.x, p.y)) drawTag(g, p, roster.get(pid), pid === game.me, game);
     g.font = '700 14px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
     for (const t of game.texts) {
       g.font = t.small ? '700 12px Rubik, system-ui, sans-serif' : '700 14px Rubik, system-ui, sans-serif';
@@ -321,6 +328,15 @@ export class Renderer {
       grad.addColorStop(1, `rgba(160,20,20,${a})`);
       g.fillStyle = grad;
       g.fillRect(0, 0, vw, vh);
+    }
+    if (game.dmgDir && game.dmgDir.length && S.alive) { // where PvP hits came from
+      for (const d of game.dmgDir) {
+        const k = Math.min(1, d.t / 0.9), R = Math.min(vw, vh) * 0.28;
+        g.save(); g.translate(vw / 2, vh / 2); g.rotate(d.a);
+        g.fillStyle = `rgba(255,70,70,${0.75 * k})`;
+        g.beginPath(); g.moveTo(R + 26, 0); g.lineTo(R, -16); g.lineTo(R + 6, 0); g.lineTo(R, 16); g.closePath(); g.fill();
+        g.restore();
+      }
     }
     this.drawMates(g, game, roster);
     this.drawMinimap(g, game, roster);
@@ -370,8 +386,9 @@ export class Renderer {
   // Arrows on the screen edge pointing at teammates you can't see. Downed ones pulse red.
   drawMates(g, game, roster) {
     const c = game.cam, m = 34;
+    const pv = game.pv;
     for (const [pid, p] of game.ps) {
-      if (pid === game.me) continue;
+      if (pid === game.me || (pv && (pv[0] === 'ffa' || p.tm !== game.self.tm))) continue;
       const sx = (p.x - c.x) * c.scale + c.vw / 2, sy = (p.y - c.y) * c.scale + c.vh / 2;
       if (sx > 0 && sx < c.vw && sy > 0 && sy < c.vh) continue;
       const info = roster.get(pid);
@@ -420,6 +437,11 @@ export class Renderer {
       g.moveTo(x + a, y + a); g.lineTo(x + b, y + b);
       g.stroke();
     }
+    if (game.killMark > 0) {
+      g.strokeStyle = `rgba(255,60,60,${Math.min(1, game.killMark * 3)})`; g.lineWidth = 4;
+      const a = gap + 4, b = gap + 16;
+      g.beginPath(); g.moveTo(x - a, y - a); g.lineTo(x - b, y - b); g.moveTo(x + a, y - a); g.lineTo(x + b, y - b); g.moveTo(x - a, y + a); g.lineTo(x - b, y + b); g.moveTo(x + a, y + a); g.lineTo(x + b, y + b); g.stroke();
+    }
     const rate = game.myStats.rate;
     if (rate < 3 && game.fireT > 0) {
       g.strokeStyle = 'rgba(255,107,44,0.9)';
@@ -452,9 +474,12 @@ export class Renderer {
       const sz = isBoss(z.t) ? 5 : z.t === 2 || z.t === 6 ? 3 : 2;
       g.fillRect(mx(z.x) - sz / 2, my(z.y) - sz / 2, sz, sz);
     }
+    const pv = game.pv, cam = game.cam;
     for (const [pid, p] of game.ps) {
       const r = roster.get(pid);
-      g.fillStyle = p.alive ? (r ? r.color : '#fff') : '#666';
+      const foe = pv && pid !== game.me && (pv[0] === 'ffa' || p.tm !== game.self.tm);
+      if (foe && (!p.alive || (p.pfl & 2) || Math.abs(p.x - cam.x) > cam.vw / 2 / cam.scale + 60 || Math.abs(p.y - cam.y) > cam.vh / 2 / cam.scale + 60)) continue;
+      g.fillStyle = !p.alive ? '#666' : pv ? (pid === game.me ? '#ffffff' : foe ? '#ff5a5f' : '#4cc9f0') : (r ? r.color : '#fff');
       g.beginPath();
       g.arc(mx(p.x), my(p.y), pid === game.me ? 3.5 : 2.5, 0, Math.PI * 2);
       g.fill();
@@ -732,7 +757,8 @@ function drawObstacle(g, o) {
   }
 }
 
-function drawTurret(g, t) {
+function drawTurret(g, t, time) {
+  if (t.k === 5) { g.save(); g.translate(t.x, t.y); g.scale(1.9, 1.9); drawPet(g, 'k9', 0, 0, t.a || 0, time || 0, 1, true); g.restore(); return; }
   if (t.k === 1 || t.k === 2) { drawDrone(g, t); return; }
   if (t.k === 3) { drawCrate(g, t); return; }
   if (t.k === 4) { rangeRing(g, t.x, t.y, CLASSES.tesla.ab.r || 260, '120,200,255'); drawCoil(g, t); turretHp(g, t); return; }
@@ -841,6 +867,7 @@ function drawZombie(g, z, time) {
   g.fillStyle = 'rgba(0,0,0,0.3)';
   g.beginPath(); g.ellipse(3, 5, r, r * 0.85, 0, 0, Math.PI * 2); g.fill();
   if (age < 0.5) { const s = 0.4 + age * 1.2; g.scale(s, s); g.globalAlpha = age * 2; }
+  if (z.fl & 4096) { g.strokeStyle = `rgba(76,240,208,${0.55 + 0.3 * Math.sin(time * 8)})`; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, r + 6, 0, Math.PI * 2); g.stroke(); g.fillStyle = 'rgba(76,240,208,0.14)'; g.fill(); }
   if (z.t === 3) {
     g.fillStyle = 'rgba(229,72,77,0.13)';
     g.beginPath(); g.arc(0, 0, r + 10 + Math.sin(time * 4) * 3, 0, Math.PI * 2); g.fill();
@@ -1073,13 +1100,34 @@ function drawPlayer(g, game, pid, p, info, alive) {
   const col = info ? info.color : '#ccc';
   const fx = game.fx.get(pid);
   const fxk = fx && game.time < fx.until ? fx.k : (p.shield ? 'shield' : null);
+  const pv = game.pv, foe = !!pv && pid !== game.me && (pv[0] === 'ffa' || p.tm !== game.self.tm);
+  // an Ajan in the shadows: faint to friends, almost nothing to enemies (gone when far away)
+  let alpha = 1;
+  if (alive && (fxk === 'shadow' || (p.pfl & 2))) {
+    alpha = foe ? Math.max(0, 0.16 - Math.hypot(p.x - game.self.x, p.y - game.self.y) / 1600) : 0.4;
+    if (alpha <= 0.01) return;
+  }
   g.save();
   g.translate(p.x, p.y);
-  if (alive && fxk) drawAura(g, fxk, game.time);
+  g.globalAlpha = alpha;
+  if (pv && alive) { // team ring under PvP players: blue/red teams, red for everyone else in free-for-all
+    const col = pv[0] === 'ffa' ? (pid === game.me ? '#4cc9f0' : '#ff5a5f') : TEAM_COL[p.tm | 0];
+    g.strokeStyle = col; g.lineWidth = 3; g.globalAlpha = alpha * 0.85;
+    g.beginPath(); g.ellipse(0, 6, 22, 16, 0, 0, Math.PI * 2); g.stroke();
+    g.globalAlpha = alpha;
+    if (p.pfl & 1) { g.strokeStyle = `rgba(255,255,255,${0.35 + 0.25 * Math.sin(game.time * 10)})`; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 27, 0, Math.PI * 2); g.stroke(); }
+    if (p.pfl & 4) { g.fillStyle = '#4cf0d0'; g.font = '700 11px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('⦸', 0, -34); }
+  }
+  if (p.flash > 0) { p.flash -= 1 / 60; g.fillStyle = 'rgba(255,90,90,0.35)'; g.beginPath(); g.arc(0, 0, 22, 0, Math.PI * 2); g.fill(); }
+  if (alive && fxk === 'spin') { // the Kılıççı's whirlwind
+    g.strokeStyle = 'rgba(232,241,255,0.55)'; g.lineWidth = 4;
+    for (let i = 0; i < 3; i++) { const a0 = game.time * 14 + i * 2.1; g.beginPath(); g.arc(0, 0, 70 + i * 14, a0, a0 + 1.1); g.stroke(); }
+  }
+  if (alive && fxk && fxk !== 'shadow' && fxk !== 'spin') drawAura(g, fxk, game.time);
   if (alive && p.power > 0) { g.fillStyle = `rgba(255,107,44,${0.18 + 0.1 * Math.sin(game.time * 10)})`; g.beginPath(); g.arc(0, 0, 30, 0, Math.PI * 2); g.fill(); }
   if (alive && p.chill > 0) { g.fillStyle = 'rgba(159,227,255,0.22)'; g.beginPath(); g.arc(0, 0, 22, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(220,245,255,0.7)'; g.lineWidth = 1.5; g.stroke(); }
   if (alive && p.haste > 0) { g.strokeStyle = 'rgba(76,201,240,0.6)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 24, game.time * 6, game.time * 6 + 2); g.stroke(); }
-  if (!alive) {
+  if (!alive && !pv) {
     const pulse = 0.5 + 0.5 * Math.sin(game.time * 5);
     g.strokeStyle = `rgba(229,72,77,${0.35 + pulse * 0.35})`; g.lineWidth = 2;
     g.setLineDash([5, 5]);
@@ -1092,7 +1140,7 @@ function drawPlayer(g, game, pid, p, info, alive) {
   }
   g.scale(1.15, 1.15);
   const eq = (info && info.eq) || {};
-  drawCharacter(g, cls, col, alive ? p.a || 0 : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time, hat: eq.hat, wsk: eq.wsk });
+  drawCharacter(g, cls, col, alive ? (fxk === 'spin' ? game.time * 16 : p.a || 0) : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time, hat: eq.hat, wsk: eq.wsk });
   g.restore();
 }
 
@@ -1223,6 +1271,14 @@ function drawBack(g, cls, color) {
       g.fillStyle = '#7ad8ff'; g.beginPath(); g.arc(-14.5, 0, 2, 0, Math.PI * 2); g.fill(); break;
     case 'avci': g.fillStyle = '#5b4026'; rr(g, -19, -4, 12, 9, 3); g.fill(); g.strokeStyle = '#d8c7a0'; g.lineWidth = 1.4; for (const y of [-3, -0.5, 2]) { g.beginPath(); g.moveTo(-21, y); g.lineTo(-8, y - 1.5); g.stroke(); }
       g.fillStyle = '#c0392b'; for (const y of [-3, -0.5, 2]) g.fillRect(-22, y - 0.8, 2.5, 1.6); break;
+    case 'kilicci': g.fillStyle = '#3a2418'; g.save(); g.rotate(-0.5); rr(g, -24, -3, 22, 6, 2); g.fill(); g.fillStyle = '#c9971b'; g.fillRect(-5, -4, 3, 8); g.restore();
+      g.fillStyle = '#7a1e22'; g.beginPath(); g.moveTo(-6, -11); g.quadraticCurveTo(-18, 0, -6, 11); g.closePath(); g.fill(); break;
+    case 'egitmen': g.fillStyle = '#5a4630'; rr(g, -17, -8, 9, 16, 3); g.fill(); g.strokeStyle = '#c0392b'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-9, 6); g.quadraticCurveTo(-4, 13, 4, 10); g.stroke();
+      g.fillStyle = '#d8c7a0'; g.beginPath(); g.arc(-12.5, -3, 2, 0, Math.PI * 2); g.fill(); break;
+    case 'ajan': g.fillStyle = '#16181c'; g.beginPath(); g.moveTo(-5, -12); g.quadraticCurveTo(-21, -8, -20, 0); g.quadraticCurveTo(-21, 8, -5, 12); g.closePath(); g.fill();
+      g.strokeStyle = '#2c2f36'; g.lineWidth = 1; g.stroke(); break;
+    case 'hacker': g.fillStyle = '#23262e'; rr(g, -19, -9, 11, 18, 3); g.fill(); g.fillStyle = '#4cf0d0'; g.fillRect(-17, -6, 7, 1.4); g.fillRect(-17, -2, 5, 1.4); g.fillRect(-17, 2, 6, 1.4);
+      g.fillStyle = 'rgba(76,240,208,0.25)'; g.fillRect(-18, -8, 9, 16); break;
     default: break;
   }
   void color;
@@ -1248,6 +1304,11 @@ function drawWeapon(g, cls, sk) {
     case 'tesla': g.fillStyle = M; g.fillRect(6, 1.5, 20, 5.5); g.fillStyle = '#b87333'; for (const x of [12, 16, 20]) g.fillRect(x, 0.5, 2, 7.5); g.fillStyle = '#7ad8ff'; g.beginPath(); g.arc(28, 4.2, 3, 0, Math.PI * 2); g.fill(); g.fillRect(12, 7, 3, 4); break;
     case 'avci': g.fillStyle = W; g.fillRect(4, 2.5, 26, 3.5); g.strokeStyle = M; g.lineWidth = 2.4; g.beginPath(); g.moveTo(26, -7); g.quadraticCurveTo(31, 4, 26, 15); g.stroke();
       g.strokeStyle = '#d8d0b8'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(26, -7); g.lineTo(14, 4); g.lineTo(26, 15); g.stroke(); g.fillStyle = '#aaa'; g.fillRect(28, 3, 5, 2.5); break;
+    case 'kilicci': g.fillStyle = '#3a2418'; g.fillRect(6, 2, 7, 4); g.fillStyle = '#c9971b'; g.fillRect(12, -1.5, 3, 11); g.fillStyle = sk ? sk.s : '#dfe6ee';
+      g.beginPath(); g.moveTo(15, 1.6); g.lineTo(44, 2.6); g.lineTo(48, 4); g.lineTo(44, 5.4); g.lineTo(15, 6.4); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,255,255,0.6)'; g.fillRect(16, 3.4, 26, 0.9); break;
+    case 'egitmen': g.fillStyle = M; g.fillRect(9, 2, 16, 4.5); g.fillRect(11, 6, 3.5, 5); g.fillStyle = '#5a4630'; g.fillRect(11, 6.5, 3.5, 4); break;
+    case 'ajan': g.fillStyle = M; g.fillRect(9, 2.2, 14, 4); g.fillRect(11, 6, 3.2, 4.6); g.fillStyle = '#2b2f36'; g.fillRect(22, 2.6, 13, 3.2); break;
+    case 'hacker': g.fillStyle = M; g.fillRect(8, 1.6, 18, 5); g.fillRect(11, 6, 3.4, 4.6); g.fillStyle = '#4cf0d0'; g.fillRect(13, 0, 6, 1.4); g.beginPath(); g.arc(26, 4.1, 1.8, 0, Math.PI * 2); g.fill(); break;
     default: break;
   }
   if (sk) { // the skin's accent stripe along the gun
@@ -1465,7 +1526,7 @@ function drawArms(g, cls, dark) {
     hand(12, -7); hand(12, 7);
     return;
   }
-  const front = { asker: 22, doktor: 18, tamirci: 20, nisanci: 24, kalkanci: 16, alevci: 20, bombaci: 20, muhendis: 20, kimyager: 18, komutan: 13, tesla: 18, avci: 20 }[cls] || 20;
+  const front = { asker: 22, doktor: 18, tamirci: 20, nisanci: 24, kalkanci: 16, alevci: 20, bombaci: 20, muhendis: 20, kimyager: 18, komutan: 13, tesla: 18, avci: 20, kilicci: 12, egitmen: 13, ajan: 13, hacker: 14 }[cls] || 20;
   g.beginPath(); g.moveTo(1, 12); g.lineTo(9, 5); g.moveTo(1, -12); g.lineTo(front, 3); g.stroke();
   hand(9, 5); hand(front, 3);
 }
@@ -1518,6 +1579,20 @@ function drawHead(g, cls, color) {
       g.fillStyle = '#4b5a32'; g.beginPath(); g.arc(-1, 0, 8.2, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#3a4626'; g.beginPath(); g.moveTo(-9, -3); g.lineTo(-14, 0); g.lineTo(-9, 3); g.fill();
       g.fillStyle = SKIN; g.beginPath(); g.arc(4, 0, 3.2, -1.2, 1.2); g.fill(); break;
+    case 'kilicci': // headband with trailing ends
+      g.fillStyle = '#2a1c14'; g.beginPath(); g.arc(0, 0, 7.6, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#c0392b'; g.lineWidth = 2.6; g.beginPath(); g.arc(0, 0, 7.2, -1.2, 1.2); g.stroke();
+      g.beginPath(); g.moveTo(-6, 2); g.quadraticCurveTo(-13, 5, -16, 1); g.stroke(); break;
+    case 'egitmen': // cap
+      g.fillStyle = '#4a5a36'; g.beginPath(); g.arc(0, 0, 8, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#3a4628'; g.beginPath(); g.ellipse(6, 0, 5, 7, 0, -Math.PI / 2, Math.PI / 2); g.fill(); break;
+    case 'ajan': // dark hood and glasses
+      g.fillStyle = '#121418'; g.beginPath(); g.arc(0, 0, 8.2, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#9a8cff'; g.fillRect(3, -4, 3, 2.4); g.fillRect(3, 1.6, 3, 2.4); break;
+    case 'hacker': // headset with a glowing mic
+      g.fillStyle = '#23262e'; g.beginPath(); g.arc(0, 0, 7.8, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#4cf0d0'; g.lineWidth = 1.8; g.beginPath(); g.arc(0, 0, 8.4, -2.2, 2.2, true); g.stroke();
+      g.fillStyle = '#4cf0d0'; g.beginPath(); g.arc(7, 6, 1.6, 0, Math.PI * 2); g.fill(); break;
     default: break;
   }
 }
@@ -1542,15 +1617,17 @@ function shade(hex, amt) {
   return `rgb(${c(16)},${c(8)},${c(0)})`;
 }
 
-function drawTag(g, p, info, isMe) {
+function drawTag(g, p, info, isMe, game) {
   if (!info) return;
+  const pv = game && game.pv, foe = !!pv && !isMe && (pv[0] === 'ffa' || p.tm !== game.self.tm);
+  if (foe && (p.pfl & 2)) return;
   const y = p.y - PLAYER_R - 14;
   g.font = '600 12px Rubik, system-ui, sans-serif';
   g.textAlign = 'center';
   g.fillStyle = 'rgba(0,0,0,0.75)';
   g.fillText(info.name, p.x + 1, y - 5);
   const nc = info.eq && COS[info.eq.nc] ? COS[info.eq.nc].c : null;
-  g.fillStyle = !p.alive ? '#9aa39a' : nc === 'rainbow' ? `hsl(${(performance.now() / 8) % 360},90%,65%)` : nc || (isMe ? '#ffffff' : info.color);
+  g.fillStyle = !p.alive ? '#9aa39a' : pv ? (isMe ? '#ffffff' : foe ? '#ff7b7f' : '#8fdcff') : nc === 'rainbow' ? `hsl(${(performance.now() / 8) % 360},90%,65%)` : nc || (isMe ? '#ffffff' : info.color);
   g.fillText(info.name, p.x, y - 6);
   if (p.wt > 0) { // weapon level badge after the name
     const tw = g.measureText(info.name).width;
@@ -1713,8 +1790,8 @@ function petsStep(game, roster) {
     else { let da = fa - q.a; da = Math.atan2(Math.sin(da), Math.cos(da)); q.a += da * Math.min(1, dt * 3); }
   }
 }
-const PET_KIND = { 'p.kopek': 'dog', 'p.kedi': 'cat', 'p.tilki': 'fox', 'p.kurt': 'wolf', 'p.karga': 'bird', 'p.serce': 'bird', 'p.robot': 'robot', 'p.ejder': 'dragon' };
-const PET_COL = { 'p.kopek': ['#b07a45', '#6e4524'], 'p.kedi': ['#e0a050', '#9a5f22'], 'p.tilki': ['#e06a2c', '#8a3510'], 'p.kurt': ['#9aa3ad', '#59616b'], 'p.karga': ['#2b2f3a', '#11131a'], 'p.serce': ['#9c7b55', '#5a4228'], 'p.robot': ['#8fa3b8', '#4a5a6b'], 'p.ejder': ['#4fbf6a', '#1f6a34'] };
+const PET_KIND = { k9: 'dog', 'p.kopek': 'dog', 'p.kedi': 'cat', 'p.tilki': 'fox', 'p.kurt': 'wolf', 'p.karga': 'bird', 'p.serce': 'bird', 'p.robot': 'robot', 'p.ejder': 'dragon' };
+const PET_COL = { k9: ['#8a6234', '#2a2018'], 'p.kopek': ['#b07a45', '#6e4524'], 'p.kedi': ['#e0a050', '#9a5f22'], 'p.tilki': ['#e06a2c', '#8a3510'], 'p.kurt': ['#9aa3ad', '#59616b'], 'p.karga': ['#2b2f3a', '#11131a'], 'p.serce': ['#9c7b55', '#5a4228'], 'p.robot': ['#8fa3b8', '#4a5a6b'], 'p.ejder': ['#4fbf6a', '#1f6a34'] };
 export function drawPet(g, id, x, y, a, t, mv = 0, happy = true) {
   const kind = PET_KIND[id]; if (!kind) return;
   const [c1, c2] = PET_COL[id];

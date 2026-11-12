@@ -207,7 +207,7 @@ export class HostNet {
 
 // Offline stand-in so solo play uses the same code path.
 export class OfflineNet {
-  constructor() { this.code = null; this.onMsg = null; this.onLeave = null; }
+  constructor() { this.code = null; this.onMsg = null; this.onLeave = null; this.offline = true; }
   markPlayer() {}
   rebind() { return false; }
   send() {}

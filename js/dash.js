@@ -3,7 +3,7 @@
 // into textContent.
 import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, dailyGet, roomsGet, acctCheck } from './live.js';
 import { ITEMS, SLOTS, SLOT_OF, RARITY, FREE_CLS, isFree, titleOf } from './catalog.js';
-import { CLASSES, CLASS_ORDER, DIFFS, MAPS, MAX_PLAYERS, BUILD, dailyRules } from './config.js';
+import { CLASSES, CLASS_ORDER, DIFFS, MAPS, MAX_PLAYERS, BUILD, dailyRules, league, LEAGUES } from './config.js';
 import { drawCharacter, drawPet } from './render.js';
 
 const $ = (s) => document.querySelector(s);
@@ -352,7 +352,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Çok oyunculuda takılmalar giderildi: kaybolan bir paket artık oyunu dondurmuyor.', 'Harita iki kat büyük; zorluk ve mod artık daha fazla elmas veriyor (lobide yazıyor).', 'Davetler kolay: tek dokunuşla davet, ekranda kalan davet penceresi, oda bağlantısı paylaşma. Geç katılana takıma yetişsin diye altın.', 'Delici mermiler kalkanı deler; son can damlasında takılma ve öldürme bildirimi hataları düzeltildi.']
+const WHATS_NEW = ['PvP geldi: Takım Savaşı, Herkes Herkese ve Düello. Oda kurarken modu PvP seç.', 'Dereceli lig: Bronz\'dan Elmas\'a puan topla, sezon sonunda elmas ödülü al.', 'Dört yeni sınıf: Kılıççı, Eğitmen (köpekli), Ajan (görünmez) ve Hacker.', 'Sıralamada yeni PvP sekmesi, profilinde lig kartın var.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -706,6 +706,7 @@ function profilePage(sec) {
     }));
   });
   const qa = card('Görevler ve başarımlar', btn('btn small ghost', 'Aç', () => dashGo('quests'))); qa.append(el('p', 'note', 'Günlük görevler, seviye yolu ödülleri ve başarımlar.')); sec.append(qa);
+  sec.append(pvpCard());
   const xp = card('Seviye ilerlemesi');
   const bar = el('div', 'xpbar'); const f = el('i'); f.style.width = Math.round(100 * ME.lx / Math.max(1, ME.ln)) + '%'; bar.append(f);
   xp.append(bar, el('p', 'note', `Seviye ${ME.lvl + 1} için ${fmt(ME.ln - ME.lx)} XP kaldı. Her temizlenen dalga XP verir; zor dalgalar daha çok.`));
@@ -1159,12 +1160,33 @@ function questsPage(sec) {
   });
 }
 
+// ---------- PvP rank ----------
+function pvpCard() {
+  const v = ME.pvp || { rp: 0, w: 0, l: 0, dr: 0, k: 0, dt: 0, m: 0 }, L = league(v.rp);
+  const c = card('PvP ligi', btn('btn small ghost', 'Sıralama', () => { topTab = 'pvp'; dashGo('top'); }));
+  const row = el('div', 'pv-rank');
+  const badge = el('div', 'pv-badge'); badge.style.setProperty('--lc', L.c); badge.append(el('strong', '', L.n), el('span', '', L.div || '★'));
+  const info = el('div', 'pv-info');
+  const bar = el('div', 'xpbar'); const f = el('i'); f.style.width = Math.round(100 * L.pct) + '%'; f.style.background = L.c; bar.append(f);
+  const next = LEAGUES[L.i + 1];
+  info.append(el('b', '', `${L.name} · ${fmt(v.rp)} puan`), bar,
+    el('small', 'note', v.m ? `${v.w} galibiyet, ${v.l} yenilgi${v.dr ? `, ${v.dr} beraberlik` : ''} · ${v.k} leş, ${v.dt} ölüm` + (L.to ? ` · bir sonraki kademe ${fmt(L.to)} puanda` : '') : `Henüz dereceli maç yok. Bir odada PvP seç, arkadaşlarınla dövüş; kazandıkça ${next ? next.n : 'yukarı'} ligine yüksel.`));
+  row.append(badge, info); c.append(row);
+  if (v.last && !v.last.cl) {
+    const lg = LEAGUES[v.last.lg] || LEAGUES[0], gems = [100, 250, 500, 900, 1500][v.last.lg] || 0;
+    const b = btn('btn small primary', `Geçen sezonun ödülü: ${lg.n} · ${gems} elmas al`, async () => { b.disabled = true; const r = await acctOp('pvpcl'); if (r.ok) { ME.gems = r.gems; v.last.cl = 1; H.toast(`+${r.g} elmas!`, 'good'); dashGo('profile'); } else { b.disabled = false; H.toast('Alınamadı.', 'bad'); } });
+    c.append(b);
+  }
+  c.append(el('p', 'note', 'Her ay yeni sezon başlar; puanının %60\'ı kalır. Sezonun en yüksek ligine göre elmas ödülü alırsın.'));
+  return c;
+}
+
 // ---------- leaderboard ----------
 let topTab = 'xp';
 function topPage(sec) {
   head(sec, 'Sıralama', 'En iyiler');
   const tabs = el('div', 'seg-tabs');
-  for (const [k, n] of [['xp', 'Seviye'], ['best', 'En iyi dalga'], ['end', 'Hayatta Kalma'], ['daily', 'Günün görevi'], ['kills', 'En çok öldürme']]) { const b = btn('', n, () => { topTab = k; dashGo('top'); }); b.setAttribute('aria-selected', String(k === topTab)); tabs.append(b); }
+  for (const [k, n] of [['xp', 'Seviye'], ['best', 'En iyi dalga'], ['end', 'Hayatta Kalma'], ['daily', 'Günün görevi'], ['pvp', 'PvP'], ['kills', 'En çok öldürme']]) { const b = btn('', n, () => { topTab = k; dashGo('top'); }); b.setAttribute('aria-selected', String(k === topTab)); tabs.append(b); }
   sec.append(segTabs(tabs));
   const ol = el('ol', 'top-rows'); ol.append(el('li', 'empty', 'Yükleniyor…'));
   sec.append(ol);
@@ -1176,7 +1198,7 @@ function topPage(sec) {
       const li = el('li', i < 3 ? 'podium p' + (i + 1) : '');
       const b = btn('top-row', '', () => openProfile({ name: r.name }));
       b.append(el('span', 'rk', String(i + 1)), avatar(r.eq || {}, 36), nameEl(r.name, r.eq || {}), topTab === 'daily' ? el('span') : lvlBadge(r.lvl || 1),
-        el('span', 'tv', topTab === 'xp' ? `Seviye ${r.lvl || 1}` : topTab === 'best' ? `${r.best}. dalga` : topTab === 'end' ? `${r.end}. dalga` : topTab === 'daily' ? `${r.w}. dalga · ${fmt(r.k)} zombi` : `${fmt(r.kills)} zombi`));
+        el('span', 'tv', topTab === 'xp' ? `Seviye ${r.lvl || 1}` : topTab === 'best' ? `${r.best}. dalga` : topTab === 'end' ? `${r.end}. dalga` : topTab === 'daily' ? `${r.w}. dalga · ${fmt(r.k)} zombi` : topTab === 'pvp' ? `${league(r.pv).name} · ${fmt(r.pv)} puan` : `${fmt(r.kills)} zombi`));
       li.append(b); return li;
     }));
   });

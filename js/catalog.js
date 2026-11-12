@@ -29,6 +29,10 @@ export const ITEMS = {
   'c.komutan': { name: 'Komutan', r: 'l', cls: 'komutan' },
   'c.tesla': { name: 'Tesla', r: 'l', cls: 'tesla' },
   'c.avci': { name: 'Avcı', r: 'l', cls: 'avci' },
+  'c.kilicci': { name: 'Kılıççı', r: 'e', cls: 'kilicci' },
+  'c.egitmen': { name: 'Eğitmen', r: 'e', cls: 'egitmen' },
+  'c.ajan': { name: 'Ajan', r: 'l', cls: 'ajan' },
+  'c.hacker': { name: 'Hacker', r: 'l', cls: 'hacker' },
   // colours
   'r.kan': { name: 'Kan kırmızısı', r: 'c', c: '#d61f3a' },
   'r.buz': { name: 'Buz mavisi', r: 'c', c: '#6fd8ff' },

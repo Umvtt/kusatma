@@ -5,8 +5,9 @@ import {
   CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, scaleFor, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD,
   WEAPON_COST, ITEMS, BASH, WMAX, PATH_N, BRANCH_SWAP, weaponSpent, weaponOf, pathOk,
   newLv, lvArr, AB_COST, abDur, GEAR, GEAR_RANGE, TEAM, teamCost, TEAM_CHUNK, gearCost, gearMax, bashCd,
-  FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, SPECIAL, SPECIAL_K, MODE_ORDER, dailyRules, MEV, MEV_ORDER,
+  FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, SPECIAL, SPECIAL_K, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER,
 } from './config.js';
+import { PvpMixin } from './pvp.js';
 import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldDir, fieldAhead, fieldAt, outOfMap, GW, GH, escapePocket, resolveCircle } from './world.js';
 import { generateMap } from './mapgen.js';
 import { ITEMS as COS, checkPass, ownsCls, nkey } from './catalog.js';
@@ -42,7 +43,8 @@ export class HostGame {
     this.field = new Float32Array(GW * GH);
     this.mapPick = 'meydan'; // lobby choice, may be 'rastgele'
     this.diff = 'normal';
-    this.mode = 'normal'; // normal, endless, boss, hc or daily
+    this.mode = 'normal'; // normal, endless, boss, hc, daily, sandbox or pvp
+    this.pvp = 'tdm'; // the kind of PvP match when mode is pvp
     this.daily = null; // the day's rules in the daily challenge
     this.maxP = MAX_PLAYERS; // the host can set a lower limit when making the room
     this.theme = null;
@@ -79,6 +81,7 @@ export class HostGame {
     this.hordeT = 0;
     this.cars = []; // wrecked cars thrown by Dev Hurda, in the air
     this.graves = []; // where zombies died lately (the Cadı raises them)
+    this.pvpOver = null; this.roundPause = 0; this.score = [0, 0]; this.rounds = [0, 0]; this.round = 0; this.pvT = 0; this.matchT = 0;
   }
 
   // A player's derived numbers, cached until something that changes them changes.
@@ -149,10 +152,10 @@ export class HostGame {
   roster() {
     return {
       t: 'r', ph: this.phase, code: this.net.code || null, host: this.hostPid, succ: this.successor(),
-      map: this.mapPick, diff: this.diff, mode: this.mode, dly: this.daily ? this.daily.cls : '', theme: this.theme, seed: this.seed, max: this.maxP,
+      map: this.mapPick, diff: this.diff, mode: this.mode, pvp: this.pvp, dly: this.daily ? this.daily.cls : '', theme: this.theme, seed: this.seed, max: this.maxP,
       players: [...this.players.values()].map((p) => ({
         pid: p.pid, name: p.name, cls: p.cls, ready: p.ready, color: p.color, inGame: p.inGame || !!p.ghost, away: !!p.ghost,
-        eq: p.eq || {}, lvl: p.lvl || 0, acct: p.acct ? 1 : 0,
+        eq: p.eq || {}, lvl: p.lvl || 0, acct: p.acct ? 1 : 0, tm: p.tm | 0,
       })),
     };
   }
@@ -175,6 +178,7 @@ export class HostGame {
     const color = PLAYER_COLORS.find((c) => !used.has(c)) || PLAYER_COLORS[pid % PLAYER_COLORS.length];
     const tok = token();
     this.players.set(pid, { pid, name, cls: 'asker', ready: false, color, inGame: false, sp: 0, tok });
+    if (this.mode === 'pvp') this.players.get(pid).tm = this.pvpTeamFor(this.players.get(pid));
     this.sendTo(pid, { t: 'w', pid, tok });
     this.pushRoster();
   }
@@ -251,7 +255,7 @@ export class HostGame {
       case 'zr': this.resyncZ(p); break;
       case 'ready':
         if (this.phase === 'lobby') { p.ready = !!m.r; this.pushRoster(); }
-        else if ((this.phase === 'combat' || this.phase === 'break') && !p.inGame) { this.enter(p); this.pushRoster(); }
+        else if ((this.phase === 'combat' || this.phase === 'break') && !p.inGame) { if (this.mode === 'pvp') { if (this.pvp !== 'duel') this.pvpEnter(p); } else this.enter(p); this.pushRoster(); }
         else if (this.phase === 'break' && p.inGame) { p.shopReady = !!m.r; this.checkAllReady(); }
         break;
       case 'in': this.onInput(p, m); break;
@@ -259,13 +263,29 @@ export class HostGame {
       case 'bash': this.onBash(p, m); break;
       case 'buy': this.onBuy(p, m); break;
       case 'use': this.onUse(p, m); break;
-      case 'start': if (isHost && this.phase === 'lobby' && this.readyOk()) this.start(); break;
+      case 'start':
+        if (isHost && this.phase === 'lobby' && this.readyOk()) {
+          if (this.mode !== 'pvp') this.start();
+          else if (this.players.size >= 2 && (this.pvp !== 'duel' || this.players.size === 2)) this.startPvp();
+        }
+        break;
+      case 'team':
+        if (this.mode === 'pvp' && this.pvp === 'tdm' && this.phase === 'lobby' && (m.tm === 0 || m.tm === 1)) { p.tm = m.tm; this.pushRoster(); }
+        break;
       case 'bye': if (!isHost) { this.removePlayer(pid); this.net.kick(pid, 'left'); } break;
       case 'set':
         if (isHost && this.phase === 'lobby') {
           if (typeof m.map === 'string' && (m.map === 'rastgele' || Object.prototype.hasOwnProperty.call(MAPS, m.map))) this.mapPick = m.map;
           if (typeof m.diff === 'string' && Object.prototype.hasOwnProperty.call(DIFFS, m.diff)) this.diff = m.diff;
-          if (typeof m.mode === 'string' && (MODE_ORDER.includes(m.mode) || (m.mode === 'sandbox' && this.net.code == null))) {
+          if (typeof m.pv === 'string' && PVP_ORDER.includes(m.pv) && !(m.pv === 'duel' && this.players.size > 2)) {
+            this.pvp = m.pv;
+            if (this.mode === 'pvp') { for (const q of this.players.values()) q.tm = null; for (const q of this.players.values()) q.tm = this.pvpTeamFor(q); }
+          }
+          if (m.mode === 'pvp' && !this.net.offline) {
+            this.mode = 'pvp'; this.daily = null;
+            for (const q of this.players.values()) { if (!ownsCls(q.own, q.cls)) q.cls = 'asker'; q.tm = null; }
+            for (const q of this.players.values()) q.tm = this.pvpTeamFor(q);
+          } else if (typeof m.mode === 'string' && (MODE_ORDER.includes(m.mode) || (m.mode === 'sandbox' && this.net.code == null))) {
             this.mode = m.mode; this.daily = null;
             // leaving the test area: classes you don't own go back to Asker
             if (m.mode !== 'sandbox') for (const q of this.players.values()) if (!ownsCls(q.own, q.cls)) q.cls = 'asker';
@@ -303,6 +323,7 @@ export class HostGame {
     const B = WORLD.bounds;
     if (p.alive && num(m.x) && num(m.y)) { p.x = clamp(m.x, B.x0, B.x1); p.y = clamp(m.y, B.y0, B.y1); }
     if (p.alive && num(m.a)) p.a = clamp(m.a, -10, 10);
+    if (p.invUntil > this.time && ((Array.isArray(m.h) && m.h.length) || (Array.isArray(m.p) && m.p.length))) { p.invUntil = this.time; this.ev(['iv', p.pid, 0]); }
     if (this.phase === 'combat' && Array.isArray(m.h) && m.h.length <= 80) {
       const C = this.pc(p);
       for (const h of m.h) {
@@ -314,6 +335,7 @@ export class HostGame {
         this.onHit(z, d, p, C, h[2] === 1);
       }
     }
+    if (this.mode === 'pvp' && Array.isArray(m.p)) this.pvpHits(p, m.p);
     if (Array.isArray(m.s) && m.s.length <= 16 && this.shots.length < 240) {
       for (const s of m.s) {
         if (Array.isArray(s) && s.length === 3 && s.every(num)) {
@@ -348,6 +370,8 @@ export class HostGame {
   // A player's bullet hit a zombie. eff: the hit came from their weapon, so the path's effects apply.
   onHit(z, d, p, C, eff) {
     const now = this.time;
+    if (z.ally) return; // a hacked zombie is on our side for now
+    if (p.cls === 'kilicci' && p.alive) { const h = Math.min(d, z.hp) * 0.06; if (now - (p.lsT || 0) > 1) { p.lsT = now; p.lsN = 0; } if (p.lsN < 30) { p.lsN += h; p.hp = Math.min(p.maxHp, p.hp + h); } }
     const boss = isBoss(z.t);
     if (z.acidT > now) d *= z.acidK || 1;
     if (eff && p.cls === 'alevci' && !(C.fx.burn)) this.ignite(z, C.dps * 0.15, 2, p.pid, false, false);
@@ -472,6 +496,7 @@ export class HostGame {
         if (q.slow) { z.slowUntil = Math.max(z.slowUntil || 0, now + 0.3); z.slowK = Math.min(z.slowUntil > now && z.slowK ? z.slowK : 1, 0.55); }
         this.damage(z, q.dps * dt, owner);
       }
+      if (owner && this.mode === 'pvp') for (const f of this.foesOf(owner)) if (Math.hypot(f.x - q.x, f.y - q.y) < q.r) { this.pvpDamage(owner, f, q.dps * dt, 5); if (q.slow) f.chillUntil = Math.max(f.chillUntil || 0, now + 0.3); }
     }
     this.zones = this.zones.filter((q) => q.life > 0);
   }
@@ -564,6 +589,7 @@ export class HostGame {
       const owner = this.players.get(b.owner) || null;
       for (const z of this.zombies) if (!z.dead && Math.hypot(z.x - b.x, z.y - b.y) < b.r + ZTYPES[z.t].r) this.damage(z, b.dmg, owner);
       for (const q of this.walls) if (Math.hypot(q.x - b.x, q.y - b.y) < b.r) q.hp -= b.dmg * 0.25;
+      this.pvpArea(owner, b.x, b.y, b.r, b.dmg, 0);
       this.ev(['x', Math.round(b.x), Math.round(b.y), b.r]);
     }
     this.bombs = this.bombs.filter((b) => b.t > 0);
@@ -616,7 +642,7 @@ export class HostGame {
 
   onAbility(p, m) {
     if (!p.inGame || !p.alive || (this.phase !== 'combat' && this.phase !== 'break')) return;
-    if (this.time < p.abAt) return;
+    if (this.time < p.abAt || p.silUntil > this.time) return;
     const c = CLASSES[p.cls];
     const dmgMul = (1 + 0.15 * p.lv.dmg) * (1 + 0.08 * (this.team[1] | 0));
     const L = p.lv.ab | 0, L2 = Math.min(2, L);
@@ -627,7 +653,7 @@ export class HostGame {
     if (p.cls === 'doktor') {
       const r = c.ab.r + 30 * L2;
       for (const q of this.inGame()) {
-        if (Math.hypot(q.x - p.x, q.y - p.y) > r) continue;
+        if (Math.hypot(q.x - p.x, q.y - p.y) > r || !this.ally(p, q) || (!q.alive && this.mode === 'pvp')) continue;
         if (q.alive) q.hp = Math.min(q.maxHp, q.hp + c.ab.heal + 15 * L2);
         else { q.alive = true; q.hp = Math.ceil(q.maxHp * 0.4); p.revives++; this.ev(['up', q.pid]); }
         if (L >= 3) q.shieldUntil = Math.max(q.shieldUntil || 0, this.time + 3);
@@ -654,7 +680,7 @@ export class HostGame {
     } else if (p.cls === 'komutan') {
       const r = c.ab.r, g = Math.round((20 + 3 * this.wave) * (L >= 1 ? 1.5 : 1));
       for (const q of this.inGame()) {
-        if (Math.hypot(q.x - p.x, q.y - p.y) > r) continue;
+        if (Math.hypot(q.x - p.x, q.y - p.y) > r || !this.ally(p, q) || (!q.alive && this.mode === 'pvp')) continue;
         if (q.alive) { q.hp = Math.min(q.maxHp, q.hp + c.ab.heal + (L >= 1 ? 15 : 0)); q.powerUntil = Math.max(q.powerUntil || 0, this.time + dur); q.gold += g; }
         else if (L >= 3) { q.alive = true; q.hp = Math.ceil(q.maxHp * 0.4); p.revives++; this.ev(['up', q.pid]); }
       }
@@ -672,6 +698,7 @@ export class HostGame {
           z.kvx = (dx / (d || 1)) * 520 * k; z.kvy = (dy / (d || 1)) * 520 * k; z.stunT = Math.max(z.stunT || 0, 0.8);
           if (z.st !== ZS.FUSE) z.st = ZS.NORMAL;
         }
+        for (const q of this.foesOf(p)) if (Math.hypot(q.x - p.x, q.y - p.y) < R + PLAYER_R) this.knock(q, p.x, p.y, 520);
         this.ev(['sw', Math.round(p.x), Math.round(p.y), R]);
       }
     } else if (p.cls === 'alevci') {
@@ -681,6 +708,7 @@ export class HostGame {
         this.damage(z, dm, p);
         if (L >= 3 && !z.dead) this.ignite(z, dm * 0.25, 4, p.pid, false, false);
       }
+      this.pvpArea(p, p.x, p.y, r, dm, 7);
       this.ev(['fb', Math.round(p.x), Math.round(p.y), r]);
     } else if (p.cls === 'tesla') {
       let x = num(m.x) ? m.x : p.x, y = num(m.y) ? m.y : p.y;
@@ -706,11 +734,46 @@ export class HostGame {
         this.damage(z, dm * Math.min(3, k), p);
         if (!z.dead && !isBoss(z.t)) { z.stunT = Math.max(z.stunT || 0, 0.5); if (L >= 3) { z.slowUntil = this.time + 2.5; z.slowK = 0.5; } }
       }
+      for (const q of this.foesOf(p)) {
+        let k = 0;
+        for (let i = 0; i < n; i++) { const a = p.a - spread / 2 + spread * (i / (n - 1)), cx = Math.cos(a), cy = Math.sin(a), dx = q.x - p.x, dy = q.y - p.y, along = dx * cx + dy * cy; if (along >= 0 && along <= R && Math.abs(dx * cy - dy * cx) < PLAYER_R + 6) k++; }
+        if (k) this.pvpDamage(p, q, dm * Math.min(2, k), 3);
+      }
       this.ev(['fan', Math.round(p.x), Math.round(p.y), r2(p.a), n, R]);
     } else if (p.cls === 'bombaci') {
       const mine = this.mines.filter((x) => x.owner === p.pid);
       if (mine.length >= c.ab.max + (L >= 1 ? 1 : 0)) this.mines.splice(this.mines.indexOf(mine[0]), 1);
       this.mines.push({ id: this.nextId++, owner: p.pid, x: p.x, y: p.y, arm: 0.6, life: 120, k: L >= 2 ? 1.3 : 1, rk: L >= 2 ? 20 : 0, cl: L >= 3 });
+    } else if (p.cls === 'kilicci') {
+      p.spinUntil = this.time + dur; p.spinAt = 0; p.spinL = L;
+    } else if (p.cls === 'egitmen') {
+      // the dog(s) run to the nearest target around where the player aims and hold it
+      const ax = num(m.x) ? m.x : p.x + Math.cos(p.a) * 250, ay = num(m.y) ? m.y : p.y + Math.sin(p.a) * 250;
+      for (const t of this.turrets) if (t.k === 5 && t.owner === p.pid) { t.atkUntil = this.time + dur; t.tg = this.nearTarget(p, ax, ay, 420); t.lunge = 0.35; }
+    } else if (p.cls === 'ajan') {
+      p.invUntil = this.time + dur; p.invFirst = 1;
+      this.ev(['iv', p.pid, 1]);
+    } else if (p.cls === 'hacker') {
+      const n = c.ab.n + (L >= 1 ? 1 : 0), R = c.ab.r, cone = 0.55, now = this.time;
+      const cand = [];
+      for (const z of this.zombies) {
+        if (z.dead || isBoss(z.t) || z.ally) continue;
+        const dx = z.x - p.x, dy = z.y - p.y, d = Math.hypot(dx, dy);
+        let da = Math.atan2(dy, dx) - p.a; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+        if (d < R && Math.abs(da) < cone) cand.push([d, z]);
+      }
+      cand.sort((a, b) => a[0] - b[0]);
+      for (const [, z] of cand.slice(0, n)) { z.ally = p.pid; z.allyUntil = now + dur; z.allyK = L >= 2 ? 2 : 1; z.allyB = L >= 3 ? 1.5 : 1; z.tg = null; }
+      // in PvP: enemies in the cone lose their abilities for a moment, slow down and can't hide
+      for (const q of this.foesOf(p)) {
+        const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
+        let da = Math.atan2(dy, dx) - p.a; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+        if (d > R || Math.abs(da) > cone) continue;
+        q.silUntil = now + 4 + (L >= 1 ? 1 : 0); q.chillUntil = Math.max(q.chillUntil || 0, now + 2);
+        if (q.invUntil > now) { q.invUntil = now; this.ev(['iv', q.pid, 0]); }
+        for (const t of this.turrets) if (t.owner === q.pid && (t.k == null || t.k === 4)) t.hackUntil = now + 4;
+      }
+      this.ev(['hk', p.pid, Math.round(p.x), Math.round(p.y), r2(p.a), R]);
     }
   }
 
@@ -743,11 +806,18 @@ export class HostGame {
       }
       this.damage(z, boss ? dmg * 0.5 : dmg, p);
     }
+    for (const q of this.foesOf(p)) {
+      const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
+      if (d > BASH.range + PLAYER_R) continue;
+      let da = Math.atan2(dy, dx) - a; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+      if (Math.abs(da) > BASH.arc) continue;
+      hit++; this.pvpDamage(p, q, dmg, 0); this.knock(q, p.x, p.y, 380);
+    }
     this.ev(['bs', p.pid, Math.round(p.x), Math.round(p.y), r2(a), hit ? 1 : 0]);
   }
 
   onBuy(p, m) {
-    if (this.phase !== 'break' || !p.inGame || typeof m.k !== 'string') return;
+    if (!(this.phase === 'break' || (this.mode === 'pvp' && this.phase === 'combat' && !p.alive)) || !p.inGame || typeof m.k !== 'string') return;
     if (m.k === 'heal') {
       if (p.alive && p.gold >= HEAL_COST && p.hp < p.maxHp) { this.pay(p, HEAL_COST); p.hp = p.maxHp; }
       return;
@@ -792,6 +862,7 @@ export class HostGame {
       this.pay(p, cost); p.inv[i]++;
       return;
     }
+    if (m.k === 'team' && this.mode === 'pvp') return; // shared team upgrades would help both sides
     if (m.k === 'team') {
       const i = m.i;
       if (!Number.isInteger(i) || i < 0 || i >= TEAM.length) return;
@@ -977,6 +1048,7 @@ export class HostGame {
   }
 
   checkOver() {
+    if (this.mode === 'pvp') return;
     const ps = this.inGame();
     if (!ps.length || ps.every((p) => !p.alive)) this.gameOver();
   }
@@ -992,6 +1064,7 @@ export class HostGame {
 
   // events sent from the owner's admin panel
   adminEvent(k, n, x = {}) {
+    if (this.mode === 'pvp' && (k === 'boss' || k === 'horde' || k === 'zombie' || k === 'mev')) return; // no zombies in a PvP match
     // everyone in the game sees a short note about it (deferred ones say they come with the next wave)
     // a gift to one player is told to that player only; anything for everyone is told to everyone
     const target = x.who && (k === 'gold' || k === 'item') ? ([...this.players.values()].find((p) => p.name === x.who) || {}).pid | 0 : 0;
@@ -1056,6 +1129,7 @@ export class HostGame {
 
   toLobby() {
     this.phase = 'lobby';
+    this.pvpOver = null;
     this.resetWorld();
     for (const p of this.players.values()) { p.inGame = false; p.ready = false; }
     this.pushRoster();
@@ -1079,7 +1153,7 @@ export class HostGame {
     this.backupAcc += dt;
     if (this.backupAcc >= 5) { this.backupAcc = 0; this.sendBackup(); }
     if (this.paused || (this.phase !== 'combat' && this.phase !== 'break')) return;
-    this.tick(dt);
+    if (this.mode === 'pvp') this.tickPvp(dt); else this.tick(dt);
     if (this.phase !== 'combat' && this.phase !== 'break') return;
     this.snapAcc += dt;
     if (this.snapAcc >= 1 / SNAP_RATE) {
@@ -1118,7 +1192,7 @@ export class HostGame {
     this.fieldT -= dt;
     if (this.fieldT <= 0) {
       this.fieldT = 0.25;
-      buildField(this.inGame().filter((p) => p.alive), this.field);
+      buildField(this.inGame().filter((p) => p.alive && !(p.invUntil > this.time)), this.field);
     }
     this.spawn(dt);
     this.updateRevives(dt);
@@ -1127,6 +1201,7 @@ export class HostGame {
     this.curBoss = false;
     this.updateSpits(dt);
     this.updateTurrets(dt);
+    this.updateSpin(dt);
     this.updateMines(dt);
     this.updateBombs(dt);
     this.updateDots(dt);
@@ -1153,7 +1228,7 @@ export class HostGame {
       if (!p.alive || p.hp >= p.maxHp) continue;
       let r = this.pc(p).st.regen;
       if (p.cls === 'doktor') r += 1.5;
-      else if (docs.some((d) => Math.hypot(d.x - p.x, d.y - p.y) < 180)) r += 1;
+      else if (docs.some((d) => this.ally(d, p) && Math.hypot(d.x - p.x, d.y - p.y) < 180)) r += 1;
       if (r > 0) p.hp = Math.min(p.maxHp, p.hp + r * dt);
     }
   }
@@ -1257,7 +1332,7 @@ export class HostGame {
     if (!p.alive) return;
     const sprint = p.cls === 'izci' && (p.lv.ab | 0) >= 3 && this.time < p.abUntil;
     if (this.curBoss) dmg *= BOSS_DMG;
-    p.hp -= dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1) * this.pc(p).st.armor * (sprint ? 0.4 : 1);
+    p.hp -= dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1) * this.pc(p).st.armor * (sprint ? 0.4 : 1) * (p.spinUntil > this.time ? 0.6 : 1);
     if (p.hp <= 0) this.down(p);
   }
 
@@ -1307,7 +1382,7 @@ export class HostGame {
   }
 
   updateZombies(dt) {
-    const players = this.inGame().filter((p) => p.alive);
+    const players = this.inGame().filter((p) => p.alive && !(p.invUntil > this.time));
     const zs = this.zombies;
     const maxAlive = Math.min(110, 30 + 6 * this.waveN);
 
@@ -1354,6 +1429,7 @@ export class HostGame {
         continue;
       }
 
+      if (z.ally) { this.allyZombie(z, T, dt, grid, hw, HC); continue; }
       // pick the nearest living player now and then
       z.rt -= dt;
       if (z.rt <= 0) {
@@ -1687,6 +1763,13 @@ export class HostGame {
     const want = new Map();
     for (const p of this.inGame()) if (p.cls === 'muhendis' && p.alive) want.set(p.pid, (p.lv.ab | 0) >= 3 ? 3 : 2);
     this.turrets = this.turrets.filter((t) => t.k !== 1 || (want.get(t.owner) || 0) > t.slot);
+    const dogs = new Map();
+    for (const p of this.inGame()) if (p.cls === 'egitmen') dogs.set(p.pid, (p.lv.ab | 0) >= 3 ? 2 : 1);
+    this.turrets = this.turrets.filter((t) => t.k !== 5 || (dogs.get(t.owner) || 0) > t.slot);
+    for (const [pid, n] of dogs) {
+      const have = this.turrets.filter((t) => t.k === 5 && t.owner === pid).map((t) => t.slot), p = this.players.get(pid);
+      for (let i = 0; i < n; i++) if (!have.includes(i)) this.turrets.push({ id: this.nextId++, k: 5, owner: pid, slot: i, x: p.x - 30, y: p.y + 20 * i, a: 0, life: 999, cd: 0 });
+    }
     for (const [pid, n] of want) {
       const have = this.turrets.filter((t) => t.k === 1 && t.owner === pid).map((t) => t.slot);
       const p = this.players.get(pid);
@@ -1707,8 +1790,10 @@ export class HostGame {
         const tx = owner.x + Math.cos(ang) * rad, ty = owner.y + Math.sin(ang) * rad - (t.k === 2 ? 26 : 0);
         t.x += (tx - t.x) * Math.min(1, dt * 8); t.y += (ty - t.y) * Math.min(1, dt * 8);
       }
+      if (t.k === 5) { this.updateDog(t, owner, dt); continue; }
       if (t.k !== 1) t.life -= dt;
       t.cd -= dt;
+      if (t.hackUntil > this.time) continue; // hacked by an enemy Hacker: dead for a moment
       if (t.k === 2) { // repair drone: heals teammates, mends barricades and turrets
         const ab = CLASSES.muhendis.ab;
         if (this.phase === 'combat' || this.phase === 'break') {
@@ -1722,10 +1807,10 @@ export class HostGame {
         if (this.phase !== 'combat' || t.cd > 0) continue;
         const ab = CLASSES.tesla.ab, L = t.L | 0;
         let best = null, bd = ab.r * ab.r;
-        for (const z of this.zombies) { if (z.dead) continue; const d = (z.x - t.x) ** 2 + (z.y - t.y) ** 2; if (d < bd) { bd = d; best = z; } }
+        for (const z of this.zombies) { if (z.dead || z.ally) continue; const d = (z.x - t.x) ** 2 + (z.y - t.y) ** 2; if (d < bd) { bd = d; best = z; } }
         t.cd = L >= 2 ? 0.45 : 0.6;
-        if (!best) continue;
-        const C = owner && owner.inGame ? this.pc(owner) : null, dm = Math.max(14, C ? C.dps * 0.35 : 20);
+        const C = owner && owner.inGame ? this.pc(owner) : null, dm = Math.max(14, C ? C.dps * 0.35 : 20) * this.netBoost(t);
+        if (!best) { const f = this.foesOf(owner).find((q) => Math.hypot(q.x - t.x, q.y - t.y) < ab.r); if (f) { this.pvpDamage(owner, f, dm, 6); this.ev(['zp', owner ? owner.pid : 0, Math.round(t.x), Math.round(t.y - 20), Math.round(f.x), Math.round(f.y)]); } continue; }
         const hit = new Set([best.id]), pts = [Math.round(t.x), Math.round(t.y - 20), Math.round(best.x), Math.round(best.y)];
         let cur = best;
         this.damage(best, dm, owner);
@@ -1743,15 +1828,21 @@ export class HostGame {
       const drone = t.k === 1, ab = drone ? CLASSES.muhendis.drone : CLASSES.tamirci.ab;
       let best = null, bd = ab.range * ab.range;
       for (const z of this.zombies) {
-        if (z.dead) continue;
+        if (z.dead || z.ally) continue;
         const d = (z.x - t.x) ** 2 + (z.y - t.y) ** 2;
         if (d < bd && (drone || clearLine(t.x, t.y, z.x, z.y))) { bd = d; best = z; }
+      }
+      for (const q of this.foesOf(owner)) {
+        const d = (q.x - t.x) ** 2 + (q.y - t.y) ** 2;
+        if (d < bd && !(q.invUntil > this.time) && (drone || clearLine(t.x, t.y, q.x, q.y))) { bd = d; best = q; }
       }
       if (!best) continue;
       t.a = Math.atan2(best.y - t.y, best.x - t.x);
       const lv = owner && owner.lv ? owner.lv : null;
       const base = drone ? ab.dmg * (1 + 0.12 * (owner ? owner.wt | 0 : 0)) * ((lv && (lv.ab | 0) >= 2) ? 1.4 : 1) : ab.dmg * (t.dk || 1);
-      if (!this.shielded(best, t.x, t.y)) this.damage(best, base * (1 + 0.15 * (lv ? lv.dmg : 0)) * (1 + 0.08 * (this.team[1] | 0)), owner);
+      const tdm = base * (1 + 0.15 * (lv ? lv.dmg : 0)) * (1 + 0.08 * (this.team[1] | 0)) * this.netBoost(t);
+      if (best.pid != null) this.pvpDamage(owner, best, tdm, 0);
+      else if (!this.shielded(best, t.x, t.y)) this.damage(best, tdm, owner);
       if (this.shots.length < 240) this.shots.push([drone ? -2 : -1, Math.round(t.x + Math.cos(t.a) * (drone ? 8 : 20)), Math.round(t.y + Math.sin(t.a) * (drone ? 8 : 20)), r2(t.a)]);
       t.cd = drone ? ab.rate * (owner && owner.abUntil > this.time ? 0.6 : 1) : (t.rt || ab.rate);
     }
@@ -1764,11 +1855,12 @@ export class HostGame {
     for (const m of this.mines) {
       m.arm -= dt; m.life -= dt;
       if (m.arm > 0) continue;
-      if (!this.zombies.some((z) => !z.dead && Math.hypot(z.x - m.x, z.y - m.y) < ZTYPES[z.t].r + 30)) continue;
       const owner = this.players.get(m.owner) || null;
+      if (!this.zombies.some((z) => !z.dead && Math.hypot(z.x - m.x, z.y - m.y) < ZTYPES[z.t].r + 30) && !this.foesOf(owner).some((q) => Math.hypot(q.x - m.x, q.y - m.y) < PLAYER_R + 30)) continue;
       const mul = (1 + 0.15 * (owner && owner.lv ? owner.lv.dmg : 0)) * (m.k || 1) * (1 + 0.08 * (this.team[1] | 0));
       const R = ab.r + (m.rk || 0);
       for (const z of this.zombies) if (!z.dead && Math.hypot(z.x - m.x, z.y - m.y) < R + ZTYPES[z.t].r) this.damage(z, ab.dmg * mul, owner);
+      this.pvpArea(owner, m.x, m.y, R, ab.dmg * mul, 0);
       this.ev(['x', Math.round(m.x), Math.round(m.y), R]);
       if (m.cl) for (let i = 0; i < 3; i++) {
         const a = i * 2.094 + Math.random(), d = 70 + Math.random() * 30;
@@ -1777,6 +1869,78 @@ export class HostGame {
       m.life = 0;
     }
     this.mines = this.mines.filter((m) => m.life > 0);
+  }
+
+  // a Hacker near a turret, drone or coil on their side makes it hit 25 % harder
+  netBoost(t) {
+    const o = this.players.get(t.owner);
+    for (const q of this.inGame()) if (q.cls === 'hacker' && q.alive && this.ally(q, o || q) && Math.hypot(q.x - t.x, q.y - t.y) < 350) return 1.25;
+    return 1;
+  }
+  // the nearest zombie (or enemy in PvP) to a point, for the dog
+  nearTarget(p, x, y, r) {
+    let best = null, bd = r * r;
+    for (const z of this.zombies) { if (z.dead || z.ally || z.st === ZS.BURROW) continue; const d = (z.x - x) ** 2 + (z.y - y) ** 2; if (d < bd) { bd = d; best = z; } }
+    for (const q of this.foesOf(p)) { if (q.invUntil > this.time) continue; const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) { bd = d; best = q; } }
+    return best ? (best.pid != null ? 'p' + best.pid : best.id) : null;
+  }
+  // the Eğitmen's dog: stays near its owner, runs at anything close, bites and holds it
+  updateDog(t, owner, dt) {
+    if (!owner || !owner.inGame) { t.life = 0; return; }
+    const D = CLASSES.egitmen.dog, now = this.time, atk = t.atkUntil > now;
+    t.cd -= dt;
+    const look = (id) => (typeof id === 'string' ? this.players.get(+id.slice(1)) : this.zIndex.get(id));
+    let tg = t.tg != null ? look(t.tg) : null;
+    if (tg && (tg.dead || (tg.pid != null && (!tg.alive || !this.foe(owner, tg) || tg.invUntil > now)) || tg.ally || Math.hypot(tg.x - owner.x, tg.y - owner.y) > D.range * (atk ? 2 : 1.4))) tg = null;
+    if (!tg && owner.alive && (this.phase === 'combat') && (t.seek = (t.seek || 0) - dt) <= 0) { t.seek = 0.3; t.tg = this.nearTarget(owner, owner.x, owner.y, D.range); tg = t.tg != null ? look(t.tg) : null; }
+    if (!tg) t.tg = null;
+    let gx, gy, spd = D.spd * (atk ? 1.6 : 1);
+    if (tg) { gx = tg.x; gy = tg.y; } else { const a = owner.a + Math.PI + (t.slot ? 0.7 : -0.7); gx = owner.x + Math.cos(a) * 38; gy = owner.y + Math.sin(a) * 38; spd = Math.max(D.spd, Math.hypot(gx - t.x, gy - t.y) * 3); }
+    const dx = gx - t.x, dy = gy - t.y, d = Math.hypot(dx, dy) || 1;
+    const reach = tg ? (tg.pid != null ? PLAYER_R : ZTYPES[tg.t].r) + 12 : 4;
+    if (d > reach) { const st = Math.min(d - reach, spd * dt); moveCircle(t, dx / d * st, dy / d * st, 9); t.a = Math.atan2(dy, dx); }
+    if (Math.hypot(t.x - owner.x, t.y - owner.y) > 900) { t.x = owner.x - 20; t.y = owner.y; }
+    if (!tg || d > reach + 6 || t.cd > 0 || this.phase !== 'combat') return;
+    const L = owner.lv.ab | 0, dm = D.dmg * (1 + 0.15 * (owner.lv.dmg | 0)) * (L >= 2 ? 1.4 : 1) * (atk ? 2 : 1) * this.netBoost(t);
+    t.cd = D.rate * (atk ? 0.6 : 1);
+    if (tg.pid != null) { this.pvpDamage(owner, tg, dm * 0.8, 0); tg.chillUntil = Math.max(tg.chillUntil || 0, now + (atk ? 1 : 0.5)); }
+    else { this.damage(tg, dm, owner); if (!tg.dead && !isBoss(tg.t)) { tg.slowUntil = now + 1.2; tg.slowK = Math.min(tg.slowK || 1, 0.55); if (atk) tg.stunT = Math.max(tg.stunT || 0, 0.6); } }
+    this.ev(['bt', Math.round(tg.x), Math.round(tg.y)]);
+  }
+  // the Kılıççı's whirlwind
+  updateSpin() {
+    const now = this.time;
+    for (const p of this.inGame()) {
+      if (!(p.spinUntil > now) || !p.alive || now < (p.spinAt || 0)) continue;
+      p.spinAt = now + 0.25;
+      const ab = CLASSES.kilicci.ab, L = p.spinL | 0, R = ab.r + (L >= 2 ? 30 : 0);
+      const dm = ab.dmg * (1 + 0.15 * (p.lv.dmg | 0)) * (L >= 2 ? 1.3 : 1);
+      for (const z of this.zombies) {
+        if (z.dead || z.ally || Math.hypot(z.x - p.x, z.y - p.y) > R + ZTYPES[z.t].r) continue;
+        this.damage(z, dm, p);
+        if (L >= 3 && !z.dead && !isBoss(z.t)) { const dx = z.x - p.x, dy = z.y - p.y, d = Math.hypot(dx, dy) || 1; z.kvx = dx / d * 300; z.kvy = dy / d * 300; z.stunT = Math.max(z.stunT || 0, 0.25); }
+      }
+      this.pvpArea(p, p.x, p.y, R, dm, 9);
+    }
+  }
+  // a hacked zombie: hunts the nearest other zombie and bites it; when the time is up it blows up
+  allyZombie(z, T, dt, grid, hw, HC) {
+    const now = this.time, owner = this.players.get(z.ally);
+    if (now >= z.allyUntil || !owner) {
+      const R = 80 * (z.allyB || 1);
+      z.ally = 0;
+      this.ev(['x', Math.round(z.x), Math.round(z.y), Math.round(R)]);
+      for (const o of this.zombies) if (o !== z && !o.dead && Math.hypot(o.x - z.x, o.y - z.y) < R + ZTYPES[o.t].r) this.damage(o, 60 * (z.allyK || 1) * (z.allyB || 1), owner || null);
+      this.damage(z, z.hp + 1, owner || null);
+      return;
+    }
+    let best = null, bd = 700 * 700;
+    for (const o of this.zombies) { if (o === z || o.dead || o.ally || o.st === ZS.BURROW) continue; const d = (o.x - z.x) ** 2 + (o.y - z.y) ** 2; if (d < bd) { bd = d; best = o; } }
+    if (!best) { this.wander(z, T, dt); return; }
+    const dx = best.x - z.x, dy = best.y - z.y, d = Math.hypot(dx, dy) || 1, reach = T.r + ZTYPES[best.t].r + 4;
+    if (d > reach) { const sp = T.spd * z.sm * 1.15 * dt; moveCircle(z, dx / d * Math.min(sp, d - reach), dy / d * Math.min(sp, d - reach), T.r); z.dx = dx / d; z.dy = dy / d; }
+    else if (z.cd <= 0) { z.cd = 0.7; this.damage(best, Math.max(12, T.dmg * 2) * (z.allyK || 1), owner); this.ev(['bt', Math.round(best.x), Math.round(best.y)]); }
+    this.separate(z, T, grid, hw, HC, dt, 0);
   }
 
   damage(z, d, p) {
@@ -1929,13 +2093,15 @@ export class HostGame {
         Math.max(0, r1(p.abAt - this.time)), p.shopReady ? 1 : 0, this.time < p.shieldUntil ? 1 : 0,
         p.alive ? 0 : r2((p.rev || 0) / REVIVE_TIME),
         Math.max(0, r1(p.powerUntil - this.time)), Math.max(0, r1(p.hasteUntil - this.time)), p.wt, p.wp || 0, p.wb || 0, p.inv || [], Math.max(0, r1((p.chillUntil || 0) - this.time)),
+        p.tm | 0, p.pk | 0, p.deaths | 0, !p.alive && p.respAt && p.respAt < Infinity ? Math.max(0, r1(p.respAt - this.time)) : 0,
+        (p.protUntil > this.time ? 1 : 0) | (p.invUntil > this.time ? 2 : 0) | (p.silUntil > this.time ? 4 : 0) | (p.spinUntil > this.time ? 8 : 0), p.assists | 0,
       ]);
     }
     const Z = [];
     for (const z of this.zombies) {
       if (z.dead) continue;
       const now = this.time;
-      const fl = (z.slowUntil > now ? 1 : 0) | (z.stunT > 0 ? 2 : 0) | (z.psT > now ? 4 : 0) | (z.brT > now ? 8 : 0) | (z.frozenT > now ? 16 : 0) | (z.meltT > now ? 32 : 0) | (z.t === 11 && z.armor <= 0 ? 64 : 0) | (z.st === ZS.BURROW ? 128 : 0) | ((z.el | 0) << 8) | (z.rageT > now ? 2048 : 0);
+      const fl = (z.slowUntil > now ? 1 : 0) | (z.stunT > 0 ? 2 : 0) | (z.psT > now ? 4 : 0) | (z.brT > now ? 8 : 0) | (z.frozenT > now ? 16 : 0) | (z.meltT > now ? 32 : 0) | (z.t === 11 && z.armor <= 0 ? 64 : 0) | (z.st === ZS.BURROW ? 128 : 0) | ((z.el | 0) << 8) | (z.rageT > now ? 2048 : 0) | (z.ally ? 4096 : 0);
       Z.push([z.id, z.t, Math.round(z.x), Math.round(z.y), Math.ceil(z.hp), z.st, z.st === ZS.WINDUP || z.st === ZS.DASH ? r2(z.cdir) : 0, z.t === 6 && z.face != null ? r2(z.face) : 0, fl]);
     }
     return {
@@ -1951,7 +2117,10 @@ export class HostGame {
       F: this.zones.map((q) => [q.id, q.k, q.x, q.y, q.r, r1(q.life / q.max)]),
       TM: [this.team, this.teamFund, TEAM.map((t, i) => (this.team[i] < t.cost.length ? teamCost(i, this.team[i], this.inGame().length) : 0))],
       V: this.mev ? [this.mev.k, Math.max(0, r1(this.mev.until - this.time))] : 0,
+      PV: this.mode === 'pvp' ? this.pvpSnap() : 0,
       S: this.shots, E: this.events,
     };
   }
 }
+
+Object.assign(HostGame.prototype, PvpMixin);

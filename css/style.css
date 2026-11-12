@@ -1332,3 +1332,36 @@ html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
 body.touch { -webkit-touch-callout: none; overscroll-behavior: none; }
 body.touch button, body.touch .btn, body.touch [role="tab"], body.touch a { -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 body.touch .btn:not(.t-btn):active { transform: scale(.97); }
+
+/* ---------- PvP ---------- */
+.pvp-bar { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: stretch; gap: 6px; pointer-events: none; font-family: var(--body, Rubik, system-ui, sans-serif); }
+.pvp-bar .pv-side { min-width: 92px; padding: 6px 12px 8px; border-radius: 12px; background: rgba(10,14,12,.78); border: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pvp-bar .pv-side span { font-size: 11px; color: #c9cfc4; letter-spacing: .4px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pvp-bar .pv-side strong { font: 400 26px/1 var(--display, 'Russo One', sans-serif); }
+.pvp-bar .pv-side.t0 { box-shadow: inset 0 -3px 0 #4cc9f0; } .pvp-bar .pv-side.t0 strong { color: #8fdcff; }
+.pvp-bar .pv-side.t1 { box-shadow: inset 0 -3px 0 #ff5a5f; } .pvp-bar .pv-side.t1 strong { color: #ff9a9d; }
+.pvp-bar .pv-mid { padding: 6px 14px; border-radius: 12px; background: rgba(10,14,12,.86); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.pvp-bar .pv-mid strong { font: 400 22px/1 var(--display, 'Russo One', sans-serif); color: #fff; }
+.pvp-bar .pv-mid span { font-size: 10.5px; color: #9aa496; }
+.pv-prog { width: 74px; height: 4px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; margin-top: 3px; }
+.pv-prog i { display: block; height: 100%; } .pv-prog.t0 i { background: #4cc9f0; } .pv-prog.t1 i { background: #ff5a5f; }
+.pv-dots { display: flex; gap: 4px; margin-top: 3px; } .pv-dots i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.15); } .pv-dots i.on { background: #ffd23f; box-shadow: 0 0 6px #ffd23f; }
+.pvp-resp { position: fixed; left: 50%; top: 34%; transform: translate(-50%, -50%); z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px 26px; border-radius: 16px; background: rgba(10,14,12,.82); border: 1px solid rgba(255,90,95,.35); text-align: center; pointer-events: none; animation: pvIn .25s ease-out; }
+.pvp-resp strong { font: 400 34px/1.1 var(--display, 'Russo One', sans-serif); color: #fff; }
+.pvp-resp .eyebrow { color: #ff9a9d; }
+.pvp-resp .dim { font-size: 13px; max-width: 300px; }
+@keyframes pvIn { from { opacity: 0; transform: translate(-50%, -40%); } }
+.kfeed li.pv b { font-weight: 700; }
+.gem-x.pv { background: rgba(255,90,95,.18); color: #ffb3b5; }
+.pvp-opts { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.pvp-opts .pv-teams { display: flex; gap: 8px; flex-wrap: wrap; }
+.pv-team.t0 { border-color: rgba(76,201,240,.5); } .pv-team.t1 { border-color: rgba(255,90,95,.5); }
+.pv-team.on.t0 { background: rgba(76,201,240,.22); color: #fff; } .pv-team.on.t1 { background: rgba(255,90,95,.22); color: #fff; }
+.player.pv-t0 { box-shadow: inset 3px 0 0 #4cc9f0; } .player.pv-t1 { box-shadow: inset 3px 0 0 #ff5a5f; }
+@media (max-width: 720px) {
+  .pvp-bar { top: 8px; gap: 4px; transform: translateX(-50%) scale(.82); transform-origin: top center; }
+  .pvp-resp { top: 30%; padding: 12px 18px; } .pvp-resp strong { font-size: 26px; }
+}
+#over-h.win { color: #ffd23f; }
+body.touch .pvp-bar { top: calc(max(10px, env(safe-area-inset-top, 0px)) + 46px); transform: translateX(-50%) scale(.74); }
+@media (max-height: 520px) { body.touch .pvp-bar { top: calc(max(10px, env(safe-area-inset-top, 0px)) + 40px); transform: translateX(-50%) scale(.66); } }
