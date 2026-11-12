@@ -168,13 +168,38 @@ export async function acctSign(op, name, pw) {
   if (j.ok) { keepAcct({ tk: j.tk, name: j.name, id: j.id }); keepMe(j); }
   return j;
 }
-export async function acctOut() { const a = ACCT; keepAcct(null); if (a) api('/kacct', { op: 'out', tk: a.tk }); }
+export async function acctOut() { const a = ACCT; const t = appPushToken(); keepAcct(null); if (a) { if (t) api('/kacct', { op: 'push', tk: a.tk, t, on: 0 }); api('/kacct', { op: 'out', tk: a.tk }); } try { localStorage.removeItem('kusatma-push'); } catch (e) { /* ignore */ } }
+// phone notifications (the Android app 45+): the app keeps a Firebase token; the game links it to the signed-in account
+const appBridge = () => (typeof window !== 'undefined' && window.KusatmaApp && typeof window.KusatmaApp.pushToken === 'function' ? window.KusatmaApp : null);
+export const appPushCan = () => !!appBridge();
+export function appPushToken() { try { const b = appBridge(); return b ? String(b.pushToken() || '') : ''; } catch (e) { return ''; } }
+export const appPushOn = () => { try { return localStorage.getItem('kusatma-push-off') !== '1' && !!appBridge() && appBridge().pushAllowed(); } catch (e) { return false; } };
+export async function appPushSet(on) {
+  const b = appBridge(); if (!b || !ACCT) return false;
+  try { localStorage.setItem('kusatma-push-off', on ? '0' : '1'); } catch (e) { /* ignore */ }
+  if (on && !b.pushAllowed()) b.pushAsk();
+  const t = appPushToken(); if (!t) return false;
+  const j = await api('/kacct', { op: 'push', tk: ACCT.tk, t, on: on ? 1 : 0 });
+  try { localStorage.setItem('kusatma-push', on && j.ok ? ACCT.id + ':' + t : ''); } catch (e) { /* ignore */ }
+  return !!j.ok;
+}
+// once per account and phone: ask for permission the first time and register the token
+let pushTry = 0;
+function appPushAuto() {
+  const b = appBridge(); if (!b || !ACCT) return;
+  let off = false, sent = ''; try { off = localStorage.getItem('kusatma-push-off') === '1'; sent = localStorage.getItem('kusatma-push') || ''; } catch (e) { /* ignore */ }
+  if (off) return;
+  if (!b.pushAllowed()) { let asked = false; try { asked = localStorage.getItem('kusatma-push-asked') === '1'; localStorage.setItem('kusatma-push-asked', '1'); } catch (e) { /* ignore */ } if (!asked) b.pushAsk(); }
+  const t = appPushToken();
+  if (t && sent !== ACCT.id + ':' + t) appPushSet(true);
+  else if (!t && pushTry++ < 3) setTimeout(appPushAuto, 15000); // the token can take a moment on a fresh install
+}
 try { const m = JSON.parse(localStorage.getItem('kusatma-ben') || 'null'); if (m && ACCT) keepMe(m); } catch (e) { /* ignore */ }
 // on start: a session the owner reset or deleted signs out; a name change on the server comes back
 export async function acctCheck() {
   if (!ACCT) return;
   const j = await api('/kacct', { op: 'me', tk: ACCT.tk });
-  if (j.ok) { keepMe(j); if (j.name !== ACCT.name) keepAcct({ tk: ACCT.tk, name: j.name, id: j.id }); if (j.gift && j.gift.length && H && H.onGift2) H.onGift2(j.gift); }
+  if (j.ok) { keepMe(j); if (j.name !== ACCT.name) keepAcct({ tk: ACCT.tk, name: j.name, id: j.id }); if (j.gift && j.gift.length && H && H.onGift2) H.onGift2(j.gift); setTimeout(appPushAuto, 3000); }
   else if (j.reason === 'signin') keepAcct(null);
   return j;
 }

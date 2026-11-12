@@ -1,5 +1,7 @@
 plugins {
     id 'com.android.application'
+    // push notifications through Firebase; google-services.json is copied in at build time (kept out of the repo)
+    id 'com.google.gms.google-services'
 }
 
 // The workflow passes the version number in; the signing key comes from the repository's secrets.
@@ -42,4 +44,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+}
+
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:33.7.0')
+    implementation 'com.google.firebase:firebase-messaging'
 }

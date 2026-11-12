@@ -90,6 +90,7 @@ Oda kurarken (ya da lobide) mod olarak **PvP** seçilince oyuncular birbirine ka
 - **Sınıf seviyeleri:** her sınıf, onunla temizlediğin her dalgada 10 + 2×dalga XP kazanır; seviye en çok 30. Her seviye 20 elmas verir. Seviyeler profilindeki sınıf kartlarında görünür.
 - **Rozetler:** dalga rekoru, öldürme sayısı, PvP galibiyetleri ve ligi, sınıf seviyeleri, klan, oyuncu seviyesi ve giriş serisi için 16 rozet. Oynadıkça kendiliğinden kazanılır, profilinde koleksiyon olarak görünür.
 - **Tarayıcı bildirimleri:** Ayarlar'dan açarsan site arka plandaki bir sekmedeyken mesaj, arkadaşlık isteği, oda ve klan davetleri bildirim olarak gelir.
+- **Telefon bildirimleri (Android uygulaması 45.0 ve sonrası):** uygulamada hesabına girince bir kez izin sorulur. İzin verirsen oyun kapalıyken bile özel mesaj, arkadaşlık isteği, klan daveti ve klan katılma isteği telefonuna bildirim olarak gelir; bildirime dokununca oyun ilgili sayfada açılır. Ayarlar'daki **Telefon bildirimleri** anahtarıyla kapatabilirsin; çıkış yapınca telefonun hesaptan ayrılır.
 
 ## Hesap, elmas ve mağaza
 
@@ -109,7 +110,7 @@ Elmaslar sunucuda tutulur ve kontrol edilir; odadaki herkes, sunucunun imzaladı
 
 Android telefonda siteyi açınca üstte **Android uygulaması** düğmesi çıkar (ya da `https://umvtt.github.io/kusatma/app/kusatma.apk`). İndirip kur; tarayıcına "bilinmeyen uygulamaları yükle" izni vermen gerekebilir. Uygulama oyunu doğrudan siteden açar, bu yüzden her oyun güncellemesi uygulamaya da anında gelir; tekrar kurman gerekmez. Ana adrese ulaşılamazsa okul aynasını dener. Geri tuşu oyundaki Esc gibi çalışır.
 
-Uygulamanın dosyası yapı numarasıyla adlanır (ör. **Kuşatma 44.0.apk**). Uygulama normal güncellemelerde hiçbir şey sormaz. Yalnızca uygulamanın kendisinde önemli bir değişiklik olduğunda (`app/version.json` içindeki `min` uygulamanın sürümünden büyükse) atlanamayan bir "Önemli güncelleme" ekranı gösterir ve **Güncelle** ile sitedeki güncelleme sayfasını açar; yeni dosya eskisinin üstüne kurulur. Yeni APK'yı yapmak için `android/` klasöründe aynı imza anahtarıyla `gradle assembleRelease -PversionCode=<yeni numara>` çalıştırılır, çıkan dosya `app/kusatma.apk` olarak konur ve `app/version.json` içindeki `v` bir artırılır. İmza anahtarı depoda değildir; aynı anahtar olmadan yeni sürüm eskisinin üstüne kurulamaz.
+Uygulamanın dosyası yapı numarasıyla adlanır (ör. **Kuşatma 45.0.apk**). Uygulama normal güncellemelerde hiçbir şey sormaz. Yalnızca uygulamanın kendisinde önemli bir değişiklik olduğunda (`app/version.json` içindeki `min` uygulamanın sürümünden büyükse) atlanamayan bir "Önemli güncelleme" ekranı gösterir ve **Güncelle** ile sitedeki güncelleme sayfasını açar; yeni dosya eskisinin üstüne kurulur. Telefon bildirimleri Firebase Cloud Messaging ile gelir; bu yüzden uygulama 45.0 Firebase ayar dosyasıyla (`google-services.json`, depoda değildir) derlenir. Yeni APK'yı yapmak için `android/` klasöründe aynı imza anahtarıyla `gradle assembleRelease -PversionCode=<yeni numara>` çalıştırılır, çıkan dosya `app/kusatma-<yapı>.0.apk` ve kopyası `app/kusatma.apk` olarak konur ve `app/version.json` içindeki `v` bir artırılır. İmza anahtarı depoda değildir; aynı anahtar olmadan yeni sürüm eskisinin üstüne kurulamaz.
 
 ## Haritalar
 

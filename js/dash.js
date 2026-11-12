@@ -1,7 +1,7 @@
 // The signed-in player's home: a full website around the game (home, play, profile and wardrobe, gem shop,
 // friends and private messages, leaderboard, account settings and themes). Text from the server only ever goes
 // into textContent.
-import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, dailyGet, roomsGet, acctCheck, sysNotifyOn, sysNotifySet } from './live.js';
+import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, dailyGet, roomsGet, acctCheck, sysNotifyOn, sysNotifySet, appPushCan, appPushOn, appPushSet } from './live.js';
 import { ITEMS, SLOTS, SLOT_OF, RARITY, FREE_CLS, isFree, titleOf } from './catalog.js';
 import { CLASSES, CLASS_ORDER, DIFFS, MAPS, MAX_PLAYERS, BUILD, dailyRules, league, LEAGUES, clsNext, BADGES, APP_BUILD } from './config.js';
 import { drawCharacter, drawPet } from './render.js';
@@ -352,7 +352,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
+const WHATS_NEW = ['Android uygulaması 45.0: oyun kapalıyken bile mesaj, arkadaşlık isteği ve klan davetleri telefonuna bildirim olarak gelir.', 'Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -1286,10 +1286,14 @@ function topPage(sec) {
 // ---------- account settings ----------
 function accountPage(sec) {
   head(sec, 'Ayarlar', 'Hesap ve görünüm');
-  { const nc = card('Tarayıcı bildirimleri'), lab = el('label', 'voice-open'), cb = el('input'); cb.type = 'checkbox'; cb.checked = sysNotifyOn();
+  if (appPushCan()) { const pc = card('Telefon bildirimleri'), lab = el('label', 'voice-open'), cb = el('input'); cb.type = 'checkbox'; cb.checked = appPushOn();
+    cb.onchange = async () => { const ok = await appPushSet(cb.checked); if (!ok && cb.checked) { H.toast('Bildirim izni verilmedi ya da telefon henüz hazır değil. Telefonun Ayarlar > Uygulamalar > Kuşatma > Bildirimler bölümünden izin verebilirsin.', 'bad'); } };
+    lab.append(cb, el('span', '', 'Oyun kapalıyken mesaj, arkadaşlık isteği, klan daveti ve duyuruları telefonuma bildir'));
+    pc.append(lab); sec.append(pc); }
+  if (!appPushCan()) { const nc = card('Tarayıcı bildirimleri'), lab = el('label', 'voice-open'), cb = el('input'); cb.type = 'checkbox'; cb.checked = sysNotifyOn();
     cb.onchange = async () => { const ok = await sysNotifySet(cb.checked); cb.checked = ok && cb.checked; if (!ok && cb.checked === false && typeof Notification !== 'undefined' && Notification.permission === 'denied') H.toast('Tarayıcı bildirimleri engellemiş. Adres çubuğundaki kilit simgesinden izin verebilirsin.', 'bad'); };
     lab.append(cb, el('span', '', 'Oyun arka plandaki bir sekmedeyken mesaj, arkadaşlık isteği, oda ve klan davetlerini bildir'));
-    nc.append(lab, el('p', 'note', 'Bildirimler yalnızca site açıkken (arka planda bile olsa) gelir. Uygulama kapalıyken gelen bildirimler ileride eklenecek.')); sec.append(nc); }
+    nc.append(lab, el('p', 'note', 'Bildirimler yalnızca site açıkken (arka planda bile olsa) gelir. Android uygulamasında oyun kapalıyken de gelir.')); sec.append(nc); }
   const th = card('Tema');
   const tg = el('div', 'theme-grid');
   for (const id of Object.keys(THEMES)) {
