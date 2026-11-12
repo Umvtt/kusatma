@@ -2,12 +2,8 @@ package com.umvtt.kusatma;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.pm.PackageInstaller;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -48,9 +44,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -64,8 +58,6 @@ import java.net.URL;
 public class MainActivity extends Activity {
     private static final String[] SITES = { "https://umvtt.github.io/kusatma/", "https://umvtt-games.umvtt.deno.net/kusatma/", "https://kusatma.umvtt.workers.dev/" };
     private static final String VERSION_URL = "app/version.json";
-    private static final String DOWNLOAD = "app/kusatma.apk";
-    private static final String INSTALL_DONE = "com.umvtt.kusatma.INSTALL_DONE";
     private static final int ORANGE = Color.rgb(255, 107, 44), BG = Color.rgb(13, 17, 15), TEXT = Color.rgb(236, 230, 214), DIM = Color.rgb(143, 154, 142);
     private static final String[] TIPS = {
         "İpucu: Sırt sırta verin, sürü her dalgada büyür.",
@@ -401,78 +393,6 @@ public class MainActivity extends Activity {
                 // offline: play on
             }
         }).start();
-    }
-
-    /** Downloads the new APK with a progress bar and hands it to Android's installer. */
-    private void downloadUpdate() {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(24), dp(16), dp(24), dp(8));
-        ProgressBar pb = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        pb.setMax(100);
-        pb.setProgressTintList(ColorStateList.valueOf(ORANGE));
-        TextView pt = new TextView(this);
-        pt.setText("İndiriliyor… %0");
-        box.addView(pb, new LinearLayout.LayoutParams(-1, dp(8)));
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(-2, -2); pl.topMargin = dp(10);
-        box.addView(pt, pl);
-        AlertDialog dlg = new AlertDialog.Builder(this).setTitle("Güncelleniyor").setView(box).setCancelable(false).show();
-        new Thread(() -> {
-            PackageInstaller.Session session = null;
-            try {
-                HttpURLConnection c = (HttpURLConnection) new URL(SITES[0] + DOWNLOAD + "?t=" + System.currentTimeMillis()).openConnection();
-                c.setConnectTimeout(10000);
-                c.setReadTimeout(20000);
-                int total = c.getContentLength();
-                PackageInstaller pi = getPackageManager().getPackageInstaller();
-                PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
-                params.setAppPackageName(getPackageName());
-                if (total > 0) params.setSize(total);
-                int sid = pi.createSession(params);
-                session = pi.openSession(sid);
-                try (InputStream in = c.getInputStream(); OutputStream out = session.openWrite("kusatma.apk", 0, total > 0 ? total : -1)) {
-                    byte[] buf = new byte[32768];
-                    long got = 0; int n, lastPct = -1;
-                    while ((n = in.read(buf)) > 0) {
-                        out.write(buf, 0, n); got += n;
-                        if (total > 0) { int pct = (int) (got * 100 / total); if (pct != lastPct) { lastPct = pct; ui.post(() -> { pb.setProgress(pct); pt.setText("İndiriliyor… %" + pct); }); } }
-                    }
-                    session.fsync(out);
-                }
-                ui.post(() -> pt.setText("Kuruluyor…"));
-                Intent done = new Intent(INSTALL_DONE).setPackage(getPackageName());
-                int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
-                PendingIntent pend = PendingIntent.getBroadcast(this, sid, done, flags);
-                registerInstallReceiver(dlg);
-                session.commit(pend.getIntentSender());
-                session.close();
-            } catch (Exception e) {
-                if (session != null) try { session.abandon(); } catch (Exception ignored) { }
-                ui.post(() -> {
-                    dlg.dismiss();
-                    // fall back to the browser download
-                    try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(SITES[0] + DOWNLOAD))); } catch (Exception ignored) { }
-                });
-            }
-        }).start();
-    }
-
-    private void registerInstallReceiver(AlertDialog dlg) {
-        BroadcastReceiver r = new BroadcastReceiver() {
-            @Override public void onReceive(Context ctx, Intent it) {
-                int st = it.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
-                if (st == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-                    Intent confirm = it.getParcelableExtra(Intent.EXTRA_INTENT);
-                    if (confirm != null) { confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); try { startActivity(confirm); } catch (Exception ignored) { } }
-                    return;
-                }
-                try { unregisterReceiver(this); } catch (Exception ignored) { }
-                dlg.dismiss();
-                if (st != PackageInstaller.STATUS_SUCCESS) Toast.makeText(ctx, "Güncelleme kurulamadı. Sitedeki indirme bağlantısını deneyebilirsin.", Toast.LENGTH_LONG).show();
-            }
-        };
-        IntentFilter f = new IntentFilter(INSTALL_DONE);
-        if (Build.VERSION.SDK_INT >= 33) registerReceiver(r, f, Context.RECEIVER_NOT_EXPORTED); else registerReceiver(r, f);
     }
 
     private PermissionRequest micReq;
