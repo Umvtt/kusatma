@@ -54,17 +54,19 @@ Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, gece k
 | Mühendis | Karabina | **Tamir Dronu**: arkadaşları iyileştirir, barikat ve taret onarır | İki saldırı dronu hep yanında uçar ve ateş eder |
 | Kimyager | Asit tabancası | **Zehir Bulutu**: nişan alınan yere büyük zehir bulutu | Mermiler zehirler; zehirli zombiler takımdan %20 fazla hasar alır |
 | Komutan | Ağır tabanca | **İkmal Sandığı**: yakındakilere can, altın ve 5 sn iki kat hasar | Yakınındaki herkes %10 sert vurur |
+| Tesla | Tesla tabancası | **Tesla Bobini**: 12 sn yakındaki zombileri zincirleme çarpan bir bobin | Her vuruş iki zombiye daha sıçrar |
+| Avcı | Arbalet | **Ok Yağmuru**: önüne yelpaze gibi dokuz delici ok | Oklar zombileri bir an yere çiviler |
 
 Lobide bir sınıfa tıklayınca (ya da fareyle üstüne gelince) yandaki panel her şeyi gösterir: rolü, değerler, yetenek, pasif, yetenek ustalığı ve silah serisi. Kartlardaki renkli noktalar hangi takım arkadaşının o sınıfı seçtiğini gösterir.
 
-Asker, Doktor, Tamirci ve Nişancı ücretsizdir. Diğerleri elmasla açılır (İzci 450, Kalkancı 500, Alevci 700, Bombacı 800, Mühendis 1400, Kimyager 1500, Komutan 1800). Kilitli bir sınıfı **Tek başına** modda deneyebilirsin ama o oyun elmas kazandırmaz; odalarda yalnızca sahip olduğun sınıflar seçilir.
+Asker, Doktor, Tamirci ve Nişancı ücretsizdir. Diğerleri elmasla açılır (İzci 450, Kalkancı 500, Alevci 700, Bombacı 800, Mühendis 1400, Kimyager 1500, Komutan 1800, Tesla 2000, Avcı 2000). Kilitli sınıfları **Deneme Alanı** modunda deneyebilirsin ama o mod elmas, XP ve görev ilerlemesi vermez; diğer bütün oyunlarda yalnızca sahip olduğun sınıflar seçilir.
 
 ## Hesap, elmas ve mağaza
 
 Hesap isteğe bağlıdır ama açınca oyun bir siteye dönüşür:
 
 - **Ana sayfa:** seviyen, günlük ödül, bugün kazandığın elmas, arkadaşların, öne çıkan eşya, açık odalar.
-- **Elmas:** temizlediğin her dalga elmas ve XP verir. Geç dalgalar, zor modlar ve bosslar daha çok verir; günde en çok 400 elmas kazanılır. Her gün bir de günlük ödül var.
+- **Elmas:** temizlediğin her dalga elmas ve XP verir. Geç dalgalar ve bosslar daha çok verir; zorluk (Kolay ×0,75, Zor ×1,3, Kâbus ×1,7) ve mod (Hayatta Kalma ×1,2, Günün Görevi ×1,3, Boss Akını ×1,5, Tek Can ×2) çarpanları birbiriyle çarpılır. Tek başına oyunlar %75 verir. Varsayılan sınır günde 1000, saatte 300 elmastır. Her gün bir de günlük ödül ve çark var.
 - **Mağaza:** sınıflar, şapkalar, renkler, silah kaplamaları, çerçeveler, isim renkleri, unvanlar ve temalar. Bazen indirim, sınırlı süreli eşya ya da 2× elmas etkinliği olur.
 - **Profil ve dolap:** seviyen ve istatistiklerin; aldıklarını buradan giyersin. Başka oyuncular profiline bakabilir.
 - **Arkadaşlar:** ad ile istek gönder, kimin çevrimiçi olduğunu ve hangi odada oynadığını gör, tek tıkla katıl, özel mesaj at. Rahatsız eden birini bildirebilirsin.
@@ -81,7 +83,7 @@ Uygulamanın kendisi değişirse (nadiren), uygulama `app/version.json` dosyası
 
 ## Haritalar
 
-Kurucu lobide haritayı ve zorluğu seçer. Harita her oyunda yeniden oluşturulur ve oyuncu sayısıyla birlikte büyür: tek başına 1800×1200, 15 kişiyle 4320×2880. Oyun sırasında biri katılırsa sınırlar yavaşça genişler.
+Kurucu lobide haritayı, zorluğu ve modu seçer. Harita her oyunda yeniden oluşturulur ve oyuncu sayısıyla birlikte büyür: tek başına 3600×2400, her oyuncuyla 240×160 daha, 15 kişiyle yaklaşık 5840×3840. Oyun sırasında biri katılırsa sınırlar yavaşça genişler. Kalabalık oyunlarda zombiler biraz daha çok ve sağlam olur (her ek oyuncu için +%20 zombi, +%5 can, boss canı +%20).
 
 | Harita | Özellik |
 | --- | --- |
@@ -89,8 +91,14 @@ Kurucu lobide haritayı ve zorluğu seçer. Harita her oyunda yeniden oluşturul
 | Benzinlik | Arabalar, pompalar, dükkanlar |
 | Hastane Bahçesi | Çitler, ambulanslar, binalar |
 | Orman | Sık ağaçlar, kayalar, kütükler |
+| Liman | Konteyner yığınları arasında dar koridorlar, bir yanı deniz |
+| Kış Köyü | Karlı evler, çamlar, kar yığınları, donmuş göl |
 
 Zorluk seviyeleri: Kolay, Normal, Zor, Kâbus.
+
+Modlar: **Klasik** (dalgalar arası mola, 5 dalgada bir boss), **Hayatta Kalma** (5. dalgadan sonra mola yok), **Boss Akını** (her dalgada boss), **Tek Can** (düşen kalkamaz), **Deneme Alanı** (tek başına, her sınıf, ödül yok) ve **Günün Görevi** (herkese aynı harita, sınıf ve zorluk; günün ilk denemesi sıralamaya girer).
+
+Dalga ortasında bazen harita olayı çıkar: **Karartma**, **İkmal uçağı**, **Sürü akını** ya da **Kanlı ay**.
 
 ## Zombiler
 
@@ -108,10 +116,15 @@ Zorluk seviyeleri: Kolay, Normal, Zor, Kâbus.
 | Doğurgan | Ölünce dört hızlı Sürüngen'e bölünür (8. dalga) |
 | Zırhlı | Zırhı kırılana kadar sıradan mermiler az işler. Delici mermi, ateş, patlama, asit ve Nişancı zırhı yok sayar (9. dalga) |
 | Şifacı | Geride durup etrafındaki zombileri iyileştirir. Önce onu indirin (10. dalga) |
+| Kazıcı | Toprağın altına girer; altındayken vurulamaz, yanında çıkar (7. dalga) |
+| Çığlıkçı | Çığlık atar, yakındaki zombiler hızlanır (9. dalga) |
+| Donmuş | Vurduğu oyuncuyu üşütüp yavaşlatır, ölünce parçalanır (6. dalga) |
+
+8. dalgadan sonra bazı zombiler **seçkin** olur: hızlı, patlayıcı, kendini iyileştiren ya da zırhlı. Canları 2,5 kat, altınları 4 kattır ve ölünce eşya düşürürler.
 
 ### Bosslar
 
-Her 5 dalgada bir boss gelir: sırayla **Dev** (yere vurur), **Kraliçe** (yelpaze şeklinde asit, koşucu çağırır) ve **Koç** (art arda hücum eder). 20. dalgadan sonra iki farklı boss birlikte gelir.
+Her 5 dalgada bir boss gelir: sırayla **Dev** (yere vurur), **Kraliçe** (yelpaze şeklinde asit, koşucu çağırır), **Koç** (art arda hücum eder), **Dev Hurda** (araba fırlatır) ve **Cadı** (ölüleri kaldırır, ışınlanır, tükürür). 20. dalgadan sonra iki farklı boss birlikte gelir.
 
 ## Eşyalar ve silahlar
 
@@ -119,17 +132,19 @@ Her 5 dalgada bir boss gelir: sırayla **Dev** (yere vurur), **Kraliçe** (yelpa
 
 Cephanelik dört sekmedir: **Silah**, **Gelişim**, **Eşya**, **Takım**.
 
-**Silah:** beş seviye (150, 400, 850, 1500, 2400 altın). Seviye I'de yedi yoldan birini seçersin, seviye III'te yolun iki dalından birini. Seviye V dalın özel gücünü açar. Dalı 250 altına değiştirebilir, yolu sıfırlayıp harcadığının yarısını geri alabilirsin.
+**Silah:** beş seviye (150, 400, 850, 1500, 2400 altın). Seviye I'de sınıfına açık yollardan birini seçersin (her sınıfın 3–4 yolu var), seviye III'te yolun iki dalından birini. Seviye V dalın özel gücünü açar. Dalı 250 altına değiştirebilir, yolu sıfırlayıp harcadığının yarısını geri alabilirsin.
 
 | Yol | Etkisi | Dallar (seviye V gücü) |
 | --- | --- | --- |
 | Ağır | Yavaş ama çok sert | Sarsıcı (her vuruş sersemletir) · Yıkıcı (patlayan mermi) |
 | Seri | Çok hızlı ateş | Fırtına (seken mermi) · Çift namlu (üç mermi) |
-| Delici | Deler, menzil artar | Keskin (üç kat kritik) · Ray (her şeyi, kalkanları da deler) |
+| Delici | Deler, menzil artar; Kalkanlı'nın kalkanını bir kez deler ama mermi %40 güç kaybeder, her zombide %15 daha | Keskin (üç kat kritik) · Ray (her şeyi, kalkanları da deler) |
 | Buz | Yavaşlatır | Donduran (buz kalıbı) · Kırılgan (ölünce buz patlaması) |
 | Zehir | Zehirler | Salgın (zehir bulutu) · Asit (kalkan eritir, bosslara tam işler) |
 | Elektrik | Şimşek sıçrar | Zincir (sersemletir) · Aşırı yük (yıldırım düşer) |
 | Yangın | Tutuşturur | Napalm (yananlar patlar) · Kor (yerde alev bırakır) |
+
+Zehir yalnızca Kimyager'de, elektrik yalnızca Tesla'da, yangın yalnızca Alevci'de, buz yalnızca Nişancı'da vardır. Asker, Doktor, Nişancı ve Tamirci'nin bir de sınıfa özel sekizinci yolu var: bomba atar, uyutucu dart, raylı top ve çivi tabancası.
 
 **Gelişim:** hasar, atış hızı, can, hız, yetenek süresi, kritik vuruş, yenilenme, zırh, mıknatıs, üç seviyelik yetenek ustalığı ve Sargı.
 
@@ -141,8 +156,9 @@ Cephanelik dört sekmedir: **Silah**, **Gelişim**, **Eşya**, **Takım**.
 
 - Saf HTML, CSS ve JavaScript. Derleme adımı yok.
 - Çok oyunculu bağlantı [PeerJS](https://peerjs.com/) (WebRTC) ile kurulur. Oyunu kurucunun tarayıcısı yönetir, diğer oyuncular ona bağlanır. Bu yüzden kurucunun sekmesi açık kalmalı ve internet bağlantısı iyi olmalı.
-- Kurucu ayrılırsa (sekmeyi kapatsa bile) oyun bitmez: en önce katılan oyuncu kurucu olur, diğerleri birkaç saniye içinde altınları, yükseltmeleri ve sınıflarıyla birlikte yeniden bağlanır. Bunun için kurucu her saniye oyunun yedeğini sıradaki oyuncuya gönderir.
-- Bir oyuncunun bağlantısı kısa süre koparsa oyun onu otomatik olarak yeniden bağlar; altını, yükseltmeleri ve yeri 45 saniye korunur.
+- Her oyuncuyla iki kanal açılır: oyunun anlık durumu ve tuşlar sırasız, hızlı bir kanaldan, geri kalan her şey güvenilir kanaldan gider. Kurucu her oyuncuya yalnızca onun onayladığı durumdan bu yana değişenleri yollar, böylece kaybolan bir paket oyunu dondurmaz, kendiliğinden toparlanır.
+- Kurucu ayrılırsa (sekmeyi kapatsa bile) oyun bitmez: en önce katılan oyuncu kurucu olur, diğerleri birkaç saniye içinde altınları, yükseltmeleri ve sınıflarıyla birlikte yeniden bağlanır. Bunun için kurucu 5 saniyede bir, bağlantı boşken oyunun yedeğini sıradaki oyuncuya gönderir.
+- Bir oyuncunun bağlantısı kısa süre koparsa oyun onu otomatik olarak yeniden bağlar; altını, yükseltmeleri ve yeri 45 saniye korunur. Oyuna geç katılan ya da geri dönen oyuncu, takımın ortalamasının %75'ine yetişecek kadar altın alır.
 - Büyük mesajlar (örneğin kalabalık dalgalardaki oyun yedeği) parçalara bölünerek gönderilir.
 - Gelen her mesaj biçim ve boyut açısından denetlenir. Uzun süre çok fazla mesaj gönderen oyuncu odadan atılır.
 
