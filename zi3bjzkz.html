@@ -709,7 +709,7 @@ const actTxt=x=>{let d='';try{const o=JSON.parse(x.d||'{}');d=o.k||o.text||o.why
 async function loadAlog(){const box=$('#alList');try{const L=(await admin('alog')).log.slice().reverse();box.textContent='';for(const x of L){const it=mk('div','item');it.append(mk('span','d',when(x.t)),mk('span','k',actTxt(x)));if(x.ids&&x.ids.length)it.append(mk('span','d',x.ids.join(', ')));box.append(it);}if(!L.length)box.append(mk('p','','Nothing yet.'));}catch(e){say('#alMsg',e.message,'bad');}}
 $('#alRefresh').onclick=loadAlog;
 /* Logs: everything the server saw in the last 30 days */
-const LGK=[['session','Sessions'],['room','Rooms'],['game','Games'],['wave','Waves'],['chat','Chat'],['social','Friends & DMs'],['shop','Shop'],['gems','Gems'],['reward','Rewards'],['account','Accounts'],['profile','Profile'],['cheat','Anti-cheat'],['redeem','Codes'],['panel','Panel']];
+const LGK=[['session','Sessions'],['room','Rooms'],['game','Games'],['wave','Waves'],['chat','Chat'],['social','Friends & DMs'],['shop','Shop'],['gems','Gems'],['reward','Rewards'],['account','Accounts'],['profile','Profile'],['cheat','Anti-cheat'],['conn','Connection'],['redeem','Codes'],['panel','Panel']];
 const LG={k:new Set(),next:'',rows:[],busy:0,timer:0,seq:0};
 (()=>{const box=$('#lgK');const all=mk('button','chip','All');all.type='button';all.dataset.k='';box.append(all);for(const[k,l]of LGK){const b=mk('button','chip',l);b.type='button';b.dataset.k=k;box.append(b);}
   const sync=()=>{for(const b of box.children)b.setAttribute('aria-pressed',String(b.dataset.k?LG.k.has(b.dataset.k):!LG.k.size));};sync();

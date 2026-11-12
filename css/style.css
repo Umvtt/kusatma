@@ -1389,3 +1389,32 @@ body.touch .tut { bottom: auto; top: calc(max(10px, env(safe-area-inset-top, 0px
 body.touch .tut strong { font-size: 16px; } body.touch .tut .dim { font-size: 12.5px; }
 .hud-br-row { display: flex; gap: 8px; align-items: center; }
 .clan-t { color: #ffd23f; font-weight: 700; margin-right: 4px; font-size: .9em; }
+/* every checkbox on the site is a toggle switch */
+input[type="checkbox"]:not(.ck-sw):not(.switch) { appearance: none; -webkit-appearance: none; flex: 0 0 auto; width: 42px; height: 24px; min-height: 0; padding: 0; margin: 0; border: 0; border-radius: 999px; background: rgba(255,255,255,.14); position: relative; cursor: pointer; transition: background .18s; vertical-align: middle; }
+input[type="checkbox"]:not(.ck-sw):not(.switch)::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); transition: transform .2s cubic-bezier(.3,1.4,.5,1); }
+input[type="checkbox"]:not(.ck-sw):not(.switch):checked { background: var(--t-a, var(--accent, #ff6b2c)); }
+input[type="checkbox"]:not(.ck-sw):not(.switch):checked::after { transform: translateX(18px); }
+input[type="checkbox"]:not(.ck-sw):not(.switch):disabled { opacity: .45; cursor: default; }
+input[type="checkbox"]:not(.ck-sw):not(.switch):focus-visible { outline: 2px solid rgba(255,255,255,.6); outline-offset: 2px; }
+.voice-open input[type="checkbox"] { order: 2; } .voice-open span { flex: 1; }
+/* in-game mic button: round, hold to talk, the ring follows my voice level */
+.vb-wrap { position: relative; display: inline-flex; align-items: center; }
+.voice-mic { --lv: 0; position: relative; width: 58px; height: 58px; border-radius: 50%; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  border: 2px solid rgba(255,255,255,.18); background: rgba(14,19,16,.82); color: #c9cfc4; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  transition: background .12s, border-color .12s, transform .08s; backdrop-filter: blur(6px); }
+.voice-mic svg { width: 22px; height: 22px; fill: currentColor; }
+.voice-mic .vb-t { font-size: 9px; font-weight: 700; line-height: 1; white-space: nowrap; letter-spacing: .02em; }
+.voice-mic .vb-ring { position: absolute; inset: -6px; border-radius: 50%; border: 3px solid #43d17a; opacity: 0; transform: scale(calc(.9 + var(--lv) * .25)); transition: transform .06s linear, opacity .12s; pointer-events: none; }
+.voice-mic.on { border-color: rgba(67,209,122,.55); color: #8ff0b4; }
+.voice-mic.talk { background: #2fa85f; border-color: #6fe39b; color: #fff; transform: scale(1.06); box-shadow: 0 0 0 4px rgba(67,209,122,.25), 0 6px 18px rgba(0,0,0,.35); }
+.voice-mic.talk .vb-ring { opacity: calc(.35 + var(--lv) * .65); }
+.voice-mic.open.talk { background: #e0603a; border-color: #ff9a76; box-shadow: 0 0 0 4px rgba(255,107,44,.25), 0 6px 18px rgba(0,0,0,.35); }
+.voice-mic.open.talk .vb-ring { border-color: #ff9a76; }
+.voice-mic:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.voice-off { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; min-height: 0; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); background: #1b211d; color: #c9cfc4; font-size: 14px; line-height: 1; display: grid; place-items: center; cursor: pointer; }
+.voice-off:hover { background: #3a1d1d; color: #fff; }
+@media (pointer: fine) { .voice-mic { width: 50px; height: 50px; } .voice-mic svg { width: 19px; height: 19px; } }
+@media (prefers-reduced-motion: reduce) { .voice-mic, .voice-mic .vb-ring { transition: none; } }
+.vb-wrap.t-mic { position: absolute; pointer-events: auto; right: max(258px, calc(env(safe-area-inset-right, 0px) + 258px)); bottom: max(124px, calc(env(safe-area-inset-bottom, 0px) + 124px)); }
+body.touch:has(#shop:not([hidden])) .vb-wrap.t-mic { visibility: hidden; }
+@media (max-height: 500px) { .vb-wrap.t-mic { bottom: 118px; right: max(250px, calc(env(safe-area-inset-right, 0px) + 250px)); } .vb-wrap.t-mic .voice-mic { width: 52px; height: 52px; } }

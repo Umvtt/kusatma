@@ -64,12 +64,21 @@ export class HostNet {
           opened = true; finished = true; clearTimeout(timer);
           this.peer = peer; this.code = code;
           peer.on('connection', (conn) => this.accept(conn));
-          // signalling server dropped us: reconnect so new players can still find the room (never while shutting down)
-          peer.on('disconnected', () => { if (this.closing) return; setTimeout(() => { try { if (!this.closing && !peer.destroyed) peer.reconnect(); } catch (e) { /* ignore */ } }, 1000); });
+          // signalling server dropped us: keep reconnecting (1, 2, 4… up to 15 s apart) until it works, so players who
+          // drop out can always find the room again. A watchdog also checks every 10 s in case an attempt failed quietly.
+          this.sigTries = 0;
+          const retry = () => {
+            if (this.closing || peer.destroyed || !peer.disconnected || this.sigT) return;
+            const wait = Math.min(15000, 1000 * 2 ** Math.min(4, this.sigTries++));
+            this.sigT = setTimeout(() => { this.sigT = 0; if (this.closing || peer.destroyed || !peer.disconnected) return; try { peer.reconnect(); } catch (e) { /* ignore */ } setTimeout(retry, 3000); }, wait);
+          };
+          peer.on('disconnected', () => { if (this.onSig) this.onSig('lost'); retry(); });
+          peer.on('open', () => { if (this.sigTries && this.onSig) this.onSig('back'); this.sigTries = 0; });
+          this.sigWatch = setInterval(() => { if (!this.closing && !peer.destroyed && peer.disconnected) retry(); }, 10000);
           resolve(code);
         });
         peer.on('error', (e) => {
-          if (opened) { console.warn('PeerJS:', e.type); return; }
+          if (opened) { console.warn('PeerJS:', e.type); return; } // the watchdog above brings a dropped signalling link back
           peer.destroy();
           if (finished) return;
           if (e.type === 'unavailable-id' && fixed) setTimeout(() => { if (!finished) attempt(n + 1); }, 1500);
@@ -96,8 +105,8 @@ export class HostNet {
       const info = { pid: this.nextPid++, conn, player: false, tokens: MSG_BURST, win: performance.now(), last: performance.now() };
       this.conns.set(info.pid, info);
       conn.on('data', (d) => this.receive(info, d));
-      conn.on('close', () => this.drop(info));
-      conn.on('error', (e) => { if (!e || e.type !== 'message-too-big') this.drop(info); });
+      conn.on('close', () => { info.why = info.why || 'closed'; this.drop(info); });
+      conn.on('error', (e) => { if (!e || e.type !== 'message-too-big') { info.why = info.why || 'error' + (e && e.type ? ':' + e.type : ''); this.drop(info); } });
       setTimeout(() => { if (this.conns.get(info.pid) === info && !info.player) this.close(info.pid); }, 6000);
     });
   }
@@ -111,13 +120,15 @@ export class HostNet {
     let size = 0;
     try { size = JSON.stringify(d).length; } catch (e) { size = Infinity; }
     info.tokens -= size > MAX_MSG_CHARS ? 20 : 1;
-    if (info.tokens < 0) { this.kick(info.pid, 'spam'); return; }
+    if (info.tokens < 0) { info.why = 'spam'; this.kick(info.pid, 'spam'); return; }
     if (size > MAX_MSG_CHARS) return;
     if (d && d.t === 'p') return; // keep-alive
     if (this.onMsg) this.onMsg(info.pid, d);
   }
 
   markPlayer(pid) { const i = this.conns.get(pid); if (i) i.player = true; }
+  // how long this player's link has been quiet (ms); a link that is gone counts as quiet forever
+  silentFor(pid) { const i = this.conns.get(pid); return i ? performance.now() - i.last : Infinity; }
   peerIdOf(pid) { const i = this.conns.get(pid); return i && i.conn ? i.conn.peer : null; }
 
   // A reconnecting player gets their old player number back. A stale link still holding that number is closed quietly.
@@ -170,9 +181,11 @@ export class HostNet {
   kick(pid, reason) {
     const i = this.conns.get(pid);
     if (!i) return;
+    i.why = i.why || 'kick:' + reason;
     this.send(pid, { t: 'bye', r: reason });
+    const was = i.player;
     i.player = false; // no more broadcasts to someone on the way out
-    if (this.onLeave) this.onLeave(pid);
+    if (was && this.onLeave) this.onLeave(pid, i.why, 0);
     setTimeout(() => this.close(pid), 200);
   }
 
@@ -187,18 +200,19 @@ export class HostNet {
   drop(info) {
     if (this.conns.get(info.pid) !== info) return;
     this.conns.delete(info.pid);
-    if (info.player && this.onLeave) this.onLeave(info.pid);
+    if (info.player && this.onLeave) this.onLeave(info.pid, info.why || 'closed', Math.round(performance.now() - info.last));
   }
 
   // Called on a steady timer: keep-alives out, silent players out.
   maintain() {
     const now = performance.now();
     this.broadcast({ t: 'p' });
-    for (const i of [...this.conns.values()]) if (now - i.last > HOST_STALE_MS) this.close(i.pid);
+    for (const i of [...this.conns.values()]) if (now - i.last > HOST_STALE_MS) { i.why = 'silent'; this.close(i.pid); }
   }
 
   destroy() {
     this.closing = true;
+    clearInterval(this.sigWatch); clearTimeout(this.sigT);
     for (const i of this.conns.values()) { try { i.conn.close(); } catch (e) { /* ignore */ } try { if (i.u) i.u.close(); } catch (e) { /* ignore */ } }
     this.conns.clear();
     if (this.peer) { try { this.peer.destroy(); } catch (e) { /* ignore */ } }
@@ -210,6 +224,7 @@ export class HostNet {
 export class OfflineNet {
   constructor() { this.code = null; this.onMsg = null; this.onLeave = null; this.offline = true; }
   markPlayer() {}
+  silentFor() { return 0; }
   rebind() { return false; }
   send() {}
   broadcast() {}
@@ -278,8 +293,8 @@ export class ClientNet {
           } catch (e) { /* the main channel carries everything */ }
         });
         conn.on('data', onData);
-        conn.on('close', () => { if (settled) this.lost(); else fail('closed'); });
-        conn.on('error', (e) => { if (e && e.type === 'message-too-big') return; if (settled) this.lost(); else fail('closed'); });
+        conn.on('close', () => { if (settled) this.lost('closed'); else fail('closed'); });
+        conn.on('error', (e) => { if (e && e.type === 'message-too-big') return; if (settled) this.lost('error' + (e && e.type ? ':' + e.type : '')); else fail('closed'); });
       });
       peer.on('error', (e) => { if (!settled) fail(e.type || 'error'); });
       peer.on('disconnected', () => { /* signalling only; the game link stays up */ });
@@ -294,12 +309,16 @@ export class ClientNet {
   maintain() {
     if (this.closed) return;
     this.send({ t: 'p' });
-    if (performance.now() - this.last > CLIENT_STALE_MS) this.lost();
+    // a phone in the background runs timers late: that is not a dead link, so only count silence while the page is shown
+    if (typeof document !== 'undefined' && document.hidden) { this.hiddenAt = performance.now(); return; }
+    if (this.hiddenAt && performance.now() - this.hiddenAt < 4000) return; // just came back: give the next ping a moment
+    if (performance.now() - this.last > CLIENT_STALE_MS) this.lost('silent');
   }
 
-  lost() {
+  lost(why) {
     if (this.closed) return;
     this.closed = true;
+    this.why = why || 'closed';
     if (this.onClose) this.onClose();
   }
 

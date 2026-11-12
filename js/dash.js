@@ -347,10 +347,14 @@ function homePage(sec) {
   loadQuests().then((j) => { if (j) ql.replaceChildren(...j.q.map((q, i) => questRow(q, i, true))); else ql.replaceChildren(el('p', 'note', 'Görevler yüklenemedi.')); });
 
   const row2 = el('div', 'dp-cols');
-  const rooms = card('Açık odalar', btn('btn small ghost', 'Tümü', () => dashGo('play')));
+  const ra = el('div', 'row card-acts');
+  const rr = btn('btn small ghost', 'Yenile', () => { if (rr.disabled) return; rr.disabled = true; loadRooms(); setTimeout(() => { rr.disabled = false; }, 5000); }); // at most once every 5 s
+  ra.append(rr, btn('btn small ghost', 'Tümü', () => dashGo('play')));
+  const rooms = card('Açık odalar', ra);
   const ul = el('ul', 'dp-rooms'); ul.append(el('li', 'empty', 'Yükleniyor…')); rooms.append(ul);
   ul.dataset.rooms = '4';
-  roomsGet().then((j) => ul.replaceChildren(...H.roomItems(j.ok ? j.rooms : null, 4)));
+  const loadRooms = () => roomsGet().then((j) => ul.replaceChildren(...H.roomItems(j.ok ? j.rooms : null, 4)));
+  loadRooms();
   const st = card('İstatistiklerin');
   st.append(statList());
   row2.append(rooms, st);
@@ -358,7 +362,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Android uygulaması 45.0: oyun kapalıyken bile mesaj, arkadaşlık isteği ve klan davetleri telefonuna bildirim olarak gelir.', 'Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
+const WHATS_NEW = ['Yeni mikrofon düğmesi: basılı tut konuş, kısa dokun mikrofonu açık bırak. Telefonda artık oyunda da görünüyor.', 'Hacker\'ın ele geçirdiği zombilerin ısırdığı zombilerin ölmemesi düzeltildi.', 'Odadan düşenler ve sayfayı yenileyenler yerlerine geri dönebiliyor.', 'Android uygulaması 45.0: oyun kapalıyken bile mesaj, arkadaşlık isteği ve klan davetleri telefonuna bildirim olarak gelir.', 'Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -562,7 +566,16 @@ function drawSeason(sec, body) {
     pc.append(t, b); nodes.push(pc);
   }
   const track = el('div', 'sp-track');
-  const lab = el('div', 'sp-col sp-lab'); lab.append(el('span', 'sp-tn', ''), el('span', 'sp-lf', 'Ücretsiz'), el('span', 'sp-lp', 'Premium'));
+  const lab = el('div', 'sp-col sp-lab');
+  // the two rows' name cards: an icon, the track's name and whether it is open for this player
+  const trackCard = (cls, svg, name, sub) => {
+    const c = el('div', 'sp-rl ' + cls), ic = el('span', 'sp-rl-ic');
+    ic.innerHTML = svg; c.append(ic, el('strong', '', name), el('small', '', sub)); return c;
+  };
+  lab.append(
+    el('span', 'sp-tn sp-tn-l', 'Kademe'),
+    trackCard('free', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-2.2A3 3 0 0 0 12 4.4 3 3 0 0 0 6.2 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h.5v7a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7h.5a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1Zm-6-1a1 1 0 1 1 1 1h-1.5ZM9 6a1 1 0 0 1 1-1 1 1 0 0 1 1 1v1H9.5A1 1 0 0 1 9 6Zm2 14H6.5v-8H11Zm0-10H5V9h6Zm6.5 10H13v-8h4.5ZM19 10h-6V9h6Z"/></svg>', 'Ücretsiz', 'Herkese açık'),
+    trackCard('prem' + (j.prem ? ' on' : ''), '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5 7.5 11 12 4l4.5 7L21 7.5 19 18H5Zm2.2 12.5h13.6a1 1 0 0 1 0 2H5.2a1 1 0 0 1 0-2Z"/></svg>', 'Premium', j.prem ? 'Açık' : 'Kilitli'));
   track.append(lab);
   for (let t = 1; t <= 30; t++) {
     const T = j.tiers[t - 1], col = el('div', 'sp-col' + (t <= j.tier ? ' done' : '') + (t === j.tier + 1 ? ' next' : ''));

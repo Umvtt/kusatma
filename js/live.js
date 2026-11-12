@@ -128,7 +128,7 @@ function connect() {
   try { s = new WebSocket(ADDRS[idx] + '/klive'); } catch (e) { retry(); return; }
   ws = s;
   let opened = false;
-  s.onopen = () => { opened = true; delay = 3000; hi(true); };
+  s.onopen = () => { opened = true; delay = 3000; hi(true); const q = cnQ.splice(0); for (const m of q) send(m); };
   s.onmessage = (e) => { if (typeof e.data === 'string' && e.data !== 'pong') onData(e.data); };
   s.onclose = () => { if (ws !== s) return; ws = null; if (!opened) idx = (idx + 1) % ADDRS.length; retry(); };
   s.onerror = () => { try { s.close(); } catch (e) { /* ignore */ } };
@@ -218,6 +218,14 @@ export function liveChat(name, text) {
   chatQ.push([str(name, 16), str(text, 100)]);
   const go = () => { clearTimeout(chatT); chatT = 0; if (chatQ.length) send({ e: 'ch', L: chatQ.splice(0, 10) }); };
   if (chatQ.length >= 10) go(); else if (!chatT) chatT = setTimeout(go, 4000);
+}
+// connection troubles for the owner's log (why someone dropped, rejoined or could not get in); kept for a moment if the
+// live socket is down, since that is often exactly when they happen
+const cnQ = [];
+export function liveConn(o) {
+  const c = navigator.connection || {};
+  const m = { e: 'cn', r: str(o.r, 12), why: str(o.why, 40), room: str(o.room, 6), who: str(o.who, 16), secs: Math.max(0, Math.round(o.secs || 0)), tries: o.tries | 0, ping: Math.round(o.ping || 0), net: str(c.effectiveType || '', 10) };
+  if (sockOk()) send(m); else { cnQ.push(m); if (cnQ.length > 6) cnQ.shift(); }
 }
 export function liveCheat(r) { send({ e: 'ac', name: str(r.name, 16), acct: str(r.acct, 12), kind: str(r.kind, 12), d: str(r.detail, 80), w: r.wave | 0 }); }
 // invite an online friend into the room this player is in (the server checks both sides)

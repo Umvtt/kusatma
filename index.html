@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=48">
-  <link rel="stylesheet" href="css/dash.css?v=48">
+  <link rel="stylesheet" href="css/style.css?v=49">
+  <link rel="stylesheet" href="css/dash.css?v=49">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -284,7 +284,7 @@
     </div>
 
     <div class="hud-br">
-      <div class="hud-br-row"><button id="btn-voice" class="btn small voice-btn" type="button" aria-pressed="false" hidden title="Sesli sohbet (konuşmak için V'ye basılı tut)">🎙 Sesli sohbet</button>
+      <div class="hud-br-row"><span class="vb-wrap"><button id="btn-voice" class="voice-mic" type="button" aria-pressed="false" hidden title="Sesli sohbet: basılı tut konuş, kısa dokun mikrofonu açık bırak (bilgisayarda V)"><span class="vb-ring" aria-hidden="true"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11Z"/></svg><span class="vb-t">Ses</span></button><button id="btn-voice-off" class="voice-off" type="button" hidden title="Sesli sohbeti kapat" aria-label="Sesli sohbeti kapat">×</button></span>
       <button id="btn-mute" class="btn small" type="button" aria-pressed="false">Ses açık</button></div>
       <span class="hint"><kbd>Esc</kbd> menü · <kbd>Enter</kbd> sohbet · <kbd>Tab</kbd> skorlar</span>
     </div>
@@ -571,7 +571,7 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=48","./js/client.js":"./js/client.js?v=48","./js/config.js":"./js/config.js?v=48","./js/consent.js":"./js/consent.js?v=48","./js/dash.js":"./js/dash.js?v=48","./js/host.js":"./js/host.js?v=48","./js/live.js":"./js/live.js?v=48","./js/mapgen.js":"./js/mapgen.js?v=48","./js/net.js":"./js/net.js?v=48","./js/voice.js":"./js/voice.js?v=48","./js/pvp.js":"./js/pvp.js?v=48","./js/render.js":"./js/render.js?v=48","./js/scene.js":"./js/scene.js?v=48","./js/settings.js":"./js/settings.js?v=48","./js/sfx.js":"./js/sfx.js?v=48","./js/world.js":"./js/world.js?v=48"}}</script>
-  <script type="module" src="js/main.js?v=48"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=49","./js/client.js":"./js/client.js?v=49","./js/config.js":"./js/config.js?v=49","./js/consent.js":"./js/consent.js?v=49","./js/dash.js":"./js/dash.js?v=49","./js/host.js":"./js/host.js?v=49","./js/live.js":"./js/live.js?v=49","./js/mapgen.js":"./js/mapgen.js?v=49","./js/net.js":"./js/net.js?v=49","./js/voice.js":"./js/voice.js?v=49","./js/pvp.js":"./js/pvp.js?v=49","./js/render.js":"./js/render.js?v=49","./js/scene.js":"./js/scene.js?v=49","./js/settings.js":"./js/settings.js?v=49","./js/sfx.js":"./js/sfx.js?v=49","./js/world.js":"./js/world.js?v=49"}}</script>
+  <script type="module" src="js/main.js?v=49"></script>
 </body>
 </html>

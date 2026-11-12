@@ -7,6 +7,9 @@ export const voiceOn = () => V.on;
 export const voiceTalking = () => V.on && (V.open || V.talk);
 export const voiceLevel = (pid) => V.levels.get(pid) || 0;
 export const voiceMuted = (pid) => V.muted.has(pid);
+export const voiceIsOpen = () => V.open;
+// my own microphone level (0 while the track is off), for the talk button's ring
+export function voiceSelfLevel() { if (!V.on || !V.self || !(V.open || V.talk)) return 0; V.self(); return V.levels.get('me') || 0; }
 
 function setTrack() { if (V.stream) for (const t of V.stream.getAudioTracks()) t.enabled = V.open || V.talk; }
 export function voiceOpen(on) { V.open = !!on; setTrack(); }
@@ -43,6 +46,7 @@ export async function voiceStart(peer) {
   if (!peer || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
   try { V.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); } catch (e) { return false; }
   V.on = true; V.peer = peer; setTrack();
+  V.self = meter('me', V.stream);
   if (!peer.__voice) {
     peer.__voice = true;
     peer.on('call', (call) => {
@@ -56,7 +60,7 @@ export async function voiceStart(peer) {
   return true;
 }
 export function voiceStop() {
-  V.on = false; V.talk = false;
+  V.on = false; V.talk = false; V.self = null; V.levels.delete('me');
   for (const [, c] of V.calls) { try { c.call.close(); } catch (e) { /* ignore */ } if (c.audio) c.audio.remove(); }
   V.calls.clear(); V.levels.clear();
   if (V.stream) for (const t of V.stream.getTracks()) t.stop();

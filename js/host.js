@@ -240,7 +240,17 @@ export class HostGame {
         }
       }
       // someone who dropped and comes back with the same name takes their old place; a full room makes room by dropping the oldest dropped player
-      { const nm = nkey(cleanName(m.name, pid)), same = [...this.players.values()].find((q) => q.ghost && nkey(q.name) === nm); if (same) this.removePlayer(same.pid); }
+      // the same name whose old link has gone quiet is almost always that player reloading or reconnecting: they take that
+      // place back (keeping their progress) instead of being turned away as a second copy or by a "full" room
+      { const nm = nkey(cleanName(m.name, pid)), same = [...this.players.values()].find((q) => nkey(q.name) === nm && q.pid !== this.hostPid && (q.ghost || (this.net.silentFor && this.net.silentFor(q.pid) > 4000)));
+        if (same && this.net.rebind(pid, same.pid)) {
+          this.net.markPlayer(same.pid);
+          if (same.ghost) { same.ghost = false; same.inGame = !!same.wasInGame; if (same.inGame) this.catchUp(same); }
+          this.sendTo(same.pid, { t: 'w', pid: same.pid, tok: same.tok });
+          this.pushRoster();
+          return;
+        }
+        if (same) this.removePlayer(same.pid); }
       if ([...this.players.values()].filter((q) => !q.ghost).length >= this.maxP) { this.net.kick(pid, 'full'); return; }
       if (this.players.size >= this.maxP) { const g = [...this.players.values()].filter((q) => q.ghost).sort((a, b) => a.ghostAt - b.ghostAt)[0]; if (g) this.removePlayer(g.pid); }
       this.net.markPlayer(pid);
@@ -761,7 +771,7 @@ export class HostGame {
       const n = c.ab.n + (L >= 1 ? 1 : 0), R = c.ab.r, cone = 0.55, now = this.time;
       const cand = [];
       for (const z of this.zombies) {
-        if (z.dead || isBoss(z.t) || z.ally) continue;
+        if (z.dead || isBoss(z.t) || z.ally || z.st === ZS.BURROW) continue; // a burrowed Kazıcı can't be reached
         const dx = z.x - p.x, dy = z.y - p.y, d = Math.hypot(dx, dy);
         let da = Math.atan2(dy, dx) - p.a; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
         if (d < R && Math.abs(da) < cone) cand.push([d, z]);
@@ -1966,8 +1976,12 @@ export class HostGame {
       const R = 80 * (z.allyB || 1);
       z.ally = 0;
       this.ev(['x', Math.round(z.x), Math.round(z.y), Math.round(R)]);
-      for (const o of this.zombies) if (o !== z && !o.dead && Math.hypot(o.x - z.x, o.y - z.y) < R + ZTYPES[o.t].r) this.damage(o, 60 * (z.allyK || 1) * (z.allyB || 1), owner || null);
-      this.damage(z, z.hp + 1, owner || null);
+      // other hacked zombies are still on our side: the blast spares them
+      for (const o of this.zombies) if (o !== z && !o.dead && !o.ally && Math.hypot(o.x - z.x, o.y - z.y) < R + ZTYPES[o.t].r) this.damage(o, 60 * (z.allyK || 1) * (z.allyB || 1), owner || null);
+      // the hacked zombie always dies here, whatever its armour or state, so none is ever left behind
+      if (z.st === ZS.BURROW) z.st = ZS.NORMAL;
+      z.hp = 0.01; this.damage(z, 1, owner || null);
+      if (!z.dead) { z.dead = true; this.zIndex.delete(z.id); }
       return;
     }
     let best = null, bd = 700 * 700;
@@ -1975,12 +1989,13 @@ export class HostGame {
     if (!best) { this.wander(z, T, dt); return; }
     const dx = best.x - z.x, dy = best.y - z.y, d = Math.hypot(dx, dy) || 1, reach = T.r + ZTYPES[best.t].r + 4;
     if (d > reach) { const sp = T.spd * z.sm * 1.15 * dt; moveCircle(z, dx / d * Math.min(sp, d - reach), dy / d * Math.min(sp, d - reach), T.r); z.dx = dx / d; z.dy = dy / d; }
-    else if (z.cd <= 0) { z.cd = 0.7; this.damage(best, Math.max(12, T.dmg * 2) * (z.allyK || 1), owner); this.ev(['bt', Math.round(best.x), Math.round(best.y)]); }
+    else if (z.cd <= 0) { z.cd = 0.7; this.damage(best, Math.max(12, (T.dps || 10) * 2) * (z.allyK || 1), owner); this.ev(['bt', Math.round(best.x), Math.round(best.y)]); }
     this.separate(z, T, grid, hw, HC, dt, 0);
   }
 
   damage(z, d, p) {
-    if (z.dead || z.st === ZS.BURROW) return;
+    if (z.dead || z.st === ZS.BURROW || !(d > 0)) return; // NaN or negative damage is ignored
+    if (Number.isNaN(z.hp)) z.hp = 1; // a broken health value never makes a zombie unkillable
     if (z.el === 4) d *= 0.55;
     const dealt = Math.min(d, z.hp);
     z.hp -= d;

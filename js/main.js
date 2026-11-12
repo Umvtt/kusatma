@@ -9,12 +9,12 @@ import { dashPage, dashGo } from './dash.js';
 import { dashInit, dashShow, dashRefresh, dashSoft, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar } from './dash.js';
 import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
-import { voiceOn, voiceStart, voiceStop, voiceSync, voicePtt, voiceOpen, voiceLevel, voiceMute, voiceMuted, voiceTalking } from './voice.js';
+import { voiceOn, voiceStart, voiceStop, voiceSync, voicePtt, voiceOpen, voiceLevel, voiceMute, voiceMuted, voiceTalking, voiceSelfLevel } from './voice.js';
 import { consentStart, manage as cookieSettings } from './consent.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings, QUALITY, QORDER, QUAL } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePvp, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveChat } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePvp, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveConn, liveChat } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -155,7 +155,8 @@ async function createRoom(offline, opts) {
   S.game = new ClientGame(send, 1);
   S.host.local = onMessage;
   net.onMsg = (pid, m) => S.host.onMsg(pid, m);
-  net.onLeave = (pid) => S.host.playerLost(pid);
+  net.onLeave = (pid, why, ms) => { const q = S.host && S.host.players.get(pid); if (q && why !== 'kick:left') liveConn({ r: why === 'spam' ? 'spam' : String(why).startsWith('kick:') ? 'kick' : 'lost', why: why + (ms > 1500 ? ', silent ' + Math.round(ms / 1000) + ' s' : ''), who: q.name, room: S.roster && S.roster.code, ping: q.ping }); S.host.playerLost(pid); };
+  net.onSig = (k) => liveConn({ r: k === 'lost' ? 'sig' : 'sigok', room: net.code });
   S.host.addPlayer(1, name || 'Kurucu');
   if (ACCT && ME.pass) S.host.setPass(1, ME.pass);
   S.roomName = '';
@@ -182,6 +183,7 @@ async function joinRoom() {
   } catch (e) {
     busy(false);
     const r = e && e.message;
+    liveConn({ r: 'join', why: r || 'error', room: code });
     menuMsg(r === 'peer-unavailable' ? 'Bu kodla bir oda bulunamadı. Kodu kontrol et.'
       : r === 'peerjs-missing' ? 'Bağlantı kütüphanesi yüklenemedi. Sayfayı yenile.'
       : r === 'timeout' ? 'Odaya bağlanılamadı. Kodu kontrol et ya da tekrar dene.'
@@ -196,6 +198,7 @@ async function joinRoom() {
   net.onClose = hostLost;
   S.name = name;
   net.send({ t: 'hello', v: VERSION, name, ps: ACCT ? ME.pass : '' });
+  S.joinedAt = performance.now();
   startTicker();
 }
 
@@ -233,6 +236,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // and everyone else reconnects to them. Everyone keeps their class, gold and upgrades.
 function hostLost() {
   const r = S.roster;
+  liveConn({ r: 'lost', why: (S.net && S.net.why) || 'closed', room: r && r.code, secs: S.joinedAt ? (performance.now() - S.joinedAt) / 1000 : 0, ping: S.game && S.game.ping });
   if (S.role !== 'client' || !r || !r.code || S.rejoining) { leave('Kurucuyla bağlantı koptu. Oda kapanmış olabilir.'); return; }
   S.rejoining = true;
   const old = S.net; S.net = null;
@@ -243,7 +247,7 @@ function hostLost() {
 async function reconnect(code, canTakeOver) {
   toast('Bağlantı koptu. Yeniden bağlanılıyor…');
   const until = performance.now() + 40000;
-  let first = true;
+  let first = true, tries = 0;
   while (S.rejoining && performance.now() < until) {
     if (!first) await sleep(1500);
     first = false;
@@ -251,6 +255,7 @@ async function reconnect(code, canTakeOver) {
     // still a room under this code? (a live host, or someone who already took over)
     const net = new ClientNet();
     let ok = true;
+    tries++;
     try { await net.connect(code, 5000); } catch (e) { ok = false; net.destroy(); }
     if (!S.rejoining) { if (ok) net.destroy(); return; }
     if (ok) {
@@ -260,6 +265,7 @@ async function reconnect(code, canTakeOver) {
       S.rejoining = false;
       net.send({ t: 'hello', v: VERSION, name: S.name || '', rejoin: { pid: S.me, tok: S.tok }, ps: ACCT ? ME.pass : '' });
       toast('Yeniden bağlandın.', 'good');
+      liveConn({ r: 'back', room: code, tries });
       return;
     }
     // nobody answers: the next in line takes the room over
@@ -271,7 +277,7 @@ async function reconnect(code, canTakeOver) {
       if (got) { becomeHost(host); return; }
     }
   }
-  if (S.rejoining) leave('Kurucuyla bağlantı koptu ve oyun devam ettirilemedi.');
+  if (S.rejoining) { liveConn({ r: 'fail', room: code, tries }); leave('Kurucuyla bağlantı koptu ve oyun devam ettirilemedi.'); }
 }
 
 function becomeHost(net) {
@@ -281,7 +287,8 @@ function becomeHost(net) {
   S.role = 'host'; S.net = net; S.host = host; S.rejoining = false; S.backup = null;
   host.local = onMessage;
   net.onMsg = (pid, m) => host.onMsg(pid, m);
-  net.onLeave = (pid) => host.playerLost(pid);
+  net.onLeave = (pid, why, ms) => { const q = host && host.players.get(pid); if (q && why !== 'kick:left') liveConn({ r: why === 'spam' ? 'spam' : String(why).startsWith('kick:') ? 'kick' : 'lost', why: why + (ms > 1500 ? ', silent ' + Math.round(ms / 1000) + ' s' : ''), who: q.name, room: S.roster && S.roster.code, ping: q.ping }); host.playerLost(pid); };
+  net.onSig = (k) => liveConn({ r: k === 'lost' ? 'sig' : 'sigok', room: net.code });
   host.pushRoster();
   toast('Kurucu ayrıldı. Artık kurucu sensin, diğerleri yeniden bağlanıyor.', 'good');
 }
@@ -307,7 +314,7 @@ function onMessage(m) {
     case 's': if (S.game) S.game.onSnap(m); break;
     case 'o': if (S.role === 'spec') { S.over = m; break; } if (S.roster && m.P) m.tm = m.time; if (S.roster) recentAdd(S.roster.players.filter((p) => p.pid !== S.me)); liveGameEnd(); S.over = m; if (m.pvp) { S.pvpRank = null; if (S.role === 'host') livePvp(m); renderOver(); if (S.roster) route(); break; } m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '', tm: m.time | 0, gm: S.roster ? S.roster.mode || 'normal' : 'normal', solo: S.role === 'host' && !online() ? 1 : 0 }); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
-    case 'bye': leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
+    case 'bye': if (m.r !== 'left') liveConn({ r: ['kick', 'spam', 'full', 'version'].includes(m.r) ? m.r : 'kick', why: m.r || '', room: S.roster && S.roster.code, secs: S.joinedAt ? (performance.now() - S.joinedAt) / 1000 : 0 }); leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
     case 'bk': if (S.role === 'client') { if (m.s && typeof m.s === 'object') S.backup = m.s; else if (typeof m.j === 'string' && m.j.length < 400000) { try { const b = JSON.parse(m.j); if (b && typeof b === 'object') S.backup = b; } catch (e) { /* ignore */ } } } break;
     default: break;
   }
@@ -733,9 +740,17 @@ function renderOver() {
 }
 $('#btn-over-lobby').addEventListener('click', () => send({ t: 'lobby' }));
 // ---------- voice chat ----------
-// push-to-talk: hold V (or hold the mic button on a phone); "Hep açık" in the lobby keeps the microphone open
+// The mic button: tap once to turn voice on. Then hold it to talk (the finger may slide off it, talking stops only
+// when it lifts), or tap it quickly to leave the microphone open and tap again to close it. V does the same on a
+// keyboard (hold to talk, tap to leave open). The small × beside it turns voice off. "Mikrofon hep açık" in the lobby
+// is the same open-mic switch.
 let voiceOpenPref = false;
 try { voiceOpenPref = localStorage.getItem('kusatma-mik') === '1'; } catch (e) { /* ignore */ }
+function setOpenMic(on) {
+  voiceOpenPref = !!on;
+  try { localStorage.setItem('kusatma-mik', on ? '1' : '0'); } catch (e) { /* ignore */ }
+  voiceOpen(voiceOpenPref); voiceUi();
+}
 async function toggleVoice() {
   if (voiceOn()) { voiceStop(); send({ t: 'voice', on: false }); voiceUi(); return; }
   if (!S.net || !S.net.peer) { toast('Sesli sohbet için bir odada olmalısın.'); return; }
@@ -743,37 +758,67 @@ async function toggleVoice() {
   if (!ok) { toast('Mikrofona izin verilmedi. Tarayıcının adres çubuğundan izin verebilirsin.', 'bad'); return; }
   voiceOpen(voiceOpenPref);
   send({ t: 'voice', on: true });
-  toast(voiceOpenPref ? 'Sesli sohbet açık, mikrofon hep açık.' : IS_TOUCH ? 'Sesli sohbet açık. Konuşmak için mikrofon düğmesine basılı tut.' : 'Sesli sohbet açık. Konuşmak için V tuşuna basılı tut.', 'good');
+  toast(voiceOpenPref ? 'Sesli sohbet açık, mikrofonun açık.' : IS_TOUCH ? 'Sesli sohbet açık. Basılı tut konuş, kısa dokun mikrofonu açık bırak.' : 'Sesli sohbet açık. V\'ye basılı tut konuş, kısa bas mikrofonu açık bırak.', 'good');
   voiceUi();
 }
+function voiceLabel() {
+  if (!voiceOn()) return 'Ses';
+  if (voiceTalking()) return voiceOpenPref ? 'Açık' : 'Konuşuyor';
+  return IS_TOUCH ? 'Basılı tut' : 'V: konuş';
+}
 function voiceUi() {
-  const r = S.roster, can = !!(r && r.code && S.net && S.net.peer);
-  for (const id of ['#btn-voice', '#lb-voice']) {
-    const b = $(id); if (!b) continue;
-    b.hidden = !can; b.setAttribute('aria-pressed', String(voiceOn()));
-    b.classList.toggle('on', voiceOn()); b.classList.toggle('talk', voiceTalking());
-    const t = !voiceOn() ? '🎙 Sesli sohbet' : voiceOpenPref ? '🎙 Mikrofon açık' : IS_TOUCH ? '🎙 Basılı tut, konuş' : '🎙 V: bas-konuş';
-    if (b.textContent !== t) b.textContent = t;
+  const r = S.roster, can = !!(r && r.code && S.net && S.net.peer), on = voiceOn(), talk = voiceTalking();
+  const hb = $('#btn-voice');
+  if (hb) {
+    hb.hidden = !can; hb.setAttribute('aria-pressed', String(on));
+    hb.classList.toggle('on', on); hb.classList.toggle('talk', talk); hb.classList.toggle('open', on && voiceOpenPref);
+    const t = hb.querySelector('.vb-t'), txt = voiceLabel(); if (t && t.textContent !== txt) t.textContent = txt;
+  }
+  const off = $('#btn-voice-off'); if (off) off.hidden = !can || !on;
+  const lb = $('#lb-voice');
+  if (lb) {
+    lb.hidden = !can; lb.setAttribute('aria-pressed', String(on)); lb.classList.toggle('on', on); lb.classList.toggle('talk', talk);
+    const t = !on ? '🎙 Sesli sohbeti aç' : '🎙 Sesli sohbeti kapat'; if (lb.textContent !== t) lb.textContent = t;
   }
   const o = $('#lb-vopen'); if (o) { o.hidden = !can; o.querySelector('input').checked = voiceOpenPref; }
 }
+// called every frame while voice is on: my microphone level drives the ring around the button
+function voiceTick() {
+  const hb = $('#btn-voice'); if (!hb || hb.hidden) return;
+  const lv = voiceOn() ? Math.min(1, voiceSelfLevel() / 22) : 0;
+  hb.style.setProperty('--lv', lv.toFixed(2));
+}
+const TAP_MS = 220;
 (function voiceButtons() {
   const hb = $('#btn-voice');
-  // phones: a tap turns voice on; once on, holding the button talks and a double tap turns it off
-  let downAt = 0, lastTap = 0;
-  hb.addEventListener('pointerdown', (e) => { e.preventDefault(); downAt = performance.now(); if (voiceOn()) { voicePtt(true); voiceUi(); } });
-  const up = () => { if (!downAt) return; const held = performance.now() - downAt; downAt = 0; voicePtt(false);
-    if (!voiceOn()) { toggleVoice(); return; }
-    if (held < 250) { const now = performance.now(); if (now - lastTap < 400 || !IS_TOUCH) { toggleVoice(); lastTap = 0; } else lastTap = now; }
-    voiceUi(); };
-  hb.addEventListener('pointerup', up); hb.addEventListener('pointercancel', up); hb.addEventListener('pointerleave', up);
-  // the lobby gets the same switch plus "Hep açık"
+  // phones hide the bottom-right HUD, so the mic joins the touch buttons (above Dipçik)
+  if (IS_TOUCH) { const w = hb.parentElement, pad = $('#touch'); if (w && pad) { w.classList.add('t-mic'); pad.append(w); } }
+  let downAt = 0, pid = null;
+  const start = () => { downAt = performance.now(); if (voiceOn() && !voiceOpenPref) { voicePtt(true); buzz(12); } voiceUi(); };
+  const end = (cancel) => {
+    if (!downAt) return;
+    const held = performance.now() - downAt; downAt = 0; pid = null;
+    voicePtt(false);
+    if (!cancel) {
+      if (!voiceOn()) toggleVoice();
+      else if (held < TAP_MS) { setOpenMic(!voiceOpenPref); buzz(voiceOpenPref ? 18 : 8); toast(voiceOpenPref ? 'Mikrofonun açık. Kapatmak için tekrar dokun.' : 'Mikrofon kapandı. Konuşmak için basılı tut.', voiceOpenPref ? 'good' : ''); }
+    }
+    voiceUi();
+  };
+  hb.addEventListener('pointerdown', (e) => { if (e.button > 0) return; e.preventDefault(); pid = e.pointerId; try { hb.setPointerCapture(pid); } catch (x) { /* ignore */ } start(); });
+  hb.addEventListener('pointerup', (e) => { if (pid !== null && e.pointerId !== pid) return; end(false); });
+  hb.addEventListener('pointercancel', () => end(true));
+  hb.addEventListener('lostpointercapture', () => { if (downAt) end(false); });
+  hb.addEventListener('contextmenu', (e) => e.preventDefault());
+  hb.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); if (!voiceOn()) toggleVoice(); else setOpenMic(!voiceOpenPref); } });
+  $('#btn-voice-off').addEventListener('click', () => { if (voiceOn()) toggleVoice(); });
+  // the lobby gets an on/off button plus "Mikrofon hep açık"
   const lc = $('#lchat');
   if (lc) {
     const row = el('div', 'voice-row');
-    const lb = el('button', 'btn small voice-btn', '🎙 Sesli sohbet'); lb.type = 'button'; lb.id = 'lb-voice'; lb.hidden = true; lb.onclick = () => toggleVoice();
+    const lb = el('button', 'btn small voice-btn', '🎙 Sesli sohbeti aç'); lb.type = 'button'; lb.id = 'lb-voice'; lb.hidden = true; lb.onclick = () => toggleVoice();
     const lab = el('label', 'voice-open'); lab.id = 'lb-vopen'; lab.hidden = true; const cb = el('input'); cb.type = 'checkbox';
-    cb.onchange = () => { voiceOpenPref = cb.checked; try { localStorage.setItem('kusatma-mik', cb.checked ? '1' : '0'); } catch (e) { /* ignore */ } voiceOpen(voiceOpenPref); voiceUi(); };
+    cb.onchange = () => setOpenMic(cb.checked);
     lab.append(cb, el('span', '', 'Mikrofon hep açık'));
     row.append(lb, lab); lc.before(row);
   }
@@ -1068,7 +1113,7 @@ function updateHud() {
 
   pvpHud(g);
   tutTick(g);
-  if (voiceOn() && S.roster) { voiceSync(S.roster, S.me); const b = $('#btn-voice'); if (b) b.classList.toggle('talk', voiceTalking()); }
+  if (voiceOn() && S.roster) { voiceSync(S.roster, S.me); voiceTick(); }
   { // my connection to the room's host
     let pc = $('#hud-ping'); if (!pc) { pc = el('span', 'ping-chip'); pc.id = 'hud-ping'; document.querySelector('.wave-box').append(pc); }
     const mp = g.ps.get(S.me), v = S.role === 'client' && mp ? mp.ping | 0 : 0; pc.hidden = !v;
@@ -1564,7 +1609,7 @@ window.addEventListener('keydown', (e) => {
   S.game.input.keys.add(e.code);
 });
 window.addEventListener('keyup', (e) => {
-  if (e.code === 'KeyV') voicePtt(false);
+  if (e.code === 'KeyV') { voicePtt(false); if (vKeyAt && voiceOn() && performance.now() - vKeyAt < TAP_MS) setOpenMic(!voiceOpenPref); vKeyAt = 0; voiceUi(); }
   if (!S.game) return;
   if (e.code === 'Tab') { $('#board').hidden = true; return; }
   S.game.input.keys.delete(e.code);
@@ -1603,7 +1648,8 @@ $('#btn-mute').addEventListener('click', () => { sfx.unlock(); setMute(sfx.toggl
 // browsers only allow sound after the first click or key press
 window.addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
 window.addEventListener('keydown', () => sfx.unlock(), { capture: true });
-window.addEventListener('keydown', (e) => { if (e.code === 'KeyV' && !e.repeat && voiceOn() && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))) { voicePtt(true); voiceUi(); } });
+let vKeyAt = 0;
+window.addEventListener('keydown', (e) => { if (e.code === 'KeyV' && !e.repeat && voiceOn() && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))) { vKeyAt = performance.now(); if (!voiceOpenPref) voicePtt(true); voiceUi(); } });
 
 // ---------- menu ----------
 try { const saved = localStorage.getItem('kusatma-ad'); if (saved) $('#name').value = saved; } catch (e) { /* ignore */ }
