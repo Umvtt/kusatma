@@ -385,7 +385,7 @@ export class HostGame {
   onHit(z, d, p, C, eff) {
     const now = this.time;
     if (z.ally) return; // a hacked zombie is on our side for now
-    if (p.cls === 'kilicci' && p.alive) { const h = Math.min(d, z.hp) * 0.06; if (now - (p.lsT || 0) > 1) { p.lsT = now; p.lsN = 0; } if (p.lsN < 30) { p.lsN += h; p.hp = Math.min(p.maxHp, p.hp + h); } }
+    if (p.cls === 'kilicci' && p.alive) { const h = Math.min(d, z.hp) * 0.09; if (now - (p.lsT || 0) > 1) { p.lsT = now; p.lsN = 0; } if (p.lsN < 40) { p.lsN += h; p.hp = Math.min(p.maxHp, p.hp + h); } }
     const boss = isBoss(z.t);
     if (z.acidT > now) d *= z.acidK || 1;
     if (eff && p.cls === 'alevci' && !(C.fx.burn)) this.ignite(z, C.dps * 0.15, 2, p.pid, false, false);

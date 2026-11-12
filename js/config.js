@@ -2,7 +2,7 @@
 
 export const VERSION = 19;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 49;
+export const BUILD = 50;
 // the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
 export const APP_BUILD = 47;
 export const MAX_PLAYERS = 20;
@@ -154,7 +154,7 @@ export const CLASSES = {
   },
   nisanci: {
     name: 'Nişancı', weapon: 'Dürbünlü tüfek', tiers: ['Dürbünlü tüfek', 'Uzun namlu', 'Keskin nişancı tüfeği'], desc: 'Az ama ölümcül atış. Mermiler sürüyü deler.',
-    hp: 90, spd: 210, dmg: 95, rate: 1.1, spread: 0.008, bspd: 1900, life: 0.9, pellets: 1, pierce: 3, kind: 'b', gun: 36,
+    hp: 110, spd: 210, dmg: 110, rate: 1.25, spread: 0.008, bspd: 1900, life: 0.9, pellets: 1, pierce: 3, kind: 'b', gun: 36,
     ab: { name: 'Odak', desc: '5 saniye boyunca iki kat hasar, mermiler her şeyi deler.', cd: 18, dur: 5 },
     pas: { name: 'Kafa avcısı', desc: '+%12 kritik vuruş şansı.' },
     bars: { can: 0.35, hiz: 0.5, hasar: 1 },
@@ -227,11 +227,11 @@ export const CLASSES = {
   },
   kilicci: {
     name: 'Kılıççı', weapon: 'Kılıç', tiers: ['Kılıç', 'Keskin kılıç', 'Ejder kılıcı'], desc: 'Yakın dövüşün ustası. Önündeki her şeyi tek savuruşta biçer.',
-    hp: 135, spd: 238, dmg: 44, rate: 2.3, spread: 0, bspd: 0, life: 0, pellets: 1, pierce: 6, kind: 'm', gun: 34, reach: 92, arc: 1.05,
-    ab: { name: 'Kasırga', desc: '3 saniye dönerek etrafındaki her şeyi biçer, aldığın hasar %40 azalır.', cd: 16, dur: 3, r: 115, dmg: 26 },
+    hp: 155, spd: 238, dmg: 56, rate: 2.3, spread: 0, bspd: 0, life: 0, pellets: 1, pierce: 6, kind: 'm', gun: 34, reach: 100, arc: 1.05,
+    ab: { name: 'Kasırga', desc: '3 saniye dönerek etrafındaki her şeyi biçer, aldığın hasar %40 azalır.', cd: 15, dur: 3, r: 125, dmg: 34 },
     look: 'blade',
     pas: { name: 'Kan emici', desc: 'Kılıç vuruşlarının bir kısmı sana can olarak döner.' },
-    bars: { can: 0.7, hiz: 0.7, hasar: 0.75 },
+    bars: { can: 0.8, hiz: 0.7, hasar: 0.85 },
   },
   egitmen: {
     name: 'Eğitmen', weapon: 'Tabanca', tiers: ['Tabanca', 'Ağır tabanca', 'Çift tabanca'], desc: 'Sadık köpeği zombileri yakalayıp tutar, o da arkadan bitirir.',
@@ -243,8 +243,8 @@ export const CLASSES = {
   },
   ajan: {
     name: 'Ajan', weapon: 'Susturuculu tabanca', tiers: ['Susturuculu tabanca', 'Gizli tabanca', 'Hayalet tabancası'], desc: 'Gölgelerde kaybolur, arkadan vurur, iz bırakmaz.',
-    hp: 95, spd: 240, dmg: 30, rate: 3.6, spread: 0.02, bspd: 1400, life: 0.62, pellets: 1, pierce: 0, kind: 'b', gun: 24,
-    ab: { name: 'Gölge', desc: '5 saniye görünmez olursun: zombiler seni kaybeder. Gölgeden ilk vuruşun iki kat sert, sonra görünürsün.', cd: 20, dur: 5 },
+    hp: 110, spd: 240, dmg: 36, rate: 3.6, spread: 0.02, bspd: 1400, life: 0.62, pellets: 1, pierce: 0, kind: 'b', gun: 24,
+    ab: { name: 'Gölge', desc: '5 saniye görünmez olursun: zombiler seni kaybeder. Gölgeden ilk vuruşun iki kat sert, sonra görünürsün.', cd: 16, dur: 5 },
     look: 'quiet',
     pas: { name: 'Arkadan vuruş', desc: 'Sırtı sana dönük hedeflere %50 daha sert vurursun.' },
     bars: { can: 0.4, hiz: 0.8, hasar: 0.6 },
@@ -459,7 +459,7 @@ export function pathFx(t, k, b) {
     if (b === 2) { f.acid = [1.15, 1.2, 1.25][i]; f.melt = cap; }
   } else if (k === 6) {
     f.chain = b === 2 ? 3 : [0, 2, 3, 4, 5, 6][t] + (b === 1 ? [0, 0, 1][i] : 0);
-    f.chainK = [0, 0.25, 0.28, 0.3, 0.33, 0.36][t] * (b === 2 ? [1.3, 1.45, 1.6][i] : 1);
+    f.chainK = [0, 0.22, 0.24, 0.26, 0.28, 0.3][t] * (b === 2 ? [1.3, 1.45, 1.6][i] : 1);
     if (b === 1 && cap) f.chainStun = 0.5;
     if (b === 2 && cap) f.bolt = 3;
   } else if (k === 7) {
