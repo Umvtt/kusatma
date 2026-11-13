@@ -1,5 +1,5 @@
 // Canvas drawing: an abandoned plaza at night, seen from above, lit by the team's flashlights.
-import { WORLD_W, WORLD_H, PLAYER_R, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp, TEAM_COL } from './config.js';
+import { WORLD_W, WORLD_H, PLAYER_R, QUICK, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp, TEAM_COL } from './config.js';
 import { WORLD, obstaclesIn } from './world.js';
 import { SETTINGS, QUALITY } from './settings.js';
 import { ITEMS as COS } from './catalog.js';
@@ -320,6 +320,27 @@ export class Renderer {
     for (const m of game.mines) if (m[3] && Math.sin(game.time * 8 + m[0]) > 0) { g.fillStyle = '#ff3b30'; g.beginPath(); g.arc(m[1], m[2], 2.5, 0, Math.PI * 2); g.fill(); }
     for (const q of game.planes) drawPlane(g, q);
     for (const [pid, p] of game.ps) if (inView(p.x, p.y)) drawTag(g, p, roster.get(pid), pid === game.me, game);
+    // teammates' map pings: a pulsing marker with the message's sign, fading after 5 s
+    if (game.pings) for (const q of game.pings) {
+      const age = game.time - q.t; if (age > 5) continue; const Q = QUICK[q.k]; if (!Q) continue;
+      const a = Math.min(1, (5 - age) / 1.2), pulse = (age * 1.6) % 1;
+      g.globalAlpha = a * (1 - pulse) * 0.8; g.strokeStyle = Q.col; g.lineWidth = 3;
+      g.beginPath(); g.arc(q.x, q.y, 14 + pulse * 46, 0, Math.PI * 2); g.stroke();
+      g.globalAlpha = a; g.fillStyle = 'rgba(10,14,12,0.75)'; g.beginPath(); g.arc(q.x, q.y - 26, 15, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = Q.col; g.lineWidth = 2.5; g.stroke();
+      g.beginPath(); g.moveTo(q.x - 6, q.y - 13); g.lineTo(q.x, q.y - 3); g.lineTo(q.x + 6, q.y - 13); g.fillStyle = Q.col; g.fill();
+      g.fillStyle = Q.col; g.font = '700 16px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(Q.ic, q.x, q.y - 26);
+      const r = roster.get(q.pid); if (r) { g.font = '700 11px Rubik, system-ui, sans-serif'; g.fillStyle = '#fff'; g.fillText(r.name, q.x, q.y - 50); }
+      g.textBaseline = 'alphabetic'; g.globalAlpha = 1;
+    }
+    // what each player just said (quick messages): a bubble over their head for 3 s
+    if (game.qmSay) for (const [pid, m] of game.qmSay) {
+      const p = game.ps.get(pid), age = game.time - m.t, Q = QUICK[m.k]; if (!p || !Q || age > 3 || !inView(p.x, p.y)) continue;
+      g.globalAlpha = Math.min(1, (3 - age) / 0.5); g.font = '700 12px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
+      const txt = Q.ic + ' ' + Q.t, w = g.measureText(txt).width + 16, x = p.x, y = p.y - PLAYER_R - 46 - Math.min(1, age * 6) * 4;
+      g.fillStyle = 'rgba(10,14,12,0.85)'; g.beginPath(); g.roundRect ? g.roundRect(x - w / 2, y - 12, w, 22, 11) : g.rect(x - w / 2, y - 12, w, 22); g.fill();
+      g.strokeStyle = Q.col; g.lineWidth = 1.5; g.stroke(); g.fillStyle = Q.col; g.fillText(txt, x, y + 4); g.globalAlpha = 1;
+    }
     g.font = '700 14px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
     for (const t of game.texts) {
       g.font = t.small ? '700 12px Rubik, system-ui, sans-serif' : '700 14px Rubik, system-ui, sans-serif';
@@ -502,6 +523,7 @@ export class Renderer {
       g.fill();
       if (pid === game.me) { g.strokeStyle = '#fff'; g.lineWidth = 1; g.stroke(); }
     }
+    if (game.pings) for (const q of game.pings) { const age = game.time - q.t, Q = QUICK[q.k]; if (age > 5 || !Q) continue; g.strokeStyle = Q.col; g.lineWidth = 2; g.globalAlpha = 0.6 + 0.4 * Math.sin(game.time * 10); g.beginPath(); g.arc(mx(q.x), my(q.y), 5, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1; }
     const c = game.cam;
     g.strokeStyle = 'rgba(236,230,214,0.4)';
     g.strokeRect(mx(c.x - c.vw / 2 / c.scale), my(c.y - c.vh / 2 / c.scale), (c.vw / c.scale) * s, (c.vh / c.scale) * s);
@@ -1248,7 +1270,7 @@ function drawPlayer(g, game, pid, p, info, alive) {
   g.scale(1.15, 1.15);
   const eq = (info && info.eq) || {};
   const swg = cls === 'kilicci' && game.swings && game.swings.get(pid), swp = swg ? (game.time - swg.t) / 0.2 : -1;
-  drawCharacter(g, cls, col, alive ? (fxk === 'spin' ? game.time * 16 : p.a || 0) : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time, hat: eq.hat, wsk: eq.wsk, sw: swp, sd: swg ? swg.d : 0 });
+  drawCharacter(g, cls, col, alive ? (fxk === 'spin' ? game.time * 16 : p.a || 0) : 0.6, p.walk || 0, { alive, me: pid === game.me, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0, bash: p.bashT || 0, power: p.power > 0, time: game.time, hat: eq.hat, wsk: eq.wsk, sw: swp, sd: swg ? swg.d : 0, rc: pid === game.me ? game.recoil || 0 : game.recoils && game.recoils.has(pid) ? Math.max(0, 1 - (game.time - game.recoils.get(pid)) * 9) : 0 });
   g.restore();
 }
 
@@ -1340,6 +1362,7 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
   const thrust = opts.bash > 0 ? Math.sin((1 - opts.bash / 0.25) * Math.PI) * 9 : 0;
   g.save();
   if (thrust) g.translate(thrust, 0);
+  if (opts.rc > 0) g.translate(-opts.rc * (opts.wp === 1 ? 6 : 3.5), 0); // the gun kicks back on each shot
   // a sword swing: the blade sweeps from one side to the other (opts.sw: 0..1 through the swing, opts.sd: direction)
   if (opts.sw != null && opts.sw >= 0 && opts.sw < 1) {
     const e = 1 - (1 - opts.sw) ** 3, from = 1.25, to = -1.05;

@@ -1,5 +1,5 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { ZTYPES, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, APP_BUILD, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
+import { ZTYPES, isBoss, QUICK, PING_K, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, APP_BUILD, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
@@ -203,6 +203,8 @@ async function joinRoom() {
 }
 
 function leave(reason) {
+  sfx.music('off');
+  quickToggle(false);
   if (TUT.step >= 0) { TUT.step = -1; $('#tut').hidden = true; }
   if (voiceOn()) voiceStop();
   if (S.host && S.host.spec) { S.host.spec.destroy(); S.host.spec = null; }
@@ -374,7 +376,7 @@ function renderLobby() {
   const list = $('#player-list');
   list.replaceChildren();
   $('#lt-n').textContent = String(r.players.length);
-  $('#lchat').hidden = !r.code; $('#t-chat').hidden = !r.code;
+  $('#lchat').hidden = !r.code; $('#t-chat').hidden = !r.code; $('#t-quick').hidden = !r.code;
   for (const p of r.players) {
     const li = el('li', 'player' + (p.pid === S.me ? ' me' : ''));
     let dot = el('span', 'dot'); dot.style.background = p.color;
@@ -775,6 +777,7 @@ function voiceUi() {
     const t = hb.querySelector('.vb-t'), txt = voiceLabel(); if (t && t.textContent !== txt) t.textContent = txt;
   }
   const off = $('#btn-voice-off'); if (off) off.hidden = !can || !on;
+  if (!talk) { const vl = $('#voice-live'); if (vl) vl.hidden = true; }
   const lb = $('#lb-voice');
   if (lb) {
     lb.hidden = !can; lb.setAttribute('aria-pressed', String(on)); lb.classList.toggle('on', on); lb.classList.toggle('talk', talk);
@@ -784,9 +787,14 @@ function voiceUi() {
 }
 // called every frame while voice is on: my microphone level drives the ring around the button
 function voiceTick() {
-  const hb = $('#btn-voice'); if (!hb || hb.hidden) return;
-  const lv = voiceOn() ? Math.min(1, voiceSelfLevel() / 22) : 0;
-  hb.style.setProperty('--lv', lv.toFixed(2));
+  const hb = $('#btn-voice'), vl = $('#voice-live');
+  const lv = voiceOn() ? Math.min(1, voiceSelfLevel() / 22) : 0, talk = voiceTalking();
+  if (hb && !hb.hidden) hb.style.setProperty('--lv', lv.toFixed(2));
+  // the "your voice is going out" badge at the top: shown only while the microphone sends, its bars follow your level
+  if (vl) {
+    vl.hidden = !talk;
+    if (talk) { vl.style.setProperty('--lv', lv.toFixed(2)); vl.classList.toggle('open', voiceOpenPref); const t = vl.querySelector('.vl-t'), txt = voiceOpenPref ? 'Mikrofonun açık' : 'Sesin gidiyor'; if (t.textContent !== txt) t.textContent = txt; }
+  }
 }
 const TAP_MS = 220;
 (function voiceButtons() {
@@ -1027,6 +1035,7 @@ function notice(n) {
   if (n.k === 'wave' && n.boss) buzz([70, 50, 70, 50, 140], true);
   if (n.k === 'mev' && MEV[n.ev]) { banner('Harita olayı', MEV[n.ev].name, MEV[n.ev].desc); return; }
   if (n.k === 'kill') { killFeed(n); return; }
+  if (n.k === 'qm') { addQuick(n.pid, n.q); return; }
   if (n.k === 'pvk' || n.k === 'pvw' || n.k === 'pvf' || n.k === 'pvr') { pvpNotice(n); return; }
   if (n.k === 'streak') { streak(n.n); return; }
   if (n.k === 'adm') { adminNote(n); return; }
@@ -1114,6 +1123,13 @@ function updateHud() {
   pvpHud(g);
   tutTick(g);
   if (voiceOn() && S.roster) { voiceSync(S.roster, S.me); voiceTick(); }
+  { // the music follows the game: calm in breaks, driving in waves, heavier while a boss is alive
+    const ph = g.phase, boss = ph === 'combat' && [...g.zs.values()].some((z) => isBoss(z.t) && !z.dying);
+    const mode = g.pv ? (ph === 'combat' ? 'combat' : 'break') : ph === 'combat' ? (boss ? 'boss' : 'combat') : ph === 'break' ? 'break' : 'off';
+    sfx.music(SETTINGS.music > 0 ? mode : 'off', Math.min(1, (g.wave || 1) / 25));
+    if (ph === 'over' && S.lastPh !== 'over') sfx.sting('over');
+    S.lastPh = ph;
+  }
   { // my connection to the room's host
     let pc = $('#hud-ping'); if (!pc) { pc = el('span', 'ping-chip'); pc.id = 'hud-ping'; document.querySelector('.wave-box').append(pc); }
     const mp = g.ps.get(S.me), v = S.role === 'client' && mp ? mp.ping | 0 : 0; pc.hidden = !v;
@@ -1216,6 +1232,8 @@ function updateHud() {
 
   // downed
   $('#dead').hidden = me.alive || !me.inGame || !$('#esc').hidden || !!g.pv;
+  { const kb = g.killedBy, db = $('#dead-by'), nm = kb === 'tr' ? 'Metro treni' : ZTYPES[kb] ? ZTYPES[kb].name : '';
+    db.hidden = !nm || me.alive; if (nm && db.textContent !== 'Seni deviren: ' + nm) db.textContent = 'Seni deviren: ' + nm; }
   $('#dead-sub').textContent = g.ps.size > 1 ? 'Bir arkadaşın yanına gelip seni kaldırabilir · dalga bitince dönersin' : 'Dalga bitince geri döneceksin';
   $('#net-warn').hidden = S.role !== 'client' || performance.now() - g.lastSnapAt < 1500;
   if (!me.alive) {
@@ -1586,6 +1604,31 @@ function renderBoard() {
   }
 }
 
+// ---------- quick team messages ----------
+(function quickMenu() {
+  const grid = $('#quick-grid');
+  QUICK.forEach((q, i) => {
+    const b = el('button', 'quick-b'); b.type = 'button'; b.setAttribute('role', 'menuitem'); b.style.setProperty('--qc', q.col);
+    b.append(el('span', 'quick-ic', q.ic), el('span', 'quick-t', q.t), el('kbd', '', String(i + 1)));
+    b.addEventListener('click', () => quickPick(i));
+    grid.append(b);
+  });
+  $('#t-quick').addEventListener('click', () => quickToggle());
+})();
+function quickToggle(open) { const q = $('#quick'); q.hidden = open === undefined ? !q.hidden : !open; }
+function quickPick(i) { if (!S.game || !QUICK[i]) return; S.game.quick(i); quickToggle(false); buzz(15); }
+function addQuick(pid, k) {
+  const q = QUICK[k]; if (!q) return;
+  const info = S.roster && S.roster.players.find((p) => p.pid === pid);
+  const li = el('li', 'quick-line'), who = el('b', '', (info ? info.name : 'Biri') + ':');
+  if (info) who.style.color = info.color;
+  const m = el('span', 'quick-m', q.ic + ' ' + q.t); m.style.color = q.col;
+  li.append(who, m);
+  const log = $('#chat-log'); log.append(li); setTimeout(() => li.classList.add('old'), 7000);
+  while (log.children.length > 40) log.firstChild.remove();
+  log.scrollTop = log.scrollHeight;
+}
+
 // ---------- input ----------
 const GAME_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab']);
 window.addEventListener('keydown', (e) => {
@@ -1599,6 +1642,10 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') { setMute(sfx.toggleMute()); return; }
   if (e.code === 'Equal' || e.code === 'NumpadAdd') { setZoom(zoom * 1.12); return; }
   if (e.code === 'Minus' || e.code === 'NumpadSubtract') { setZoom(zoom / 1.12); return; }
+  // quick messages: Z opens the menu, 1–7 pick while it is open; G pings where you aim
+  if (e.code === 'KeyZ' && !e.repeat && S.roster && S.roster.code) { quickToggle(); return; }
+  if (!$('#quick').hidden && /^(Digit|Numpad)[1-7]$/.test(e.code)) { quickPick(Number(e.code.slice(-1)) - 1); return; }
+  if (e.code === 'KeyG' && !e.repeat && S.roster && S.roster.code) { S.game.quick(PING_K); return; }
   if (e.code === 'Space') { if (!e.repeat) S.game.input.ab = true; return; }
   if (e.code === 'KeyF') { if (!e.repeat) S.game.input.bash = true; return; }
   if (/^(Digit|Numpad)[1-9]$/.test(e.code)) {
@@ -1848,6 +1895,7 @@ showBest();
 // ---------- settings dialog ----------
 function openSettings() {
   $('#set-volume').value = SETTINGS.volume;
+  $('#set-music').value = SETTINGS.music;
   $('#set-darkness').value = SETTINGS.darkness;
   $('#set-zoom').value = Math.round(zoom * 100);
   $('#set-shake').checked = SETTINGS.shake;
@@ -1864,6 +1912,7 @@ function openSettings() {
 }
 function syncSettingsLabels() {
   $('#set-volume-out').textContent = `%${$('#set-volume').value}`;
+  $('#set-music-out').textContent = +$('#set-music').value ? `%${$('#set-music').value}` : 'Kapalı';
   $('#set-darkness-out').textContent = `%${$('#set-darkness').value}`;
   $('#set-zoom-out').textContent = `%${$('#set-zoom').value}`;
 }
@@ -1923,13 +1972,14 @@ window.kusatmaBack = () => {
 $('#esc-settings').addEventListener('click', openSettings);
 $('#settings-close').addEventListener('click', () => { $('#settings').hidden = true; });
 $('#set-volume').addEventListener('input', (e) => { setSetting('volume', Number(e.target.value)); syncSettingsLabels(); });
+$('#set-music').addEventListener('input', (e) => { setSetting('music', Number(e.target.value)); syncSettingsLabels(); });
 $('#set-darkness').addEventListener('input', (e) => { setSetting('darkness', Number(e.target.value)); syncSettingsLabels(); });
 $('#set-zoom').addEventListener('input', (e) => { setZoom(Number(e.target.value) / 100); syncSettingsLabels(); });
 $('#set-shake').addEventListener('change', (e) => setSetting('shake', e.target.checked));
 $('#set-dmgnums').addEventListener('change', (e) => setSetting('dmgNums', e.target.checked));
 $('#set-lead').addEventListener('change', (e) => setSetting('lead', e.target.checked));
 $('#settings-reset').addEventListener('click', () => { resetSettings(); setZoom(IS_TOUCH ? 0.85 : 1); openSettings(); });
-onSettings((st) => sfx.setVolume(st.volume / 100));
+onSettings((st) => { sfx.setVolume(st.volume / 100); sfx.setMusicVolume(st.music / 100); });
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#settings').hidden) { e.stopImmediatePropagation(); $('#settings').hidden = true; } }, { capture: true });
 
 // ---------- phone controls ----------

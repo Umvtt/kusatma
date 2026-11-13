@@ -2,7 +2,7 @@
 // Every incoming message is checked for shape and size so bad data can't crash the game.
 import {
   WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS,
-  CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, scaleFor, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD,
+  QUICK, CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, scaleFor, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD,
   WEAPON_COST, ITEMS, BASH, WMAX, PATH_N, BRANCH_SWAP, weaponSpent, weaponOf, pathOk,
   newLv, lvArr, AB_COST, abDur, GEAR, GEAR_RANGE, TEAM, teamCost, TEAM_CHUNK, gearCost, gearMax, bashCd,
   FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, SPECIAL, SPECIAL_K, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER,
@@ -313,6 +313,16 @@ export class HostGame {
         }
         break;
       case 'chat': this.onChat(p, m); break;
+      case 'qm': { // a quick message or a ping: at most 3 in 3 seconds per player
+        const k = m.k, now = this.time;
+        if (!Number.isInteger(k) || k < 0 || k >= QUICK.length || !p.inGame) break;
+        if (now - (p.qmT || 0) > 3) { p.qmT = now; p.qmN = 0; }
+        if (p.qmN >= 3) break;
+        p.qmN++;
+        const B = this.bounds, x = num(m.x) ? Math.max(B.x0, Math.min(B.x1, m.x)) : p.x, y = num(m.y) ? Math.max(B.y0, Math.min(B.y1, m.y)) : p.y;
+        this.ev(['qm', p.pid, k, Math.round(x), Math.round(y)]);
+        break;
+      }
       case 'voice': if (!this.net.offline) { p.vo = !!m.on; this.pushRoster(); } break;
       case 'pause': if (isHost && this.net.code == null) this.paused = !!m.on; break;
       case 'lobby': if (isHost && this.phase === 'over') this.toLobby(); break;
@@ -1231,7 +1241,7 @@ export class HostGame {
         c.t -= dt; if (c.t > 0) continue;
         this.ev(['sl', Math.round(c.x), Math.round(c.y), 90]);
         for (const t of this.turrets) if (t.hp != null && Math.hypot(t.x - c.x, t.y - c.y) < 100) t.hp -= 300;
-        for (const q of this.inGame()) if (q.alive && Math.hypot(q.x - c.x, q.y - c.y) < 90) { this.hurt(q, 38 * BOSS_DMG); this.knock(q, c.x, c.y, 520); }
+        for (const q of this.inGame()) if (q.alive && Math.hypot(q.x - c.x, q.y - c.y) < 90) { this.hurt(q, 38 * BOSS_DMG, 19); this.knock(q, c.x, c.y, 520); }
       }
       this.cars = this.cars.filter((c) => c.t > 0);
     }
@@ -1347,8 +1357,10 @@ export class HostGame {
     this.addZombie(t, x, y);
   }
 
-  hurt(p, dmg) {
+  // src: what hurt them (a zombie type, or 'tr' for the metro train); by default the zombie being moved right now
+  hurt(p, dmg, src) {
     if (!p.alive) return;
+    p.lastBy = src !== undefined ? src : this.curZ ? this.curZ.t : p.lastBy;
     const sprint = p.cls === 'izci' && (p.lv.ab | 0) >= 3 && this.time < p.abUntil;
     if (this.curBoss) dmg *= BOSS_DMG;
     p.hp -= dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1) * this.pc(p).st.armor * (sprint ? 0.4 : 1) * (p.spinUntil > this.time ? 0.6 : 1);
@@ -1402,6 +1414,7 @@ export class HostGame {
 
   updateZombies(dt) {
     const players = this.inGame().filter((p) => p.alive && !(p.invUntil > this.time));
+    this.curZ = null;
     const zs = this.zombies;
     const maxAlive = Math.min(110, 30 + 6 * this.waveN);
 
@@ -1417,7 +1430,7 @@ export class HostGame {
       const z = zs[zi];
       if (z.dead) continue;
       const T = ZTYPES[z.t];
-      this.curBoss = isBoss(z.t);
+      this.curBoss = isBoss(z.t); this.curZ = z;
       z.cd -= dt * (this.curBoss ? BOSS_CD : 1); z.cd2 -= dt;
       // a zombie that has gone nowhere for 6 s while no player can see it comes back in from the edge
       z.chkT = (z.chkT || 0) + dt;
@@ -1756,7 +1769,7 @@ export class HostGame {
     z.burst = true;
     const R = 110;
     this.ev(['x', Math.round(z.x), Math.round(z.y), R]);
-    for (const p of this.inGame()) if (p.alive && Math.hypot(p.x - z.x, p.y - z.y) < R) { this.hurt(p, (byPlayer ? 12 : 30) * (p.cls === 'alevci' || p.cls === 'bombaci' ? 0.5 : 1)); this.knock(p, z.x, z.y, 420); }
+    for (const p of this.inGame()) if (p.alive && Math.hypot(p.x - z.x, p.y - z.y) < R) { this.hurt(p, (byPlayer ? 12 : 30) * (p.cls === 'alevci' || p.cls === 'bombaci' ? 0.5 : 1), z.t); this.knock(p, z.x, z.y, 420); }
     if (!z.dead) this.damage(z, z.hp + 1, null);
     for (const o of this.zombies) if (o !== z && !o.dead && Math.hypot(o.x - z.x, o.y - z.y) < R + ZTYPES[o.t].r) this.damage(o, 60, byPlayer);
   }
@@ -1798,7 +1811,7 @@ export class HostGame {
       s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
       if (s.life <= 0 || pointInObstacle(s.x, s.y) || outOfMap(s.x, s.y)) { s.life = 0; this.ev(['sp', Math.round(s.x), Math.round(s.y)]); continue; }
       for (const p of players) {
-        if (Math.hypot(p.x - s.x, p.y - s.y) < PLAYER_R + 8) { this.hurt(p, s.boss ? 14 * BOSS_DMG : 14); s.life = 0; this.ev(['sp', Math.round(s.x), Math.round(s.y)]); break; }
+        if (Math.hypot(p.x - s.x, p.y - s.y) < PLAYER_R + 8) { this.hurt(p, s.boss ? 14 * BOSS_DMG : 14, s.boss ? 20 : 4); s.life = 0; this.ev(['sp', Math.round(s.x), Math.round(s.y)]); break; }
       }
     }
     this.spits = this.spits.filter((s) => s.life > 0);
@@ -2009,7 +2022,7 @@ export class HostGame {
       if (z.el === 2 || z.t === 18) { // exploding elite / frozen shatter
         const R = z.t === 18 ? 95 : 100;
         this.ev([z.t === 18 ? 'ic' : 'x', Math.round(z.x), Math.round(z.y), R]);
-        for (const q of this.inGame()) if (q.alive && Math.hypot(q.x - z.x, q.y - z.y) < R) { this.hurt(q, z.t === 18 ? 8 : 16); if (z.t === 18) q.chillUntil = this.time + 2; }
+        for (const q of this.inGame()) if (q.alive && Math.hypot(q.x - z.x, q.y - z.y) < R) { this.hurt(q, z.t === 18 ? 8 : 16, z.t); if (z.t === 18) q.chillUntil = this.time + 2; }
       }
       this.ev(['d', Math.round(z.x), Math.round(z.y), z.t, p ? p.pid : 0, z.el | 0]);
       this.deathFx(z, p);
@@ -2034,7 +2047,7 @@ export class HostGame {
         this.train.t -= dt;
         if (this.train.t <= 0) {
           const y = this.train.y;
-          for (const q of this.inGame()) if (q.alive && Math.abs(q.y - y) < 56) { this.hurt(q, 55); this.knock(q, q.x, y, 700); }
+          for (const q of this.inGame()) if (q.alive && Math.abs(q.y - y) < 56) { this.hurt(q, 55, 'tr'); this.knock(q, q.x, y, 700); }
           for (const z of this.zombies) if (!z.dead && Math.abs(z.y - y) < 50 + ZTYPES[z.t].r) this.damage(z, isBoss(z.t) ? 400 : 900, null);
           this.ev(['tx', y, this.train.dir]);
           this.train = null;
@@ -2111,7 +2124,7 @@ export class HostGame {
     p.alive = false;
     p.hp = 0;
     p.downs++;
-    this.ev(['dn', p.pid]);
+    this.ev(['dn', p.pid, p.lastBy != null ? p.lastBy : -1]);
     this.checkOver();
   }
 

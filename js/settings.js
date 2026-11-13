@@ -2,6 +2,7 @@
 const KEY = 'kusatma-ayarlar';
 const DEFAULTS = {
   volume: 70,       // 0..100
+  music: 50,        // 0..100, the music under the master volume
   shake: true,      // screen shake
   dmgNums: true,    // floating damage numbers
   darkness: 50,     // 20..70, how dark the night is

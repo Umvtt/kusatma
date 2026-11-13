@@ -1418,3 +1418,32 @@ input[type="checkbox"]:not(.ck-sw):not(.switch):focus-visible { outline: 2px sol
 .vb-wrap.t-mic { position: absolute; pointer-events: auto; right: max(258px, calc(env(safe-area-inset-right, 0px) + 258px)); bottom: max(124px, calc(env(safe-area-inset-bottom, 0px) + 124px)); }
 body.touch:has(#shop:not([hidden])) .vb-wrap.t-mic { visibility: hidden; }
 @media (max-height: 500px) { .vb-wrap.t-mic { bottom: 118px; right: max(250px, calc(env(safe-area-inset-right, 0px) + 250px)); } .vb-wrap.t-mic .voice-mic { width: 52px; height: 52px; } }
+/* who downed you */
+.dead-by { display: block; color: #ff8a7a; font-weight: 700; font-size: 14px; margin-top: 2px; }
+/* "your voice is going out": a pill at the top while the microphone sends */
+.voice-live { --lv: 0; position: fixed; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 10px; border-radius: 999px;
+  background: rgba(20,60,36,.88); border: 1px solid rgba(111,227,155,.55); color: #d9ffe6; font-size: 12px; font-weight: 700; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.voice-live.open { background: rgba(80,30,16,.88); border-color: rgba(255,154,118,.6); color: #ffe2d6; }
+.voice-live .vl-dot { width: 9px; height: 9px; border-radius: 50%; background: #43d17a; box-shadow: 0 0 0 calc(2px + var(--lv) * 5px) rgba(67,209,122,.35); }
+.voice-live.open .vl-dot { background: #ff7a4a; box-shadow: 0 0 0 calc(2px + var(--lv) * 5px) rgba(255,122,74,.35); }
+.voice-live .vl-bars { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
+.voice-live .vl-bars i { width: 3px; border-radius: 2px; background: currentColor; height: calc(3px + var(--lv) * 9px); opacity: .9; }
+.voice-live .vl-bars i:nth-child(2) { height: calc(3px + var(--lv) * 7px); } .voice-live .vl-bars i:nth-child(4) { height: calc(3px + var(--lv) * 6px); } .voice-live .vl-bars i:nth-child(5) { height: calc(3px + var(--lv) * 4px); }
+@media (prefers-reduced-motion: reduce) { .voice-live .vl-dot { box-shadow: none; } }
+/* quick team messages */
+.t-btn.t-quick { left: calc(max(14px, env(safe-area-inset-left, 0px)) + 228px); top: var(--tb-top, 104px); }
+.quick { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 40; width: min(420px, calc(100vw - 32px)); padding: 12px; border-radius: 16px; background: rgba(12,16,14,.94); border: 1px solid rgba(236,230,214,.2); box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+.quick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #ece6d6; }
+.quick-hint { font-size: 11px; color: var(--dim, #9aa39b); }
+body.touch .quick-hint { display: none; }
+.quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.quick-b { --qc: #fff; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--qc) 45%, transparent); background: color-mix(in srgb, var(--qc) 10%, rgba(255,255,255,.03)); color: #ece6d6; font: 600 14px Rubik, system-ui, sans-serif; cursor: pointer; text-align: left; }
+.quick-b:hover, .quick-b:focus-visible { background: color-mix(in srgb, var(--qc) 22%, transparent); outline: none; }
+.quick-ic { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--qc); color: #0c100e; font-weight: 800; flex: none; }
+.quick-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-b kbd { font-size: 11px; color: var(--dim, #9aa39b); }
+body.touch .quick-b kbd { display: none; }
+.quick-b:last-child { grid-column: 1 / -1; }
+.quick-line .quick-m { font-weight: 700; margin-left: 4px; }
+@media (max-height: 420px) { .quick { padding: 8px; } .quick-b { min-height: 38px; padding: 6px 8px; } }
+body.touch .voice-live { top: calc(max(10px, env(safe-area-inset-top)) + 48px); }

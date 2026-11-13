@@ -2,7 +2,7 @@
 
 export const VERSION = 19;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 50;
+export const BUILD = 51;
 // the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
 export const APP_BUILD = 47;
 export const MAX_PLAYERS = 20;
@@ -532,6 +532,19 @@ export function weaponOf(cls, wt, wp = 0, wb = 0) {
 export function pathDesc(cls, k) {
   return pathOf(cls, k).desc;
 }
+
+// Quick team messages (Z or the phone's Hızlı button) and the map ping (G, or the last one in the list);
+// each shows over the sender, in the chat and, with a place, as a marker in the world and on the minimap.
+export const QUICK = [
+  { t: 'Buraya gel!', ic: '➜', col: '#6fb2ff', at: 1 },
+  { t: 'Yardım!', ic: '!', col: '#ff5a5a', at: 1 },
+  { t: 'Altın lazım', ic: '$', col: '#ffd34d', at: 0 },
+  { t: 'Dikkat, boss!', ic: '☠', col: '#ff8a3d', at: 1 },
+  { t: 'Tamam', ic: '✓', col: '#43d17a', at: 0 },
+  { t: 'Geri çekil!', ic: '↩', col: '#c9a2ff', at: 1 },
+  { t: 'Şuraya bak', ic: '◎', col: '#ffffff', at: 1 },
+];
+export const PING_K = QUICK.length - 1;
 
 // One-use items bought in the armory and used in battle with keys 1-4 (or the item buttons on phones).
 export const GEAR = [

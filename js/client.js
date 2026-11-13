@@ -1,6 +1,6 @@
 // What every player's browser runs (the host included): own movement and shooting,
 // smoothing of what the host sends, and visual effects.
-import { CX, CY, PLAYER_R, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS, BASH, bashCd, newLv, lvObj, GEAR, GEAR_RANGE, TEAM, abDur, PATHS, PVP_DMG } from './config.js';
+import { CX, CY, PLAYER_R, QUICK, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS, BASH, bashCd, newLv, lvObj, GEAR, GEAR_RANGE, TEAM, abDur, PATHS, PVP_DMG } from './config.js';
 import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds, WORLD, escapePocket } from './world.js';
 import * as sfx from './sfx.js';
 import { SETTINGS } from './settings.js';
@@ -179,7 +179,7 @@ export class ClientGame {
       if (!z) {
         z = { id, t, x, y, face: Math.atan2(CY - y, CX - x), pend: [], dying: 0, born: this.time, flash: 0, walk: Math.random() * 6, st: 0 };
         this.zs.set(id, z);
-        if (Math.random() < 0.15) sfx.growl(x, y);
+        if (Math.random() < (isBoss(t) ? 1 : 0.15)) sfx.growl(x, y, t);
       }
       if (z.hp != null && hp < z.hp) {
         z.flash = 0.08;
@@ -192,7 +192,7 @@ export class ClientGame {
         }
       }
       if (st !== z.st) {
-        if (st === ZS.WINDUP || st === ZS.SLAM) sfx.growl(x, y);
+        if (st === ZS.WINDUP || st === ZS.SLAM) sfx.growl(x, y, z.t);
         if (st === ZS.SPIT) sfx.spit(x, y);
       }
       if (st === 9 && z.st !== 9) z.leapT = this.time;
@@ -242,11 +242,13 @@ export class ClientGame {
   onEvent(ev) {
     switch (ev[0]) {
       case 'd': {
-        const big = ev[3] === 2 || ev[3] === 3;
+        const big = ev[3] === 2 || isBoss(ev[3]);
         this.splat(ev[1], ev[2], ZTYPES[ev[3]] ? ZTYPES[ev[3]].r : 15, true, ev[3] === 4);
-        sfx.zombieDie(ev[1], ev[2], big);
+        sfx.zombieDie(ev[1], ev[2], big, ev[3]);
         // kill feed (bosses, elites and the rarer zombies) and the local kill streak
         if (ev[4]) {
+          // my heavy kills hit harder: a blink of hit-stop, a shake and a flash (bosses most of all)
+          if (ev[4] === this.me && (isBoss(ev[3]) || ev[3] === 2 || ev[5])) { const B = isBoss(ev[3]); this.hitStop = B ? 0.14 : 0.05; this.shake = Math.min(16, this.shake + (B ? 12 : 4)); this.light(ev[1], ev[2], B ? 420 : 200, B ? 0.9 : 0.4, '255,240,210'); if (B) this.ring(ev[1], ev[2], '#ffe6a8', 140); }
           if (ev[4] === this.me) { const now = performance.now(); if (now - (this.stT || 0) > 2600) this.stN = 0; this.stN = (this.stN || 0) + 1; this.stT = now; if (this.stN >= 3) this.notices.push({ k: 'streak', n: this.stN }); }
           const zt = ZTYPES[ev[3]];
           if (zt && (zt.boss || ev[5] || [6, 7, 13, 15, 16, 17, 18, 21, 22].includes(ev[3]))) this.notices.push({ k: 'kill', pid: ev[4], t: ev[3], el: ev[5] | 0 });
@@ -267,8 +269,30 @@ export class ClientGame {
       case 'wb': this.dust(ev[1], ev[2], 50); sfx.bashHit(ev[1], ev[2]); break;
       case 'sw': this.ring(ev[1], ev[2], '#a0c4ff', ev[3]); this.dust(ev[1], ev[2], ev[3] * 0.7); sfx.slam(ev[1], ev[2]); break;
       case 'tu': this.notices.push({ k: 'team', i: ev[1], lv: ev[2], pid: ev[3] }); sfx.waveClear(); break;
-      case 'dn': this.notices.push({ k: 'down', pid: ev[1] }); sfx.down(); break;
-      case 'up': if (ev[1] !== this.me) this.notices.push({ k: 'up', pid: ev[1] }); break;
+      case 'qm': {
+        // a quick message or ping; in PvP only your own side sees them
+        const pid = ev[1], k = ev[2], p = this.ps.get(pid);
+        if (this.pv && pid !== this.me && (this.pv[0] === 'ffa' || this.pv[0] === 'duel' || (p && p.tm !== this.self.tm))) break;
+        const q = QUICK[k]; if (!q) break;
+        (this.qmSay || (this.qmSay = new Map())).set(pid, { k, t: this.time });
+        if (q.at) { this.pings = (this.pings || []).filter((x) => this.time - x.t < 6 && x.pid !== pid); this.pings.push({ pid, k, x: ev[3], y: ev[4], t: this.time }); }
+        this.notices.push({ k: 'qm', pid, q: k });
+        sfx.ping(ev[3], ev[4], k);
+        break;
+      }
+      case 'dn': {
+        this.notices.push({ k: 'down', pid: ev[1] }); sfx.down();
+        if (ev[1] === this.me) { this.killedBy = ev[2] != null ? ev[2] : -1; this.slowMo = 0.9; this.shake = Math.min(16, this.shake + 10); }
+        break;
+      }
+      case 'up': {
+        if (ev[1] !== this.me) this.notices.push({ k: 'up', pid: ev[1] });
+        // back on their feet: a green burst and a rising chime where they stand
+        const p = ev[1] === this.me ? this.self : this.ps.get(ev[1]);
+        if (p) { this.ring(p.x, p.y, '#43d17a', 70); this.ring(p.x, p.y, '#b6ffcf', 40); this.light(p.x, p.y, 200, 0.6, '67,209,122'); sfx.heal(p.x, p.y); }
+        if (ev[1] === this.me) { this.killedBy = null; this.revivedAt = this.time; }
+        break;
+      }
       case 'ab': {
         const pid = ev[1];
         const cls = this.clsOf(pid);
@@ -290,7 +314,7 @@ export class ClientGame {
         if (Math.hypot(this.self.x - ev[1], this.self.y - ev[2]) < 500) this.shake = Math.min(16, this.shake + 12);
         break;
       case 'sp': this.goo(ev[1], ev[2]); break;
-      case 'ws': this.notices.push({ k: 'wave', w: ev[1], boss: ev[2] || 0 }); sfx.waveStart(); break;
+      case 'ws': if (ev[2]) sfx.sting('boss'); this.notices.push({ k: 'wave', w: ev[1], boss: ev[2] || 0 }); sfx.waveStart(); break;
       case 'mv': if (ev[1]) { this.notices.push({ k: 'mev', ev: ev[1] }); sfx.waveStart(); } break;
       case 'pl': this.planes.push({ x: ev[1], y: ev[2], a: ev[3] || 0, t: 0, max: 3.2 }); sfx.siren(ev[1], ev[2]); break;
       case 'dg': this.dust(ev[1], ev[2], 60); this.ring(ev[1], ev[2], '#8a6a3a', 70); sfx.slam(ev[1], ev[2]); break;
@@ -354,6 +378,9 @@ export class ClientGame {
   // ---------- local actions ----------
   update(dt) {
     if (this.paused) { sfx.flame(0); this.input.ab = false; return; }
+    // hit-stop: a heavy kill freezes everything for a blink; going down plays out in slow motion
+    if (this.hitStop > 0) { this.hitStop -= dt; dt *= 0.15; } else if (this.slowMo > 0) { this.slowMo -= dt; dt *= 0.35; }
+    this.recoil = Math.max(0, (this.recoil || 0) - dt * 9);
     this.time += dt;
     const S = this.self;
     const st = this.myStats;
@@ -540,10 +567,11 @@ export class ClientGame {
       this.bullets.push(b);
     }
     if (c.heavy) this.shake = Math.min(8, this.shake + 1.5 * c.heavy);
+    this.recoil = 1;
     this.shotsQ.push([Math.round(mx), Math.round(my), Math.round(S.a * 100) / 100]);
     if (c.kind !== 'f') { this.flash(mx, my, S.a); this.casing(S.x, S.y, S.a); }
     if (c.kind === 'f') this.flameAt.set(this.me, { t: this.time, x: S.x, y: S.y });
-    sfx.shot(this.cls, S.x, S.y, true);
+    sfx.shot(this.cls, S.x, S.y, true, this.myWeapon);
     if (this.cls === 'tamirci' || this.cls === 'nisanci' || this.cls === 'bombaci') this.shake = Math.min(8, this.shake + 4);
   }
 
@@ -621,7 +649,15 @@ export class ClientGame {
     this.slash(S.x, S.y, S.a, reach, c.col || '#e8f1ff', true, arc, this.swingMark(this.me));
     this.shotsQ.push([Math.round(S.x), Math.round(S.y), Math.round(S.a * 100) / 100]);
     if (n || this.pHitMark > 0.15) this.shake = Math.min(8, this.shake + 2);
-    sfx.bash(S.x, S.y, true);
+    sfx.swish(S.x, S.y, true, c.path === 1);
+  }
+  // a quick message to the team; messages that point somewhere use the aim point (mouse, or 220 px ahead on a phone)
+  quick(k, wx, wy) {
+    const S = this.self; if (!S || !QUICK[k]) return;
+    let x = wx, y = wy;
+    if (x == null) { if (!this.touch && this.input.taim == null) { const w = this.toWorld(this.input.mx, this.input.my); x = w.x; y = w.y; } else { x = S.x + Math.cos(S.a) * 220; y = S.y + Math.sin(S.a) * 220; } }
+    if (!QUICK[k].at) { x = S.x; y = S.y; }
+    this.send({ t: 'qm', k, x: Math.round(x), y: Math.round(y) });
   }
   // remember a swing so the player's sword arm can sweep across; swings go left and right in turn
   swingMark(pid) {
@@ -663,11 +699,12 @@ export class ClientGame {
     const cls = this.clsOf(pid);
     const pl = this.ps.get(pid);
     const c = weaponOf(cls, pl ? pl.wt : 0, pl ? pl.wp : 0, pl ? pl.wb : 0);
-    if (c.kind === 'm') { this.slash(x, y, a, c.reach, c.col || '#e8f1ff', false, c.arc, this.swingMark(pid)); sfx.bash(x, y, false); return; }
+    if (c.kind === 'm') { this.slash(x, y, a, c.reach, c.col || '#e8f1ff', false, c.arc, this.swingMark(pid)); sfx.swish(x, y, false, c.path === 1); return; }
     if (c.kind === 'f') this.flameAt.set(pid, { t: this.time, x, y });
     for (let i = 0; i < c.pellets; i++) this.bullets.push(this.makeBullet(c, x, y, a, 0, c.pierce, false));
     if (c.kind !== 'f') this.flash(x, y, a);
-    sfx.shot(cls, x, y, false);
+    (this.recoils || (this.recoils = new Map())).set(pid, this.time);
+    sfx.shot(cls, x, y, false, c);
   }
 
   updateBullets(dt) {

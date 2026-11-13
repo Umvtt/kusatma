@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=50">
-  <link rel="stylesheet" href="css/dash.css?v=50">
+  <link rel="stylesheet" href="css/style.css?v=51">
+  <link rel="stylesheet" href="css/dash.css?v=51">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -308,8 +308,10 @@
 
     <button id="btn-armory" class="armory-fab" type="button" hidden><span class="coin" aria-hidden="true"></span><b id="fab-gold">0</b><span class="fab-t">Cephanelik</span><span class="fab-n" id="fab-n" hidden></span></button>
 
+    <div id="quick" class="quick" hidden role="menu" aria-label="Hızlı mesajlar"><div class="quick-head"><b>Hızlı mesaj</b><span class="quick-hint">Z ile aç, 1–7 ile seç · G: işaretle</span></div><div class="quick-grid" id="quick-grid"></div></div>
+    <div id="voice-live" class="voice-live" hidden aria-live="polite"><span class="vl-dot" aria-hidden="true"></span><span class="vl-t">Sesin gidiyor</span><span class="vl-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
     <div id="dead" class="dead" hidden>
-      <div class="dead-top"><strong>Düştün</strong><span id="dead-sub"></span></div>
+      <div class="dead-top"><strong>Düştün</strong><span id="dead-by" class="dead-by" hidden></span><span id="dead-sub"></span></div>
       <div class="spec" id="spec">
         <button id="spec-prev" class="spec-btn" type="button" aria-label="Önceki oyuncu">‹</button>
         <div class="spec-mid"><span class="eyebrow">İzliyorsun</span><b id="spec-name">—</b><span class="spec-hp"><i id="spec-hp"></i></span></div>
@@ -480,6 +482,7 @@
         <section class="set-sec">
           <span class="eyebrow">Ses ve görüntü</span>
           <label class="set-row" for="set-volume"><span>Ses seviyesi</span><output id="set-volume-out">70</output><input id="set-volume" type="range" min="0" max="100" step="5"></label>
+          <label class="set-row" for="set-music"><span>Müzik</span><output id="set-music-out">50</output><input id="set-music" type="range" min="0" max="100" step="5"></label>
           <label class="set-row" for="set-darkness"><span>Gece karanlığı</span><output id="set-darkness-out">50</output><input id="set-darkness" type="range" min="20" max="70" step="5"></label>
           <label class="set-row" for="set-zoom"><span>Yakınlaştırma</span><output id="set-zoom-out">100</output><input id="set-zoom" type="range" min="70" max="160" step="5"></label>
           <label class="set-check" for="set-shake"><span>Ekran sarsıntısı</span><input id="set-shake" type="checkbox"></label>
@@ -507,6 +510,7 @@
     <button id="t-menu" class="t-btn t-pause" type="button">Menü</button>
     <button id="t-board" class="t-btn t-score" type="button">Skor</button>
     <button id="t-chat" class="t-btn t-chat" type="button">Sohbet</button>
+    <button id="t-quick" class="t-btn t-quick" type="button" hidden>Hızlı</button>
   </div>
   <div id="rotate" class="rotate" hidden><strong>Telefonunu yan çevir</strong><span>Kuşatma yatay ekranda oynanır.</span></div>
 
@@ -571,7 +575,7 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=50","./js/client.js":"./js/client.js?v=50","./js/config.js":"./js/config.js?v=50","./js/consent.js":"./js/consent.js?v=50","./js/dash.js":"./js/dash.js?v=50","./js/host.js":"./js/host.js?v=50","./js/live.js":"./js/live.js?v=50","./js/mapgen.js":"./js/mapgen.js?v=50","./js/net.js":"./js/net.js?v=50","./js/voice.js":"./js/voice.js?v=50","./js/pvp.js":"./js/pvp.js?v=50","./js/render.js":"./js/render.js?v=50","./js/scene.js":"./js/scene.js?v=50","./js/settings.js":"./js/settings.js?v=50","./js/sfx.js":"./js/sfx.js?v=50","./js/world.js":"./js/world.js?v=50"}}</script>
-  <script type="module" src="js/main.js?v=50"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=51","./js/client.js":"./js/client.js?v=51","./js/config.js":"./js/config.js?v=51","./js/consent.js":"./js/consent.js?v=51","./js/dash.js":"./js/dash.js?v=51","./js/host.js":"./js/host.js?v=51","./js/live.js":"./js/live.js?v=51","./js/mapgen.js":"./js/mapgen.js?v=51","./js/net.js":"./js/net.js?v=51","./js/voice.js":"./js/voice.js?v=51","./js/pvp.js":"./js/pvp.js?v=51","./js/render.js":"./js/render.js?v=51","./js/scene.js":"./js/scene.js?v=51","./js/settings.js":"./js/settings.js?v=51","./js/sfx.js":"./js/sfx.js?v=51","./js/world.js":"./js/world.js?v=51"}}</script>
+  <script type="module" src="js/main.js?v=51"></script>
 </body>
 </html>
