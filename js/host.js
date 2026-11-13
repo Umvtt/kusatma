@@ -128,16 +128,23 @@ export class HostGame {
         if (!full && !boss && d2 >= R2) continue;
         const key = z[4] + ',' + z[5] + ',' + z[6] + ',' + z[7] + ',' + z[8];
         cur.set(z[0], key);
-        if (!bz || bz.get(z[0]) !== key) Z.push(z);
+        if (!bz || bz.get(z[0]) !== key || (zh.rm && zh.rm.has(z[0]))) Z.push(z); // also in full when its removal was sent since the confirmed snapshot
         else if (boss || d2 < N2 || odd) Z.push([z[0], z[2], z[3]]); // far, unchanged zombies move every other snapshot
       }
-      const ZD = [];
-      if (bz) for (const id of bz.keys()) if (!cur.has(id)) ZD.push(id);
+      // removals: every zombie this guest may have (from any snapshot sent, confirmed or not) that is gone now. A removal is
+      // repeated until the guest confirms a snapshot newer than the last one that still carried the zombie, so one that
+      // appeared and died between two confirmations never stays behind on the guest's screen as a ghost.
+      const seen = zh.seen || (zh.seen = new Map()), ZD = [];
+      const rm = zh.rm || (zh.rm = new Map());
+      for (const [id, rq] of rm) if (zh.ack > rq) rm.delete(id);
+      if (bz) for (const [id, lastQ] of seen) { if (cur.has(id)) continue; if (zh.ack > lastQ) seen.delete(id); else { ZD.push(id); rm.set(id, q); } }
+      else { seen.clear(); rm.clear(); } // nothing confirmed to build on: this snapshot is the whole picture and replaces what the guest has
+      for (const id of cur.keys()) seen.set(id, q);
       const evFrom = Math.max((base ? base.ev : zh.ev0) + 1, logFirst, this.evSeq - 299);
       const E = evFrom <= this.evSeq ? this.evLog.slice(evFrom - logFirst) : [];
       zh.hist.set(q, { zk: cur, ev: this.evSeq, t: performance.now() });
       if (zh.hist.size > 48) zh.hist.delete(zh.hist.keys().next().value);
-      const m = Object.assign({}, s, { Z, ZD, zd: 1, q, hi: this.hid, E, es: evFrom });
+      const m = Object.assign({}, s, { Z, ZD, zd: bz ? 1 : 0, q, hi: this.hid, E, es: evFrom });
       if (far && !full) m.ZF = far;
       this.net.sendSnap(p.pid, m);
     }
@@ -523,6 +530,8 @@ export class HostGame {
     const room = p.maxHp - p.hp;
     p.hp = Math.min(p.maxHp, p.hp + v);
     if (f.guard) p.guardUntil = now + f.guard;
+    // Vampir: with health already full, what the blade drinks becomes a blood shield (up to a share of max health)
+    if (f.bshield && v > room) { p.bs = Math.min(p.maxHp * f.bshield, (p.bs || 0) + (v - room)); p.bsAt = now; }
     if (f.leechAll && v > room) for (const q of this.inGame()) if (q !== p && q.alive && this.ally(p, q) && Math.hypot(q.x - p.x, q.y - p.y) < 150) q.hp = Math.min(q.maxHp, q.hp + (v - room) * f.leechAll);
   }
   // what a path does when its hit kills
@@ -878,9 +887,15 @@ export class HostGame {
         const dx = z.x - p.x, dy = z.y - p.y, d = Math.hypot(dx, dy);
         let da = Math.atan2(dy, dx) - p.a; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
         if (d < R && Math.abs(da) < cone) cand.push([d, z]);
+        else if (d < R * 0.55) cand.push([d + R, z]); // right next to you but outside the aim cone: taken after the ones you aimed at
       }
       cand.sort((a, b) => a[0] - b[0]);
-      for (const [, z] of cand.slice(0, n)) { z.ally = p.pid; z.allyUntil = now + dur; z.allyK = L >= 2 ? 2 : 1; z.allyB = L >= 3 ? 1.5 : 1; z.tg = null; }
+      let took = 0;
+      for (const [, z] of cand.slice(0, n)) {
+        z.ally = p.pid; z.allyUntil = now + dur; z.allyK = L >= 2 ? 2 : 1; z.allyB = L >= 3 ? 1.5 : 1; z.tg = null; took++;
+        // whatever it was in the middle of (a charge, a jump, a spit, a scream, a fuse...) stops here, so it never stays frozen in that pose
+        z.st = ZS.NORMAL; z.stT = 0; z.stunT = 0; z.kvx = 0; z.kvy = 0; z.rageT = 0; z.cd = Math.min(z.cd || 0, 0.25); z.hitSet = null;
+      }
       // in PvP: enemies in the cone lose their abilities for a moment, slow down and can't hide
       for (const q of this.foesOf(p)) {
         const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
@@ -891,6 +906,8 @@ export class HostGame {
         for (const t of this.turrets) if (t.owner === q.pid && (t.k == null || t.k === 4)) t.hackUntil = now + 4;
       }
       this.ev(['hk', p.pid, Math.round(p.x), Math.round(p.y), r2(p.a), R]);
+      // nothing in reach to take over: the ability is ready again in a moment instead of going to waste
+      if (!took && !this.foesOf(p).some((q) => q.silUntil === now + 4 + (L >= 1 ? 1 : 0))) p.abAt = Math.min(p.abAt, now + 2);
     }
   }
 
@@ -1347,6 +1364,8 @@ export class HostGame {
     const ps = this.inGame();
     const docs = ps.filter((q) => q.alive && q.cls === 'doktor');
     for (const p of ps) {
+      // a blood shield that is not being fed drains away after a few seconds
+      if (p.bs > 0 && (!p.alive || this.time - (p.bsAt || 0) > 6)) p.bs = p.alive ? Math.max(0, p.bs - p.maxHp * 0.04 * dt) : 0;
       if (!p.alive || p.hp >= p.maxHp) continue;
       let r = this.pc(p).st.regen;
       if (p.cls === 'doktor') r += 1.5;
@@ -1459,7 +1478,9 @@ export class HostGame {
     if (this.curBoss) dmg *= BOSS_DMG;
     const pf = this.pc(p).fx || {};
     if (pf.thorns && this.curZ && !this.curZ.dead && Math.hypot(this.curZ.x - p.x, this.curZ.y - p.y) < 160) this.damage(this.curZ, dmg * pf.thorns * 3, p);
-    p.hp -= dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1) * this.pc(p).st.armor * (sprint ? 0.4 : 1) * (p.spinUntil > this.time ? 0.6 : 1) * (p.guardUntil > this.time ? 0.7 : 1);
+    let hit = dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1) * this.pc(p).st.armor * (sprint ? 0.4 : 1) * (p.spinUntil > this.time ? 0.6 : 1) * (p.guardUntil > this.time ? 0.7 : 1);
+    if (p.bs > 0) { const a = Math.min(p.bs, hit); p.bs -= a; hit -= a; } // the blood shield takes it first
+    p.hp -= hit;
     if (p.hp <= 0) this.down(p);
   }
 
@@ -1595,6 +1616,7 @@ export class HostGame {
         moveCircle(z, Math.cos(z.cdir) * charge.spd * dt, Math.sin(z.cdir) * charge.spd * dt, T.r);
         if (this.walls.length) this.wallPush(z, T, dt);
         for (const p of players) {
+          if (!z.hitSet) z.hitSet = new Set(); // a zombie restored mid-charge (new host) has none yet
           if (z.hitSet.has(p.pid)) continue;
           if (Math.hypot(p.x - z.x, p.y - z.y) < reach + 6) { z.hitSet.add(p.pid); this.hurt(p, charge.dmg); this.knock(p, z.x, z.y, charge.kb); }
         }
@@ -2034,11 +2056,19 @@ export class HostGame {
     return 1;
   }
   // the nearest zombie (or enemy in PvP) to a point, for the dog
-  nearTarget(p, x, y, r) {
+  nearTarget(p, x, y, r, skip) {
     let best = null, bd = r * r;
-    for (const z of this.zombies) { if (z.dead || z.ally || z.st === ZS.BURROW) continue; const d = (z.x - x) ** 2 + (z.y - y) ** 2; if (d < bd) { bd = d; best = z; } }
+    for (const z of this.zombies) { if (z.dead || z.ally || z.st === ZS.BURROW || z.id === skip) continue; const d = (z.x - x) ** 2 + (z.y - y) ** 2; if (d < bd) { bd = d; best = z; } }
     for (const q of this.foesOf(p)) { if (q.invUntil > this.time) continue; const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) { bd = d; best = q; } }
     return best ? (best.pid != null ? 'p' + best.pid : best.id) : null;
+  }
+  // the dog appears at its owner's side (never inside a wall)
+  dogHeel(t, owner) {
+    for (let i = 0; i < 8; i++) {
+      const a = owner.a + Math.PI + (t.slot ? 0.7 : -0.7) + i * 0.8, x = owner.x + Math.cos(a) * 34, y = owner.y + Math.sin(a) * 34;
+      if (!pointInObstacle(x, y, 9) && !outOfMap(x, y)) { t.x = x; t.y = y; t.tg = null; return; }
+    }
+    t.x = owner.x; t.y = owner.y; t.tg = null;
   }
   // the Eğitmen's dog: stays near its owner, runs at anything close, bites and holds it
   updateDog(t, owner, dt) {
@@ -2048,14 +2078,24 @@ export class HostGame {
     const look = (id) => (typeof id === 'string' ? this.players.get(+id.slice(1)) : this.zIndex.get(id));
     let tg = t.tg != null ? look(t.tg) : null;
     if (tg && (tg.dead || (tg.pid != null && (!tg.alive || !this.foe(owner, tg) || tg.invUntil > now)) || tg.ally || Math.hypot(tg.x - owner.x, tg.y - owner.y) > D.range * (atk ? 2 : 1.4))) tg = null;
-    if (!tg && owner.alive && (this.phase === 'combat') && (t.seek = (t.seek || 0) - dt) <= 0) { t.seek = 0.3; t.tg = this.nearTarget(owner, owner.x, owner.y, D.range); tg = t.tg != null ? look(t.tg) : null; }
+    if (!tg && owner.alive && (this.phase === 'combat') && (t.seek = (t.seek || 0) - dt) <= 0) { t.seek = 0.3; t.tg = this.nearTarget(owner, owner.x, owner.y, D.range, t.skipT > now ? t.skip : null); tg = t.tg != null ? look(t.tg) : null; }
     if (!tg) t.tg = null;
     let gx, gy, spd = D.spd * (atk ? 1.6 : 1);
     if (tg) { gx = tg.x; gy = tg.y; } else { const a = owner.a + Math.PI + (t.slot ? 0.7 : -0.7); gx = owner.x + Math.cos(a) * 38; gy = owner.y + Math.sin(a) * 38; spd = Math.max(D.spd, Math.hypot(gx - t.x, gy - t.y) * 3); }
     const dx = gx - t.x, dy = gy - t.y, d = Math.hypot(dx, dy) || 1;
     const reach = tg ? (tg.pid != null ? PLAYER_R : ZTYPES[tg.t].r) + 12 : 4;
-    if (d > reach) { const st = Math.min(d - reach, spd * dt); moveCircle(t, dx / d * st, dy / d * st, 9); t.a = Math.atan2(dy, dx); }
-    if (Math.hypot(t.x - owner.x, t.y - owner.y) > 900) { t.x = owner.x - 20; t.y = owner.y; }
+    if (d > reach) {
+      const st = Math.min(d - reach, spd * dt), bx = t.x, by = t.y;
+      moveCircle(t, dx / d * st, dy / d * st, 9); t.a = Math.atan2(dy, dx);
+      // a wall in the way: after half a second the dog drops that target, or comes straight back to heel
+      if (st > 0.5 && Math.hypot(t.x - bx, t.y - by) < st * 0.3) t.stuck = (t.stuck || 0) + dt; else t.stuck = 0;
+      if (t.stuck > 0.5) {
+        t.stuck = 0;
+        if (tg) { t.skip = t.tg; t.skipT = now + 2.5; t.tg = null; t.seek = 0.2; }
+        else this.dogHeel(t, owner);
+      }
+    } else t.stuck = 0;
+    if (Math.hypot(t.x - owner.x, t.y - owner.y) > (tg ? 900 : 560)) this.dogHeel(t, owner);
     if (!tg || d > reach + 6 || t.cd > 0 || this.phase !== 'combat') return;
     const of = this.pc(owner).fx || {};
     const L = owner.lv.ab | 0, dm = D.dmg * (1 + 0.15 * (owner.lv.dmg | 0)) * (L >= 2 ? 1.4 : 1) * (atk ? 2 * (of.dogAtk || 1) : 1) * this.netBoost(t);
@@ -2101,10 +2141,17 @@ export class HostGame {
       return;
     }
     let best = null, bd = 700 * 700;
-    for (const o of this.zombies) { if (o === z || o.dead || o.ally || o.st === ZS.BURROW) continue; const d = (o.x - z.x) ** 2 + (o.y - z.y) ** 2; if (d < bd) { bd = d; best = o; } }
+    for (const o of this.zombies) { if (o === z || o.dead || o.ally || o.st === ZS.BURROW || (o.id === z.aSkip && z.aSkipT > now)) continue; const d = (o.x - z.x) ** 2 + (o.y - z.y) ** 2; if (d < bd) { bd = d; best = o; } }
     if (!best) { this.wander(z, T, dt); return; }
     const dx = best.x - z.x, dy = best.y - z.y, d = Math.hypot(dx, dy) || 1, reach = T.r + ZTYPES[best.t].r + 4;
-    if (d > reach) { const sp = T.spd * z.sm * 1.15 * dt; moveCircle(z, dx / d * Math.min(sp, d - reach), dy / d * Math.min(sp, d - reach), T.r); z.dx = dx / d; z.dy = dy / d; }
+    if (d > reach) {
+      const sp = T.spd * z.sm * 1.15 * dt, st = Math.min(sp, d - reach), bx = z.x, by = z.y;
+      if (z.t === 21) { z.x += dx / d * st; z.y += dy / d * st; } // bats fly over everything
+      else moveCircle(z, dx / d * st, dy / d * st, T.r);
+      z.dx = dx / d; z.dy = dy / d;
+      // a wall between it and its prey: after a moment it gives up on that one and picks another
+      if (Math.hypot(z.x - bx, z.y - by) < st * 0.25) { z.aStuck = (z.aStuck || 0) + dt; if (z.aStuck > 0.8) { z.aStuck = 0; z.aSkip = best.id; z.aSkipT = now + 2.5; } } else z.aStuck = 0;
+    }
     else if (z.cd <= 0) { z.cd = 0.7; this.damage(best, Math.max(12, (T.dps || 10) * 2) * (z.allyK || 1), owner); this.ev(['bt', Math.round(best.x), Math.round(best.y)]); }
     this.separate(z, T, grid, hw, HC, dt, 0);
   }
@@ -2298,8 +2345,8 @@ export class HostGame {
         p.alive ? 0 : r2((p.rev || 0) / REVIVE_TIME),
         Math.max(0, r1(p.powerUntil - this.time)), Math.max(0, r1(p.hasteUntil - this.time)), p.wt, p.wp || 0, p.wb || 0, p.inv || [], Math.max(0, r1((p.chillUntil || 0) - this.time)),
         p.tm | 0, p.pk | 0, p.deaths | 0, !p.alive && p.respAt && p.respAt < Infinity ? Math.max(0, r1(p.respAt - this.time)) : 0,
-        (p.protUntil > this.time ? 1 : 0) | (p.invUntil > this.time ? 2 : 0) | (p.silUntil > this.time ? 4 : 0) | (p.spinUntil > this.time ? 8 : 0), p.assists | 0,
-        p.pid === this.hostPid ? 0 : Math.round(p.ping || 0),
+        (p.protUntil > this.time ? 1 : 0) | (p.invUntil > this.time ? 2 : 0) | (p.silUntil > this.time ? 4 : 0) | (p.spinUntil > this.time ? 8 : 0) | (p.guardUntil > this.time ? 16 : 0), p.assists | 0,
+        p.pid === this.hostPid ? 0 : Math.round(p.ping || 0), Math.ceil(p.bs || 0),
       ]);
     }
     const Z = [];

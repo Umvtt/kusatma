@@ -140,7 +140,7 @@ export class ClientGame {
 
     const seenP = new Set();
     for (const e of s.P) {
-      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, lv, ab, rdy, shield, rev, pw, hs, wt, wp, wb, inv, chill, tm, pk, dth, resp, pfl, ast, ping] = e;
+      const [pid, x, y, a, hp, maxHp, alive, gold, kills, sp, lv, ab, rdy, shield, rev, pw, hs, wt, wp, wb, inv, chill, tm, pk, dth, resp, pfl, ast, ping, bs] = e;
       seenP.add(pid);
       if (pid === this.me) {
         const S = this.self;
@@ -152,7 +152,7 @@ export class ClientGame {
         S.lv = lvObj(lv);
         S.abLeft = ab; S.shopReady = !!rdy; S.inGame = true; S.wt = wt || 0; S.wp = wp || 0; S.wb = wb || 0; S.power = pw || 0; S.haste = hs || 0; S.chill = chill || 0;
         S.inv = Array.isArray(inv) ? GEAR.map((g, i) => inv[i] | 0) : GEAR.map(() => 0);
-        S.tm = tm | 0; S.pk = pk | 0; S.dth = dth | 0; S.resp = resp || 0; S.pfl = pfl | 0; S.ast = ast | 0;
+        S.tm = tm | 0; S.pk = pk | 0; S.dth = dth | 0; S.resp = resp || 0; S.pfl = pfl | 0; S.ast = ast | 0; S.bs = bs | 0;
       }
       let p = this.ps.get(pid);
       if (!p) { p = { x, y, a, walk: 0 }; this.ps.set(pid, p); }
@@ -160,7 +160,7 @@ export class ClientGame {
       p.tx = x; p.ty = y; p.ta = a; p.hp = hp; p.maxHp = maxHp; p.alive = !!alive;
       p.kills = kills; p.ready = !!rdy; p.shield = !!shield; p.rev = rev || 0; p.wt = wt || 0; p.wp = wp || 0; p.wb = wb || 0; p.power = pw || 0; p.haste = hs || 0; p.chill = chill || 0;
       p.abl = Array.isArray(lv) ? lv[lv.length - 1] | 0 : 0;
-      p.tm = tm | 0; p.pk = pk | 0; p.dth = dth | 0; p.resp = resp || 0; p.pfl = pfl | 0; p.ast = ast | 0; p.ping = ping | 0;
+      p.tm = tm | 0; p.pk = pk | 0; p.dth = dth | 0; p.resp = resp || 0; p.pfl = pfl | 0; p.ast = ast | 0; p.ping = ping | 0; p.bs = bs | 0;
     }
     this.pv = Array.isArray(s.PV) ? s.PV : null;
     for (const pid of [...this.ps.keys()]) if (!seenP.has(pid)) this.ps.delete(pid);
@@ -201,6 +201,8 @@ export class ClientGame {
     }
     if (s.zd) { for (const id of s.ZD || []) this.zs.delete(id); }
     else for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
+    // nothing is left alive on the host between waves: whatever is still here is a leftover and goes
+    if (this.phase === 'break' && !s.zl && !s.Z.length && this.zs.size) this.zs.clear();
 
     const seenT = new Set();
     for (const [id, x, y, a, life, k, hp] of s.T) {
@@ -495,7 +497,16 @@ export class ClientGame {
       if (z.dying && this.time - z.dying > PEND_T) { z.dying = 0; z.pend = []; }
       z.flash = Math.max(0, z.flash - dt);
     }
-    for (const t of this.ts.values()) { t.a = lerpAngle(t.a, t.ta, kf); if (t.k === 1 || t.k === 2) { t.x += (t.tx - t.x) * Math.min(1, kf * 1.5); t.y += (t.ty - t.y) * Math.min(1, kf * 1.5); } }
+    for (const t of this.ts.values()) {
+      t.a = lerpAngle(t.a, t.ta, kf);
+      if (t.k === 1 || t.k === 2) { t.x += (t.tx - t.x) * Math.min(1, kf * 1.5); t.y += (t.ty - t.y) * Math.min(1, kf * 1.5); }
+      else if (t.k === 5) { // the Eğitmen's dog runs around: follow it smoothly (it used to stay where it first appeared)
+        const ox = t.x, oy = t.y;
+        if (Math.hypot(t.tx - t.x, t.ty - t.y) > 320) { t.x = t.tx; t.y = t.ty; } else { const kd = Math.min(1, kf * 1.6); t.x += (t.tx - t.x) * kd; t.y += (t.ty - t.y) * kd; }
+        const v = Math.hypot(t.x - ox, t.y - oy) / Math.max(dt, 1e-3);
+        t.mv = (t.mv || 0) * 0.8 + (v > 25 ? 0.2 : 0);
+      }
+    }
     for (const q of this.spits.values()) { q.x += (q.tx - q.x) * kf; q.y += (q.ty - q.y) * kf; }
 
     this.updateParts(dt);

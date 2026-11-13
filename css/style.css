@@ -1465,14 +1465,10 @@ body.touch .voice-live { top: calc(max(10px, env(safe-area-inset-top)) + 48px); 
 .touchpad.free .zone-move { pointer-events: auto; touch-action: none; }
 .touchpad.free #stick-move:not(.held) { opacity: calc(var(--tco) * .45); }
 .touchpad.free #stick-move.held { left: var(--fx) !important; top: var(--fy) !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%); pointer-events: none; }
-body.ctl-editing .touchpad { z-index: 61; }
-body.ctl-editing #touch [data-ed] { pointer-events: auto; cursor: grab; outline: 2px dashed rgba(255,211,77,.75); outline-offset: 4px; touch-action: none; }
-body.ctl-editing #touch [data-ed].drag { outline-color: #43d17a; cursor: grabbing; }
 body.ctl-editing #stick-aim, body.ctl-editing #t-ab, body.ctl-editing #t-bash, body.ctl-editing #btn-voice { display: flex !important; visibility: visible !important; }
 body.ctl-editing #stick-aim, body.ctl-editing #stick-move { display: block !important; }
 body.ctl-editing .zone-move { pointer-events: none !important; background: rgba(76,201,240,.07); border-right: 1px dashed rgba(76,201,240,.35); }
 body.ctl-editing .touchpad:not(.free) .zone-move { display: none; }
-body.ctl-editing #touch .t-pause, body.ctl-editing #touch .t-score, body.ctl-editing #touch .t-chat, body.ctl-editing #touch .t-quick, body.ctl-editing #touch .t-gear-row { opacity: .25; pointer-events: none; }
 .ctl-ed { position: fixed; inset: 0; z-index: 60; background: rgba(6,9,8,.72); display: flex; justify-content: center; align-items: flex-start; padding: max(10px, env(safe-area-inset-top, 0px)) 16px 0; }
 .ctl-bar { position: relative; z-index: 62; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; max-width: 620px; width: 100%; background: rgba(18,24,21,.96); border: 1px solid rgba(236,230,214,.18); border-radius: 14px; padding: 10px 12px; }
 .ctl-bar strong { font-size: 14px; }
@@ -1576,3 +1572,110 @@ body.touch .over-wrap .row:last-child { position: sticky; bottom: -16px; z-index
 .wk-prize { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,211,63,.1); border: 1px solid rgba(255,211,63,.45); margin-bottom: 8px; }
 .wk-box .wk-rows { margin-top: 8px; }
 .wk-note { margin: 0 0 8px; }
+
+/* ===== build 56: compact phone HUD. Every piece can be moved and resized (Ayarlar → Ekran düzeni) ===== */
+.boss { width: min(420px, calc(100% - 520px)); padding: 6px 12px 8px; }
+.boss strong { font-size: 16px; }
+.boss-bar { height: 8px; margin-top: 4px; }
+.boss-more .boss-n { font-size: 11px; color: var(--dim); font-weight: 600; }
+.bs-bar { height: 5px; margin-top: 3px; border-radius: 3px; background: #2a1418; overflow: hidden; }
+.bs-bar[hidden] { display: none; }
+.bs-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #c2263a, #ff5d6e); border-radius: 3px; transition: width .15s; }
+.buff.chill { color: #9fe3ff; border-color: #9fe3ff; }
+.buff.blood { color: #ff7c8a; border-color: #ff5d6e; }
+.buff.guard { color: #ffd678; border-color: #ffd678; }
+/* the microphone badge: a small pill, never in the way */
+.voice-live { top: max(4px, env(safe-area-inset-top)); gap: 6px; padding: 3px 9px 3px 8px; font-size: 11px; opacity: .92; }
+.voice-live .vl-dot { width: 7px; height: 7px; box-shadow: 0 0 0 calc(1px + var(--lv) * 3px) rgba(67,209,122,.35); }
+.voice-live.open .vl-dot { box-shadow: 0 0 0 calc(1px + var(--lv) * 3px) rgba(255,122,74,.35); }
+.voice-live .vl-bars { height: 9px; }
+.voice-live .vl-bars i { width: 2px; height: calc(2px + var(--lv) * 7px); }
+.voice-live .vl-bars i:nth-child(2) { height: calc(2px + var(--lv) * 5px); } .voice-live .vl-bars i:nth-child(4) { height: calc(2px + var(--lv) * 4px); } .voice-live .vl-bars i:nth-child(5) { height: calc(2px + var(--lv) * 3px); }
+body.touch .voice-live { top: auto; bottom: max(4px, env(safe-area-inset-bottom)); padding: 2px 7px; }
+body.touch .voice-live .vl-t { display: none; }
+.kfeed { right: var(--mm-r, 16px); }
+.mm-box { position: fixed; left: var(--mm-x, -999px); top: var(--mm-y, 0); width: var(--mm-w, 0); height: var(--mm-h, 0); pointer-events: none; }
+.t-tools { position: absolute; left: max(10px, env(safe-area-inset-left, 0px)); top: var(--tb-top, 52px); display: flex; gap: 6px; pointer-events: none; }
+.t-tools .t-btn { position: static; padding: 7px 11px; font-size: 11.5px; }
+.t-tools .t-btn[hidden] { display: none; }
+
+body.touch .hud-tl { top: max(8px, env(safe-area-inset-top, 0px)); left: max(10px, env(safe-area-inset-left, 0px)); gap: 6px; align-items: flex-start; }
+body.touch .wave-box { transform: none; flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 7px; row-gap: 3px; padding: 5px 10px 6px; min-width: 0; max-width: 230px; border-radius: 10px; backdrop-filter: none; }
+body.touch .wave-box .eyebrow { font-size: 10px; }
+body.touch #hud-wave { font-size: 22px; margin: 0; }
+body.touch .hud-sub { font-size: 11.5px; white-space: nowrap; }
+body.touch .mode-tag, body.touch .mev-chip, body.touch .ping-chip { margin-top: 0 !important; font-size: 10px; padding: 1px 6px; align-self: center; }
+body.touch .hud-bottom { top: max(8px, env(safe-area-inset-top, 0px)); bottom: auto; transform: translateX(-50%); gap: 6px; flex-wrap: nowrap; width: auto; align-items: stretch; }
+body.touch .hp-box { width: 186px; padding: 5px 9px 7px; border-radius: 10px; backdrop-filter: none; }
+body.touch .hp-top { font-size: 11px; margin-bottom: 4px; gap: 6px; }
+body.touch .hp-top #hud-class { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+body.touch .hp-bar { height: 8px; }
+body.touch .gold-box { padding: 4px 10px; min-width: 0; border-radius: 10px; backdrop-filter: none; column-gap: 6px; }
+body.touch .gold-box strong { font-size: 16px; }
+body.touch .gold-box .coin { width: 13px; height: 13px; }
+body.touch .gold-box .kills { font-size: 10.5px; }
+body.touch .buffs { position: absolute; left: calc(100% + 6px); top: 0; bottom: auto; flex-direction: column; gap: 3px; }
+body.touch .buff { font-size: 10.5px; padding: 2px 7px; white-space: nowrap; }
+body.touch .boss { top: calc(max(8px, env(safe-area-inset-top, 0px)) + 52px); width: 236px; min-width: 0; padding: 4px 9px 5px; column-gap: 8px; align-items: center; border-radius: 9px; transition: none; }
+body.touch .boss .eyebrow { display: none; }
+body.touch .boss strong { font-family: var(--body); font-weight: 700; font-size: 12px; white-space: nowrap; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+body.touch .boss > .boss-bar { grid-column: 2; margin: 0; height: 7px; }
+body.touch .boss-more { gap: 3px; margin-top: 4px; }
+body.touch .boss-row { font-size: 10.5px; gap: 6px; }
+body.touch .boss-bar.sm { height: 4px; }
+body.touch .chat { top: calc(var(--tb-top, 52px) + 40px); }
+body.touch .tut { top: calc(max(8px, env(safe-area-inset-top, 0px)) + 78px); }
+body.touch .pvp-bar { top: calc(max(8px, env(safe-area-inset-top, 0px)) + 44px); }
+@media (max-height: 520px) { body.touch .pvp-bar { top: calc(max(8px, env(safe-area-inset-top, 0px)) + 44px); } }
+@media (max-width: 720px) { body.touch .hp-box { width: 150px; } body.touch .boss { width: 200px; } body.touch .gold-box .kills { display: none; } }
+
+/* a piece the player has placed or resized */
+body.touch [data-ed] { --ms: 1; }
+body.touch [data-ed].moved { position: fixed !important; left: var(--mx) !important; top: var(--my) !important; right: auto !important; bottom: auto !important; margin: 0 !important; transform: translate(-50%, -50%) scale(var(--ms)) !important; transform-origin: 50% 50% !important; }
+.touchpad.free #stick-move.held { transform: translate(-50%, -50%) scale(var(--ms, 1)) !important; }
+/* editing the layout */
+body.ctl-editing #game { filter: brightness(.45); }
+body.ctl-editing .touchpad { z-index: 61; }
+.ctl-ed { background: none; pointer-events: none; align-items: center; padding: 0 16px; }
+.ctl-bar { pointer-events: auto; max-width: 440px; gap: 6px 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+.ctl-bar .ctl-row { display: flex; flex-direction: column; gap: 1px; flex: 1 1 100%; }
+.ctl-bar .ctl-hint { font-size: 11.5px; }
+.ctl-s { flex: 1 1 100%; }
+.ctl-s > span { flex: 0 0 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.ctl-s > b { flex: 0 0 40px; text-align: right; font-variant-numeric: tabular-nums; }
+.ctl-acts { flex-wrap: wrap; justify-content: flex-end; }
+@media (max-height: 500px) { .ctl-bar .ctl-hint { display: block; } .ctl-bar { padding: 8px 10px; } }
+body.ctl-editing [data-ed] { pointer-events: auto !important; cursor: grab; outline: 2px dashed rgba(255,211,77,.7); outline-offset: 3px; touch-action: none; visibility: visible !important; opacity: 1 !important; }
+body.ctl-editing [data-ed] * { pointer-events: none !important; }
+body.ctl-editing [data-ed].sel { outline: 2px solid #43d17a; box-shadow: 0 0 0 5px rgba(67,209,122,.25); cursor: grabbing; }
+body.ctl-editing #boss { display: grid !important; }
+body.ctl-editing #btn-armory, body.ctl-editing #t-gear, body.ctl-editing #t-tools { display: flex !important; }
+body.ctl-editing #t-tools .t-btn { display: inline-block !important; }
+body.ctl-editing .mm-box { background: rgba(255,211,77,.06); }
+body.ctl-editing #esc, body.ctl-editing #shop, body.ctl-editing .chat, body.ctl-editing #dead, body.ctl-editing #banner, body.ctl-editing #tut, body.ctl-editing #board, body.ctl-editing .kfeed, body.ctl-editing #quick, body.ctl-editing #streak { visibility: hidden !important; }
+
+/* the armory's Sargı (heal) button on phones: impossible to miss */
+body.touch .shop.full .shop-heal { border-width: 2px; border-color: #43d17a; background: linear-gradient(180deg, rgba(67,209,122,.26), rgba(67,209,122,.12)); padding: 8px 10px; min-height: 44px; border-radius: 10px; }
+body.touch .shop.full .shop-heal .sh-t b { font-size: 15px; color: #b9f5cf; display: flex; align-items: center; gap: 6px; }
+body.touch .shop.full .shop-heal .sh-t b::before { content: '+'; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; background: #43d17a; color: #062012; font-weight: 900; font-size: 15px; line-height: 1; }
+body.touch .shop.full .shop-heal .sh-t > span { display: block; font-size: 11px; color: #cfe9d8; }
+body.touch .shop.full .shop-heal .cost { font-size: 15px; color: var(--gold); }
+body.touch .shop.full .shop-heal:disabled { opacity: 1; border-color: rgba(67,209,122,.3); background: rgba(67,209,122,.06); }
+body.touch .shop.full .shop-heal:disabled .sh-t b, body.touch .shop.full .shop-heal:disabled .cost { opacity: .55; }
+body.touch .shop.full .shop-heal.need { animation: healPulse 1.1s ease-in-out infinite; }
+.shop-heal.need { border-color: #43d17a; box-shadow: 0 0 0 0 rgba(67,209,122,.5); animation: healPulse 1.3s ease-in-out infinite; }
+@keyframes healPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(67,209,122,.55); } 50% { box-shadow: 0 0 0 7px rgba(67,209,122,0); } }
+@media (prefers-reduced-motion: reduce) { .shop-heal.need { animation: none; } }
+.armory-fab .fab-heal { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: #43d17a; color: #062012; font-weight: 900; font-size: 16px; }
+.armory-fab .fab-heal[hidden] { display: none; }
+body.ctl-editing .touchpad { display: block !important; visibility: visible !important; }
+body.ctl-editing .hud-bottom, body.ctl-editing #boss { visibility: visible !important; }
+.ctl-ed { display: block; padding: 0; }
+.ctl-bar { position: fixed; left: var(--bx, 44%); top: var(--by, 58%); transform: translate(-50%, -50%); width: min(310px, 62vw); max-width: none; padding: 8px 10px; gap: 5px 10px; border-radius: 12px; }
+.ctl-bar .ctl-row { cursor: move; touch-action: none; padding-bottom: 2px; }
+.ctl-bar .ctl-row strong::after { content: ' ⠿'; opacity: .5; font-weight: 400; }
+.ctl-bar .ctl-hint { flex: none; margin: 0; line-height: 1.25; }
+.ctl-s > span { flex: 0 0 96px; font-size: 11.5px; }
+.ctl-c { flex: 1 1 100%; justify-content: space-between; }
+.ctl-acts { flex: 1 1 100%; margin: 0; justify-content: space-between; gap: 6px; }
+.ctl-acts .btn { padding: 6px 9px; font-size: 11.5px; min-height: 30px; }

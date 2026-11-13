@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=55">
-  <link rel="stylesheet" href="css/dash.css?v=55">
+  <link rel="stylesheet" href="css/style.css?v=56">
+  <link rel="stylesheet" href="css/dash.css?v=56">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -210,6 +210,7 @@
       <div class="hp-box">
         <div class="hp-top"><span id="hud-class">Asker</span><span id="hud-hp-text">120 / 120</span></div>
         <div class="hp-bar"><i id="hud-hp-fill"></i></div>
+        <div class="bs-bar" id="hud-bs" hidden><i id="hud-bs-fill"></i></div>
       </div>
       <div class="ab-box" id="hud-ab">
         <i class="ab-fill" id="hud-ab-fill"></i>
@@ -308,10 +309,10 @@
       <p id="shop-ready-count" class="note center"></p>
     </aside>
 
-    <button id="btn-armory" class="armory-fab" type="button" hidden><span class="coin" aria-hidden="true"></span><b id="fab-gold">0</b><span class="fab-t">Cephanelik</span><span class="fab-n" id="fab-n" hidden></span></button>
+    <button id="btn-armory" class="armory-fab" type="button" hidden><span class="coin" aria-hidden="true"></span><b id="fab-gold">0</b><span class="fab-t">Cephanelik</span><span class="fab-n" id="fab-n" hidden></span><span class="fab-heal" id="fab-heal" title="Sargı alabilirsin" hidden>+</span></button>
 
     <div id="quick" class="quick" hidden role="menu" aria-label="Hızlı mesajlar"><div class="quick-head"><b>Hızlı mesaj</b><span class="quick-hint">Z ile aç, 1–7 ile seç · G: işaretle</span></div><div class="quick-grid" id="quick-grid"></div></div>
-    <div id="voice-live" class="voice-live" hidden aria-live="polite"><span class="vl-dot" aria-hidden="true"></span><span class="vl-t">Sesin gidiyor</span><span class="vl-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
+    <div id="voice-live" class="voice-live" hidden aria-live="polite"><span class="vl-dot" aria-hidden="true"></span><span class="vl-t">Mikrofon açık</span><span class="vl-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
     <div id="dead" class="dead" hidden>
       <div class="dead-top"><strong>Düştün</strong><span id="dead-by" class="dead-by" hidden></span><span id="dead-sub"></span></div>
       <div class="spec" id="spec">
@@ -499,7 +500,7 @@
           <label class="set-check" for="set-fps"><span>FPS göster</span><input id="set-fps" type="checkbox"></label>
           <label class="set-check" for="set-vibe" id="set-vibe-row"><span>Titreşim</span><input id="set-vibe" type="checkbox"></label>
           <div class="set-row set-q"><span>Pil tasarrufu</span><output id="set-saver-out">Otomatik</output><div class="seg q-seg" id="set-saver" role="radiogroup" aria-label="Pil tasarrufu"><button type="button" data-s="off">Kapalı</button><button type="button" data-s="auto">Oto</button><button type="button" data-s="on">Açık</button></div></div>
-          <div class="set-row set-ctl" id="set-ctl-row"><span>Dokunmatik kontroller</span><button id="set-ctl" class="btn small" type="button">Düzenle</button></div>
+          <div class="set-row set-ctl" id="set-ctl-row"><span>Ekran düzeni (tuşlar ve göstergeler)</span><button id="set-ctl" class="btn small" type="button">Düzenle</button></div>
         </section>
       </div>
       <div class="set-foot"><p class="set-build" id="set-build"></p><nav class="legal-links set-legal" aria-label="Yasal"><a href="gizlilik.html" target="_blank" rel="noopener">Gizlilik</a><a href="cerezler.html" target="_blank" rel="noopener">Çerezler</a><a href="kosullar.html" target="_blank" rel="noopener">Şartlar</a><button type="button" class="ck-open">Çerez tercihleri</button></nav><div class="row"><button id="settings-diag" class="btn ghost small" type="button">Bağlantı testi</button><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div></div>
@@ -513,20 +514,21 @@
     <button id="t-ab" class="t-btn t-ability" type="button">Yetenek</button>
     <button id="t-bash" class="t-btn t-bash" type="button">Dipçik</button>
     <div id="t-gear" class="t-gear-row" hidden></div>
-    <button id="t-menu" class="t-btn t-pause" type="button">Menü</button>
-    <button id="t-board" class="t-btn t-score" type="button">Skor</button>
-    <button id="t-chat" class="t-btn t-chat" type="button">Sohbet</button>
-    <button id="t-quick" class="t-btn t-quick" type="button" hidden>Hızlı</button>
+    <div id="t-tools" class="t-tools">
+      <button id="t-menu" class="t-btn t-pause" type="button">Menü</button>
+      <button id="t-board" class="t-btn t-score" type="button">Skor</button>
+      <button id="t-chat" class="t-btn t-chat" type="button">Sohbet</button>
+      <button id="t-quick" class="t-btn t-quick" type="button" hidden>Hızlı</button>
+    </div>
+    <div id="mm-box" class="mm-box" aria-hidden="true"></div>
   </div>
   <div id="ctl-ed" class="ctl-ed" hidden>
-    <div class="ctl-bar" role="dialog" aria-label="Kontrolleri düzenle">
-      <strong>Kontrolleri düzenle</strong>
-      <span class="note ctl-hint">Tuşları sürükleyip taşı.</span>
-      <label class="ctl-s"><span>Joystick</span><input id="ctl-stk" type="range" min="70" max="150" step="5"></label>
-      <label class="ctl-s"><span>Tuşlar</span><input id="ctl-btn" type="range" min="70" max="150" step="5"></label>
-      <label class="ctl-s"><span>Saydamlık</span><input id="ctl-op" type="range" min="30" max="100" step="5"></label>
+    <div class="ctl-bar" role="dialog" aria-label="Ekran düzeni">
+      <div class="ctl-row"><strong>Ekran düzeni</strong><span class="note ctl-hint">Bir parçaya dokun, sürükleyip taşı, boyutunu ayarla.</span></div>
+      <label class="ctl-s"><span id="ctl-sel">Parça seç</span><input id="ctl-sz" type="range" min="60" max="160" step="5" disabled><b id="ctl-sz-v">–</b></label>
+      <label class="ctl-s"><span>Saydamlık</span><input id="ctl-op" type="range" min="30" max="100" step="5"><b id="ctl-op-v"></b></label>
       <label class="ctl-c"><span>Serbest joystick</span><input id="ctl-free" type="checkbox"></label>
-      <div class="ctl-acts"><button id="ctl-reset" class="btn small ghost" type="button">Sıfırla</button><button id="ctl-done" class="btn small primary" type="button">Bitti</button></div>
+      <div class="ctl-acts"><button id="ctl-one" class="btn small ghost" type="button" disabled>Parçayı sıfırla</button><button id="ctl-reset" class="btn small ghost" type="button">Hepsini sıfırla</button><button id="ctl-done" class="btn small primary" type="button">Bitti</button></div>
     </div>
   </div>
   <div id="share-dlg" class="confirm" hidden>
@@ -602,7 +604,7 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=55","./js/client.js":"./js/client.js?v=55","./js/config.js":"./js/config.js?v=55","./js/consent.js":"./js/consent.js?v=55","./js/dash.js":"./js/dash.js?v=55","./js/host.js":"./js/host.js?v=55","./js/live.js":"./js/live.js?v=55","./js/mapgen.js":"./js/mapgen.js?v=55","./js/net.js":"./js/net.js?v=55","./js/voice.js":"./js/voice.js?v=55","./js/pvp.js":"./js/pvp.js?v=55","./js/render.js":"./js/render.js?v=55","./js/scene.js":"./js/scene.js?v=55","./js/settings.js":"./js/settings.js?v=55","./js/sfx.js":"./js/sfx.js?v=55","./js/world.js":"./js/world.js?v=55"}}</script>
-  <script type="module" src="js/main.js?v=55"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=56","./js/client.js":"./js/client.js?v=56","./js/config.js":"./js/config.js?v=56","./js/consent.js":"./js/consent.js?v=56","./js/dash.js":"./js/dash.js?v=56","./js/host.js":"./js/host.js?v=56","./js/live.js":"./js/live.js?v=56","./js/mapgen.js":"./js/mapgen.js?v=56","./js/net.js":"./js/net.js?v=56","./js/voice.js":"./js/voice.js?v=56","./js/pvp.js":"./js/pvp.js?v=56","./js/render.js":"./js/render.js?v=56","./js/scene.js":"./js/scene.js?v=56","./js/settings.js":"./js/settings.js?v=56","./js/sfx.js":"./js/sfx.js?v=56","./js/world.js":"./js/world.js?v=56"}}</script>
+  <script type="module" src="js/main.js?v=56"></script>
 </body>
 </html>

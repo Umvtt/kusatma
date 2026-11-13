@@ -149,7 +149,9 @@ export const PvpMixin = {
     const sprint = vic.cls === 'izci' && (vic.lv.ab | 0) >= 3 && now < vic.abUntil;
     // weapon levels are tuned for zombie hordes: against players each level counts for less, so fights stay a few seconds long
     const k = PVP_DMG * (now < vic.shieldUntil ? 0.3 : 1) * this.pc(vic).st.armor * (sprint ? 0.4 : 1) * (vic.spinUntil > now ? 0.6 : 1) / (1 + 0.25 * ((att && att.wt) | 0));
-    const hit = d * k, dealt = Math.min(vic.hp, hit);
+    let hit = d * k;
+    if (vic.bs > 0) { const a = Math.min(vic.bs, hit); vic.bs -= a; hit -= a; }
+    const dealt = Math.min(vic.hp, hit);
     vic.hp -= hit;
     vic.lastHurt = now;
     if (att) {

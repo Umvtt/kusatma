@@ -19,7 +19,18 @@ import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePvp, liveBlock, a
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
 
-const $ = (s) => document.querySelector(s);
+// plain "#id" lookups are remembered (the HUD asks for the same few dozen elements ten times a second)
+const $ID = new Map();
+const $ = (s) => {
+  if (s.charCodeAt(0) !== 35 || s.indexOf(' ') >= 0 || s.indexOf('.') >= 0 || s.indexOf('[') >= 0 || s.indexOf(':') >= 0) return document.querySelector(s);
+  let e = $ID.get(s);
+  if (!e || !e.isConnected) { e = document.getElementById(s.slice(1)); if (e) $ID.set(s, e); else $ID.delete(s); }
+  return e;
+};
+// HUD writes only touch the page when the value changed
+const setT = (sel, t) => { const e = $(sel); if (e && e.textContent !== t) e.textContent = t; };
+const setHid = (sel, h) => { const e = $(sel); if (e && e.hidden !== h) e.hidden = h; };
+const setPct = (e, k, prop = 'width') => { const v = (Math.max(0, Math.min(1, k || 0)) * 100).toFixed(1) + '%'; if (e && e.style[prop] !== v) e.style[prop] = v; };
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const fmt = (n) => Math.round(n).toLocaleString('tr-TR');
 
@@ -1106,13 +1117,15 @@ function startLoop() {
     S.raf = requestAnimationFrame(frame);
     // battery saver: every other frame on a 60 Hz screen (30 FPS), whatever the refresh rate
     if (SAVE.on && now - last < 30.3) return;
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const dt = Math.min(0.25, (now - last) / 1000);
     last = now;
     const g = S.game;
     if (!g || S.screen !== 'game') return;
     g.zoom = zoom;
     g.touch = IS_TOUCH;
-    g.update(dt);
+    // the game runs in real time whatever the frame rate: a slow frame is played as several short steps
+    // (it used to be cut to 1/20 s, so below 20 FPS you walked and shot in slow motion)
+    for (let left = dt, n = 0; left > 1e-4 && n < 5; n++) { const step = Math.min(0.05, left); g.update(step); left -= step; }
     renderer.draw(g, g.roster);
     perfTick(now);
     S.hudT -= dt;
@@ -1278,7 +1291,6 @@ function banner(eyebrow, title, sub) {
 }
 
 function updateHud() {
-  if (IS_TOUCH) { const wb = document.querySelector('.wave-box'); if (wb) { const t = Math.round(wb.getBoundingClientRect().bottom + 8); if (t > 20 && t !== S.tbTop) { S.tbTop = t; document.body.style.setProperty('--tb-top', t + 'px'); } } }
   const g = S.game;
   if (!g) return;
   const me = g.self;
@@ -1287,11 +1299,12 @@ function updateHud() {
   if (me.inGame && me.alive && lastHpBuzz != null && me.hp < lastHpBuzz - Math.max(8, me.maxHp * 0.06)) buzz(35);
   lastHpBuzz = me.inGame && me.alive ? me.hp : null;
 
+  const BL = g.bosses();
   pvpHud(g);
   tutTick(g);
   if (voiceOn() && S.roster) { voiceSync(S.roster, S.me); voiceTick(); }
   { // the music follows the game: calm in breaks, driving in waves, heavier while a boss is alive
-    const ph = g.phase, boss = ph === 'combat' && [...g.zs.values()].some((z) => isBoss(z.t) && !z.dying);
+    const ph = g.phase, boss = ph === 'combat' && BL.some((z) => !z.dying);
     const mode = g.pv ? (ph === 'combat' ? 'combat' : 'break') : ph === 'combat' ? (boss ? 'boss' : 'combat') : ph === 'break' ? 'break' : 'off';
     sfx.music(SETTINGS.music > 0 ? mode : 'off', Math.min(1, (g.wave || 1) / 25));
     if (ph === 'over' && S.lastPh !== 'over') sfx.sting('over');
@@ -1304,17 +1317,17 @@ function updateHud() {
   }
   if (g.pv) {
     const P = PVP[g.pv[0]] || PVP.tdm, t = g.pv[1], mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
-    $('#hud-phase').textContent = g.phase === 'combat' ? P.name : 'Hazırlık';
-    $('#hud-wave').textContent = g.phase === 'combat' ? mm : String(g.breakT);
-    $('#hud-sub').textContent = g.phase === 'combat' ? (g.pv[0] === 'duel' ? `Raunt ${g.pv[6]}` : `Leş: ${g.self.pk | 0} · Ölüm: ${g.self.dth | 0}`) : 'Cephanelikten silahını seç';
+    setT('#hud-phase', g.phase === 'combat' ? P.name : 'Hazırlık');
+    setT('#hud-wave', g.phase === 'combat' ? mm : String(g.breakT));
+    setT('#hud-sub', g.phase === 'combat' ? (g.pv[0] === 'duel' ? `Raunt ${g.pv[6]}` : `Leş: ${g.self.pk | 0} · Ölüm: ${g.self.dth | 0}`) : IS_TOUCH ? 'Silahını seç' : 'Cephanelikten silahını seç');
   } else if (g.phase === 'combat') {
-    $('#hud-phase').textContent = 'Dalga';
-    $('#hud-wave').textContent = String(g.wave);
-    $('#hud-sub').textContent = `Kalan zombi: ${fmt(g.zLeft)}`;
+    setT('#hud-phase', 'Dalga');
+    setT('#hud-wave', String(g.wave));
+    setT('#hud-sub', IS_TOUCH ? `${fmt(g.zLeft)} zombi` : `Kalan zombi: ${fmt(g.zLeft)}`);
   } else {
-    $('#hud-phase').textContent = g.wave === 0 ? 'Hazırlan' : 'Mola';
-    $('#hud-wave').textContent = String(g.wave + 1);
-    $('#hud-sub').textContent = `Dalga ${g.wave + 1} başlıyor: ${g.breakT} sn`;
+    setT('#hud-phase', g.wave === 0 ? 'Hazırlan' : 'Mola');
+    setT('#hud-wave', String(g.wave + 1));
+    setT('#hud-sub', IS_TOUCH ? `${g.breakT} sn sonra` : `Dalga ${g.wave + 1} başlıyor: ${g.breakT} sn`);
   }
 
   const md = S.roster && S.roster.mode && S.roster.mode !== 'normal' ? MODES[S.roster.mode] : null;
@@ -1325,77 +1338,84 @@ function updateHud() {
   if (mv.hidden !== !ev) mv.hidden = !ev;
   if (ev) { const t = `${ev.name} · ${Math.ceil(g.mev[1])} sn`; if (mv.textContent !== t) mv.textContent = t; mv.dataset.k = g.mev[0]; }
 
-  // team
-  const team = $('#hud-team');
-  const rows = [...g.ps.entries()];
-  if (team.childElementCount !== rows.length) team.replaceChildren(...rows.map(() => { const li = el('li'); li.append(el('i', 'dot'), el('span'), el('div', 'mini-hp')); li.lastChild.append(el('i')); return li; }));
-  rows.forEach(([pid, p], i) => {
-    const li = team.children[i];
-    const info = g.roster.get(pid);
-    li.className = p.alive ? '' : 'down';
-    li.children[0].style.background = g.pv && g.pv[0] !== 'ffa' ? TEAM_COL[p.tm | 0] : info ? info.color : '#888';
-    li.children[1].textContent = (info ? info.name : '?') + (pid === S.me ? ' (sen)' : '');
-    li.classList.toggle('talk', voiceLevel(pid) > 6);
-    if (p.ping > 0) { const q = el('small', 'ping ' + (p.ping < 90 ? 'ok' : p.ping < 180 ? 'mid' : 'bad'), ` ${p.ping} ms`); li.children[1].append(q); }
-    li.children[2].firstChild.style.width = (p.maxHp ? Math.max(0, p.hp / p.maxHp) * 100 : 0) + '%';
-  });
+  // team (phones hide this list: nothing to do there)
+  if (!IS_TOUCH) {
+    const team = $('#hud-team');
+    const rows = [...g.ps.entries()];
+    if (team.childElementCount !== rows.length) team.replaceChildren(...rows.map(() => { const li = el('li'); li.append(el('i', 'dot'), el('span'), el('div', 'mini-hp')); li.lastChild.append(el('i')); return li; }));
+    rows.forEach(([pid, p], i) => {
+      const li = team.children[i];
+      const info = g.roster.get(pid);
+      const col = g.pv && g.pv[0] !== 'ffa' ? TEAM_COL[p.tm | 0] : info ? info.color : '#888';
+      const nm = (info ? info.name : '?') + (pid === S.me ? ' (sen)' : ''), pg = p.ping > 0 ? ` ${p.ping} ms` : '', pc = p.ping < 90 ? 'ok' : p.ping < 180 ? 'mid' : 'bad';
+      const sig = (p.alive ? 1 : 0) + '|' + col + '|' + nm + '|' + pg + '|' + pc;
+      if (li._sig !== sig) {
+        li._sig = sig;
+        li.className = p.alive ? '' : 'down';
+        li.children[0].style.background = col;
+        li.children[1].textContent = nm;
+        if (pg) li.children[1].append(el('small', 'ping ' + pc, pg));
+      }
+      const talk = voiceLevel(pid) > 6; if (li._talk !== talk) { li._talk = talk; li.classList.toggle('talk', talk); }
+      setPct(li.children[2].firstChild, p.maxHp ? p.hp / p.maxHp : 0);
+    });
+  }
 
   // health, ability, gold
-  $('#hud-class').textContent = c.name;
-  $('#hud-hp-text').textContent = `${fmt(Math.max(0, me.hp))} / ${fmt(me.maxHp)}`;
+  setT('#hud-hp-text', `${fmt(Math.max(0, me.hp))} / ${fmt(me.maxHp)}`);
   const hpk = me.maxHp ? Math.max(0, me.hp / me.maxHp) : 0;
-  $('#hud-hp-fill').style.width = hpk * 100 + '%';
+  setPct($('#hud-hp-fill'), hpk);
   $('#hud-hp-fill').classList.toggle('low', hpk < 0.3);
   const cd = c.ab.cd * st.cd;
   const left = me.abLeft;
-  $('#hud-ab-name').textContent = c.ab.name;
-  $('#hud-ab-cd').textContent = left > 0 ? `${Math.ceil(left)} sn` : 'Hazır';
-  $('#hud-ab-fill').style.height = (left > 0 ? (1 - left / cd) * 100 : 100) + '%';
+  setT('#hud-ab-name', c.ab.name);
+  setT('#hud-ab-cd', left > 0 ? `${Math.ceil(left)} sn` : 'Hazır');
+  setPct($('#hud-ab-fill'), left > 0 ? 1 - left / cd : 1, 'height');
   $('#hud-ab').classList.toggle('ready', left <= 0);
   if (IS_TOUCH) {
     const fighting = g.phase === 'combat' && me.alive;
-    $('#stick-aim').hidden = !fighting;
-    $('#t-ab').hidden = !me.alive;
+    setHid('#stick-aim', !fighting);
+    setHid('#t-ab', !me.alive);
     $('#t-ab').classList.toggle('ready', left <= 0);
-    $('#t-ab').textContent = left > 0 ? `${Math.ceil(left)} sn` : c.ab.name;
+    setT('#t-ab', left > 0 ? `${Math.ceil(left)} sn` : c.ab.name);
   }
   $('#hud-ab').title = c.ab.desc;
   const bashL = me.bashLeft || 0;
-  $('#hud-bash-fill').style.height = (bashL > 0 ? (1 - bashL / bashCd(g.cls)) * 100 : 100) + '%';
+  setPct($('#hud-bash-fill'), bashL > 0 ? 1 - bashL / bashCd(g.cls) : 1, 'height');
   $('#hud-bash').classList.toggle('ready', bashL <= 0);
   if (IS_TOUCH) {
-    $('#t-bash').hidden = !me.alive || g.phase !== 'combat';
+    setHid('#t-bash', !me.alive || g.phase !== 'combat');
     $('#t-bash').classList.toggle('ready', bashL <= 0);
   }
   updateGearHud(g, me);
   const act = g.fx.get(S.me);
-  if (act && g.time < act.until) { $('#hud-ab-cd').textContent = `Aktif: ${Math.ceil(act.until - g.time)} sn`; $('#hud-ab').classList.add('active'); }
+  if (act && g.time < act.until) { setT('#hud-ab-cd', `Aktif: ${Math.ceil(act.until - g.time)} sn`); $('#hud-ab').classList.add('active'); }
   else $('#hud-ab').classList.remove('active');
-  $('#hud-gold').textContent = fmt(me.gold);
-  $('#hud-class').textContent = `${c.name} · ${g.myWeapon.name}`;
+  setT('#hud-gold', fmt(me.gold));
+  setT('#hud-class', IS_TOUCH ? c.name : `${c.name} · ${g.myWeapon.name}`);
   const buffs = [];
   if (me.power > 0) buffs.push(['power', `Güç ${Math.ceil(me.power)} sn`]);
   if (me.haste > 0) buffs.push(['haste', `Hız ${Math.ceil(me.haste)} sn`]);
+  if (me.chill > 0 && me.alive) buffs.push(['chill', 'Üşüdün: yavaşsın']);
+  if (me.bs > 0) buffs.push(['blood', `Kan kalkanı ${me.bs}`]);
+  else if (me.pfl & 16) buffs.push(['guard', 'Koruma']);
+  setHid('#hud-bs', !(me.bs > 0));
+  if (me.bs > 0) setPct($('#hud-bs-fill'), me.bs / (me.maxHp * 0.35));
   const bl = $('#hud-buffs');
   if (bl.dataset.sig !== buffs.join()) { bl.dataset.sig = buffs.join(); bl.replaceChildren(...buffs.map(([k, t]) => el('span', 'buff ' + k, t))); }
-  const BL = g.bosses(), boss = BL[0], bx = $('#boss');
-  if (bx.hidden !== !boss) bx.hidden = !boss;
+  const boss = BL[0], bx = $('#boss');
+  if (bx.hidden !== !boss && !CTL.editing) bx.hidden = !boss;
   if (boss) {
-    const nm = ZTYPES[boss.t].name; if ($('#boss-name').textContent !== nm) $('#boss-name').textContent = nm;
-    $('#boss-fill').style.width = Math.max(0, Math.min(1, boss.hp / boss.max)) * 100 + '%';
-    // other bosses alive at the same time: smaller bars underneath
-    const more = $('#boss-more'), rest = BL.slice(1);
-    if (more.childElementCount !== rest.length) more.replaceChildren(...rest.map(() => { const r = el('div', 'boss-row'); const b = el('div', 'boss-bar sm'); b.append(el('i')); r.append(el('span'), b); return r; }));
-    rest.forEach((z, i) => { const r = more.children[i]; const t = ZTYPES[z.t].name; if (r.firstChild.textContent !== t) r.firstChild.textContent = t; r.lastChild.firstChild.style.width = Math.max(0, Math.min(1, z.hp / z.max)) * 100 + '%'; });
-    // phones: the health row sits at the top, so the boss bar goes right under it (and under the buffs)
-    if (document.body.classList.contains('touch')) {
-      let top = 0;
-      for (const s of ['.hud-bottom', '#hud-buffs']) { const e = $(s); if (!e || !e.offsetParent && s !== '.hud-bottom') continue; const r = e.getBoundingClientRect(); if (r.height > 2) top = Math.max(top, r.bottom); }
-      const want = Math.round(top + 6) + 'px';
-      if (bx.style.top !== want) bx.style.top = want;
-    } else if (bx.style.top) bx.style.top = '';
+    setT('#boss-name', ZTYPES[boss.t].name);
+    setPct($('#boss-fill'), boss.hp / boss.max);
+    // other bosses alive at the same time: thin bars underneath (a few at most, so the bar never fills the screen)
+    const more = $('#boss-more'), all = BL.slice(1), cap = IS_TOUCH ? 2 : 3, rest = all.slice(0, cap), extra = all.length - rest.length;
+    const want = rest.length + (extra > 0 ? 1 : 0);
+    if (more.childElementCount !== want) more.replaceChildren(...rest.map(() => { const r = el('div', 'boss-row'); const b = el('div', 'boss-bar sm'); b.append(el('i')); r.append(el('span'), b); return r; }), ...(extra > 0 ? [el('div', 'boss-n')] : []));
+    rest.forEach((z, i) => { const r = more.children[i]; const t = ZTYPES[z.t].name; if (r.firstChild.textContent !== t) r.firstChild.textContent = t; setPct(r.lastChild.firstChild, z.hp / z.max); });
+    if (extra > 0) { const t = `+${extra} boss daha`; if (more.lastChild.textContent !== t) more.lastChild.textContent = t; }
   }
-  $('#hud-kills').textContent = fmt(me.kills);
+  setT('#hud-kills', fmt(me.kills));
 
   // downed
   $('#dead').hidden = me.alive || !me.inGame || !$('#esc').hidden || !!g.pv;
@@ -1674,7 +1694,7 @@ $('#btn-armory').addEventListener('click', () => { S.armoryOpen = true; S.shopSi
 $('#shop-heal').addEventListener('click', () => { if (!$('#shop-heal').disabled) { send({ t: 'buy', k: 'heal' }); sfx.buy(); } });
 function updateShop() {
   const g = S.game;
-  { const h = $('#shop-heal'), s2 = g.self, full = s2.hp >= s2.maxHp; $('#shop-heal-c').textContent = String(HEAL_COST); h.disabled = !s2.alive || full || s2.gold < HEAL_COST; h.classList.toggle('full', full); h.title = full ? 'Canın zaten dolu' : ''; }
+  { const h = $('#shop-heal'), s2 = g.self, full = s2.hp >= s2.maxHp; $('#shop-heal-c').textContent = String(HEAL_COST); h.disabled = !s2.alive || full || s2.gold < HEAL_COST; h.classList.toggle('full', full); h.title = full ? 'Canın zaten dolu' : ''; h.classList.toggle('need', !h.disabled && s2.hp < s2.maxHp * 0.6); const hd = h.querySelector('.sh-t span'), ht = full ? 'Canın dolu' : s2.gold < HEAL_COST ? 'Altının yetmiyor' : `Canını tamamen doldurur (${Math.ceil(Math.max(0, s2.hp))} / ${s2.maxHp})`; if (hd && hd.textContent !== ht) hd.textContent = ht; }
   const brk = (g.phase === 'break' || (!!g.pv && g.phase === 'combat' && !g.self.alive)) && g.self.inGame, touch = document.body.classList.contains('touch');
   // phones: the armory opens full screen at the start of each break; closing it leaves a button on the screen
   if (brk && !S.wasBreak) S.armoryOpen = true;
@@ -1684,11 +1704,12 @@ function updateShop() {
   $('#shop').classList.toggle('full', touch);
   { const tt = $('#shop-tabs [data-tab="team"]'), pv = !!g.pv; if (tt && tt.hidden !== pv) tt.hidden = pv; if (pv && S.shopTab === 'team') { S.shopTab = 'wpn'; S.shopSig = ''; } }
   const fab = $('#btn-armory'), showFab = brk && touch && !open;
-  if (fab.hidden !== !showFab) fab.hidden = !showFab;
+  if (fab.hidden !== !showFab && !CTL.editing) fab.hidden = !showFab;
   if (showFab) {
     const gs = fmt(g.self.gold); if ($('#fab-gold').textContent !== gs) $('#fab-gold').textContent = gs;
     const na = Object.values(shopAffordable(g)).reduce((a, b) => a + b, 0), nf = $('#fab-n');
     nf.hidden = !na; if (na && nf.textContent !== String(na)) nf.textContent = String(na);
+    setHid('#fab-heal', !(g.self.alive && g.self.hp < g.self.maxHp * 0.6 && g.self.gold >= HEAL_COST));
   }
   if (!open) return;
   const me = g.self;
@@ -2159,7 +2180,7 @@ function stick(elm, onMove, zone) {
     let x = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), y = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
     const l = Math.hypot(x, y);
     if (l > 1) { x /= l; y /= l; }
-    knob.style.transform = `translate(${x * r.width * 0.32}px, ${y * r.height * 0.32}px)`;
+    knob.style.transform = `translate(${x * elm.offsetWidth * 0.32}px, ${y * elm.offsetHeight * 0.32}px)`;
     onMove(x, y);
   };
   // a free joystick centres itself wherever the thumb lands on the left side
@@ -2185,62 +2206,138 @@ function stick(elm, onMove, zone) {
     t.addEventListener('lostpointercapture', end);
   }
 }
-// ---------- phone controls layout: sizes, see-through, free joystick and where each control sits (this device only) ----------
+// ---------- phone screen layout: every control and HUD piece can be moved and resized within limits (this device only) ----------
 const CTL_KEY = 'kusatma-kontrol';
-const CTL_DEF = { stk: 100, btn: 100, op: 100, free: false, pos: {} };
-const CTL = { ...CTL_DEF, pos: {}, editing: false };
-const CTL_ITEMS = { mv: '#stick-move', aim: '#stick-aim', ab: '#t-ab', bash: '#t-bash', mic: '#touch .vb-wrap' };
+const LAY_ITEMS = {
+  mv: { sel: '#stick-move', name: 'Hareket joystick\'i', min: 0.7, max: 1.5 },
+  aim: { sel: '#stick-aim', name: 'Nişan joystick\'i', min: 0.7, max: 1.5 },
+  ab: { sel: '#t-ab', name: 'Yetenek tuşu', min: 0.7, max: 1.5 },
+  bash: { sel: '#t-bash', name: 'Dipçik tuşu', min: 0.7, max: 1.5 },
+  mic: { sel: '#touch .vb-wrap', name: 'Mikrofon', min: 0.7, max: 1.5 },
+  gear: { sel: '#t-gear', name: 'Eşyalar', min: 0.7, max: 1.4 },
+  tools: { sel: '#t-tools', name: 'Menü tuşları', min: 0.7, max: 1.4 },
+  wave: { sel: '.wave-box', name: 'Dalga kutusu', min: 0.7, max: 1.4 },
+  hp: { sel: '.hud-bottom', name: 'Can ve altın', min: 0.7, max: 1.4 },
+  boss: { sel: '#boss', name: 'Boss çubuğu', min: 0.7, max: 1.5 },
+  fab: { sel: '#btn-armory', name: 'Cephanelik tuşu', min: 0.7, max: 1.3 },
+  mm: { sel: '#mm-box', name: 'Harita', min: 0.6, max: 1.6 },
+};
+const CTL = { op: 100, free: false, pos: {}, sz: {}, editing: false, sel: null };
 try {
   const c = JSON.parse(localStorage.getItem(CTL_KEY) || '{}');
-  for (const k of ['stk', 'btn', 'op']) if (Number.isFinite(c[k])) CTL[k] = clamp(c[k], k === 'op' ? 30 : 70, k === 'op' ? 100 : 150);
+  if (Number.isFinite(c.op)) CTL.op = clamp(c.op, 30, 100);
   CTL.free = c.free === true;
-  if (c.pos && typeof c.pos === 'object') for (const k of Object.keys(CTL_ITEMS)) { const q = c.pos[k]; if (q && Number.isFinite(q.x) && Number.isFinite(q.y)) CTL.pos[k] = { x: clamp(q.x, 0.03, 0.97), y: clamp(q.y, 0.05, 0.97) }; }
-} catch (e) { /* ignore */ }
-function ctlSave() { try { localStorage.setItem(CTL_KEY, JSON.stringify({ stk: CTL.stk, btn: CTL.btn, op: CTL.op, free: CTL.free, pos: CTL.pos })); } catch (e) { /* ignore */ } }
-function ctlApply() {
-  const pad = $('#touch');
-  pad.style.setProperty('--stk', CTL.stk / 100); pad.style.setProperty('--tbs', CTL.btn / 100); pad.style.setProperty('--tco', CTL.op / 100);
-  pad.classList.toggle('free', CTL.free);
-  for (const [k, sel] of Object.entries(CTL_ITEMS)) {
-    const e = $(sel); if (!e) continue;
-    e.dataset.ed = k;
-    const q = CTL.pos[k];
-    e.classList.toggle('moved', !!q);
-    if (q) { e.style.setProperty('--mx', (q.x * 100).toFixed(2) + '%'); e.style.setProperty('--my', (q.y * 100).toFixed(2) + '%'); }
+  for (const [k, it] of Object.entries(LAY_ITEMS)) {
+    const q = c.pos && c.pos[k]; if (q && Number.isFinite(q.x) && Number.isFinite(q.y)) CTL.pos[k] = { x: clamp(q.x, 0, 1), y: clamp(q.y, 0, 1) };
+    const z = c.sz && c.sz[k]; if (Number.isFinite(z)) CTL.sz[k] = clamp(z, it.min, it.max);
   }
+  // the earlier editor had one size for both sticks and one for the buttons
+  if (!c.sz && Number.isFinite(c.stk) && c.stk !== 100) { CTL.sz.mv = CTL.sz.aim = clamp(c.stk / 100, 0.7, 1.5); }
+  if (!c.sz && Number.isFinite(c.btn) && c.btn !== 100) { CTL.sz.ab = CTL.sz.bash = CTL.sz.mic = clamp(c.btn / 100, 0.7, 1.5); }
+} catch (e) { /* ignore */ }
+function ctlSave() { try { localStorage.setItem(CTL_KEY, JSON.stringify({ v: 2, op: CTL.op, free: CTL.free, pos: CTL.pos, sz: CTL.sz })); } catch (e) { /* ignore */ } }
+const laySize = (k) => clamp(CTL.sz[k] || 1, LAY_ITEMS[k].min, LAY_ITEMS[k].max);
+// where a piece's centre may go so that it stays on the screen whole
+function layClamp(k, e, x, y) {
+  const s = laySize(k), W = innerWidth, H = innerHeight;
+  const hw = Math.min(W / 2, ((e && e.offsetWidth) || 60) * s / 2 + 2), hh = Math.min(H / 2, ((e && e.offsetHeight) || 40) * s / 2 + 2);
+  return { x: clamp(x, hw, W - hw), y: clamp(y, hh, H - hh) };
 }
-function ctlSync() { $('#ctl-stk').value = CTL.stk; $('#ctl-btn').value = CTL.btn; $('#ctl-op').value = CTL.op; $('#ctl-free').checked = CTL.free; }
+function ctlApply() {
+  if (!IS_TOUCH && !CTL.editing) return;
+  const pad = $('#touch');
+  pad.style.setProperty('--tco', CTL.op / 100);
+  pad.classList.toggle('free', CTL.free);
+  for (const [k, it] of Object.entries(LAY_ITEMS)) {
+    const e = $(it.sel); if (!e) continue;
+    e.dataset.ed = k;
+    const s = laySize(k), q = CTL.pos[k];
+    if (k === 'mm') { renderer.mmLay = q || s !== 1 ? { x: q ? q.x : null, y: q ? q.y : null, s } : null; continue; }
+    e.style.setProperty('--ms', s);
+    e.classList.toggle('moved', !!q);
+    if (q) { const c = layClamp(k, e, q.x * innerWidth, q.y * innerHeight); e.style.setProperty('--mx', c.x.toFixed(1) + 'px'); e.style.setProperty('--my', c.y.toFixed(1) + 'px'); }
+  }
+  hudMeasure();
+}
+// the row of small buttons sits right under the wave box (measured when that box changes size, never while the game draws)
+function hudMeasure() {
+  if (!IS_TOUCH) return;
+  const wb = document.querySelector('.wave-box'); if (!wb || !wb.offsetParent) return;
+  const t = wb.classList.contains('moved') ? 52 : Math.round(wb.getBoundingClientRect().bottom + 6);
+  if (t > 20 && t !== S.tbTop) { S.tbTop = t; document.body.style.setProperty('--tb-top', t + 'px'); }
+}
+if (IS_TOUCH && window.ResizeObserver) { const ro = new ResizeObserver(() => hudMeasure()); const wb = document.querySelector('.wave-box'); if (wb) ro.observe(wb); }
+window.addEventListener('resize', () => { if (IS_TOUCH || CTL.editing) ctlApply(); });
+function ctlSelect(k) {
+  CTL.sel = k;
+  for (const e of document.querySelectorAll('[data-ed].sel')) e.classList.remove('sel');
+  const it = k && LAY_ITEMS[k], sl = $('#ctl-sz');
+  if (it) { const e = $(it.sel); if (e) e.classList.add('sel'); }
+  $('#ctl-sel').textContent = it ? it.name : 'Parça seç';
+  sl.disabled = !it; $('#ctl-one').disabled = !it;
+  if (it) { sl.min = Math.round(it.min * 100); sl.max = Math.round(it.max * 100); sl.value = Math.round(laySize(k) * 100); }
+  $('#ctl-sz-v').textContent = it ? '%' + Math.round(laySize(k) * 100) : '–';
+}
+function ctlSync() { $('#ctl-op').value = CTL.op; $('#ctl-op-v').textContent = '%' + CTL.op; $('#ctl-free').checked = CTL.free; ctlSelect(CTL.sel); }
+// a piece gets a place of its own the first time it is dragged or resized: exactly where it is now
+function layPin(k) {
+  if (CTL.pos[k]) return;
+  const e = $(LAY_ITEMS[k].sel); if (!e) return;
+  const r = e.getBoundingClientRect(); if (!r.width) return;
+  CTL.pos[k] = { x: (r.left + r.width / 2) / innerWidth, y: (r.top + r.height / 2) / innerHeight };
+}
 function ctlEdit(on) {
   CTL.editing = on;
   document.body.classList.toggle('ctl-editing', on);
   $('#ctl-ed').hidden = !on;
-  if (on) { $('#settings').hidden = true; ctlSync(); ctlApply(); }
-  else ctlSave();
+  const tg = $('#t-gear');
+  if (on) {
+    $('#settings').hidden = true;
+    // show every piece, even those that only appear now and then, so each can be placed
+    if (!tg.childElementCount) { tg.dataset.ph = '1'; tg.append(...GEAR.slice(0, 3).map((it) => { const b = el('button', 't-btn t-gear'); b.type = 'button'; b.style.setProperty('--pc', it.col); b.append(el('span', '', it.short), el('b', '', '×1')); return b; })); }
+    if (!$('#boss-name').textContent.trim() || $('#boss').hidden) { $('#boss-name').textContent = $('#boss-name').textContent.trim() || 'Boss'; }
+    CTL.sel = null; ctlSync(); ctlApply();
+  } else {
+    if (tg.dataset.ph) { delete tg.dataset.ph; tg.replaceChildren(); $('#hud-gear').dataset.sig = ''; }
+    ctlSelect(null); ctlSave(); ctlApply();
+  }
   $('#touch').hidden = !on && !(IS_TOUCH && S.screen === 'game');
 }
 {
-  const pad = $('#touch'); let drag = null;
-  const place = (e) => {
-    const k = drag.k;
-    CTL.pos[k] = { x: clamp(e.clientX / innerWidth, 0.03, 0.97), y: clamp(e.clientY / innerHeight, 0.05, 0.97) };
+  let drag = null;
+  const move = (e) => {
+    const k = drag.k, it = LAY_ITEMS[k], elm = $(it.sel);
+    if (!drag.go) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return; drag.go = true; layPin(k); const q = CTL.pos[k]; drag.ox = q ? q.x * innerWidth - drag.sx : 0; drag.oy = q ? q.y * innerHeight - drag.sy : 0; }
+    const c = layClamp(k, elm, e.clientX + drag.ox, e.clientY + drag.oy);
+    CTL.pos[k] = { x: c.x / innerWidth, y: c.y / innerHeight };
     ctlApply();
   };
-  // while editing, every touch on the pad moves a control instead of using it
-  pad.addEventListener('pointerdown', (e) => {
-    if (!CTL.editing) return;
+  // while editing, every touch moves or picks a piece instead of using it
+  const down = (e) => {
+    if (!CTL.editing || e.target.closest('.ctl-bar')) return;
     e.stopPropagation(); e.preventDefault();
-    const t = e.target.closest('[data-ed]'); if (!t || !pad.contains(t)) return;
-    drag = { k: t.dataset.ed, id: e.pointerId, t }; t.classList.add('drag');
+    const t = e.target.closest('[data-ed]'); if (!t) return;
+    ctlSelect(t.dataset.ed);
+    drag = { k: t.dataset.ed, id: e.pointerId, sx: e.clientX, sy: e.clientY, go: false };
     try { t.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    place(e);
-  }, true);
-  pad.addEventListener('pointermove', (e) => { if (!CTL.editing) return; e.stopPropagation(); if (drag && e.pointerId === drag.id) place(e); }, true);
-  const stop = (e) => { if (!CTL.editing) return; e.stopPropagation(); if (drag && e.pointerId === drag.id) { drag.t.classList.remove('drag'); drag = null; ctlSave(); } };
-  pad.addEventListener('pointerup', stop, true); pad.addEventListener('pointercancel', stop, true);
-  pad.addEventListener('click', (e) => { if (CTL.editing) { e.stopPropagation(); e.preventDefault(); } }, true);
-  for (const [id, k] of [['#ctl-stk', 'stk'], ['#ctl-btn', 'btn'], ['#ctl-op', 'op']]) $(id).addEventListener('input', (e) => { CTL[k] = Number(e.target.value); ctlApply(); });
+  };
+  const mv = (e) => { if (!CTL.editing || e.target.closest('.ctl-bar')) return; e.stopPropagation(); if (drag && e.pointerId === drag.id) move(e); };
+  const stop = (e) => { if (!CTL.editing || e.target.closest('.ctl-bar')) return; e.stopPropagation(); if (drag && e.pointerId === drag.id) { drag = null; ctlSave(); } };
+  document.addEventListener('pointerdown', down, true); document.addEventListener('pointermove', mv, true);
+  document.addEventListener('pointerup', stop, true); document.addEventListener('pointercancel', stop, true);
+  document.addEventListener('click', (e) => { if (CTL.editing && !e.target.closest('.ctl-bar')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  { // the editor's own box can be dragged out of the way by its title
+    const bar = document.querySelector('.ctl-bar'), grip = bar.querySelector('.ctl-row'); let g = null;
+    grip.addEventListener('pointerdown', (e) => { const r = bar.getBoundingClientRect(); g = { id: e.pointerId, ox: r.left + r.width / 2 - e.clientX, oy: r.top + r.height / 2 - e.clientY }; try { grip.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } });
+    grip.addEventListener('pointermove', (e) => { if (!g || e.pointerId !== g.id) return; const r = bar.getBoundingClientRect(); bar.style.setProperty('--bx', clamp(e.clientX + g.ox, r.width / 2, innerWidth - r.width / 2) + 'px'); bar.style.setProperty('--by', clamp(e.clientY + g.oy, r.height / 2, innerHeight - r.height / 2) + 'px'); });
+    const up = (e) => { if (g && e.pointerId === g.id) g = null; }; grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+  }
+  $('#ctl-sz').addEventListener('input', (e) => { const k = CTL.sel; if (!k) return; layPin(k); CTL.sz[k] = clamp(Number(e.target.value) / 100, LAY_ITEMS[k].min, LAY_ITEMS[k].max); $('#ctl-sz-v').textContent = '%' + Math.round(CTL.sz[k] * 100); ctlApply(); });
+  $('#ctl-sz').addEventListener('change', ctlSave);
+  $('#ctl-op').addEventListener('input', (e) => { CTL.op = Number(e.target.value); $('#ctl-op-v').textContent = '%' + CTL.op; ctlApply(); });
   $('#ctl-free').addEventListener('change', (e) => { CTL.free = e.target.checked; ctlApply(); });
-  $('#ctl-reset').addEventListener('click', () => { Object.assign(CTL, CTL_DEF, { pos: {} }); ctlSync(); ctlApply(); ctlSave(); });
+  $('#ctl-one').addEventListener('click', () => { const k = CTL.sel; if (!k) return; delete CTL.pos[k]; delete CTL.sz[k]; ctlApply(); ctlSelect(k); ctlSave(); });
+  $('#ctl-reset').addEventListener('click', () => { CTL.op = 100; CTL.free = false; CTL.pos = {}; CTL.sz = {}; ctlSync(); ctlApply(); ctlSave(); });
   $('#ctl-done').addEventListener('click', () => ctlEdit(false));
   $('#set-ctl').addEventListener('click', () => ctlEdit(true));
   $('#set-ctl-row').hidden = !IS_TOUCH;

@@ -505,10 +505,15 @@ export class Renderer {
   drawMinimap(g, game, roster) {
     const B = WORLD.bounds;
     const bw = B.x1 - B.x0, bh = B.y1 - B.y0;
-    const w = game.touch && this.vw < 760 ? 130 : game.touch && this.vh < 420 ? 155 : MINI_W, s = w / bw, h = bh * s;
-    const x0 = this.vw - w - 16, y0 = 16;
-    // the kill feed sits right under the minimap, whatever its height
-    { const b = Math.round(y0 + h + 10); if (Math.abs(b - (this.mmB || 0)) > 3) { this.mmB = b; document.documentElement.style.setProperty('--mm-b', b + 'px'); } }
+    // phones: the player can move and resize the map (mmLay: centre as screen fractions, and a scale)
+    const L = this.mmLay, w0 = game.touch && this.vw < 760 ? 130 : game.touch && this.vh < 420 ? 155 : MINI_W;
+    const w = Math.round(w0 * (L ? L.s : 1)), s = w / bw, h = bh * s;
+    let x0 = this.vw - w - 16, y0 = 16;
+    if (game.touch) { x0 = this.vw - w - 10; y0 = 8; }
+    if (L && L.x != null) { x0 = clamp(L.x * this.vw - w / 2, 2, this.vw - w - 2); y0 = clamp(L.y * this.vh - h / 2, 2, this.vh - h - 2); }
+    // tell the page where the map is (the kill feed sits under it, the layout editor's handle over it), only when it changes
+    { const key = Math.round(x0) + ',' + Math.round(y0) + ',' + w + ',' + Math.round(h / 3);
+      if (key !== this.mmKey) { this.mmKey = key; const st = document.documentElement.style; st.setProperty('--mm-x', Math.round(x0) + 'px'); st.setProperty('--mm-y', Math.round(y0) + 'px'); st.setProperty('--mm-w', w + 'px'); st.setProperty('--mm-h', Math.round(h) + 'px'); st.setProperty('--mm-b', Math.round(y0 + h + 10) + 'px'); st.setProperty('--mm-r', Math.round(this.vw - x0 - w) + 'px'); } }
     const mx = (x) => x0 + (x - B.x0) * s, my = (y) => y0 + (y - B.y0) * s;
     g.fillStyle = 'rgba(10,14,12,0.78)';
     g.fillRect(x0, y0, w, h);
@@ -516,8 +521,18 @@ export class Renderer {
     g.lineWidth = 1;
     g.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
     g.save(); g.beginPath(); g.rect(x0, y0, w, h); g.clip();
-    g.fillStyle = 'rgba(236,230,214,0.16)';
-    for (const o of new Set(obstaclesIn(B.x0, B.y0, B.x1, B.y1))) g.fillRect(mx(o.x), my(o.y), Math.max(1, o.w * s), Math.max(1, o.h * s));
+    // the buildings are drawn once into a small picture and reused until the arena has moved enough to show
+    { const q = 4 / s, ck = WORLD.theme + ':' + WORLD.seed + '|' + w + '|' + Math.round(B.x0 / q) + ',' + Math.round(B.y0 / q) + ',' + Math.round(B.x1 / q) + ',' + Math.round(B.y1 / q);
+      if (ck !== this.mmObKey) {
+        this.mmObKey = ck;
+        const cv = this.mmCv || (this.mmCv = document.createElement('canvas')), d = Math.min(2, this.dpr || 1);
+        cv.width = Math.max(1, Math.round(w * d)); cv.height = Math.max(1, Math.round(h * d));
+        const c = cv.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, w, h);
+        c.fillStyle = 'rgba(236,230,214,0.16)';
+        for (const o of new Set(obstaclesIn(B.x0, B.y0, B.x1, B.y1))) c.fillRect((o.x - B.x0) * s, (o.y - B.y0) * s, Math.max(1, o.w * s), Math.max(1, o.h * s));
+        this.mmOb = { x: B.x0, y: B.y0 };
+      }
+      g.drawImage(this.mmCv, mx(this.mmOb.x), my(this.mmOb.y), w, h); }
     if (game.zf) for (const [t, x8, y8] of game.zf) { g.fillStyle = isBoss(t) ? '#ff6b2c' : '#e5484d'; const sz = isBoss(t) ? 5 : 2; g.fillRect(mx(x8 * 8) - sz / 2, my(y8 * 8) - sz / 2, sz, sz); }
     else for (const z of game.zs.values()) {
       g.fillStyle = isBoss(z.t) ? '#ff6b2c' : z.t === 4 ? '#b5d43a' : z.t === 7 ? '#c08ae0' : '#e5484d';
@@ -909,7 +924,7 @@ function drawObstacle(g, o) {
 }
 
 function drawTurret(g, t, time) {
-  if (t.k === 5) { g.save(); g.translate(t.x, t.y); g.scale(1.9, 1.9); drawPet(g, 'k9', 0, 0, t.a || 0, time || 0, 1, true); g.restore(); return; }
+  if (t.k === 5) { g.save(); g.translate(t.x, t.y); g.scale(1.9, 1.9); drawPet(g, 'k9', 0, 0, t.a || 0, time || 0, t.mv > 0.3 ? 1 : 0, true); g.restore(); return; }
   if (t.k === 1 || t.k === 2) { drawDrone(g, t); return; }
   if (t.k === 3) { drawCrate(g, t); return; }
   if (t.k === 4) { rangeRing(g, t.x, t.y, CLASSES.tesla.ab.r || 260, '120,200,255'); drawCoil(g, t); turretHp(g, t); return; }
@@ -1053,7 +1068,7 @@ function drawZombie(g, z, time) {
     g.fillStyle = 'rgba(229,72,77,0.13)';
     g.beginPath(); g.arc(0, 0, r + 10 + Math.sin(time * 5) * 3, 0, Math.PI * 2); g.fill();
   }
-  if (z.t === 21 || z.t === 22 || z.t === 23) { drawNewZombie(g, z, r, time); g.restore(); return; }
+  if (z.t === 21 || z.t === 22 || z.t === 23) { drawNewZombie(g, z, r, time); g.restore(); drawZombieStatus(g, z, r, time); return; }
   g.rotate(z.t === 6 && z.sface ? z.sface : z.face);
   const sway = Math.sin(z.walk + z.id) * 0.25;
   const fl = z.flash > 0;
@@ -1174,6 +1189,10 @@ function drawZombie(g, z, time) {
     g.restore();
   }
   g.restore();
+  drawZombieStatus(g, z, r, time);
+}
+// what sits on top of every zombie: poison, fire, frost, daze, and its health bar once it is hurt
+function drawZombieStatus(g, z, r, time) {
   if (z.fl & 4) { // poisoned: green haze and bubbles
     g.fillStyle = 'rgba(143,209,79,0.2)';
     g.beginPath(); g.arc(z.x, z.y, r + 2, 0, Math.PI * 2); g.fill();
@@ -1298,6 +1317,11 @@ function drawPlayer(g, game, pid, p, info, alive) {
   }
   if (alive && fxk && fxk !== 'shadow' && fxk !== 'spin') drawAura(g, fxk, game.time);
   if (alive && p.power > 0) { g.fillStyle = `rgba(255,107,44,${0.18 + 0.1 * Math.sin(game.time * 10)})`; g.beginPath(); g.arc(0, 0, 30, 0, Math.PI * 2); g.fill(); }
+  if (alive && p.bs > 0) { // blood shield: a pulsing red shell
+    const kb = clamp(p.bs / ((p.maxHp || 100) * 0.35), 0.15, 1);
+    g.strokeStyle = `rgba(255,77,94,${0.35 + 0.45 * kb})`; g.lineWidth = 1.5 + 2 * kb; g.beginPath(); g.arc(0, 0, 21 + Math.sin(game.time * 5) * 1.2, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = `rgba(255,60,80,${0.06 + 0.08 * kb})`; g.fill();
+  }
   if (alive && p.chill > 0) { g.fillStyle = 'rgba(159,227,255,0.22)'; g.beginPath(); g.arc(0, 0, 22, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(220,245,255,0.7)'; g.lineWidth = 1.5; g.stroke(); }
   if (alive && p.haste > 0) { g.strokeStyle = 'rgba(76,201,240,0.6)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 24, game.time * 6, game.time * 6 + 2); g.stroke(); }
   if (!alive && !pv) {
@@ -1845,6 +1869,12 @@ function drawTag(g, p, info, isMe, game) {
     g.fillRect(p.x - w / 2, y, w, 4);
     g.fillStyle = k > 0.5 ? '#43d17a' : k > 0.25 ? '#f5c542' : '#e5484d';
     g.fillRect(p.x - w / 2, y, w * k, 4);
+    if (p.bs > 0) { // blood shield: a crimson bar over the health bar
+      const kb = clamp(p.bs / (p.maxHp * 0.35), 0.06, 1);
+      g.fillStyle = 'rgba(0,0,0,0.65)'; g.fillRect(p.x - w / 2, y - 4, w, 3);
+      g.fillStyle = '#ff4d5e'; g.fillRect(p.x - w / 2, y - 4, w * kb, 3);
+      g.fillStyle = 'rgba(255,255,255,0.85)'; g.fillRect(p.x - w / 2 + w * kb - 1, y - 4, 1, 3);
+    } else if (p.pfl & 16) { g.strokeStyle = 'rgba(255,214,120,0.9)'; g.lineWidth = 1; g.strokeRect(p.x - w / 2 - 1.5, y - 1.5, w + 3, 7); } // taking less damage for a moment
   }
 }
 

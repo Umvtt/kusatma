@@ -2,7 +2,7 @@
 
 export const VERSION = 20;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 55;
+export const BUILD = 56;
 // the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
 export const APP_BUILD = 47;
 export const MAX_PLAYERS = 20;
@@ -534,7 +534,7 @@ const CP = {
       ['Mızrak', 'Mızrak', 'Çok daha uzağa yetişir', 'Savuruş havaya bir kesik dalgası fırlatır', (f, w, i, cap) => { f.reach += L3([0.12, 0.18, 0.24], i); if (cap) f.wave = 1; }],
       ['Pala', 'Pala', 'Çok daha geniş savurur', 'Savuruş arkayı da keser', (f, w, i, cap) => { f.arcX += L3([0.2, 0.3, 0.4], i); if (cap) f.arcX = 3; }]]],
     ['Kan kılıcı', 'Kan', 'Çok daha fazla can emer, canı azalmış zombilere sert', '#e5484d', 5, 5, 'E', (f, w, t) => { f.leech = 0.05 + 0.012 * t; f.exec = [0.3, 1.3 + 0.06 * t]; }, [
-      ['Vampir', 'Vampir', 'Çok daha fazla can emer', 'Canın doluyken emilen can kalkan olur', (f, w, i, cap) => { f.leech += L3([0.04, 0.06, 0.08], i); if (cap) f.guard = 1.5; }],
+      ['Vampir', 'Vampir', 'Çok daha fazla can emer', 'Canın doluyken emilen can kan kalkanına dönüşür (en çok canının %35\'i)', (f, w, i, cap) => { f.leech += L3([0.04, 0.06, 0.08], i); if (cap) f.bshield = 0.35; }],
       ['İnfazcı', 'İnfazcı', 'Bitirme vuruşları çok daha sert', 'Bitirdiğin zombi canını doldurur', (f, w, i, cap) => { f.exec = [0.35, f.exec[1] + L3([0.4, 0.6, 0.8], i)]; if (cap) f.killHeal = 8; }]]],
   ],
   egitmen: [
