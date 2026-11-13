@@ -722,6 +722,13 @@ $('#btn-copy').addEventListener('click', async () => {
 });
 
 // ---------- game over ----------
+// the "Hesap aç" tile on the end screen is a real button: it leaves the room and opens sign-up
+function ctaTile(t) {
+  t.setAttribute('role', 'button'); t.tabIndex = 0;
+  const go = () => { leave(''); authOpen('reg'); };
+  t.addEventListener('click', go); t.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  return t;
+}
 // the signed-in player's take from this game: gems, level, season tier and their own line
 function overMe() {
   const box = $('#over-me'), o = S.over, me = o && o.P.find((p) => p.pid === S.me);
@@ -732,7 +739,7 @@ function overMe() {
     const g = tile('+' + fmt(S.gameGems | 0), 'elmas', 'gem'); g.prepend(gemIcon(18)); tiles.unshift(g);
     const lv = el('div', 'om-t om-lv'); const bar = el('div', 'xpbar'); const f = el('i'); f.style.width = Math.round(100 * (ME.lx | 0) / Math.max(1, ME.ln | 0)) + '%'; bar.append(f);
     lv.append(el('strong', '', 'Seviye ' + (ME.lvl || 1)), bar, el('span', '', `${fmt(ME.lx | 0)} / ${fmt(ME.ln | 0)} XP · sezon kademesi ${ME.spt | 0}`)); tiles.push(lv);
-  } else tiles.push(tile('Hesap aç', 'elmas ve seviye kazan', 'cta'));
+  } else tiles.push(ctaTile(tile('Hesap aç', 'elmas ve seviye kazan', 'cta')));
   box.replaceChildren(...tiles); box.hidden = false;
   if (ACCT && !S.overRefresh) { S.overRefresh = 1; setTimeout(() => { acctCheck().then(() => { S.overRefresh = 0; if (S.screen === 'over') overMe(); }).catch(() => { S.overRefresh = 0; }); }, 2500); }
 }
@@ -1001,7 +1008,7 @@ function renderPvpOver(o) {
     const rk = S.pvpRank;
     if (ACCT && rk) { const L = league(rk.rp), t = el('div', 'om-t om-lv'), b = el('div', 'xpbar'), f = el('i'); f.style.width = Math.round(100 * L.pct) + '%'; f.style.background = L.c; b.append(f); t.append(el('strong', '', `${L.name} ${rk.d > 0 ? '+' : ''}${rk.d} puan`), b, el('span', '', `${rk.rp} puan${rk.up ? ' · yükseldin!' : ''}`)); tiles.push(t); }
     else if (ACCT) tiles.push(tile('…', 'dereceli puan hesaplanıyor'));
-    else tiles.push(tile('Hesap aç', 'dereceli lige gir', 'cta'));
+    else tiles.push(ctaTile(tile('Hesap aç', 'dereceli lige gir', 'cta')));
     box.replaceChildren(...tiles); box.hidden = false;
   }
   const isHost = S.role === 'host';
@@ -2294,7 +2301,8 @@ async function acctGo(op) {
   go.classList.add('done');
   setTimeout(() => { go.classList.remove('done'); authClose(); acctUi(); toast(op === 'reg' ? `Hesabın oluşturuldu. Hoş geldin, ${j.name}!` : `Hoş geldin, ${j.name}!`, 'good'); }, 420);
 }
-$('#auth-form').addEventListener('submit', (e) => { e.preventDefault(); const sub = e.submitter && e.submitter.id; acctGo(sub === 'acct-reg' ? 'reg' : sub === 'acct-login' ? 'login' : AUTH.m); });
+// the keyboard's Go/Enter submits through the first submit button, even a hidden one: always use the open mode
+$('#auth-form').addEventListener('submit', (e) => { e.preventDefault(); acctGo(AUTH.m === 'reg' ? 'reg' : 'login'); });
 // ---------- the signed-in player's full-page panel (js/dash.js) ----------
 function dpShow() {
   const on = !!ACCT; document.body.classList.toggle('signed', on); $('#dashpage').hidden = !on;

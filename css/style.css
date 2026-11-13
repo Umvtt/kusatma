@@ -1046,7 +1046,9 @@ body.touch .streak { top: 30%; } body.touch .streak strong { font-size: 22px; }
 .om-t.gem strong { color: #9fefff; } .om-t.gem span { width: 100%; }
 .om-t.om-lv { grid-column: 1 / -1; gap: 6px; }
 .om-t.om-lv strong { font-size: 15px; }
-.om-t.cta { border-style: dashed; }
+.om-t.cta { border-style: dashed; cursor: pointer; border-color: rgba(255,107,44,.55); }
+.om-t.cta:hover, .om-t.cta:focus-visible { background: rgba(255,107,44,.12); }
+.om-t.cta strong::after { content: " ›"; color: var(--accent); }
 .over-wrap .row:last-child { flex-wrap: wrap; }
 @media (max-width: 560px) { .over-wrap .row:last-child { display: grid; grid-template-columns: 1fr 1fr; } .over-wrap .row:last-child .btn[hidden] { display: none; } .over-me { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
@@ -1505,3 +1507,5 @@ body.ctl-editing #touch .t-pause, body.ctl-editing #touch .t-score, body.ctl-edi
 @keyframes intro-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes intro-out { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .intro { display: none; } }
+/* the end screen's buttons stay on screen on phones, however long the table is */
+body.touch .over-wrap .row:last-child { position: sticky; bottom: -16px; z-index: 2; background: rgba(18,24,21,.97); padding: 10px 0 14px; margin-bottom: -14px; box-shadow: 0 -10px 16px rgba(18,24,21,.9); }
