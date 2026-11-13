@@ -1447,3 +1447,61 @@ body.touch .quick-b kbd { display: none; }
 .quick-line .quick-m { font-weight: 700; margin-left: 4px; }
 @media (max-height: 420px) { .quick { padding: 8px; } .quick-b { min-height: 38px; padding: 6px 8px; } }
 body.touch .voice-live { top: calc(max(10px, env(safe-area-inset-top)) + 48px); }
+
+/* ---------- build 52: phone controls editor, free joystick, battery saver, loading, intro, map preview ---------- */
+.touchpad { --stk: 1; --tbs: 1; --tco: 1; }
+.touchpad > :not(.zone-move) { opacity: var(--tco); }
+.stick { width: calc(132px * var(--stk)); height: calc(132px * var(--stk)); }
+.stick i { width: calc(54px * var(--stk)); height: calc(54px * var(--stk)); margin: calc(-27px * var(--stk)) 0 0 calc(-27px * var(--stk)); }
+.t-btn.t-ability { width: calc(76px * var(--tbs)); height: calc(76px * var(--tbs)); font-size: calc(12px * min(1.15, var(--tbs))); }
+.t-btn.t-bash { width: calc(60px * var(--tbs)); height: calc(60px * var(--tbs)); font-size: calc(11px * min(1.15, var(--tbs))); }
+.t-btn.t-gear { width: calc(56px * var(--tbs)); height: calc(56px * var(--tbs)); }
+.vb-wrap.t-mic .voice-mic { width: calc(58px * var(--tbs)); height: calc(58px * var(--tbs)); }
+@media (max-height: 500px) { .vb-wrap.t-mic .voice-mic { width: calc(52px * var(--tbs)); height: calc(52px * var(--tbs)); } }
+.touchpad .moved { left: var(--mx) !important; top: var(--my) !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%); }
+.zone-move { position: absolute; left: 0; top: 34%; bottom: 0; width: 46%; pointer-events: none; }
+.touchpad.free .zone-move { pointer-events: auto; touch-action: none; }
+.touchpad.free #stick-move:not(.held) { opacity: calc(var(--tco) * .45); }
+.touchpad.free #stick-move.held { left: var(--fx) !important; top: var(--fy) !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%); pointer-events: none; }
+body.ctl-editing .touchpad { z-index: 61; }
+body.ctl-editing #touch [data-ed] { pointer-events: auto; cursor: grab; outline: 2px dashed rgba(255,211,77,.75); outline-offset: 4px; touch-action: none; }
+body.ctl-editing #touch [data-ed].drag { outline-color: #43d17a; cursor: grabbing; }
+body.ctl-editing #stick-aim, body.ctl-editing #t-ab, body.ctl-editing #t-bash, body.ctl-editing #btn-voice { display: flex !important; visibility: visible !important; }
+body.ctl-editing #stick-aim, body.ctl-editing #stick-move { display: block !important; }
+body.ctl-editing .zone-move { pointer-events: none !important; background: rgba(76,201,240,.07); border-right: 1px dashed rgba(76,201,240,.35); }
+body.ctl-editing .touchpad:not(.free) .zone-move { display: none; }
+body.ctl-editing #touch .t-pause, body.ctl-editing #touch .t-score, body.ctl-editing #touch .t-chat, body.ctl-editing #touch .t-quick, body.ctl-editing #touch .t-gear-row { opacity: .25; pointer-events: none; }
+.ctl-ed { position: fixed; inset: 0; z-index: 60; background: rgba(6,9,8,.72); display: flex; justify-content: center; align-items: flex-start; padding: max(10px, env(safe-area-inset-top, 0px)) 16px 0; }
+.ctl-bar { position: relative; z-index: 62; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; max-width: 620px; width: 100%; background: rgba(18,24,21,.96); border: 1px solid rgba(236,230,214,.18); border-radius: 14px; padding: 10px 12px; }
+.ctl-bar strong { font-size: 14px; }
+.ctl-bar .ctl-hint { margin: 0; flex: 1 1 140px; }
+.ctl-s { display: flex; align-items: center; gap: 6px; font-size: 12px; flex: 1 1 150px; }
+.ctl-s input { flex: 1; min-width: 70px; }
+.ctl-c { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.ctl-acts { display: flex; gap: 8px; margin-left: auto; }
+@media (max-height: 500px) { .ctl-bar { gap: 4px 10px; padding: 6px 10px; } .ctl-bar .ctl-hint { display: none; } }
+.set-ctl { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.loading { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: rgba(6,9,8,.82); padding: 16px; animation: ld-in .25s ease; }
+@keyframes ld-in { from { opacity: 0; } to { opacity: 1; } }
+.ld-in { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; max-width: 420px; }
+.ld-spin { width: 44px; height: 44px; border-radius: 50%; border: 3px solid rgba(236,230,214,.15); border-top-color: var(--accent); animation: ld-spin .9s linear infinite; }
+@keyframes ld-spin { to { transform: rotate(360deg); } }
+.ld-tip { margin: 0; color: var(--muted, #a9b0a6); font-size: 13px; line-height: 1.45; min-height: 2.9em; transition: opacity .3s; }
+.ld-tip::before { content: 'İpucu: '; color: var(--accent); font-weight: 700; }
+.lobby-tip { margin-top: 4px; font-size: 12px; opacity: .85; }
+.lobby-tip:empty { display: none; }
+.lobby-tip::before { content: 'İpucu: '; color: var(--accent); font-weight: 700; }
+.map-pv-row { display: flex; gap: 10px; align-items: flex-start; }
+.map-pv-row .note { margin: 0; flex: 1; }
+.map-pv { width: 120px; height: 80px; flex: none; border-radius: 8px; border: 1px solid rgba(236,230,214,.18); background: #111; }
+@media (max-width: 420px) { .map-pv { width: 96px; height: 64px; } }
+.intro { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; background: #070a09; pointer-events: none; animation: intro-out .5s ease 1.35s forwards; }
+.intro-in { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.intro-logo { font-weight: 900; font-size: clamp(40px, 11vw, 96px); letter-spacing: .12em; color: #ece6d6; text-shadow: 0 0 30px rgba(255,107,44,.45); animation: intro-slam .55s cubic-bezier(.2,1.6,.4,1) both; }
+.intro-line { display: block; height: 3px; width: min(70vw, 520px); background: linear-gradient(90deg, transparent, var(--accent), transparent); transform-origin: center; animation: intro-line .5s ease .35s both; }
+.intro-sub { font-size: 13px; letter-spacing: .4em; text-transform: uppercase; color: rgba(236,230,214,.6); animation: intro-fade .4s ease .6s both; }
+@keyframes intro-slam { from { opacity: 0; transform: scale(1.8); filter: blur(6px); } to { opacity: 1; transform: scale(1); filter: none; } }
+@keyframes intro-line { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes intro-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes intro-out { to { opacity: 0; visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .intro { display: none; } }

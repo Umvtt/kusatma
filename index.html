@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=51">
-  <link rel="stylesheet" href="css/dash.css?v=51">
+  <link rel="stylesheet" href="css/style.css?v=52">
+  <link rel="stylesheet" href="css/dash.css?v=52">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -33,9 +33,9 @@
         <h1 class="logo">Kuşatma</h1>
         <p class="tagline">Sürü her dalgada büyüyor. Sınıfını seç, takımını topla, sabaha kadar dayan.</p>
         <ul class="facts">
-          <li><strong>13</strong><span>sınıf</span></li>
-          <li><strong>15</strong><span>oyuncuya kadar</span></li>
-          <li><strong>6</strong><span>harita</span></li>
+          <li><strong id="f-cls">–</strong><span>sınıf</span></li>
+          <li><strong id="f-max">–</strong><span>oyuncuya kadar</span></li>
+          <li><strong id="f-maps">–</strong><span>harita</span></li>
           <li><strong id="best-wave">–</strong><span id="best-label">en iyi dalgan</span></li>
         </ul>
         <div class="lp-classes" id="lp-classes" aria-label="Sınıflar"></div>
@@ -47,7 +47,8 @@
           <span>Takma adın</span>
           <input id="name" maxlength="16" autocomplete="off" spellcheck="false" placeholder="ör. Kartal">
         </label>
-        <button id="btn-create" class="btn primary big" type="button">Oda kur</button>
+        <button id="btn-quick" class="btn primary big" type="button">Hızlı oyna</button>
+        <button id="btn-create" class="btn" type="button">Oda kur</button>
         <div class="join-row">
           <label class="sr-only" for="code">Oda kodu</label>
           <input id="code" class="code-input" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ODA KODU">
@@ -152,7 +153,7 @@
             <span class="count" id="settings-who">Kurucu seçer</span>
           </div>
           <div id="map-list" class="choice-list" role="radiogroup" aria-labelledby="game-settings-h"></div>
-          <p id="map-desc" class="note"></p>
+          <div class="map-pv-row"><canvas id="map-pv" class="map-pv" width="180" height="120" aria-hidden="true"></canvas><p id="map-desc" class="note"></p></div>
           <div class="card-head sub-head"><h3 id="diff-h">Zorluk</h3></div>
           <div id="diff-list" class="seg" role="radiogroup" aria-labelledby="diff-h"></div>
           <p id="diff-desc" class="note"></p>
@@ -175,6 +176,7 @@
 
       <footer class="lobby-foot">
         <p id="lobby-note" class="note"></p>
+        <p id="lobby-tip" class="note lobby-tip"></p>
         <div class="row">
           <button id="btn-leave" class="btn ghost" type="button">Odadan ayrıl</button>
           <button id="btn-ready" class="btn primary big" type="button">Hazırım</button>
@@ -495,6 +497,8 @@
           <label class="set-check" for="set-lead"><span>Kamera nişan yönüne kaysın</span><input id="set-lead" type="checkbox"></label>
           <label class="set-check" for="set-fps"><span>FPS göster</span><input id="set-fps" type="checkbox"></label>
           <label class="set-check" for="set-vibe" id="set-vibe-row"><span>Titreşim</span><input id="set-vibe" type="checkbox"></label>
+          <div class="set-row set-q"><span>Pil tasarrufu</span><output id="set-saver-out">Otomatik</output><div class="seg q-seg" id="set-saver" role="radiogroup" aria-label="Pil tasarrufu"><button type="button" data-s="off">Kapalı</button><button type="button" data-s="auto">Oto</button><button type="button" data-s="on">Açık</button></div></div>
+          <div class="set-row set-ctl" id="set-ctl-row"><span>Dokunmatik kontroller</span><button id="set-ctl" class="btn small" type="button">Düzenle</button></div>
         </section>
       </div>
       <div class="set-foot"><p class="set-build" id="set-build"></p><nav class="legal-links set-legal" aria-label="Yasal"><a href="gizlilik.html" target="_blank" rel="noopener">Gizlilik</a><a href="cerezler.html" target="_blank" rel="noopener">Çerezler</a><a href="kosullar.html" target="_blank" rel="noopener">Şartlar</a><button type="button" class="ck-open">Çerez tercihleri</button></nav><div class="row"><button id="settings-diag" class="btn ghost small" type="button">Bağlantı testi</button><button id="settings-reset" class="btn ghost small" type="button">Varsayılana dön</button></div></div>
@@ -502,6 +506,7 @@
   </div>
 
   <div id="touch" class="touchpad" hidden>
+    <div id="zone-move" class="zone-move" aria-hidden="true"></div>
     <div id="stick-move" class="stick left" aria-hidden="true"><i></i></div>
     <div id="stick-aim" class="stick right" aria-hidden="true"><i></i></div>
     <button id="t-ab" class="t-btn t-ability" type="button">Yetenek</button>
@@ -512,6 +517,19 @@
     <button id="t-chat" class="t-btn t-chat" type="button">Sohbet</button>
     <button id="t-quick" class="t-btn t-quick" type="button" hidden>Hızlı</button>
   </div>
+  <div id="ctl-ed" class="ctl-ed" hidden>
+    <div class="ctl-bar" role="dialog" aria-label="Kontrolleri düzenle">
+      <strong>Kontrolleri düzenle</strong>
+      <span class="note ctl-hint">Tuşları sürükleyip taşı.</span>
+      <label class="ctl-s"><span>Joystick</span><input id="ctl-stk" type="range" min="70" max="150" step="5"></label>
+      <label class="ctl-s"><span>Tuşlar</span><input id="ctl-btn" type="range" min="70" max="150" step="5"></label>
+      <label class="ctl-s"><span>Saydamlık</span><input id="ctl-op" type="range" min="30" max="100" step="5"></label>
+      <label class="ctl-c"><span>Serbest joystick</span><input id="ctl-free" type="checkbox"></label>
+      <div class="ctl-acts"><button id="ctl-reset" class="btn small ghost" type="button">Sıfırla</button><button id="ctl-done" class="btn small primary" type="button">Bitti</button></div>
+    </div>
+  </div>
+  <div id="loading" class="loading" hidden><div class="ld-in"><div class="ld-spin" aria-hidden="true"></div><strong id="ld-txt">Bağlanılıyor…</strong><p id="ld-tip" class="ld-tip"></p></div></div>
+  <div id="intro" class="intro" hidden aria-hidden="true"><div class="intro-in"><span class="intro-logo">KUŞATMA</span><i class="intro-line"></i><span class="intro-sub">sabaha kadar dayan</span></div></div>
   <div id="rotate" class="rotate" hidden><strong>Telefonunu yan çevir</strong><span>Kuşatma yatay ekranda oynanır.</span></div>
 
   <div id="prof-dlg" class="confirm" hidden>
@@ -575,7 +593,7 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=51","./js/client.js":"./js/client.js?v=51","./js/config.js":"./js/config.js?v=51","./js/consent.js":"./js/consent.js?v=51","./js/dash.js":"./js/dash.js?v=51","./js/host.js":"./js/host.js?v=51","./js/live.js":"./js/live.js?v=51","./js/mapgen.js":"./js/mapgen.js?v=51","./js/net.js":"./js/net.js?v=51","./js/voice.js":"./js/voice.js?v=51","./js/pvp.js":"./js/pvp.js?v=51","./js/render.js":"./js/render.js?v=51","./js/scene.js":"./js/scene.js?v=51","./js/settings.js":"./js/settings.js?v=51","./js/sfx.js":"./js/sfx.js?v=51","./js/world.js":"./js/world.js?v=51"}}</script>
-  <script type="module" src="js/main.js?v=51"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=52","./js/client.js":"./js/client.js?v=52","./js/config.js":"./js/config.js?v=52","./js/consent.js":"./js/consent.js?v=52","./js/dash.js":"./js/dash.js?v=52","./js/host.js":"./js/host.js?v=52","./js/live.js":"./js/live.js?v=52","./js/mapgen.js":"./js/mapgen.js?v=52","./js/net.js":"./js/net.js?v=52","./js/voice.js":"./js/voice.js?v=52","./js/pvp.js":"./js/pvp.js?v=52","./js/render.js":"./js/render.js?v=52","./js/scene.js":"./js/scene.js?v=52","./js/settings.js":"./js/settings.js?v=52","./js/sfx.js":"./js/sfx.js?v=52","./js/world.js":"./js/world.js?v=52"}}</script>
+  <script type="module" src="js/main.js?v=52"></script>
 </body>
 </html>

@@ -286,7 +286,7 @@ export function dmSend(to, x) {
 }
 // the open rooms list: asked over the live socket when it is up (far cheaper for the server), otherwise as a request
 let roomsWait = null;
-const cleanRooms = (L) => (Array.isArray(L) ? L : []).slice(0, 60).map((r) => ({ code: str(r.code, 6).replace(/[^A-Z0-9]/g, ''), name: str(r.name, 16), rn: str(r.rn, 24), mx: r.mx | 0, diff: str(r.diff, 12), n: r.n | 0, st: str(r.st, 8), wave: r.wave | 0, ver: r.ver | 0 })).filter((r) => r.code);
+const cleanRooms = (L) => (Array.isArray(L) ? L : []).slice(0, 60).map((r) => ({ code: str(r.code, 6).replace(/[^A-Z0-9]/g, ''), name: str(r.name, 16), rn: str(r.rn, 24), mx: r.mx | 0, diff: str(r.diff, 12), n: r.n | 0, st: str(r.st, 8), wave: r.wave | 0, ver: r.ver | 0, gm: str(r.gm, 8) })).filter((r) => r.code);
 export function roomsGet() {
   if (!ws || ws.readyState !== 1 || roomsWait) return api('/krooms');
   return new Promise((res) => {

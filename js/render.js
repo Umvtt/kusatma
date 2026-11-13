@@ -1,8 +1,9 @@
 // Canvas drawing: an abandoned plaza at night, seen from above, lit by the team's flashlights.
-import { WORLD_W, WORLD_H, PLAYER_R, QUICK, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp, TEAM_COL } from './config.js';
+import { WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, PLAYER_R, QUICK, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp, TEAM_COL } from './config.js';
 import { WORLD, obstaclesIn } from './world.js';
 import { SETTINGS, QUALITY } from './settings.js';
 import { ITEMS as COS } from './catalog.js';
+import { generateMap } from './mapgen.js';
 
 const DECAL_SCALE = 0.4;
 const MINI_W = 180;
@@ -532,6 +533,38 @@ export class Renderer {
 }
 
 // ---------- ground ----------
+const GROUND_BASE = { meydan: '#1b231d', benzinlik: '#1c201e', hastane: '#1e2a1b', orman: '#18221a', liman: '#1d2328', kar: '#46525c', metro: '#16181d', avm: '#2b2a30', us: '#2c2a1f', luna: '#191624' };
+// the lobby's little map preview: the starting area of the map from a fixed seed, drawn once per map
+const PV = new Map();
+const PV_COL = { su: '#2a5d86', agac: '#2f5a2e', cam: '#2c5233', kaya: '#6d6a62', kutuk: '#5a4430', kasa: '#8a6a3c', beton: '#8d8a80', cit: '#a89b7c', wood: '#8a6a3c', kumtorba: '#b39a63', kule: '#6b5a3c', cadir: '#5d6b3c', tank: '#4c5340', konteyner: '#9a4d36', pompa: '#c94a3a', stand: '#c98a3a', saksi: '#4f7a3e', atli: '#c95a9a', bufe: '#d9a13a' };
+export function drawMapPreview(cv, theme) {
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  if (!MAPS[theme]) {
+    g.fillStyle = '#16191b'; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(236,230,214,.55)'; g.font = `700 ${Math.round(H * 0.42)}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', W / 2, H / 2 + 2);
+    return;
+  }
+  let img = PV.get(theme);
+  if (!img) {
+    img = document.createElement('canvas'); img.width = W; img.height = H;
+    const c = img.getContext('2d'), m = generateMap(theme, 20251), a = areaFor(4);
+    const x0 = CX - a.w / 2, y0 = CY - a.h / 2, s = Math.min(W / a.w, H / a.h);
+    c.fillStyle = GROUND_BASE[theme] || '#1b231d'; c.fillRect(0, 0, W, H);
+    c.save(); c.translate((W - a.w * s) / 2, (H - a.h * s) / 2); c.scale(s, s); c.translate(-x0, -y0);
+    for (const d of m.decor) {
+      if (d.k === 'road' || d.k === 'path' || d.k === 'track' || d.k === 'rail') { c.fillStyle = d.k === 'path' ? 'rgba(200,180,140,.18)' : 'rgba(255,255,255,.08)'; c.fillRect(d.x, d.y, d.w, d.h); }
+      else if (d.k === 'water' || d.k === 'lake' || d.k === 'sea') { c.fillStyle = '#2a5d86'; if (d.r) { c.beginPath(); c.arc(d.x, d.y, d.r, 0, 7); c.fill(); } else c.fillRect(d.x, d.y, d.w, d.h); }
+    }
+    for (const o of m.obstacles) {
+      c.fillStyle = o.c || PV_COL[o.k] || 'rgba(214,208,192,.55)';
+      if (o.k === 'agac' || o.k === 'cam' || o.k === 'kaya') { c.beginPath(); c.arc(o.x + o.w / 2, o.y + o.h / 2, Math.max(o.w, o.h) / 2 + 10, 0, 7); c.fill(); } else c.fillRect(o.x, o.y, o.w, o.h);
+    }
+    c.fillStyle = '#ff6b2c'; c.beginPath(); c.arc(CX, CY, 46, 0, 7); c.fill();
+    c.restore();
+    PV.set(theme, img);
+  }
+  g.drawImage(img, 0, 0);
+}
 const GROUND_SCALE = 0.38; // the whole map's ground in one canvas: about the same memory as before the map grew
 function makeGround(theme, seed, decor) {
   const s = GROUND_SCALE;
@@ -541,7 +574,7 @@ function makeGround(theme, seed, decor) {
   g.scale(s, s);
   let st = (seed >>> 0) || 7;
   const rnd = () => { st = (st * 16807) % 2147483647; return st / 2147483647; };
-  const base = { meydan: '#1b231d', benzinlik: '#1c201e', hastane: '#1e2a1b', orman: '#18221a', liman: '#1d2328', kar: '#46525c', metro: '#16181d', avm: '#2b2a30', us: '#2c2a1f', luna: '#191624' }[theme] || '#1b231d';
+  const base = GROUND_BASE[theme] || '#1b231d';
   g.fillStyle = base;
   g.fillRect(0, 0, WORLD_W, WORLD_H);
   const blotches = (n, dark, light, rmin, rmax) => {

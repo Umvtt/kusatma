@@ -2,7 +2,7 @@
 
 export const VERSION = 19;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 51;
+export const BUILD = 52;
 // the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
 export const APP_BUILD = 47;
 export const MAX_PLAYERS = 20;
@@ -545,6 +545,25 @@ export const QUICK = [
   { t: 'Şuraya bak', ic: '◎', col: '#ffffff', at: 1 },
 ];
 export const PING_K = QUICK.length - 1;
+// loading screen and lobby tips: short, one idea each
+export const TIPS = [
+  'Dalga arasında Cephanelik açık: silah yolunu seç, seviyesini yükselt.',
+  'Dipçik (F) yakındaki zombileri iter. Sıkıştığında kurtarır.',
+  'Düşen takım arkadaşının yanında dur: birkaç saniyede kalkar.',
+  'Elit zombiler 4 kat altın ve bir eşya bırakır.',
+  'Metro haritasında korna duyunca raydan çekil.',
+  'Z ile hızlı mesaj menüsü açılır, G ile haritaya işaret koyarsın.',
+  'Takım yükseltmelerine herkes para koyabilir; dolunca herkese işler.',
+  'Boss dalgalarında yetenekleri saklamak işe yarar.',
+  'Telefonda Ayarlar → Kontrolleri düzenle ile tuşları istediğin yere taşı.',
+  'Pil tasarrufu açıkken oyun 30 FPS çalışır, telefon daha az ısınır.',
+  'Her yeni oyuncu zombi sayısını artırır ama harita da büyür.',
+  'Günlük meydan okumada herkes aynı sınıf ve haritayla oynar.',
+  'Hesap açarsan dalga başına elmas kazanırsın.',
+  'Çığlıkçı yakındaki zombileri hızlandırır; önce onu indir.',
+  'Kazıcı yer altındayken vurulmaz; çıktığı anı bekle.',
+  'Nişan yardımı telefonda hedefe hafifçe çeker; Ayarlardan değiştir.',
+];
 
 // One-use items bought in the armory and used in battle with keys 1-4 (or the item buttons on phones).
 export const GEAR = [

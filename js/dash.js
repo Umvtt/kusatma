@@ -117,9 +117,10 @@ function heroStart() {
   const loop = (now) => {
     hero.raf = 0;
     if (page !== 'home' || document.hidden || $('#dashpage').hidden) return;
+    hero.raf = requestAnimationFrame(loop);
+    if (document.body.classList.contains('saver') && now - hero.last < 30.3) return;
     const dt = Math.min(0.05, (now - hero.last) / 1000); hero.last = now;
     heroStep(dt); heroDraw();
-    hero.raf = requestAnimationFrame(loop);
   };
   hero.raf = requestAnimationFrame(loop);
 }
@@ -297,7 +298,7 @@ function homePage(sec) {
   lv.append(lvlBadge(ME.lvl), el('span', '', `Seviye ${ME.lvl}`), bar, el('span', 'dim', `${fmt(ME.lx)} / ${fmt(ME.ln)} XP`));
   txt.append(lv);
   const acts = el('div', 'dp-hero-acts');
-  acts.append(btn('btn primary big play-btn', 'Oyna', () => dashGo('play')), btn('btn ghost', 'Tek başına', () => H.solo()), btn('btn ghost', 'Oda kur', () => H.roomDlg()), btn('btn ghost phone-only', 'Sıralama', () => dashGo('top')));
+  acts.append(btn('btn primary big play-btn', 'Oyna', () => dashGo('play')), btn('btn ghost quick-btn', 'Hızlı oyna', () => H.quick()), btn('btn ghost', 'Tek başına', () => H.solo()), btn('btn ghost', 'Oda kur', () => H.roomDlg()), btn('btn ghost phone-only', 'Sıralama', () => dashGo('top')));
   txt.append(acts);
   heroBox.append(cv, txt);
   sec.append(heroBox);
@@ -362,7 +363,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Vuruş hissi: ağır vuruşlar ekranı sarsar, silahlar geri teper; her silahın ve zombinin kendi sesi var.', 'Oyunun kendi müziği (Ayarlar → Müzik).', 'Hızlı takım mesajları: Z ya da telefonda Hızlı; G ile haritada işaretle.', 'Düşünce seni neyin devirdiğini görürsün; mikrofonun açıkken üstte gösterge çıkar.', 'Denge: Kılıççı, Ajan ve Nişancı güçlendi; Tesla\'nın yüksek gerilim yolu biraz zayıfladı.', 'Kılıç savurma ve Kasırga artık net görünüyor.', 'Yeni mikrofon düğmesi: basılı tut konuş, kısa dokun mikrofonu açık bırak. Telefonda artık oyunda da görünüyor.', 'Hacker\'ın ele geçirdiği zombilerin ısırdığı zombilerin ölmemesi düzeltildi.', 'Odadan düşenler ve sayfayı yenileyenler yerlerine geri dönebiliyor.', 'Android uygulaması 45.0: oyun kapalıyken bile mesaj, arkadaşlık isteği ve klan davetleri telefonuna bildirim olarak gelir.', 'Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
+const WHATS_NEW = ['Hızlı oyna: tek dokunuşla açık bir odaya katıl, yoksa hemen tek başına başla.', 'Telefonda kontrolleri düzenle: tuşları taşı, boyutlarını ve saydamlığını ayarla, serbest joystick.', 'Pil tasarrufu: 30 FPS ve daha az parçacık; pil azalınca kendiliğinden açılır.', 'Bekleme ekranında ipuçları, lobide harita önizlemesi.', 'Vuruş hissi: ağır vuruşlar ekranı sarsar, silahlar geri teper; her silahın ve zombinin kendi sesi var.', 'Oyunun kendi müziği (Ayarlar → Müzik).', 'Hızlı takım mesajları: Z ya da telefonda Hızlı; G ile haritada işaretle.', 'Düşünce seni neyin devirdiğini görürsün; mikrofonun açıkken üstte gösterge çıkar.', 'Denge: Kılıççı, Ajan ve Nişancı güçlendi; Tesla\'nın yüksek gerilim yolu biraz zayıfladı.', 'Kılıç savurma ve Kasırga artık net görünüyor.', 'Yeni mikrofon düğmesi: basılı tut konuş, kısa dokun mikrofonu açık bırak. Telefonda artık oyunda da görünüyor.', 'Hacker\'ın ele geçirdiği zombilerin ısırdığı zombilerin ölmemesi düzeltildi.', 'Odadan düşenler ve sayfayı yenileyenler yerlerine geri dönebiliyor.', 'Android uygulaması 45.0: oyun kapalıyken bile mesaj, arkadaşlık isteği ve klan davetleri telefonuna bildirim olarak gelir.', 'Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -647,13 +648,14 @@ function gemBurst() {
 function playPage(sec) {
   head(sec, 'Oyna', 'Savaşa hazır mısın?');
   const acts = el('div', 'dp-actions');
-  const a1 = btn('dp-act primary', ''); a1.append(el('strong', '', 'Oda kur'), el('span', '', 'Açık ya da gizli bir oda kur, takımını topla.')); a1.onclick = () => H.roomDlg();
+  const a0 = btn('dp-act primary', ''); a0.append(el('strong', '', 'Hızlı oyna'), el('span', '', 'Uygun bir açık odaya katıl; yoksa hemen tek başına başla.')); a0.onclick = () => H.quick();
+  const a1 = btn('dp-act', ''); a1.append(el('strong', '', 'Oda kur'), el('span', '', 'Açık ya da gizli bir oda kur, takımını topla.')); a1.onclick = () => H.roomDlg();
   const a2 = el('div', 'dp-act'); a2.append(el('strong', '', 'Koda katıl'));
   const jr = el('div', 'join-row'); const inp = el('input', 'code-input'); inp.maxLength = 6; inp.placeholder = 'ODA KODU'; inp.autocomplete = 'off'; inp.spellcheck = false;
   const jb = btn('btn', 'Katıl', () => H.join(inp.value)); inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') jb.click(); });
   jr.append(inp, jb); a2.append(jr);
   const a3 = btn('dp-act', ''); a3.append(el('strong', '', 'Tek başına oyna'), el('span', '', 'Kilitli sınıfları da deneyebilirsin (elmas kazandırmaz).')); a3.onclick = () => H.solo();
-  acts.append(a1, a2, a3);
+  acts.append(a0, a1, a2, a3);
   sec.append(acts);
   sec.append(dailyCard());
   const fc = card('Oyundaki arkadaşların');

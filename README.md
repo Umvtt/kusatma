@@ -14,6 +14,8 @@ Oyna:
 
 İlk oyununda kısa bir eğitim seni adım adım gezdirir (ana menüde **Nasıl oynanır?** ile tekrar açabilirsin).
 
+Hemen oynamak istersen **Hızlı oyna**'ya bas: bu sürümde açık, yer olan bir oda varsa ona katılırsın (önce lobidekiler, sonra moladakiler); yoksa tek başına bir oyun hemen başlar. Arkadaşlarınla oynamak için:
+
 1. Takma adını yaz ve **Oda kur**'a bas.
 2. Ekranda çıkan 6 karakterlik **oda kodunu** arkadaşlarına gönder. Onlar da kodu girip **Katıl**'a bassın.
 3. Herkes bir sınıf seçsin, sonra kurucu **Oyunu başlat**'a bassın.
@@ -40,9 +42,13 @@ Oyna:
 
 Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu ittiğin sürece silah ateş eder. Yetenek, Dipçik, eşyalar, Menü ve Skor için ekrandaki düğmeleri kullan. Odada **Hızlı** düğmesi takım mesajlarını açar ("Yardım!", "Buraya gel!", "Şuraya bak" gibi); yeri olan mesajlar haritada işaret bırakır.
 
+**Kontrolleri düzenle** (Ayarlar → Dokunmatik kontroller → Düzenle): çubukları, Yetenek, Dipçik ve mikrofon düğmelerini parmağınla sürükleyip istediğin yere koy; joystick ve düğme boyutunu, saydamlığı ayarla. **Serbest joystick** açıkken sol çubuk ekranın sol yarısında parmağını nereye koyarsan orada belirir. **Sıfırla** her şeyi ilk hâline döndürür. Düzen yalnızca o telefonda saklanır.
+
 ### Ayarlar
 
-Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, müzik (oyunun kendi müziği: aralarda sakin, dalgada hareketli, boss gelince ağır; 0'a çekince kapanır), gece karanlığı, yakınlaştırma, ekran sarsıntısı, hasar sayıları ve kameranın nişan yönüne kayması. Ayarlar tarayıcında saklanır.
+Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, müzik (oyunun kendi müziği: aralarda sakin, dalgada hareketli, boss gelince ağır; 0'a çekince kapanır), gece karanlığı, yakınlaştırma, ekran sarsıntısı, hasar sayıları ve kameranın nişan yönüne kayması. **Pil tasarrufu** oyunu 30 FPS'te çalıştırır, en yüksek grafiği kullanmaz ve parçacıkları yarıya indirir; telefon daha az ısınır ve pil daha uzun gider. **Oto** (varsayılan) pil %20'nin altına düşüp şarjda değilken ya da telefon en düşük grafikte bile zorlanınca kendiliğinden açılır. Ayarlar tarayıcında saklanır.
+
+Oda kurulurken ya da odaya bağlanırken bekleme ekranında ipuçları döner; lobide seçili haritanın küçük bir önizlemesi ve bir ipucu görünür.
 
 ## Sınıflar
 

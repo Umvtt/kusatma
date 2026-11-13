@@ -1,9 +1,9 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { ZTYPES, isBoss, QUICK, PING_K, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, APP_BUILD, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
+import { ZTYPES, isBoss, QUICK, PING_K, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, APP_BUILD, TIPS, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
-import { Renderer, drawCharacter, drawWeaponPreview } from './render.js';
+import { Renderer, drawCharacter, drawWeaponPreview, drawMapPreview } from './render.js';
 import { startScene } from './scene.js';
 import { dashPage, dashGo } from './dash.js';
 import { dashInit, dashShow, dashRefresh, dashSoft, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar } from './dash.js';
@@ -73,8 +73,24 @@ function menuMsg(text, info = false) {
 }
 
 function busy(on) {
-  for (const id of ['#btn-create', '#btn-join', '#btn-solo']) $(id).disabled = on;
-  for (const b of document.querySelectorAll('#dashpage .play-btn, #dashpage .dp-act')) b.disabled = on;
+  for (const id of ['#btn-create', '#btn-join', '#btn-solo', '#btn-quick']) $(id).disabled = on;
+  for (const b of document.querySelectorAll('#dashpage .play-btn, #dashpage .dp-act, #dashpage .quick-btn')) b.disabled = on;
+  loading(on);
+}
+// ---------- the loading screen while a room is being set up or joined: a spinner, what is happening and a tip ----------
+const LD = { t: 0, iv: 0, i: Math.floor(Math.random() * TIPS.length) };
+function tipNext() { LD.i = (LD.i + 1) % TIPS.length; return TIPS[LD.i]; }
+function loading(on) {
+  clearTimeout(LD.t); clearInterval(LD.iv);
+  if (!on) { $('#loading').hidden = true; return; }
+  // quick steps never flash the screen
+  LD.t = setTimeout(() => {
+    const m = $('#menu-msg').textContent || $('#dp-msg').textContent;
+    $('#ld-txt').textContent = m || 'Bağlanılıyor…';
+    const tip = $('#ld-tip'); tip.textContent = tipNext();
+    $('#loading').hidden = false;
+    LD.iv = setInterval(() => { tip.style.opacity = '0'; setTimeout(() => { tip.textContent = tipNext(); tip.style.opacity = ''; }, 300); }, 4500);
+  }, 350);
 }
 
 let confirmCb = null;
@@ -188,7 +204,7 @@ async function joinRoom() {
       : r === 'peerjs-missing' ? 'Bağlantı kütüphanesi yüklenemedi. Sayfayı yenile.'
       : r === 'timeout' ? 'Odaya bağlanılamadı. Kodu kontrol et ya da tekrar dene.'
       : 'Odaya bağlanılamadı. İnternetini kontrol edip tekrar dene.');
-    return;
+    return false;
   }
   busy(false);
   menuMsg('');
@@ -200,10 +216,37 @@ async function joinRoom() {
   net.send({ t: 'hello', v: VERSION, name, ps: ACCT ? ME.pass : '' });
   S.joinedAt = performance.now();
   startTicker();
+  return true;
+}
+
+// ---------- quick play: the best open room of this build with space, or a solo game that starts at once ----------
+let quickBusy = false;
+async function quickPlay() {
+  if (quickBusy || S.net) return;
+  quickBusy = true;
+  try {
+    let pick = null;
+    if (!liveBlock() && !nameTaken($('#name').value)) {
+      menuMsg('Uygun oda aranıyor…', true); busy(true);
+      let res = null; try { res = await Promise.race([roomsGet(), new Promise((r) => setTimeout(() => r(null), 4000))]); } catch (e) { res = null; }
+      busy(false);
+      const L = res && res.ok && Array.isArray(res.rooms) ? res.rooms : [];
+      const rank = (r) => (r.st === 'lobby' ? 1000 : r.st === 'break' ? 500 : 0) + r.n * 10 - r.wave;
+      pick = L.filter((r) => r.ver === BUILD && r.gm !== 'pvp' && r.gm !== 'sandbox' && r.gm !== 'daily' && r.n < (r.mx || MAX_PLAYERS) && r.wave < 25)
+        .sort((a, b) => rank(b) - rank(a))[0] || null;
+    }
+    if (pick) { $('#code').value = pick.code; if (await joinRoom()) return; }
+    if (S.net) return;
+    S.again = true; menuMsg('');
+    await createRoom(true);
+    if (!S.net) S.again = false;
+    else toast(pick ? 'Odaya girilemedi, tek başına başlıyorsun.' : 'Açık oda yok, tek başına başlıyorsun. Biri gelince arkadaşlarını davet edebilirsin.');
+  } finally { quickBusy = false; }
 }
 
 function leave(reason) {
   sfx.music('off');
+  $('#lobby-tip').textContent = '';
   quickToggle(false);
   if (TUT.step >= 0) { TUT.step = -1; $('#tut').hidden = true; }
   if (voiceOn()) voiceStop();
@@ -332,7 +375,7 @@ function onRoster(m) {
     setMap(map.theme, map.seed, map.obstacles, map.decor);
   }
   if (S.game) S.game.onRoster(m);
-  if (m.ph === 'lobby' && prevPhase && prevPhase !== 'lobby') { renderer.clearDecals(); S.over = null; }
+  if (m.ph === 'lobby' && prevPhase && prevPhase !== 'lobby') { renderer.clearDecals(); S.over = null; $('#lobby-tip').textContent = ''; }
   if ((m.ph === 'break' || m.ph === 'combat') && prevPhase === 'lobby') { renderer.clearDecals(); if (S.game) S.game.reset(); }
   route();
   if (S.role !== 'spec') renderLobby();
@@ -514,6 +557,8 @@ function renderSettings(r, isHost) {
   $('#mode-h').textContent = dly ? 'Mod: ' + MODES.daily.name : 'Mod';
   $('#mode-desc').textContent = dly ? `${MODES.daily.desc} Bugünün sınıfı: ${(CLASSES[r.dly] || {}).name || ''}.` : (MODES[r.mode] || MODES.normal).desc;
   $('#diff-desc').textContent = DIFFS[r.diff] ? DIFFS[r.diff].desc : '';
+  { const th = dly ? (r.theme || r.map) : r.map; if (S.pvMap !== th) { S.pvMap = th; drawMapPreview($('#map-pv'), th); } }
+  if (!$('#lobby-tip').textContent) $('#lobby-tip').textContent = tipNext();
   $('#map-desc').textContent = r.map === 'rastgele' ? 'Her oyunda haritalardan biri rastgele seçilir.' : MAPS[r.map] ? MAPS[r.map].desc : '';
 }
 
@@ -971,6 +1016,8 @@ function startLoop() {
   let last = performance.now();
   const frame = (now) => {
     S.raf = requestAnimationFrame(frame);
+    // battery saver: every other frame on a 60 Hz screen (30 FPS), whatever the refresh rate
+    if (SAVE.on && now - last < 30.3) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const g = S.game;
@@ -990,10 +1037,37 @@ function startLoop() {
 // ---------- graphics level: auto mode steps down when the frame rate drops and back up when there is room ----------
 const PERF = { t0: 0, n: 0, ups: 0, cool: 0, good: 0, fps: 0 };
 function qApply() {
-  const want = SETTINGS.quality === 'auto' ? (QUAL.auto || (IS_TOUCH ? 'med' : 'high')) : SETTINGS.quality;
-  QUAL.level = QUALITY[want] ? want : 'high'; QUAL.parts = QUALITY[QUAL.level].parts;
+  let want = SETTINGS.quality === 'auto' ? (QUAL.auto || (IS_TOUCH ? 'med' : 'high')) : SETTINGS.quality;
+  if (!QUALITY[want]) want = 'high';
+  // the saver never runs the sharpest screen and halves the particles
+  if (SAVE.on && want === 'high') want = 'med';
+  QUAL.level = want; QUAL.parts = Math.round(QUALITY[want].parts * (SAVE.on ? 0.5 : 1));
   renderer.setQuality(QUAL.level);
 }
+// ---------- battery saver: on, off, or auto (battery at 20 % or less and not charging, or a phone that cannot keep up even on low) ----------
+const SAVE = { on: false, bat: false, slow: 0, told: false };
+function saverCalc() {
+  const was = SAVE.on;
+  SAVE.on = SETTINGS.saver === 'on' || (SETTINGS.saver === 'auto' && (SAVE.bat || SAVE.slow >= 2));
+  document.body.classList.toggle('saver', SAVE.on);
+  if (SAVE.on !== was) {
+    PERF.t0 = 0; qApply();
+    if (SAVE.on && SETTINGS.saver === 'auto' && !SAVE.told && S.screen === 'game') { SAVE.told = true; toast(SAVE.bat ? 'Pil azaldı: pil tasarrufu açıldı (30 FPS).' : 'Telefon zorlanıyor: pil tasarrufu açıldı (30 FPS).'); }
+  }
+  saverSync();
+}
+const SAVER_N = { off: 'Kapalı', auto: 'Otomatik', on: 'Açık' };
+function saverSync() {
+  for (const b of $('#set-saver').children) b.setAttribute('aria-checked', String(b.dataset.s === SETTINGS.saver));
+  $('#set-saver-out').textContent = SETTINGS.saver === 'auto' ? `Otomatik · ${SAVE.on ? 'açık' : 'kapalı'}` : SAVER_N[SETTINGS.saver] || 'Otomatik';
+}
+for (const b of $('#set-saver').children) b.addEventListener('click', () => { setSetting('saver', b.dataset.s); saverCalc(); });
+try {
+  if (navigator.getBattery) navigator.getBattery().then((bt) => {
+    const f = () => { SAVE.bat = !bt.charging && bt.level <= 0.2; saverCalc(); };
+    bt.addEventListener('levelchange', f); bt.addEventListener('chargingchange', f); f();
+  }).catch(() => {});
+} catch (e) { /* ignore */ }
 function qSync() {
   for (const b of $('#set-quality').children) b.setAttribute('aria-checked', String(b.dataset.q === SETTINGS.quality));
   $('#set-q-out').textContent = SETTINGS.quality === 'auto' ? `Otomatik · ${QUALITY[QUAL.level].name}` : QUALITY[SETTINGS.quality].name;
@@ -1011,13 +1085,18 @@ function perfTick(now) {
   if (el2 < 3000) return;
   const fps = PERF.n * 1000 / el2; PERF.fps = fps; PERF.t0 = now; PERF.n = 0;
   if (SETTINGS.fps) { const f = $('#fps'); f.hidden = false; f.textContent = `${Math.round(fps)} FPS · ${QUALITY[QUAL.level].name}`; }
-  if (SETTINGS.quality !== 'auto' || document.hidden || (S.game && S.game.paused) || now < PERF.cool) return;
+  if (document.hidden || (S.game && S.game.paused) || now < PERF.cool) return;
+  if (SAVE.on) return;
+  // a phone still under 38 FPS on the lowest level twice in a row gets the saver's steady 30 (auto only)
+  if (IS_TOUCH && QUAL.level === 'low' && S.screen === 'game') { if (fps < 38) { SAVE.slow++; if (SAVE.slow >= 2) saverCalc(); } else if (SAVE.slow < 2) SAVE.slow = 0; }
+  if (SETTINGS.quality !== 'auto') return;
   const i = QORDER.indexOf(QUAL.level);
   if (fps < 44 && i > 0) { QUAL.auto = QORDER[i - 1]; PERF.good = 0; PERF.cool = now + 6000; qApply(); }
   else if (fps > 57) { PERF.good++; if (PERF.good >= 3 && i < QORDER.length - 1 && PERF.ups < 2) { PERF.ups++; PERF.good = 0; QUAL.auto = QORDER[i + 1]; PERF.cool = now + 6000; qApply(); } }
   else PERF.good = 0;
 }
 qApply();
+onSettings(() => saverCalc());
 $('#fps').hidden = !SETTINGS.fps;
 onSettings(() => { qApply(); $('#fps').hidden = !SETTINGS.fps; });
 // vibration: the app's own bridge when there is one, the browser's otherwise
@@ -1705,6 +1784,7 @@ window.addEventListener('keydown', (e) => { if (e.code === 'KeyV' && !e.repeat &
 try { const saved = localStorage.getItem('kusatma-ad'); if (saved) $('#name').value = saved; } catch (e) { /* ignore */ }
 $('#btn-create').addEventListener('click', () => roomDlg());
 $('#btn-solo').addEventListener('click', () => createRoom(true));
+$('#btn-quick').addEventListener('click', quickPlay);
 $('#btn-tut').addEventListener('click', () => { TUT.force = true; createRoom(true); });
 // ---------- first-game tutorial: a few short steps that finish themselves as the player does them ----------
 const TUT = { step: -1, force: false, t: 0, x: 0, y: 0, walked: 0, fired: 0 };
@@ -1905,7 +1985,7 @@ function openSettings() {
   $('#set-vibe').checked = SETTINGS.vibe;
   $('#set-vibe-row').hidden = !IS_TOUCH || (!('vibrate' in navigator) && !window.KusatmaApp);
   $('#set-aim-row').hidden = !IS_TOUCH;
-  qSync(); aimSync();
+  qSync(); aimSync(); saverSync();
   syncSettingsLabels();
   $('#settings').hidden = false;
   $('#settings-close').focus();
@@ -1983,7 +2063,7 @@ onSettings((st) => { sfx.setVolume(st.volume / 100); sfx.setMusicVolume(st.music
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#settings').hidden) { e.stopImmediatePropagation(); $('#settings').hidden = true; } }, { capture: true });
 
 // ---------- phone controls ----------
-function stick(elm, onMove) {
+function stick(elm, onMove, zone) {
   const knob = elm.querySelector('i');
   let id = null;
   const at = (e) => {
@@ -1994,13 +2074,91 @@ function stick(elm, onMove) {
     knob.style.transform = `translate(${x * r.width * 0.32}px, ${y * r.height * 0.32}px)`;
     onMove(x, y);
   };
-  elm.addEventListener('pointerdown', (e) => { e.preventDefault(); sfx.unlock(); id = e.pointerId; elm.setPointerCapture(id); at(e); });
-  elm.addEventListener('pointermove', (e) => { if (e.pointerId === id) at(e); });
-  const end = (e) => { if (e.pointerId !== id) return; id = null; knob.style.transform = ''; onMove(0, 0); };
-  elm.addEventListener('pointerup', end);
-  elm.addEventListener('pointercancel', end);
+  // a free joystick centres itself wherever the thumb lands on the left side
+  const down = (e, from) => {
+    if (id !== null) return;
+    e.preventDefault(); sfx.unlock(); id = e.pointerId;
+    if (zone && CTL.free) {
+      const h = elm.offsetWidth / 2;
+      elm.style.setProperty('--fx', clamp(e.clientX, h + 4, innerWidth - h - 4) + 'px');
+      elm.style.setProperty('--fy', clamp(e.clientY, h + 4, innerHeight - h - 4) + 'px');
+      elm.classList.add('held');
+    }
+    try { from.setPointerCapture(id); } catch (err) { /* ignore */ }
+    at(e);
+  };
+  const end = (e) => { if (e.pointerId !== id) return; id = null; knob.style.transform = ''; elm.classList.remove('held'); onMove(0, 0); };
+  elm.addEventListener('pointerdown', (e) => down(e, elm));
+  if (zone) zone.addEventListener('pointerdown', (e) => down(e, zone));
+  for (const t of zone ? [elm, zone] : [elm]) {
+    t.addEventListener('pointermove', (e) => { if (e.pointerId === id) at(e); });
+    t.addEventListener('pointerup', end);
+    t.addEventListener('pointercancel', end);
+  }
 }
-stick($('#stick-move'), (x, y) => { if (S.game) S.game.input.tmove = { x, y }; });
+// ---------- phone controls layout: sizes, see-through, free joystick and where each control sits (this device only) ----------
+const CTL_KEY = 'kusatma-kontrol';
+const CTL_DEF = { stk: 100, btn: 100, op: 100, free: false, pos: {} };
+const CTL = { ...CTL_DEF, pos: {}, editing: false };
+const CTL_ITEMS = { mv: '#stick-move', aim: '#stick-aim', ab: '#t-ab', bash: '#t-bash', mic: '#touch .vb-wrap' };
+try {
+  const c = JSON.parse(localStorage.getItem(CTL_KEY) || '{}');
+  for (const k of ['stk', 'btn', 'op']) if (Number.isFinite(c[k])) CTL[k] = clamp(c[k], k === 'op' ? 30 : 70, k === 'op' ? 100 : 150);
+  CTL.free = c.free === true;
+  if (c.pos && typeof c.pos === 'object') for (const k of Object.keys(CTL_ITEMS)) { const q = c.pos[k]; if (q && Number.isFinite(q.x) && Number.isFinite(q.y)) CTL.pos[k] = { x: clamp(q.x, 0.03, 0.97), y: clamp(q.y, 0.05, 0.97) }; }
+} catch (e) { /* ignore */ }
+function ctlSave() { try { localStorage.setItem(CTL_KEY, JSON.stringify({ stk: CTL.stk, btn: CTL.btn, op: CTL.op, free: CTL.free, pos: CTL.pos })); } catch (e) { /* ignore */ } }
+function ctlApply() {
+  const pad = $('#touch');
+  pad.style.setProperty('--stk', CTL.stk / 100); pad.style.setProperty('--tbs', CTL.btn / 100); pad.style.setProperty('--tco', CTL.op / 100);
+  pad.classList.toggle('free', CTL.free);
+  for (const [k, sel] of Object.entries(CTL_ITEMS)) {
+    const e = $(sel); if (!e) continue;
+    e.dataset.ed = k;
+    const q = CTL.pos[k];
+    e.classList.toggle('moved', !!q);
+    if (q) { e.style.setProperty('--mx', (q.x * 100).toFixed(2) + '%'); e.style.setProperty('--my', (q.y * 100).toFixed(2) + '%'); }
+  }
+}
+function ctlSync() { $('#ctl-stk').value = CTL.stk; $('#ctl-btn').value = CTL.btn; $('#ctl-op').value = CTL.op; $('#ctl-free').checked = CTL.free; }
+function ctlEdit(on) {
+  CTL.editing = on;
+  document.body.classList.toggle('ctl-editing', on);
+  $('#ctl-ed').hidden = !on;
+  if (on) { $('#settings').hidden = true; ctlSync(); ctlApply(); }
+  else ctlSave();
+  $('#touch').hidden = !on && !(IS_TOUCH && S.screen === 'game');
+}
+{
+  const pad = $('#touch'); let drag = null;
+  const place = (e) => {
+    const k = drag.k;
+    CTL.pos[k] = { x: clamp(e.clientX / innerWidth, 0.03, 0.97), y: clamp(e.clientY / innerHeight, 0.05, 0.97) };
+    ctlApply();
+  };
+  // while editing, every touch on the pad moves a control instead of using it
+  pad.addEventListener('pointerdown', (e) => {
+    if (!CTL.editing) return;
+    e.stopPropagation(); e.preventDefault();
+    const t = e.target.closest('[data-ed]'); if (!t || !pad.contains(t)) return;
+    drag = { k: t.dataset.ed, id: e.pointerId, t }; t.classList.add('drag');
+    try { t.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    place(e);
+  }, true);
+  pad.addEventListener('pointermove', (e) => { if (!CTL.editing) return; e.stopPropagation(); if (drag && e.pointerId === drag.id) place(e); }, true);
+  const stop = (e) => { if (!CTL.editing) return; e.stopPropagation(); if (drag && e.pointerId === drag.id) { drag.t.classList.remove('drag'); drag = null; ctlSave(); } };
+  pad.addEventListener('pointerup', stop, true); pad.addEventListener('pointercancel', stop, true);
+  pad.addEventListener('click', (e) => { if (CTL.editing) { e.stopPropagation(); e.preventDefault(); } }, true);
+  for (const [id, k] of [['#ctl-stk', 'stk'], ['#ctl-btn', 'btn'], ['#ctl-op', 'op']]) $(id).addEventListener('input', (e) => { CTL[k] = Number(e.target.value); ctlApply(); });
+  $('#ctl-free').addEventListener('change', (e) => { CTL.free = e.target.checked; ctlApply(); });
+  $('#ctl-reset').addEventListener('click', () => { Object.assign(CTL, CTL_DEF, { pos: {} }); ctlSync(); ctlApply(); ctlSave(); });
+  $('#ctl-done').addEventListener('click', () => ctlEdit(false));
+  $('#set-ctl').addEventListener('click', () => ctlEdit(true));
+  $('#set-ctl-row').hidden = !IS_TOUCH;
+  window.addEventListener('keydown', (e) => { if (CTL.editing && e.key === 'Escape') { e.stopImmediatePropagation(); ctlEdit(false); } }, { capture: true });
+  ctlApply();
+}
+stick($('#stick-move'), (x, y) => { if (S.game) S.game.input.tmove = { x, y }; }, $('#zone-move'));
 stick($('#stick-aim'), (x, y) => {
   if (!S.game) return;
   const l = Math.hypot(x, y);
@@ -2018,6 +2176,15 @@ function updateRotate() {
 window.addEventListener('resize', updateRotate);
 
 $('#build').textContent = `Yapı ${BUILD}`;
+$('#f-cls').textContent = CLASS_ORDER.length; $('#f-max').textContent = MAX_PLAYERS; $('#f-maps').textContent = MAP_ORDER.length;
+// a short logo intro on the first visit of a session (not in the app, which has its own splash, nor for links that join or watch)
+try {
+  const q = new URLSearchParams(location.search);
+  if (!window.KusatmaApp && !q.has('spec') && !q.has('oda') && !sessionStorage.getItem('kusatma-intro') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    sessionStorage.setItem('kusatma-intro', '1');
+    const it = $('#intro'); it.hidden = false; setTimeout(() => { it.remove(); }, 1950);
+  } else $('#intro').remove();
+} catch (e) { $('#intro').remove(); }
 $('#set-build').textContent = `Kuşatma · Yapı ${BUILD}`;
 show('menu');
 
@@ -2148,6 +2315,7 @@ function roomItems(rooms, max) {
 dashInit({
   toast, ask, roomItems,
   solo: () => createRoom(true),
+  quick: () => quickPlay(),
   daily: () => createRoom(true, { mode: 'daily' }),
   roomDlg: () => roomDlg(),
   join: (code) => { $('#code').value = code; joinRoom(); },

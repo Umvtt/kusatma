@@ -11,6 +11,7 @@ const DEFAULTS = {
   fps: false,       // show the frame rate
   vibe: true,       // vibrate on phones (in the app and on Android browsers)
   aim: 'mid',       // aim assist on phones: off, low, mid, high
+  saver: 'auto',    // battery saver: off, auto (low battery or a struggling phone), on = 30 FPS and fewer particles
 };
 
 export const SETTINGS = { ...DEFAULTS };

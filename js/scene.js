@@ -124,9 +124,10 @@ export function startScene(cv) {
   const loop = (now) => {
     S.raf = 0;
     if (cv.closest('[hidden]') || document.body.classList.contains('signed') || document.hidden) { S.last = now; return; }
+    S.raf = requestAnimationFrame(loop);
+    if (document.body.classList.contains('saver') && now - (S.last || 0) < 30.3) return;
     const dt = Math.min(0.05, (now - (S.last || now)) / 1000); S.last = now;
     step(dt); draw();
-    S.raf = requestAnimationFrame(loop);
   };
   const go = () => { if (still) { for (let i = 0; i < 400; i++) step(0.02); draw(); return; } if (!S.raf) S.raf = requestAnimationFrame(loop); };
   document.addEventListener('visibilitychange', go);
