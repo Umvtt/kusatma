@@ -991,6 +991,7 @@ export class HostGame {
     p.revives = 0;
     p.downs = 0;
     p.picks = 0;
+    p.bk = 0; p.ek = 0;
     p.a = 0;
     p.shopReady = false;
     p.ready = false;
@@ -1086,7 +1087,7 @@ export class HostGame {
   gameOver() {
     this.phase = 'over';
     const P = this.inGame()
-      .map((p) => ({ pid: p.pid, name: p.name, cls: p.cls, color: p.color, kills: p.kills, dmg: Math.round(p.dmg), revives: p.revives || 0, downs: p.downs || 0, picks: p.picks || 0, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0 }))
+      .map((p) => ({ pid: p.pid, name: p.name, cls: p.cls, color: p.color, kills: p.kills, dmg: Math.round(p.dmg), revives: p.revives || 0, downs: p.downs || 0, picks: p.picks || 0, bk: p.bk || 0, ek: p.ek || 0, wt: p.wt || 0, wp: p.wp || 0, wb: p.wb || 0 }))
       .sort((a, b) => b.kills - a.kills);
     this.out({ t: 'o', wave: this.wave, P, time: Math.round(this.time), diff: this.diff, theme: this.theme });
     this.pushRoster();
@@ -2027,6 +2028,7 @@ export class HostGame {
         this.ev([z.t === 18 ? 'ic' : 'x', Math.round(z.x), Math.round(z.y), R]);
         for (const q of this.inGame()) if (q.alive && Math.hypot(q.x - z.x, q.y - z.y) < R) { this.hurt(q, z.t === 18 ? 8 : 16, z.t); if (z.t === 18) q.chillUntil = this.time + 2; }
       }
+      if (p) { if (isBoss(z.t)) p.bk = (p.bk | 0) + 1; if (z.el) p.ek = (p.ek | 0) + 1; }
       this.ev(['d', Math.round(z.x), Math.round(z.y), z.t, p ? p.pid : 0, z.el | 0]);
       this.deathFx(z, p);
       if (z.t === 13) for (let i = 0; i < 4 && this.zombies.length < 520; i++) this.spawnAt(14, z.x, z.y);

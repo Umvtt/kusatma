@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=53">
-  <link rel="stylesheet" href="css/dash.css?v=53">
+  <link rel="stylesheet" href="css/style.css?v=54">
+  <link rel="stylesheet" href="css/dash.css?v=54">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -364,6 +364,7 @@
         <button id="btn-over-leave" class="btn ghost" type="button">Odadan ayrıl</button>
         <button id="btn-over-lobby" class="btn" type="button">Lobiye dön</button>
         <button id="btn-over-again" class="btn primary" type="button" hidden>Tekrar oyna</button>
+        <button id="btn-over-share" class="btn ghost" type="button">Sonucu paylaş</button>
       </div>
     </div>
   </section>
@@ -528,6 +529,14 @@
       <div class="ctl-acts"><button id="ctl-reset" class="btn small ghost" type="button">Sıfırla</button><button id="ctl-done" class="btn small primary" type="button">Bitti</button></div>
     </div>
   </div>
+  <div id="share-dlg" class="confirm" hidden>
+    <div class="card share-card" role="dialog" aria-modal="true" aria-label="Sonuç resmi">
+      <img id="share-img" alt="Oyun sonucu">
+      <p class="note" id="share-note"></p>
+      <div class="row"><button id="share-close" class="btn ghost" type="button">Kapat</button><a id="share-dl" class="btn" download="kusatma-sonuc.png">İndir</a><button id="share-go" class="btn primary" type="button">Paylaş</button></div>
+    </div>
+  </div>
+  <div id="qa-pops" class="qa-pops" aria-live="polite"></div>
   <div id="loading" class="loading" hidden><div class="ld-in"><div class="ld-spin" aria-hidden="true"></div><strong id="ld-txt">Bağlanılıyor…</strong><p id="ld-tip" class="ld-tip"></p></div></div>
   <div id="intro" class="intro" hidden aria-hidden="true"><div class="intro-in"><span class="intro-logo">KUŞATMA</span><i class="intro-line"></i><span class="intro-sub">sabaha kadar dayan</span></div></div>
   <div id="rotate" class="rotate" hidden><strong>Telefonunu yan çevir</strong><span>Kuşatma yatay ekranda oynanır.</span></div>
@@ -593,7 +602,7 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=53","./js/client.js":"./js/client.js?v=53","./js/config.js":"./js/config.js?v=53","./js/consent.js":"./js/consent.js?v=53","./js/dash.js":"./js/dash.js?v=53","./js/host.js":"./js/host.js?v=53","./js/live.js":"./js/live.js?v=53","./js/mapgen.js":"./js/mapgen.js?v=53","./js/net.js":"./js/net.js?v=53","./js/voice.js":"./js/voice.js?v=53","./js/pvp.js":"./js/pvp.js?v=53","./js/render.js":"./js/render.js?v=53","./js/scene.js":"./js/scene.js?v=53","./js/settings.js":"./js/settings.js?v=53","./js/sfx.js":"./js/sfx.js?v=53","./js/world.js":"./js/world.js?v=53"}}</script>
-  <script type="module" src="js/main.js?v=53"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=54","./js/client.js":"./js/client.js?v=54","./js/config.js":"./js/config.js?v=54","./js/consent.js":"./js/consent.js?v=54","./js/dash.js":"./js/dash.js?v=54","./js/host.js":"./js/host.js?v=54","./js/live.js":"./js/live.js?v=54","./js/mapgen.js":"./js/mapgen.js?v=54","./js/net.js":"./js/net.js?v=54","./js/voice.js":"./js/voice.js?v=54","./js/pvp.js":"./js/pvp.js?v=54","./js/render.js":"./js/render.js?v=54","./js/scene.js":"./js/scene.js?v=54","./js/settings.js":"./js/settings.js?v=54","./js/sfx.js":"./js/sfx.js?v=54","./js/world.js":"./js/world.js?v=54"}}</script>
+  <script type="module" src="js/main.js?v=54"></script>
 </body>
 </html>

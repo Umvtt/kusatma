@@ -113,9 +113,12 @@ Hesap isteğe bağlıdır ama açınca oyun bir siteye dönüşür:
 - **Elmas:** temizlediğin her dalga elmas ve XP verir. Geç dalgalar ve bosslar daha çok verir; zorluk (Kolay ×0,75, Zor ×1,3, Kâbus ×1,7) ve mod (Hayatta Kalma ×1,2, Günün Görevi ×1,3, Boss Akını ×1,5, Tek Can ×2) çarpanları birbiriyle çarpılır. Tek başına oyunlar %75 verir. Varsayılan sınır günde 1000, saatte 300 elmastır. Her gün bir de günlük ödül ve çark var.
 - **Mağaza:** sınıflar, şapkalar, renkler, silah kaplamaları, çerçeveler, isim renkleri, unvanlar ve temalar. Bazen indirim, sınırlı süreli eşya ya da 2× elmas etkinliği olur.
 - **Profil ve dolap:** seviyen ve istatistiklerin; aldıklarını buradan giyersin. Başka oyuncular profiline bakabilir.
-- **Arkadaşlar:** ad ile istek gönder, kimin çevrimiçi olduğunu ve hangi odada oynadığını gör, tek tıkla katıl, özel mesaj at. Rahatsız eden birini bildirebilirsin.
-- **Görevler:** her gün üç görev (elmas ve XP), seviye yolu (her seviye elmas; 5, 10, 15, 20, 30, 40 ve 50. seviyelerde satılmayan unvan, çerçeve ve isim rengi) ve 33 başarım.
+- **Arkadaşlar:** ad ile istek gönder, kimin çevrimiçi olduğunu ve hangi odada oynadığını gör, tek tıkla katıl, özel mesaj at. Bir arkadaşın odaya girince (sen oyunda değilken) ekranda **Katıl** tuşlu kısa bir bildirim çıkar. Rahatsız eden birini bildirebilirsin.
+- **Görevler:** her gün üç görev (elmas ve +100 XP), her pazartesi üç büyük **haftalık görev** (60–170 elmas ve +300 XP), seviye yolu (her seviye elmas; 5, 10, 15, 20, 30, 40 ve 50. seviyelerde satılmayan unvan, çerçeve ve isim rengi) ve 33 başarım. Oyun sırasında bir görev ya da başarım tamamlanınca üstte hemen bir kart çıkar; ödülü Görevler sayfasından alırsın.
+- **Haftanın sıralaması:** o hafta kazandığın sezon XP'si sayılır (Sıralama → Bu hafta, Görevler sayfası). Hafta pazartesi 00:00'da (Türkiye saati) biter; ilk 10 bir sonraki hafta Görevler sayfasından elmas alır: 1. 1.000, 2. 700, 3. 500, 4–5. 300, 6–10. 200.
 - **Ayarlar:** tema, gizlilik (istekler, çevrimiçi görünme, odanı gösterme, sıralama), ad değiştirme (elmasla), şifre değiştirme, hesabı silme.
+
+Oyun bitince sonuç ekranında ödüller verilir (Takımın yıldızı, Kasap, Yıkıcı, Melek, Toplayıcı, Boss avcısı, Elit avcısı, Ölümsüz). **Sonucu paylaş** dalga, harita, sınıfın, sayıların ve ödüllerinle bir resim hazırlar: telefonda doğrudan paylaşabilir, bilgisayarda indirebilirsin (Android uygulamasında ekran görüntüsü al).
 
 Elmaslar sunucuda tutulur ve kontrol edilir; odadaki herkes, sunucunun imzaladığı bir "kart" sayesinde kimin hangi sınıfa ve eşyaya sahip olduğunu bilir.
 

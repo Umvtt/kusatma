@@ -363,7 +363,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Telefon yan tutulunca Cephanelik ve sınıf seçimi ekrana sığıyor: menüler solda, liste sağda ve kendi içinde kayıyor.', 'Telefonda kayıt ve giriş düzeltildi; yavaş internette "ad alınmış" hatası da giderildi.', 'Sayfayı yenileyince odadaki yerine hemen geri dönersin (iki kopya oluşmaz).', 'Hızlı oyna: tek dokunuşla açık bir odaya katıl, yoksa hemen tek başına başla.', 'Telefonda kontrolleri düzenle: tuşları taşı, boyutlarını ve saydamlığını ayarla, serbest joystick.', 'Pil tasarrufu: 30 FPS ve daha az parçacık; pil azalınca kendiliğinden açılır.', 'Bekleme ekranında ipuçları, lobide harita önizlemesi.', 'Vuruş hissi: ağır vuruşlar ekranı sarsar, silahlar geri teper; her silahın ve zombinin kendi sesi var.', 'Oyunun kendi müziği (Ayarlar → Müzik).', 'Hızlı takım mesajları: Z ya da telefonda Hızlı; G ile haritada işaretle.', 'Düşünce seni neyin devirdiğini görürsün; mikrofonun açıkken üstte gösterge çıkar.', 'Denge: Kılıççı, Ajan ve Nişancı güçlendi; Tesla\'nın yüksek gerilim yolu biraz zayıfladı.', 'Kılıç savurma ve Kasırga artık net görünüyor.', 'Yeni mikrofon düğmesi: basılı tut konuş, kısa dokun mikrofonu açık bırak. Telefonda artık oyunda da görünüyor.', 'Hacker\'ın ele geçirdiği zombilerin ısırdığı zombilerin ölmemesi düzeltildi.', 'Odadan düşenler ve sayfayı yenileyenler yerlerine geri dönebiliyor.', 'Android uygulaması 45.0: oyun kapalıyken bile mesaj, arkadaşlık isteği ve klan davetleri telefonuna bildirim olarak gelir.', 'Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
+const WHATS_NEW = ['Haftalık görevler ve haftanın sıralaması: ilk 10 her pazartesi elmas alır.', 'Oyunda bir görev ya da başarım tamamlanınca ekranda hemen kart çıkar.', 'Oyun sonunda yeni ödüller (Boss avcısı, Elit avcısı) ve Sonucu paylaş: sonucunun resmini paylaş.', 'Bir arkadaşın odaya girince Katıl tuşlu bildirim gelir.', 'Telefon yan tutulunca Cephanelik ve sınıf seçimi ekrana sığıyor: menüler solda, liste sağda ve kendi içinde kayıyor.', 'Telefonda kayıt ve giriş düzeltildi; yavaş internette "ad alınmış" hatası da giderildi.', 'Sayfayı yenileyince odadaki yerine hemen geri dönersin (iki kopya oluşmaz).', 'Hızlı oyna: tek dokunuşla açık bir odaya katıl, yoksa hemen tek başına başla.', 'Telefonda kontrolleri düzenle: tuşları taşı, boyutlarını ve saydamlığını ayarla, serbest joystick.', 'Pil tasarrufu: 30 FPS ve daha az parçacık; pil azalınca kendiliğinden açılır.', 'Bekleme ekranında ipuçları, lobide harita önizlemesi.', 'Vuruş hissi: ağır vuruşlar ekranı sarsar, silahlar geri teper; her silahın ve zombinin kendi sesi var.', 'Oyunun kendi müziği (Ayarlar → Müzik).', 'Hızlı takım mesajları: Z ya da telefonda Hızlı; G ile haritada işaretle.', 'Düşünce seni neyin devirdiğini görürsün; mikrofonun açıkken üstte gösterge çıkar.', 'Denge: Kılıççı, Ajan ve Nişancı güçlendi; Tesla\'nın yüksek gerilim yolu biraz zayıfladı.', 'Kılıç savurma ve Kasırga artık net görünüyor.', 'Yeni mikrofon düğmesi: basılı tut konuş, kısa dokun mikrofonu açık bırak. Telefonda artık oyunda da görünüyor.', 'Hacker\'ın ele geçirdiği zombilerin ısırdığı zombilerin ölmemesi düzeltildi.', 'Odadan düşenler ve sayfayı yenileyenler yerlerine geri dönebiliyor.', 'Android uygulaması 45.0: oyun kapalıyken bile mesaj, arkadaşlık isteği ve klan davetleri telefonuna bildirim olarak gelir.', 'Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -1013,7 +1013,15 @@ function frStatus(f) {
   if (f.solo) return 'Tek başına oynuyor';
   return 'Çevrimiçi';
 }
+// a friend who just opened or joined a room: a short note with Katıl (only while this player is not in a game)
+let frRooms = null;
+function frNewRooms(d) {
+  const now = new Map(d.L.filter((f) => f.room).map((f) => [f.id, f.room]));
+  if (frRooms && H.inGame && !H.inGame()) for (const [id, room] of now) if (frRooms.get(id) !== room) { const f = d.L.find((x) => x.id === id); if (f && H.actToast) H.actToast(`${f.name} oyunda (oda ${room}${f.wave ? ', ' + f.wave + '. dalga' : ''}).`, 'Katıl', () => H.join(room)); }
+  frRooms = now;
+}
 export function onFriends(d) {
+  frNewRooms(d);
   FR = d;
   ME.fq = d.q; ME.un = Object.values(d.un).reduce((s, n) => s + n, 0);
   topBar();
@@ -1123,10 +1131,17 @@ const ACH_IC = { kills: '☠', best: '🌊', games: '🎮', waves: '🌊', bosse
 const questText = (q) => ({ kill: `${q.n} zombi öldür`, waves: `${q.n} dalga temizle`, reach: `Bir oyunda ${q.n}. dalgaya ulaş`, hard: `Zor ya da Kâbus'ta ${q.n} dalga temizle`,
   boss: `${q.n} boss dalgası temizle`, cls: `${CLASSES[q.k] ? CLASSES[q.k].name : q.k} ile ${q.n} dalga temizle`, coop: `Başkalarıyla bir odada ${q.n} dalga temizle` }[q.t] || '');
 const QIC = { kill: '☠', waves: '🌊', reach: '📈', hard: '🔥', boss: '👹', cls: '🎖', coop: '🤝' };
+// the in-game pop-up for a quest or achievement the server just saw finished
+export function rewardText(r) {
+  if (r.k === 'a') return { ic: ACH_IC[r.s] || '★', title: 'Başarım açıldı: ' + (ACH_NAME[r.id] || r.id), sub: (ACH_DESC[r.s] ? ACH_DESC[r.s](r.n) : '') + ` · +${r.g} elmas (Görevler'den al)` };
+  return { ic: QIC[r.t] || '✓', title: (r.k === 'w' ? 'Haftalık görev tamam: ' : 'Görev tamam: ') + questText({ t: r.t, n: r.n, k: r.c }), sub: `+${r.g} elmas, +${r.k === 'w' ? 300 : 100} XP (Görevler'den al)` };
+}
 function untilMidnight() { const t = new Date(Date.now() + 3 * 36e5); const m = (24 * 60) - (t.getUTCHours() * 60 + t.getUTCMinutes()); return m >= 60 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${m} dk`; }
 let QD = null;
-async function loadQuests() { const j = await acctOp('quests'); if (j.ok) { QD = j; ME.qn = j.q.filter((q) => q.p >= q.n && !q.c).length + j.ach.filter((a) => a.done && !a.claimed).length; topBar(); } return j.ok ? j : null; }
-function questRow(q, i, compact) {
+const qReady = (j) => j.q.filter((q) => q.p >= q.n && !q.c).length + (j.wq || []).filter((q) => q.p >= q.n && !q.c).length + j.ach.filter((a) => a.done && !a.claimed).length;
+async function loadQuests() { const j = await acctOp('quests'); if (j.ok) { QD = j; ME.qn = qReady(j); topBar(); } return j.ok ? j : null; }
+const leftTime = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : `${m} dk`; };
+function questRow(q, i, compact, weekly) {
   const done = q.p >= q.n, row = el('div', 'q-row' + (q.c ? ' claimed' : done ? ' done' : ''));
   row.append(el('span', 'q-ic', QIC[q.t] || '•'));
   const mid = el('div', 'q-mid'); mid.append(el('strong', '', questText(q)));
@@ -1134,14 +1149,15 @@ function questRow(q, i, compact) {
   mid.append(bar, el('span', 'dim', `${fmt(q.p)} / ${fmt(q.n)}`));
   row.append(mid);
   if (q.c) row.append(el('span', 'q-ok', 'Alındı ✓'));
-  else if (done) row.append(btn('btn primary small', `+${q.g}`, async (e) => { e.target.disabled = true; const j = await acctOp('qclaim', { i }); if (j.ok) { H.toast(`Görev tamam! +${j.g} elmas, +100 XP`, 'gem'); gemBurst(); ME.xp = j.xp || ME.xp; await loadQuests(); dashGo(page); } else H.toast('Alınamadı.', 'bad'); }));
-  else { const r = el('span', 'q-rew'); r.append(gemAmt(q.g)); if (!compact) r.append(el('span', 'dim', '+100 XP')); row.append(r); }
+  else if (done) row.append(btn('btn primary small', `+${q.g}`, async (e) => { e.target.disabled = true; const j = await acctOp(weekly ? 'wqclaim' : 'qclaim', { i }); if (j.ok) { H.toast(`${weekly ? 'Haftalık görev' : 'Görev'} tamam! +${j.g} elmas, +${weekly ? 300 : 100} XP`, 'gem'); gemBurst(); ME.xp = j.xp || ME.xp; await loadQuests(); dashGo(page); } else H.toast('Alınamadı.', 'bad'); }));
+  else { const r = el('span', 'q-rew'); r.append(gemAmt(q.g)); if (!compact) r.append(el('span', 'dim', `+${weekly ? 300 : 100} XP`)); row.append(r); }
   return row;
 }
 // claim every finished quest and achievement in one go
 async function claimAll(b) {
   if (!QD) return; b.disabled = true; let g = 0, n = 0;
   for (let i = 0; i < QD.q.length; i++) { const q = QD.q[i]; if (q.p >= q.n && !q.c) { const j = await acctOp('qclaim', { i }); if (j.ok) { g += j.g | 0; n++; } } }
+  for (let i = 0; i < (QD.wq || []).length; i++) { const q = QD.wq[i]; if (q.p >= q.n && !q.c) { const j = await acctOp('wqclaim', { i }); if (j.ok) { g += j.g | 0; n++; } } }
   for (const a of QD.ach) if (a.done && !a.claimed) { const r = await acctOp('aclaim', { id: a.id }); if (r.ok) { g += r.g | 0; n++; } }
   if (n) { H.toast(`${n} ödül alındı: +${fmt(g)} elmas`, 'gem'); gemBurst(); } else H.toast('Alınamadı.', 'bad');
   await loadQuests(); dashGo('quests');
@@ -1152,12 +1168,25 @@ function questsPage(sec) {
   head(sec, 'Görevler', 'Görevler ve başarımlar', hx);
   const qc = card('Günlük görevler'); qc.append(el('p', 'note', 'Her gün üç yeni görev. Dalgaları temizledikçe ilerler.'));
   const qbox = el('div', 'q-list'); qbox.append(el('p', 'note', 'Yükleniyor…')); qc.append(qbox); sec.append(qc);
+  const wc = card('Haftalık görevler'); const wnote = el('p', 'note', 'Her pazartesi üç büyük görev. Ödülleri daha büyük.'); const wbox = el('div', 'q-list'); wc.append(wnote, wbox); sec.append(wc);
+  const lc = card('Haftanın sıralaması'); const lnote = el('p', 'note', 'Bu hafta kazandığın sezon XP\'si sayılır. Haftanın ilk 10\'u pazartesi elmas alır: 1. 1.000, 2. 700, 3. 500, 4–5. 300, 6–10. 200.'); const lbox = el('div', 'wk-box'); lc.append(lnote, lbox); sec.append(lc);
   const rc = card('Seviye yolu'); const road = el('div', 'road'); rc.append(el('p', 'note', 'Her seviye elmas verir; bazı seviyeler satılmayan özel ödüller açar.'), scroller(road)); sec.append(rc);
   const ac = card('Başarımlar'); const abox = el('div', 'ach-grid'); ac.append(abox); sec.append(ac);
   loadQuests().then((j) => {
     if (!j) { qbox.replaceChildren(el('p', 'msg', 'Görevler yüklenemedi.')); return; }
     qbox.replaceChildren(...j.q.map((q, i) => questRow(q, i)));
-    const ready = j.q.filter((q) => q.p >= q.n && !q.c).length + j.ach.filter((a) => a.done && !a.claimed).length;
+    if (j.wq) wbox.replaceChildren(...j.wq.map((q, i) => questRow(q, i, false, true)));
+    if (j.wk) {
+      wnote.textContent = `Her pazartesi üç büyük görev. Yenilerine ${leftTime(j.wk.end)}.`;
+      const kids = [];
+      if (j.wk.last && !j.wk.last.cl) { const pr = el('div', 'wk-prize'); pr.append(el('strong', '', `Geçen hafta ${j.wk.last.rank}. oldun!`), btn('btn primary small', `+${fmt(j.wk.last.g)} elmas al`, async (e) => { e.target.disabled = true; const r = await acctOp('wkp'); if (r.ok) { H.toast(`Haftanın ${r.rank}.si ödülü: +${fmt(r.n)} elmas`, 'gem'); gemBurst(); await loadQuests(); dashGo('quests'); } else H.toast('Alınamadı.', 'bad'); })); kids.push(pr); }
+      kids.push(el('p', 'dim', `Bu hafta: ${fmt(j.wk.x)} XP · bitişe ${leftTime(j.wk.end)}`));
+      const ol = el('ol', 'top-rows wk-rows');
+      if (!j.wk.top.length) ol.append(el('li', 'empty', 'Bu hafta henüz kimse yok. İlk sen ol!'));
+      for (const [i, r] of j.wk.top.entries()) { const li = el('li', i < 3 ? 'podium p' + (i + 1) : ''); const b = btn('top-row', '', () => openProfile({ name: r.name })); b.append(el('span', 'rk', String(i + 1)), avatar(r.eq || {}, 32), nameEl(r.name, r.eq || {}), el('span', 'tv', `${fmt(r.wk)} XP`)); li.append(b); ol.append(li); }
+      kids.push(ol); lbox.replaceChildren(...kids);
+    }
+    const ready = qReady(j);
     if (ready) { allBtn.disabled = false; allBtn.textContent = `Hepsini al (${ready})`; }
     const L = j.lvl;
     for (let l = 2; l <= 50; l++) {
@@ -1282,7 +1311,7 @@ let topTab = 'xp';
 function topPage(sec) {
   head(sec, 'Sıralama', 'En iyiler');
   const tabs = el('div', 'seg-tabs');
-  for (const [k, n] of [['xp', 'Seviye'], ['best', 'En iyi dalga'], ['end', 'Hayatta Kalma'], ['daily', 'Günün görevi'], ['pvp', 'PvP'], ['clans', 'Klanlar'], ['kills', 'En çok öldürme']]) { const b = btn('', n, () => { topTab = k; dashGo('top'); }); b.setAttribute('aria-selected', String(k === topTab)); tabs.append(b); }
+  for (const [k, n] of [['wk', 'Bu hafta'], ['xp', 'Seviye'], ['best', 'En iyi dalga'], ['end', 'Hayatta Kalma'], ['daily', 'Günün görevi'], ['pvp', 'PvP'], ['clans', 'Klanlar'], ['kills', 'En çok öldürme']]) { const b = btn('', n, () => { topTab = k; dashGo('top'); }); b.setAttribute('aria-selected', String(k === topTab)); tabs.append(b); }
   sec.append(segTabs(tabs));
   const ol = el('ol', 'top-rows'); ol.append(el('li', 'empty', 'Yükleniyor…'));
   sec.append(ol);
@@ -1298,11 +1327,12 @@ function topPage(sec) {
     if (!j.ok) { ol.replaceChildren(el('li', 'empty', 'Sıralama yüklenemedi.')); return; }
     const L = topTab === 'daily' ? j.top : (j.top[topTab] || []);
     if (!L.length) { ol.replaceChildren(el('li', 'empty', 'Henüz kimse yok. Bir oyun bitir, ilk sen ol!')); return; }
+    if (topTab === 'wk' && j.top.wend) ol.before(el('p', 'note wk-note', `Bu hafta kazanılan sezon XP'si. İlk 10 pazartesi elmas alır (Görevler sayfasından). Bitişe ${leftTime(j.top.wend)}.`));
     ol.replaceChildren(...L.map((r, i) => {
       const li = el('li', i < 3 ? 'podium p' + (i + 1) : '');
       const b = btn('top-row', '', () => openProfile({ name: r.name }));
       b.append(el('span', 'rk', String(i + 1)), avatar(r.eq || {}, 36), nameEl(r.name, r.eq || {}), topTab === 'daily' ? el('span') : lvlBadge(r.lvl || 1),
-        el('span', 'tv', topTab === 'xp' ? `Seviye ${r.lvl || 1}` : topTab === 'best' ? `${r.best}. dalga` : topTab === 'end' ? `${r.end}. dalga` : topTab === 'daily' ? `${r.w}. dalga · ${fmt(r.k)} zombi` : topTab === 'pvp' ? `${league(r.pv).name} · ${fmt(r.pv)} puan` : `${fmt(r.kills)} zombi`));
+        el('span', 'tv', topTab === 'wk' ? `${fmt(r.wk || 0)} XP` : topTab === 'xp' ? `Seviye ${r.lvl || 1}` : topTab === 'best' ? `${r.best}. dalga` : topTab === 'end' ? `${r.end}. dalga` : topTab === 'daily' ? `${r.w}. dalga · ${fmt(r.k)} zombi` : topTab === 'pvp' ? `${league(r.pv).name} · ${fmt(r.pv)} puan` : `${fmt(r.kills)} zombi`));
       li.append(b); return li;
     }));
   });

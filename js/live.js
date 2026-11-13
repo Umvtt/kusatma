@@ -120,6 +120,7 @@ function onData(raw) {
   else if (d.e === 'acct') acctCheck().then(() => { H.onCfg(); if (H.onAcct) H.onAcct(); });
   else if (d.e === 'watch') { const r = H.detail(); if (r) send({ e: 'rd', d: r }); }
   else if (d.e === 'spec') { const k = str(d.k, 24); if (k && H.onSpec) H.onSpec(k).then((id) => { if (id) send({ e: 'specok', k, id: str(id, 64) }); }).catch(() => {}); }
+  else if (d.e === 'qa') { if (Array.isArray(d.L) && H.onQa) H.onQa(d.L.slice(0, 6).map((q) => ({ k: ['q', 'w', 'a'].includes(q.k) ? q.k : 'q', t: str(q.t, 8), id: str(q.id, 4), s: str(q.s, 10), n: q.n | 0, g: q.g | 0, c: str(q.c, 12) }))); }
   else if (d.e === 'unban') { LIVE.ban = null; try { localStorage.removeItem(BAN_KEY); } catch (e) { /* ignore */ } H.onCfg(); }
 }
 
@@ -128,7 +129,7 @@ function connect() {
   try { s = new WebSocket(ADDRS[idx] + '/klive'); } catch (e) { retry(); return; }
   ws = s;
   let opened = false;
-  s.onopen = () => { opened = true; delay = 3000; hi(true); const q = cnQ.splice(0); for (const m of q) send(m); };
+  s.onopen = () => { opened = true; delay = 3000; hi(true); const q = cnQ.splice(0).concat(ERR.q.splice(0)); for (const m of q) send(m); };
   s.onmessage = (e) => { if (typeof e.data === 'string' && e.data !== 'pong') onData(e.data); };
   s.onclose = () => { if (ws !== s) return; ws = null; if (!opened) idx = (idx + 1) % ADDRS.length; retry(); };
   s.onerror = () => { try { s.close(); } catch (e) { /* ignore */ } };
@@ -232,6 +233,21 @@ export function liveConn(o) {
   const c = navigator.connection || {};
   const m = { e: 'cn', r: str(o.r, 12), why: str(o.why, 40), room: str(o.room, 6), who: str(o.who, 16), secs: Math.max(0, Math.round(o.secs || 0)), tries: o.tries | 0, ping: Math.round(o.ping || 0), net: str(c.effectiveType || '', 10) };
   if (sockOk()) send(m); else { cnQ.push(m); if (cnQ.length > 6) cnQ.shift(); }
+}
+// errors in this browser: each kind once per visit, at most 8, queued while the socket is down (the owner sees them in the panel)
+const ERR = { seen: new Set(), q: [], n: 0, v: 0 };
+export function errorReports(build) {
+  ERR.v = build | 0;
+  const rep = (m, src, stack) => {
+    m = String(m || '').slice(0, 200); if (!m || ERR.n >= 8) return;
+    // other sites' scripts, extensions and cross-origin "Script error." tell us nothing
+    if (/^Script error\.?$/i.test(m) || /(chrome|moz|safari)-extension:/.test(String(stack || '') + src)) return;
+    const key = m + '|' + src; if (ERR.seen.has(key)) return; ERR.seen.add(key); ERR.n++;
+    const o = { e: 'er', m, s: String(src || '').replace(/^https?:\/\/[^/]+/, '').slice(0, 120), st: String(stack || '').replace(/https?:\/\/[^/\s)]+/g, '').slice(0, 400), v: ERR.v };
+    if (sockOk()) send(o); else { ERR.q.push(o); if (ERR.q.length > 8) ERR.q.shift(); }
+  };
+  window.addEventListener('error', (e) => { if (!e || !e.message) return; rep(e.message, (e.filename || '') + ':' + (e.lineno | 0) + ':' + (e.colno | 0), e.error && e.error.stack); });
+  window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; if (!r) return; rep('Promise: ' + (r.message || String(r)), '', r.stack); });
 }
 export function liveCheat(r) { send({ e: 'ac', name: str(r.name, 16), acct: str(r.acct, 12), kind: str(r.kind, 12), d: str(r.detail, 80), w: r.wave | 0 }); }
 // invite an online friend into the room this player is in (the server checks both sides)

@@ -6,7 +6,7 @@ import { ClientGame } from './client.js';
 import { Renderer, drawCharacter, drawWeaponPreview, drawMapPreview } from './render.js';
 import { startScene } from './scene.js';
 import { dashPage, dashGo } from './dash.js';
-import { dashInit, dashShow, dashRefresh, dashSoft, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar } from './dash.js';
+import { dashInit, dashShow, dashRefresh, dashSoft, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar, rewardText } from './dash.js';
 import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
 import { voiceOn, voiceStart, voiceStop, voiceSync, voicePtt, voiceOpen, voiceLevel, voiceMute, voiceMuted, voiceTalking, voiceSelfLevel } from './voice.js';
@@ -14,7 +14,7 @@ import { consentStart, manage as cookieSettings } from './consent.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings, QUALITY, QORDER, QUAL } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePvp, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveConn, liveChat } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePvp, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveConn, liveChat, errorReports } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -56,6 +56,26 @@ function show(screen) {
   if (screen !== 'game') { $('#board').hidden = true; $('#quick').hidden = true; if (S.game) { S.game.input.down = false; S.game.input.keys.clear(); } }
 }
 
+// a note with one button (a friend who is playing: Katıl); stays 9 s
+function actToast(text, label, fn) {
+  const t = el('div', 'toast act'), b = el('button', 'btn small primary', label); b.type = 'button';
+  b.onclick = () => { t.remove(); fn(); };
+  t.append(el('span', '', text), b); $('#toasts').append(t);
+  setTimeout(() => t.remove(), 9000);
+  while ($('#toasts').children.length > 4) $('#toasts').firstChild.remove();
+}
+// a quest or achievement finished during play: a card that slides in at the top for a few seconds
+function qaPop(L) {
+  const box = $('#qa-pops');
+  for (const r of L) {
+    const x = rewardText(r), c = el('div', 'qa-pop' + (r.k === 'a' ? ' ach' : r.k === 'w' ? ' wk' : ''));
+    c.append(el('span', 'qa-ic', x.ic)); const m = el('div', 'qa-m'); m.append(el('strong', '', x.title), el('span', '', x.sub)); c.append(m);
+    box.append(c); sfx.sting('clear'); buzz(30);
+    setTimeout(() => c.classList.add('out'), 4600); setTimeout(() => c.remove(), 5200);
+  }
+  while (box.children.length > 3) box.firstChild.remove();
+  dashTop();
+}
 function toast(text, kind = '') {
   const t = el('div', 'toast ' + kind, text);
   $('#toasts').append(t);
@@ -768,6 +788,8 @@ function renderOver() {
   const d = best((p) => p.dmg); if (d) awards.push(['Yıkıcı', d, `${fmt(d.dmg)} hasar`]);
   const r = best((p) => p.revives); if (r) awards.push(['Melek', r, `${fmt(r.revives)} kez kaldırdı`]);
   const pk = best((p) => p.picks); if (pk) awards.push(['Toplayıcı', pk, `${fmt(pk.picks)} eşya topladı`]);
+  const bk = best((p) => p.bk | 0); if (bk) awards.push(['Boss avcısı', bk, `${fmt(bk.bk)} boss indirdi`]);
+  const ek = best((p) => p.ek | 0); if (ek) awards.push(['Elit avcısı', ek, `${fmt(ek.ek)} elit zombi`]);
   const never = o.P.filter((p) => p.downs === 0);
   if (never.length === 1 && o.P.length > 1) awards.push(['Ölümsüz', never[0], 'Hiç düşmedi']);
   $('#over-awards').replaceChildren(...awards.map(([title, p, stat, gold]) => {
@@ -795,6 +817,63 @@ function renderOver() {
   $('#over-note').textContent = isHost ? 'Lobiye dönünce herkes yeni oyun için sınıf seçebilir.' : 'Kurucu lobiye döndüğünde yeni oyun için hazırlanabilirsin.';
 }
 $('#btn-over-lobby').addEventListener('click', () => send({ t: 'lobby' }));
+// ---------- a picture of the result to share: wave, map, my class and numbers, my awards and the team ----------
+function resultImage() {
+  const o = S.over; if (!o) return null;
+  const me = (o.P || []).find((p) => p.pid === S.me) || (o.P || [])[0]; if (!me) return null;
+  const W = 1080, H = 1080, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
+  const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#16201a'); bg.addColorStop(1, '#0a0d0b'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  const glow = g.createRadialGradient(W * 0.75, H * 0.32, 20, W * 0.75, H * 0.32, 420); glow.addColorStop(0, 'rgba(255,107,44,.28)'); glow.addColorStop(1, 'rgba(255,107,44,0)'); g.fillStyle = glow; g.fillRect(0, 0, W, H);
+  // hazard stripe and logo
+  g.save(); g.beginPath(); g.rect(70, 70, 360, 14); g.clip(); for (let x = 40; x < 460; x += 28) { g.fillStyle = (x / 28) % 2 < 1 ? '#ff6b2c' : '#1d1d1d'; g.beginPath(); g.moveTo(x, 84); g.lineTo(x + 14, 70); g.lineTo(x + 28, 70); g.lineTo(x + 14, 84); g.fill(); } g.restore();
+  g.fillStyle = '#ece6d6'; g.font = '900 92px Rubik, system-ui, sans-serif'; g.textBaseline = 'top'; g.fillText('KUŞATMA', 66, 104);
+  const pv = !!o.pvp, won = pv && (o.pvp.k === 'ffa' ? o.pvp.win === S.me : o.pvp.win === me.tm);
+  g.fillStyle = pv ? (won ? '#ffd23f' : '#e5484d') : '#ff6b2c'; g.font = '800 34px Rubik, system-ui, sans-serif';
+  g.fillText(pv ? (won ? 'ZAFER' : 'MAÇ BİTTİ') : 'KUŞATMA DÜŞTÜ', 70, 214);
+  // the big number
+  g.fillStyle = '#fff'; g.font = '900 210px Rubik, system-ui, sans-serif'; const big = pv ? String(me.pk | 0) : String(o.wave | 0); g.fillText(big, 62, 262);
+  const bw = g.measureText(big).width; g.fillStyle = 'rgba(236,230,214,.75)'; g.font = '700 46px Rubik, system-ui, sans-serif'; g.fillText(pv ? 'leş' : '. dalga', 80 + bw, 400);
+  const sub = [o.theme && MAPS[o.theme] ? MAPS[o.theme].name : '', o.diff && DIFFS[o.diff] ? DIFFS[o.diff].name : '', S.roster && S.roster.mode && MODES[S.roster.mode] ? MODES[S.roster.mode].name : '', `${Math.floor((o.time || 0) / 60)}:${String((o.time || 0) % 60).padStart(2, '0')} dk`].filter(Boolean).join('  ·  ');
+  g.fillStyle = 'rgba(236,230,214,.7)'; g.font = '600 32px Rubik, system-ui, sans-serif'; g.fillText(sub, 70, 500);
+  // my character
+  g.save(); g.translate(W * 0.76, 330); g.scale(5.2, 5.2); try { drawCharacter(g, me.cls, me.color || '#ff8a3d', -0.5, 0, { alive: true, hat: ACCT ? ME.eq.hat : undefined, wsk: ACCT ? ME.eq.wsk : undefined, wt: me.wt | 0, wp: me.wp | 0, wb: me.wb | 0 }); } catch (e) { /* the picture still works without it */ } g.restore();
+  g.textAlign = 'center'; g.fillStyle = '#ece6d6'; g.font = '800 40px Rubik, system-ui, sans-serif'; g.fillText(me.name, W * 0.76, 470); g.fillStyle = 'rgba(236,230,214,.65)'; g.font = '600 28px Rubik, system-ui, sans-serif'; g.fillText(CLASSES[me.cls] ? CLASSES[me.cls].name : '', W * 0.76, 520); g.textAlign = 'left';
+  // number tiles
+  const tiles = pv ? [[me.pk | 0, 'leş'], [me.dth | 0, 'ölüm'], [me.as | 0, 'asist']] : [[me.kills | 0, 'leş'], [me.dmg | 0, 'hasar'], [me.revives | 0, 'kaldırma'], [me.bk | 0, 'boss']];
+  const tw = (W - 140 - (tiles.length - 1) * 20) / tiles.length;
+  tiles.forEach(([v, l], i) => { const x = 70 + i * (tw + 20), y = 590; g.fillStyle = 'rgba(255,255,255,.06)'; g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 2; g.beginPath(); g.roundRect ? g.roundRect(x, y, tw, 150, 22) : g.rect(x, y, tw, 150); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.font = '900 64px Rubik, system-ui, sans-serif'; g.fillText(fmt(v), x + 26, y + 26); g.fillStyle = 'rgba(236,230,214,.65)'; g.font = '600 28px Rubik, system-ui, sans-serif'; g.fillText(l, x + 28, y + 104); });
+  // my awards and the team
+  const mine = [...$('#over-awards').querySelectorAll('.award')].filter((c) => /\(sen\)/.test(c.querySelector('b') ? c.querySelector('b').textContent : '')).map((c) => c.querySelector('.eyebrow').textContent);
+  let y = 790;
+  if (mine.length) { g.fillStyle = '#ffd23f'; g.font = '800 34px Rubik, system-ui, sans-serif'; g.fillText('★ ' + mine.slice(0, 3).join('  ·  '), 70, y); y += 60; }
+  const team = (o.P || []).filter((p) => p.pid !== me.pid).map((p) => p.name);
+  if (team.length) { g.fillStyle = 'rgba(236,230,214,.7)'; g.font = '600 30px Rubik, system-ui, sans-serif'; let t = 'Takım: ' + team.join(', '); while (g.measureText(t).width > W - 140 && t.length > 10) t = t.slice(0, -2); if (t !== 'Takım: ' + team.join(', ')) t += '…'; g.fillText(t, 70, y); }
+  g.fillStyle = 'rgba(236,230,214,.5)'; g.font = '600 26px Rubik, system-ui, sans-serif'; g.fillText(new Date().toLocaleDateString('tr', { day: 'numeric', month: 'long', year: 'numeric' }), 70, H - 90);
+  g.textAlign = 'right'; g.fillStyle = '#ff6b2c'; g.font = '800 30px Rubik, system-ui, sans-serif'; g.fillText('umvtt.github.io/kusatma', W - 70, H - 92); g.textAlign = 'left';
+  return cv;
+}
+let shareBlob = null, shareUrl = '';
+$('#btn-over-share').addEventListener('click', () => {
+  const cv = resultImage(); if (!cv) return;
+  cv.toBlob((b) => {
+    if (!b) { toast('Resim oluşturulamadı.', 'bad'); return; }
+    shareBlob = b; if (shareUrl) URL.revokeObjectURL(shareUrl); shareUrl = URL.createObjectURL(b);
+    $('#share-img').src = shareUrl; $('#share-dl').href = shareUrl;
+    const file = new File([b], 'kusatma-sonuc.png', { type: 'image/png' });
+    const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+    $('#share-go').hidden = !canShare;
+    $('#share-dl').hidden = !!window.KusatmaApp;
+    $('#share-note').textContent = window.KusatmaApp && !canShare ? 'Uygulamada resmi kaydetmek için ekran görüntüsü al.' : canShare ? 'Paylaş ile doğrudan gönderebilir ya da İndir ile kaydedebilirsin.' : 'İndir ile kaydet, sonra istediğin yerde paylaş.';
+    $('#share-dlg').hidden = false;
+  }, 'image/png');
+});
+$('#share-go').addEventListener('click', async () => {
+  if (!shareBlob) return;
+  const file = new File([shareBlob], 'kusatma-sonuc.png', { type: 'image/png' });
+  try { await navigator.share({ files: [file], title: 'Kuşatma', text: 'Kuşatma\'da ne kadar dayandım, sen de dene: https://umvtt.github.io/kusatma/' }); } catch (e) { /* closed */ }
+});
+$('#share-close').addEventListener('click', () => { $('#share-dlg').hidden = true; });
 // ---------- voice chat ----------
 // The mic button: tap once to turn voice on. Then hold it to talk (the finger may slide off it, talking stops only
 // when it lifts), or tap it quickly to leave the microphone open and tap again to close it. V does the same on a
@@ -2186,6 +2265,7 @@ function updateRotate() {
 window.addEventListener('resize', updateRotate);
 
 $('#build').textContent = `Yapı ${BUILD}`;
+errorReports(BUILD);
 $('#f-cls').textContent = CLASS_ORDER.length; $('#f-max').textContent = MAX_PLAYERS; $('#f-maps').textContent = MAP_ORDER.length;
 // a short logo intro on the first visit of a session (not in the app, which has its own splash, nor for links that join or watch)
 try {
@@ -2324,7 +2404,8 @@ function roomItems(rooms, max) {
   });
 }
 dashInit({
-  toast, ask, roomItems,
+  toast, ask, roomItems, actToast,
+  inGame: () => !!S.net,
   solo: () => createRoom(true),
   quick: () => quickPlay(),
   daily: () => createRoom(true, { mode: 'daily' }),
@@ -2522,6 +2603,7 @@ if (!WATCH) liveStart({
   },
   onGift: (name, n) => { if (S.host) S.host.adminGift(name, n); },
   onBan: () => { blockUi(); if (online()) leave(''); },
+  onQa: (L) => { ME.qn = (ME.qn | 0) + L.length; qaPop(L); },
   onClv: (c, l, g) => { toast(`${(CLASSES[c] || {}).name || c} seviye ${l}! +${g} elmas`, 'good'); },
   onClan: () => { acctCheck().then(() => { if (/\/oyun\/klan\/?$/.test(location.pathname)) dashGo('clan'); }); },
   onCinv: (n, by) => { toast(`${by} seni ${n} klanına davet etti. Klan sayfasından katılabilirsin.`, 'good'); acctCheck(); },

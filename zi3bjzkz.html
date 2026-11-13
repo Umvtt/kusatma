@@ -160,7 +160,7 @@ button.plink,.lg-list .ln{padding:4px 2px;min-height:26px}
 .ucol h3{margin:14px 0 4px;font-size:13px;font-weight:500;color:var(--dim)}.ucol .bars{height:110px}
 .uhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .kpis.small{grid-template-columns:repeat(2,minmax(0,1fr));margin:10px 0}.kpis.small .kpi b{font-size:22px}
-.bars div{flex:1;min-width:4px;max-width:36px;background:#cfcfcf;border-radius:3px 3px 0 0}.bars div:hover{background:#fff}
+.bars div{flex:1;min-width:4px;max-width:36px;background:#cfcfcf;border-radius:3px 3px 0 0}.bars.stack div{display:flex;flex-direction:column-reverse;background:transparent;overflow:hidden}.bars.stack div i{display:block;width:100%}.pfleg{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin:4px 0}.pfk{display:inline-flex;align-items:center;gap:5px}.pfk i{width:10px;height:10px;border-radius:2px;display:inline-block}.item.err{flex-direction:column;align-items:stretch}.errT{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.errS{margin:4px 0 0;padding:6px 8px;background:rgba(127,127,127,.1);border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:140px;overflow:auto}.bars div:hover{background:#fff}
 .bars.g div{background:#4a4a4a}.bars.g div:hover{background:#7a7a7a}
 .axis{display:flex;justify-content:space-between;font:11px var(--mono);color:var(--dim2)}
 .hbar{display:grid;grid-template-columns:minmax(90px,180px) 1fr 50px;gap:12px;align-items:center;font-size:13px}.hbar>div{background:#151515;border-radius:3px}.hbar i{display:block;height:8px;border-radius:3px;background:#cfcfcf}.hbar span:last-child{font-family:var(--mono);color:var(--dim);text-align:right;font-size:12px}
@@ -317,6 +317,7 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
     <button type="button" data-tab="kmod" data-g="k" aria-selected="false">Moderation</button>
     <button type="button" data-tab="klb" data-g="k" aria-selected="false">Leaderboard</button>
     <button type="button" data-tab="kcl" data-g="k" aria-selected="false">Clans</button>
+    <button type="button" data-tab="kerr" data-g="k" aria-selected="false">Errors</button>
     <button type="button" data-tab="kstats" data-g="k" aria-selected="false">Stats</button>
     <button type="button" data-tab="kan" data-g="k" aria-selected="false">Analytics</button>
     <button type="button" data-tab="kdat" data-g="k" aria-selected="false">Data</button>
@@ -389,6 +390,11 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
     <div class="row"><input id="kpQ" maxlength="24" placeholder="Name, account id or device" style="flex:1;min-width:160px"><button id="kpGo" type="button">Search</button></div>
     <div class="row mq-pager" style="justify-content:flex-end"><button class="ghost small" id="kpPrev" type="button">Previous</button><span class="d" id="kpPg"></span><button class="ghost small" id="kpNext" type="button">Next</button></div>
     <div class="list" id="kpList"></div><div class="msg" id="kpMsg"></div>
+  </section>
+  <section class="card" data-pane="kerr" hidden>
+    <p>Errors from players' browsers (since the server last restarted; the Logs tab keeps 30 days of them). The same error is counted, not repeated.</p>
+    <div class="btns"><button type="button" id="kerrR">Refresh</button><button type="button" id="kerrC" class="danger">Clear all</button></div>
+    <div class="list" id="kerrList"></div><div class="msg" id="kerrMsg"></div>
   </section>
   <section class="card" data-pane="kcl" hidden>
     <div class="list" id="kclList"></div><div class="msg" id="kclMsg"></div>
@@ -521,6 +527,7 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
     <div class="kpis" id="kSK"></div>
     <h2>Players per day</h2><div class="bars" id="kcU"></div><div class="axis" id="kaU"></div>
     <h2>Games per day</h2><div class="bars g" id="kcG"></div><div class="axis" id="kaG"></div>
+    <h2>Platforms per day</h2><div class="pfleg" id="kpfL"></div><div class="bars stack" id="kcP"></div><div class="axis" id="kaP"></div>
     <div class="dash"><div class="sect"><h2>Classes played (30 days)</h2><div class="hlist" id="kTopC"></div></div><div class="sect"><h2>Maps (30 days)</h2><div class="hlist" id="kTopM"></div></div><div class="sect"><h2>Difficulty (30 days)</h2><div class="hlist" id="kTopD"></div></div></div>
     <div class="msg" id="kStMsg"></div>
   </section>
@@ -633,13 +640,13 @@ $('#aGo').onclick=async()=>{const o=$('#aOld').value,n=$('#aNew').value;
   if(!strongEnough(n))return say('#aMsg','Pick a stronger new password.','bad');if(n!==$('#aNew2').value)return say('#aMsg','The two new passwords are different.','bad');
   say('#aMsg','Changing…');try{const obj=await unseal(o);await seal(n,obj);const st=load();st.url=obj.url;keep(st);for(const s of['#aOld','#aNew','#aNew2'])$(s).value='';say('#aMsg','Password changed.','ok');}
   catch(e){say('#aMsg','The current password is wrong.','bad');}};
-const KTABS=['kcl','kdat','klive','kpl','kec','ksh','krp','klb','kbn','kev','kset','kstats','kctl','ksc','kmod','kan','kss'],SHARED=['alog','acct','home','logs'];let GAME='k';const gameOf=()=>'k';
+const KTABS=['kerr','kcl','kdat','klive','kpl','kec','ksh','krp','klb','kbn','kev','kset','kstats','kctl','ksc','kmod','kan','kss'],SHARED=['alog','acct','home','logs'];let GAME='k';const gameOf=()=>'k';
 function setGame(g){GAME='k';document.body.dataset.game='k';}
 
 
 const startTab=()=>'home';
 function openTab(t){const pn=document.querySelector('[data-pane="'+t+'"]');if(pn&&!pn.dataset.seen){pn.dataset.seen=1;ENTER_T=performance.now();STAG=0;}else ENTER_T=0;setGame(gameOf(t));if(!SHARED.includes(t))try{localStorage.setItem('ptab_'+GAME,t);}catch(e){}const tb=document.querySelector('.tabs button[data-tab="'+t+'"]');if(tb){$('#pgT').textContent=tb.textContent;$('#crumb').textContent=SHARED.includes(t)||t==='home'?'Panel':'Kuşatma';$('#tbSec').textContent='';document.title=tb.textContent+' · Admin';}for(const b of document.querySelectorAll('.tabs button[data-tab]'))b.setAttribute('aria-selected',String(b.dataset.tab===t));
-  for(const p of document.querySelectorAll('[data-pane]'))p.hidden=p.dataset.pane!==t;({alog:loadAlog,klive:kLoad,kset:kLoad,kstats:kLoad,kpl:kSearch,klb:kLb,kcl:kClans,kec:kEco,ksh:kEco,krp:kRep,home:hLoad,kbn:()=>banTab(1),kctl:kCtl,ksc:kSched,kmod:kMod,kan:kAn,kdat:()=>kData(),kss:kSeason,logs:()=>lgLoad(false)})[t]?.();if(t!=='logs')lgAutoOff();}
+  for(const p of document.querySelectorAll('[data-pane]'))p.hidden=p.dataset.pane!==t;({alog:loadAlog,klive:kLoad,kset:kLoad,kstats:kLoad,kpl:kSearch,klb:kLb,kcl:kClans,kerr:kErr,kec:kEco,ksh:kEco,krp:kRep,home:hLoad,kbn:()=>banTab(1),kctl:kCtl,ksc:kSched,kmod:kMod,kan:kAn,kdat:()=>kData(),kss:kSeason,logs:()=>lgLoad(false)})[t]?.();if(t!=='logs')lgAutoOff();}
 for(const b of document.querySelectorAll('.tabs button[data-tab]'))b.onclick=()=>openTab(b.dataset.tab);
 const toLocal=ms=>{if(!ms)return '';const d=new Date(ms),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());};
 const fromLocal=v=>v?new Date(v).getTime()||0:0;
@@ -709,7 +716,7 @@ const actTxt=x=>{let d='';try{const o=JSON.parse(x.d||'{}');d=o.k||o.text||o.why
 async function loadAlog(){const box=$('#alList');try{const L=(await admin('alog')).log.slice().reverse();box.textContent='';for(const x of L){const it=mk('div','item');it.append(mk('span','d',when(x.t)),mk('span','k',actTxt(x)));if(x.ids&&x.ids.length)it.append(mk('span','d',x.ids.join(', ')));box.append(it);}if(!L.length)box.append(mk('p','','Nothing yet.'));}catch(e){say('#alMsg',e.message,'bad');}}
 $('#alRefresh').onclick=loadAlog;
 /* Logs: everything the server saw in the last 30 days */
-const LGK=[['session','Sessions'],['room','Rooms'],['game','Games'],['wave','Waves'],['chat','Chat'],['social','Friends & DMs'],['shop','Shop'],['gems','Gems'],['reward','Rewards'],['account','Accounts'],['profile','Profile'],['cheat','Anti-cheat'],['conn','Connection'],['redeem','Codes'],['panel','Panel']];
+const LGK=[['session','Sessions'],['room','Rooms'],['game','Games'],['wave','Waves'],['chat','Chat'],['social','Friends & DMs'],['shop','Shop'],['gems','Gems'],['reward','Rewards'],['account','Accounts'],['profile','Profile'],['cheat','Anti-cheat'],['conn','Connection'],['error','Errors'],['redeem','Codes'],['panel','Panel']];
 const LG={k:new Set(),next:'',rows:[],busy:0,timer:0,seq:0};
 (()=>{const box=$('#lgK');const all=mk('button','chip','All');all.type='button';all.dataset.k='';box.append(all);for(const[k,l]of LGK){const b=mk('button','chip',l);b.type='button';b.dataset.k=k;box.append(b);}
   const sync=()=>{for(const b of box.children)b.setAttribute('aria-pressed',String(b.dataset.k?LG.k.has(b.dataset.k):!LG.k.size));};sync();
@@ -744,7 +751,7 @@ const curTab=()=>((document.querySelector('.tabs button[aria-selected=true]')||{
 /* Kusatma */
 const KST={lobby:'lobby',break:'break',combat:'in battle',over:'game over',menu:''};
 async function kLoad(){const t=curTab();let j;try{j=await admin('kdash');}catch(e){note(e.message,'bad');return;}
-  const P=j.players,today=j.days[0]||{},rooms={};for(const p of P)if(p.room&&p.mode!=='solo'){const r=rooms[p.room]||(rooms[p.room]={code:p.room,host:'',n:0,st:p.st,wave:0});r.n++;if(p.mode==='host'){r.host=p.name;r.st=p.st;}r.wave=Math.max(r.wave,p.wave);}
+  const P=j.players,today=j.days[0]||{},rooms={};for(const p of P)if(p.room&&p.mode!=='solo'){const r=rooms[p.room]||(rooms[p.room]={code:p.room,host:'',n:0,st:p.st,wave:0,pf:{}});r.n++;{const f=p.pf||'unknown';r.pf[f]=(r.pf[f]||0)+1;}if(p.mode==='host'){r.host=p.name;r.st=p.st;}r.wave=Math.max(r.wave,p.wave);}
   const kp=(box,L)=>{box.textContent='';for(const[n,l]of L){const k=mk('div','kpi');k.append(mk('b','',Number(n).toLocaleString()),mk('span','',l));box.append(k);}};
   if(t==='klive'){kp($('#kKpi'),[[P.length,'online now'],[P.filter(p=>p.st==='combat'||p.st==='break').length,'in a game'],[Object.keys(rooms).length,'rooms'],[today.u||0,'players today'],[today.g||0,'games today'],[today.best||0,'best wave today']]);admin('kmodq',[],{f:'new',per:10}).then(q=>{const k=$('#kKpi');if(!k||k.querySelector('[data-ka]'))return;const e=mk('div','kpi');e.dataset.ka=1;e.append(mk('b','',Number(q.accounts).toLocaleString()),mk('span','','accounts'),mk('small','','+'+q.cnt.new+' this week'));k.append(e);}).catch(()=>{});
     $('#kN').textContent=P.length+' online';const pl=$('#kPl'),plN=[],kq=$('#kPlQ').value.trim().toLowerCase();
@@ -758,7 +765,7 @@ async function kLoad(){const t=curTab();let j;try{j=await admin('kdash');}catch(
         smallBtn('Kick',async()=>{const v=await ask({title:'Kick '+(p.name||'this player'),text:'They go back to the main menu and see your reason.',fields:[{id:'t',label:'Reason (optional)',max:200}],ok:'Kick',danger:true});if(!v)return;try{await admin('kkick',[p.id],{text:v.t});note('Kicked','ok');kLoad();}catch(e){note(e.message,'bad');}}),
         smallBtn('Ban',async()=>{const v=await ask({title:'Ban '+(p.name||'this player'),text:'Blocks online play on their device.',fields:[{id:'t',label:'Reason',max:120},{id:'m',label:'Length',type:'select',options:[['0','Forever'],['60','1 hour'],['1440','1 day'],['10080','7 days'],['43200','30 days']]}],ok:'Ban',danger:true});if(!v)return;try{await admin('kban',[],{dev:p.dev,acct:p.acct,name:p.name,why:v.t,mins:+v.m});note('Banned','ok');kLoad();}catch(e){note(e.message,'bad');}},'danger'));plN.push(it);}pager(pl,plN,100,P.length?'No match.':'Nobody online.');
     if(!P.length)pl.append(mk('div','item d','Nobody is online.'));
-    const rm=$('#kRm');rm.textContent='';for(const r of Object.values(rooms)){const it=mk('div','item');pTag(it,{r:r.code,n:r.host,g:'k'});it.append(mk('span','c',r.code),mk('span','k',r.host||'?'),mk('span','d',r.n+' player'+(r.n===1?'':'s')),mk('span','d',KST[r.st]||r.st||''),r.wave?mk('span','d','wave '+r.wave):'',mk('span','sp'),smallBtn('View',()=>kRoom(r.code,'Room '+r.code)),smallBtn('Message room',()=>kRoomMsg(r.code)),smallBtn('Close room',()=>kRoomClose(r.code),'danger'));rm.append(it);}
+    const rm=$('#kRm');rm.textContent='';for(const r of Object.values(rooms)){const it=mk('div','item');pTag(it,{r:r.code,n:r.host,g:'k'});it.append(mk('span','c',r.code),mk('span','k',r.host||'?'),mk('span','d',r.n+' player'+(r.n===1?'':'s')),mk('span','chip',Object.entries(r.pf).sort((a,b)=>b[1]-a[1]).map(([f,n])=>n+' '+(PFN[f]||f)).join(' · ')),mk('span','d',KST[r.st]||r.st||''),r.wave?mk('span','d','wave '+r.wave):'',mk('span','sp'),smallBtn('View',()=>kRoom(r.code,'Room '+r.code)),smallBtn('Message room',()=>kRoomMsg(r.code)),smallBtn('Close room',()=>kRoomClose(r.code),'danger'));rm.append(it);}
     const vb=$('#kVer');vb.textContent='';const V={};for(const p of P)V[p.ver]=(V[p.ver]||0)+1;for(const[v,n]of Object.entries(V).sort((a,b)=>b[0]-a[0])){const it=mk('div','item');it.append(mk('span','c','Build '+v),mk('span','d',n+' player'+(n===1?'':'s')));vb.append(it);}if(!P.length)vb.append(mk('div','item d','Nobody is online.'));
     if(!Object.keys(rooms).length)rm.append(mk('div','item d','No rooms right now.'));
     const bn=$('#kBn');bn.textContent='';for(const b of j.bans){const it=mk('div','item');it.append(mk('span','k',b.name||b.dev),mk('span','d',b.why||''),mk('span','d',when(b.t)),mk('span','sp'),b.acct?smallBtn('Profile',()=>kAcct(b.acct)):'',smallBtn('Unban',async()=>{try{await admin('kunban',[b.id]);note('Unbanned','ok');kLoad();}catch(e){note(e.message,'bad');}}));bn.append(it);}
@@ -768,6 +775,11 @@ async function kLoad(){const t=curTab();let j;try{j=await admin('kdash');}catch(
     const bars=(el,ax,key)=>{const box=$(el);box.textContent='';const mx=Math.max(1,...D.map(d=>d[key]||0));for(const d of D){const b=mk('div');b.style.height=Math.max(2,Math.round((d[key]||0)/mx*100))+'%';b.dataset.tip=d.d+'\n'+(d[key]||0).toLocaleString();box.append(b);}
       const a=$(ax);a.textContent='';if(D.length)a.append(mk('span','',D[0].d.slice(5)),mk('span','','max '+mx),mk('span','',D[D.length-1].d.slice(5)));};
     bars('#kcU','#kaU','u');bars('#kcG','#kaG','g');
+    {const PC={app:'#f2f2f2',phone:'#b8b8b8',tablet:'#8a8a8a',pc:'#5e5e5e','?':'#363636'},PN={phone:'Phone',tablet:'Tablet',pc:'PC',app:'App','?':'Unknown'},box=$('#kcP');box.textContent='';const mx=Math.max(1,...D.map(d=>Object.values(d.pf||{}).reduce((a,n)=>a+n,0)));
+      for(const d of D){const b=mk('div','stk'),tot=Object.values(d.pf||{}).reduce((a,n)=>a+n,0);b.style.height=Math.max(2,Math.round(tot/mx*100))+'%';for(const f of['app','phone','tablet','pc','?']){const n=(d.pf||{})[f]|0;if(!n)continue;const i=mk('i');i.style.height=(n/tot*100)+'%';i.style.background=PC[f];b.append(i);}
+        b.dataset.tip=d.d+'\n'+(tot?Object.entries(d.pf).map(([f,n])=>(PN[f]||f)+' '+n).join(', '):'no data');box.append(b);}
+      const a=$('#kaP');a.textContent='';if(D.length)a.append(mk('span','',D[0].d.slice(5)),mk('span','','max '+mx),mk('span','',D[D.length-1].d.slice(5)));
+      const lg=$('#kpfL');lg.textContent='';for(const f of['app','phone','tablet','pc','?']){const c=mk('span','pfk');const sw=mk('i');sw.style.background=PC[f];c.append(sw,PN[f]);lg.append(c);}}
     const top=(el,key,names)=>{const T={};for(const d of j.days)for(const[x,n]of Object.entries(d[key]||{}))T[x]=(T[x]||0)+n;const L=Object.entries(T).sort((a,b)=>b[1]-a[1]),mx=Math.max(1,...L.map(x=>x[1])),box=$(el);box.textContent='';
       for(const[x,n]of L){const r=mk('div','hbar'),bar=mk('div'),i=mk('i');i.style.width=Math.round(n/mx*100)+'%';bar.append(i);r.append(mk('span','',names[x]||x),bar,mk('span','',String(n)));box.append(r);}if(!L.length)box.append(mk('p','','No data yet.'));};
     top('#kTopC','cls',KCN);top('#kTopM','map',KMN);top('#kTopD','diff',KDN);say('#kStMsg',D.length?'':'No data yet. It starts once players open the new version.');}}
@@ -1361,6 +1373,12 @@ async function kClans(){const box=$('#kclList');say('#kclMsg','Loading…');try{
     smallBtn('Rename',async()=>{const n=prompt('New clan name',c.name);if(!n)return;try{await admin('kclanset',[],{id:c.id,name:n});kClans();}catch(e){note(e.message,'bad');}}),
     smallBtn('Disband',async()=>{if(await sure('Disband ['+c.tag+'] '+c.name+'? Every member leaves the clan.','Disband'))act(()=>admin('kclandel',[],{id:c.id}),'Clan disbanded').then(kClans);}));box.append(it);}
   if(!L.length)box.append(mk('div','item d','No clans yet.'));say('#kclMsg',L.length+' clans. Score is the members\' season XP.');}catch(e){say('#kclMsg',e.message,'bad');}}
+async function kErr(){const box=$('#kerrList');say('#kerrMsg','Loading…');try{const L=(await admin('kerr')).list;box.textContent='';const ago=t=>{const m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago';};
+  for(const e of L){const it=mk('div','item err');const top=mk('div','errT');top.append(mk('span','chip gold',e.n+'×'),mk('span','k',e.m),mk('span','sp'),smallBtn('Logs',()=>{openTab('logs');$('#lgX').value=e.m.slice(0,40);lgLoad(false);}),smallBtn('Clear',async()=>{try{await admin('kerrclr',[],{key:e.m+'|'+e.s});kErr();}catch(x){note(x.message,'bad');}}));
+    const meta=mk('div','d',[e.s||'(no place)',ago(e.last),'builds '+Object.entries(e.v).map(([v,n])=>v+(n>1?' ×'+n:'')).join(', '),Object.entries(e.pf).map(([f,n])=>(PFN[f]||f)+' '+n).join(', '),e.who.length?'players: '+e.who.join(', '):''].filter(Boolean).join(' · '));
+    it.append(top,meta);if(e.st){const pre=mk('pre','errS',e.st);it.append(pre);}box.append(it);}
+  if(!L.length)box.append(mk('div','item d','No errors reported. 🎉'));say('#kerrMsg',L.length?L.length+' kinds of error, '+L.reduce((a,e)=>a+e.n,0)+' in all.':'');}catch(x){say('#kerrMsg',x.message,'bad');}}
+$('#kerrR').onclick=kErr;$('#kerrC').onclick=async()=>{if(!await sure('Clear every reported error?','Clear'))return;try{await admin('kerrclr',[],{});kErr();}catch(x){note(x.message,'bad');}};
 /* live alerts: new player reports and anti-cheat reports, checked every minute while the panel is open */
 const ALR={rep:null,ac:null};
 async function alertTick(){if(document.querySelector('#app')?.hidden)return;try{
