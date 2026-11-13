@@ -32,14 +32,17 @@ Oyna:
 | 1–4 | Savaşta: eşya kullan (el bombası, barikat, ilk yardım, hava saldırısı) |
 | Tab | Skor tablosu |
 | M | Sesi aç / kapat |
+| V | Sesli sohbette basılı tut konuş, kısa bas mikrofonu açık bırak |
+| Z | Hızlı takım mesajları (1–7 ile seç) |
+| G | Nişan aldığın yeri takımına işaretle |
 
 ### Telefonda
 
-Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu ittiğin sürece silah ateş eder. Yetenek, Dipçik, eşyalar, Menü ve Skor için ekrandaki düğmeleri kullan.
+Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu ittiğin sürece silah ateş eder. Yetenek, Dipçik, eşyalar, Menü ve Skor için ekrandaki düğmeleri kullan. Odada **Hızlı** düğmesi takım mesajlarını açar ("Yardım!", "Buraya gel!", "Şuraya bak" gibi); yeri olan mesajlar haritada işaret bırakır.
 
 ### Ayarlar
 
-Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, gece karanlığı, yakınlaştırma, ekran sarsıntısı, hasar sayıları ve kameranın nişan yönüne kayması. Ayarlar tarayıcında saklanır.
+Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, müzik (oyunun kendi müziği: aralarda sakin, dalgada hareketli, boss gelince ağır; 0'a çekince kapanır), gece karanlığı, yakınlaştırma, ekran sarsıntısı, hasar sayıları ve kameranın nişan yönüne kayması. Ayarlar tarayıcında saklanır.
 
 ## Sınıflar
 
