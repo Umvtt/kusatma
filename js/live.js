@@ -146,11 +146,11 @@ export function liveStart(hooks) {
 
 // ---------- optional accounts ----------
 let httpIdx = 0;
-async function api(path, body) {
+async function api(path, body, wait) {
   for (let i = 0; i < HTTP.length; i++) {
     const k = (httpIdx + i) % HTTP.length;
     try {
-      const ac = new AbortController(), to = setTimeout(() => ac.abort(), 9000);
+      const ac = new AbortController(), to = setTimeout(() => ac.abort(), wait || 9000);
       const r = await fetch(HTTP[k] + path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: ac.signal } : { signal: ac.signal });
       clearTimeout(to);
       const j = await r.json();
@@ -166,7 +166,13 @@ function keepAcct(a) {
   last = ''; if (H) hi(true);
 }
 export async function acctSign(op, name, pw) {
-  const j = await api('/kacct', { op, name, pw, dev, p: deviceLine() });
+  // slow connections get more time; when a sign-up went through but its answer was lost, the retry on the next
+  // address says "taken": the same name and password then sign in, because that account is this player's
+  let j = await api('/kacct', { op, name, pw, dev, p: deviceLine() }, 15000);
+  if (op === 'reg' && !j.ok && j.reason === 'taken') {
+    const l = await api('/kacct', { op: 'login', name, pw, dev, p: deviceLine() }, 15000);
+    if (l.ok) j = l;
+  }
   if (j.ok) { keepAcct({ tk: j.tk, name: j.name, id: j.id }); keepMe(j); }
   return j;
 }
