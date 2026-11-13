@@ -242,7 +242,9 @@ export class HostGame {
       // someone who dropped and comes back with the same name takes their old place; a full room makes room by dropping the oldest dropped player
       // the same name whose old link has gone quiet is almost always that player reloading or reconnecting: they take that
       // place back (keeping their progress) instead of being turned away as a second copy or by a "full" room
-      { const nm = nkey(cleanName(m.name, pid)), same = [...this.players.values()].find((q) => nkey(q.name) === nm && q.pid !== this.hostPid && (q.ghost || (this.net.silentFor && this.net.silentFor(q.pid) > 4000)));
+      { const nm = nkey(cleanName(m.name, pid)), sid = typeof m.sid === 'string' && /^[a-z0-9]{6,24}$/.test(m.sid) ? m.sid : '';
+        // the same browser tab (a reload keeps its id) always takes its place back at once, even before the old link goes quiet
+        const same = [...this.players.values()].find((q) => nkey(q.name) === nm && q.pid !== this.hostPid && (q.ghost || (sid && q.sid === sid) || (this.net.silentFor && this.net.silentFor(q.pid) > 4000)));
         if (same && this.net.rebind(pid, same.pid)) {
           this.net.markPlayer(same.pid);
           if (same.ghost) { same.ghost = false; same.inGame = !!same.wasInGame; if (same.inGame) this.catchUp(same); }
@@ -255,6 +257,7 @@ export class HostGame {
       if (this.players.size >= this.maxP) { const g = [...this.players.values()].filter((q) => q.ghost).sort((a, b) => a.ghostAt - b.ghostAt)[0]; if (g) this.removePlayer(g.pid); }
       this.net.markPlayer(pid);
       this.addPlayer(pid, cleanName(m.name, pid));
+      { const np = this.players.get(pid); if (np && typeof m.sid === 'string' && /^[a-z0-9]{6,24}$/.test(m.sid)) np.sid = m.sid; }
       if (typeof m.ps === 'string') this.setPass(pid, m.ps);
       return;
     }
@@ -1225,7 +1228,7 @@ export class HostGame {
     this.updateRevives(dt);
     this.updateRegen(dt);
     this.updateZombies(dt);
-    this.curBoss = false;
+    this.curBoss = false; this.curZ = null; // later damage (spit, cars, trains, blasts) is not "from the last zombie moved"
     this.updateSpits(dt);
     this.updateTurrets(dt);
     this.updateSpin(dt);

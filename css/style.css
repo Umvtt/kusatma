@@ -1509,3 +1509,47 @@ body.ctl-editing #touch .t-pause, body.ctl-editing #touch .t-score, body.ctl-edi
 @media (prefers-reduced-motion: reduce) { .intro { display: none; } }
 /* the end screen's buttons stay on screen on phones, however long the table is */
 body.touch .over-wrap .row:last-child { position: sticky; bottom: -16px; z-index: 2; background: rgba(18,24,21,.97); padding: 10px 0 14px; margin-bottom: -14px; box-shadow: 0 -10px 16px rgba(18,24,21,.9); }
+
+/* ---------- landscape phones (short screens): the lobby and the armory are app-like screens that fit, each part scrolls on its own ---------- */
+@media (max-height: 520px) and (orientation: landscape) {
+  /* lobby: room code and tabs share the top row, the content fills the middle and scrolls, the buttons sit at the bottom */
+  .screen.lobby { padding-block: max(6px, env(safe-area-inset-top, 0px)) 0; overflow: hidden; }
+  .lobby-wrap { height: 100%; margin: 0 auto; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; gap: 6px 10px; }
+  .lobby-head { grid-column: 1; grid-row: 1; flex-wrap: nowrap; gap: 8px; }
+  .lobby-head > div:first-child { display: none; }
+  .code-box { padding: 4px 10px; gap: 8px; }
+  .code-box .eyebrow { display: none; }
+  .room-code { font-size: 18px; }
+  #btn-copy { padding: 6px 10px; font-size: 12px; }
+  .lobby-tabs { grid-column: 2; grid-row: 1; position: static; align-self: center; }
+  .lobby-tabs button { min-height: 36px; font-size: 13px; }
+  .lobby-grid { grid-column: 1 / -1; grid-row: 2; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+  .lobby-foot { grid-column: 1 / -1; grid-row: 3; position: static; margin-inline: 0; padding-inline: 0; }
+  .lobby-tip { display: none; }
+  /* classes: a 4-wide grid of compact cards on the left, the chosen class's details fixed on the right with their own scroll */
+  .classes > .card-head { display: none; }
+  .class-wrap { grid-template-columns: minmax(0, 1fr) minmax(0, 290px); gap: 8px; align-items: start; }
+  .class-wrap .class-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .class-card { padding: 7px 8px; gap: 3px; min-height: 0; }
+  .class-card .class-preview { width: 38px; height: 38px; }
+  .class-card .class-name { font-size: 14px; }
+  .class-card .class-weapon { font-size: 10px; }
+  .class-detail { position: sticky; top: 0; max-height: calc(100vh - 120px); overflow-y: auto; overscroll-behavior: contain; }
+  /* armory: tabs, gold, heal and Hazırım in a narrow column on the left; the list takes the rest of the screen and scrolls */
+  body.touch .shop.full { display: grid; grid-template-columns: minmax(150px, 200px) minmax(0, 1fr); grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; column-gap: 12px; row-gap: 6px; padding-block: max(8px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-bottom, 0px)); }
+  body.touch .shop.full > * { max-width: none; margin: 0; width: auto; }
+  body.touch .shop.full .shop-head { grid-column: 1; grid-row: 1; gap: 6px; }
+  body.touch .shop.full .shop-head h3 { font-size: 17px; }
+  body.touch .shop.full .shop-head .eyebrow { display: none; }
+  body.touch .shop.full .shop-timer { font-size: 13px; }
+  body.touch .shop.full .shop-close { width: 34px; height: 34px; font-size: 16px; border-radius: 10px; }
+  body.touch .shop.full .shop-gold { grid-column: 1; grid-row: 2; position: static; transform: none; margin: 0; }
+  body.touch .shop.full .shop-tabs { grid-column: 1; grid-row: 3; grid-template-columns: minmax(0, 1fr); }
+  body.touch .shop.full .shop-tabs button { min-height: 34px; font-size: 14px; justify-content: flex-start; padding-inline: 10px; }
+  body.touch .shop.full .shop-heal { grid-column: 1; grid-row: 4; padding: 6px 10px; }
+  body.touch .shop.full .shop-heal .sh-t > span { display: none; }
+  body.touch .shop.full #btn-shop-ready { grid-column: 1; grid-row: 6; min-height: 42px; font-size: 16px; }
+  body.touch .shop.full #shop-ready-count { display: none; }
+  body.touch .shop.full .shop-list { grid-column: 2; grid-row: 1 / -1; min-height: 0; max-height: none; height: 100%; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+  body.touch .shop.full .shop-list .paths { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

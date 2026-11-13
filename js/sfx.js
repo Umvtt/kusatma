@@ -244,7 +244,7 @@ function musicTick() {
   if (!ctx || MUS.mode === 'off') return;
   const beat = 60 / TEMPO[MUS.mode] / 4;
   if (MUS.next < ctx.currentTime) MUS.next = ctx.currentTime + 0.05;
-  while (MUS.next < ctx.currentTime + 0.2) { if (!muted) playStep(MUS.next, MUS.step); MUS.next += beat; MUS.step++; }
+  while (MUS.next < ctx.currentTime + 0.2) { if (!muted && musicLevel > 0 && !document.hidden) playStep(MUS.next, MUS.step); MUS.next += beat; MUS.step++; }
 }
 // mode: 'off' | 'break' | 'combat' | 'boss'; intensity 0..1 (how late in the game it is)
 export function music(mode, intensity = 0) {

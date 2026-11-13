@@ -44,6 +44,10 @@ Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu itti
 
 **Kontrolleri düzenle** (Ayarlar → Dokunmatik kontroller → Düzenle): çubukları, Yetenek, Dipçik ve mikrofon düğmelerini parmağınla sürükleyip istediğin yere koy; joystick ve düğme boyutunu, saydamlığı ayarla. **Serbest joystick** açıkken sol çubuk ekranın sol yarısında parmağını nereye koyarsan orada belirir. **Sıfırla** her şeyi ilk hâline döndürür. Düzen yalnızca o telefonda saklanır.
 
+Telefon yan tutulunca lobi ve Cephanelik ekrana sığar: lobide oda kodu ve sekmeler üstte, sınıf kartları solda kayar, seçili sınıfın ayrıntıları sağda durur, tuşlar altta; Cephanelik'te sekmeler, altın, Sargı ve Hazırım solda, satın alınacaklar sağda kendi içinde kayar.
+
+Odadayken sayfayı yenilersen aynı sekmeden yeniden katıldığında eski yerine (ilerlemenle) hemen dönersin.
+
 ### Ayarlar
 
 Ana menüden ya da oyun içinde Esc menüsünden açılır: ses seviyesi, müzik (oyunun kendi müziği: aralarda sakin, dalgada hareketli, boss gelince ağır; 0'a çekince kapanır), gece karanlığı, yakınlaştırma, ekran sarsıntısı, hasar sayıları ve kameranın nişan yönüne kayması. **Pil tasarrufu** oyunu 30 FPS'te çalıştırır, en yüksek grafiği kullanmaz ve parçacıkları yarıya indirir; telefon daha az ısınır ve pil daha uzun gider. **Oto** (varsayılan) pil %20'nin altına düşüp şarjda değilken ya da telefon en düşük grafikte bile zorlanınca kendiliğinden açılır. Ayarlar tarayıcında saklanır.

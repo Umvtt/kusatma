@@ -53,7 +53,7 @@ function show(screen) {
   $('#touch').hidden = !(IS_TOUCH && screen === 'game');
   updateRotate();
   if (screen === 'menu' && sceneGo) sceneGo();
-  if (screen !== 'game') { $('#board').hidden = true; if (S.game) { S.game.input.down = false; S.game.input.keys.clear(); } }
+  if (screen !== 'game') { $('#board').hidden = true; $('#quick').hidden = true; if (S.game) { S.game.input.down = false; S.game.input.keys.clear(); } }
 }
 
 function toast(text, kind = '') {
@@ -141,6 +141,8 @@ function startTicker() {
 }
 function stopTicker() { if (S.ticker) S.ticker.stop(); S.ticker = null; }
 
+// this browser tab's id (kept across reloads of the same tab): a reload takes its place in the room back at once
+const TAB_ID = (() => { try { let t = sessionStorage.getItem('kusatma-sekme'); if (!t || !/^[a-z0-9]{6,24}$/.test(t)) { t = (Math.random().toString(36).slice(2, 12) + Date.now().toString(36)).replace(/[^a-z0-9]/g, '').slice(0, 16); sessionStorage.setItem('kusatma-sekme', t); } return t; } catch (e) { return ''; } })();
 // ---------- starting and leaving ----------
 async function createRoom(offline, opts) {
   if (!offline && liveBlock()) { blockUi(); menuMsg(''); return; }
@@ -213,7 +215,7 @@ async function joinRoom() {
   net.onMsg = onMessage;
   net.onClose = hostLost;
   S.name = name;
-  net.send({ t: 'hello', v: VERSION, name, ps: ACCT ? ME.pass : '' });
+  net.send({ t: 'hello', v: VERSION, name, ps: ACCT ? ME.pass : '', sid: TAB_ID });
   S.joinedAt = performance.now();
   startTicker();
   return true;
@@ -308,7 +310,7 @@ async function reconnect(code, canTakeOver) {
       net.onMsg = onMessage;
       net.onClose = hostLost;
       S.rejoining = false;
-      net.send({ t: 'hello', v: VERSION, name: S.name || '', rejoin: { pid: S.me, tok: S.tok }, ps: ACCT ? ME.pass : '' });
+      net.send({ t: 'hello', v: VERSION, name: S.name || '', rejoin: { pid: S.me, tok: S.tok }, ps: ACCT ? ME.pass : '', sid: TAB_ID });
       toast('Yeniden bağlandın.', 'good');
       liveConn({ r: 'back', room: code, tries });
       return;
@@ -1729,9 +1731,9 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Equal' || e.code === 'NumpadAdd') { setZoom(zoom * 1.12); return; }
   if (e.code === 'Minus' || e.code === 'NumpadSubtract') { setZoom(zoom / 1.12); return; }
   // quick messages: Z opens the menu, 1–7 pick while it is open; G pings where you aim
-  if (e.code === 'KeyZ' && !e.repeat && S.roster && S.roster.code) { quickToggle(); return; }
+  if (e.code === 'KeyZ' && !e.repeat && S.screen === 'game' && S.roster && S.roster.code) { quickToggle(); return; }
   if (!$('#quick').hidden && /^(Digit|Numpad)[1-7]$/.test(e.code)) { quickPick(Number(e.code.slice(-1)) - 1); return; }
-  if (e.code === 'KeyG' && !e.repeat && S.roster && S.roster.code) { S.game.quick(PING_K); return; }
+  if (e.code === 'KeyG' && !e.repeat && S.screen === 'game' && S.game && S.roster && S.roster.code) { S.game.quick(PING_K); return; }
   if (e.code === 'Space') { if (!e.repeat) S.game.input.ab = true; return; }
   if (e.code === 'KeyF') { if (!e.repeat) S.game.input.bash = true; return; }
   if (/^(Digit|Numpad)[1-9]$/.test(e.code)) {
@@ -2083,7 +2085,7 @@ function stick(elm, onMove, zone) {
   };
   // a free joystick centres itself wherever the thumb lands on the left side
   const down = (e, from) => {
-    if (id !== null) return;
+    // a second finger on the same stick takes it over; a lost touch never leaves the stick stuck
     e.preventDefault(); sfx.unlock(); id = e.pointerId;
     if (zone && CTL.free) {
       const h = elm.offsetWidth / 2;
@@ -2101,6 +2103,7 @@ function stick(elm, onMove, zone) {
     t.addEventListener('pointermove', (e) => { if (e.pointerId === id) at(e); });
     t.addEventListener('pointerup', end);
     t.addEventListener('pointercancel', end);
+    t.addEventListener('lostpointercapture', end);
   }
 }
 // ---------- phone controls layout: sizes, see-through, free joystick and where each control sits (this device only) ----------
