@@ -1,6 +1,6 @@
 // What every player's browser runs (the host included): own movement and shooting,
 // smoothing of what the host sends, and visual effects.
-import { CX, CY, PLAYER_R, QUICK, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS, BASH, bashCd, newLv, lvObj, GEAR, GEAR_RANGE, TEAM, abDur, PATHS, PVP_DMG } from './config.js';
+import { CX, CY, PLAYER_R, QUICK, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, isBoss, SHIELD_ARC, ITEMS, BASH, bashCd, newLv, lvObj, GEAR, GEAR_RANGE, TEAM, abDur, PVP_DMG } from './config.js';
 import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds, WORLD, escapePocket } from './world.js';
 import * as sfx from './sfx.js';
 import { SETTINGS } from './settings.js';
@@ -259,6 +259,7 @@ export class ClientGame {
       case 'md': this.ring(ev[1], ev[2], '#43d17a', 90); this.light(ev[1], ev[2], 180, 0.5, '67,209,122'); sfx.heal(ev[1], ev[2]); break;
       case 'zp': this.zapFx(ev.slice(2)); break;
       case 'lb': this.bolt(ev[1], ev[2], ev[3]); break;
+      case 'vr2': this.ring(ev[1], ev[2], '#9dff6b', ev[3]); this.puff(ev[1], ev[2], 30); break;
       case 'bx': this.puff(ev[1], ev[2], ev[3]); break;
       case 'bb': this.fireBurst(ev[1], ev[2], ev[3], true); break;
       case 'ic': this.iceBurst(ev[1], ev[2], ev[3]); break;
@@ -425,7 +426,11 @@ export class ClientGame {
       else if (!this.touch) { const w = this.toWorld(this.input.mx, this.input.my); S.a = Math.atan2(w.y - S.y, w.x - S.x); }
 
       const abl = S.lv.ab | 0;
-      const rate = st.rate * (this.fxOn(this.me, 'rage') ? 2 : 1) * (abl >= 3 && this.fxOn(this.me, 'sprint') ? 1.3 : 1);
+      const wf = (this.myWeapon && this.myWeapon.fx) || {}, firing = this.input.down || this.input.tfire;
+      // paths that heat up: the longer the trigger is held, the faster they fire; the heat drains twice as fast
+      this.heat = wf.ramp ? Math.max(0, Math.min(1, (this.heat || 0) + (firing ? dt / (wf.rampT || 1.5) : -dt * 2 / (wf.rampT || 1.5)))) : 0;
+      const rate = st.rate * (this.fxOn(this.me, 'rage') ? 2 : 1) * (abl >= 3 && this.fxOn(this.me, 'sprint') ? 1.3 : 1)
+        * (wf.ramp ? 1 + wf.ramp * this.heat : 1) * (wf.hasteRate && S.haste > 0 ? wf.hasteRate : 1);
       this.fireT = Math.max(0, this.fireT - dt);
       if ((this.input.down || this.input.tfire) && this.fireT <= 0) { this.fire(this.myWeapon, st); this.fireT = 1 / rate; }
 
@@ -550,7 +555,8 @@ export class ClientGame {
       * (this.cls === 'asker' && S.hp > S.maxHp * 0.5 ? 1.1 : 1);
     const pierce = focus ? 99 : c.pierce;
     const f = c.fx || {};
-    const critP = (st.crit || 0) + (f.crit || 0), critX = f.crit ? f.critX : 2;
+    const critP = (st.crit || 0) + (f.crit || 0) + (f.critGold ? Math.min(0.2, (S.gold | 0) / 1000 * f.critGold) : 0) + (f.critInv && ((S.pfl & 2) || this.fxOn(this.me, 'shadow')) ? f.critInv : 0);
+    const critX = f.critX || 2;
     if (c.kind === 'm') { this.swing(c, dmg, critP, critX); return; }
     const off = c.gun + 6;
     let mx = S.x + Math.cos(S.a) * off, my = S.y + Math.sin(S.a) * off;
@@ -559,11 +565,15 @@ export class ClientGame {
       this.side = -(this.side || 1);
       mx += Math.cos(S.a + Math.PI / 2) * 6 * this.side; my += Math.sin(S.a + Math.PI / 2) * 6 * this.side;
     }
-    for (let i = 0; i < c.pellets; i++) {
+    const hot = f.rampPel && (this.heat || 0) > 0.85, n = hot ? 1 + f.rampPel : c.pellets, pd = hot ? f.rampPelK || 0.6 : 1;
+    const sp = hot ? { ...c, spread: Math.max(c.spread, 0.07) } : c;
+    const hastePierce = f.hastePierce && S.haste > 0 ? f.hastePierce : 0;
+    for (let i = 0; i < n; i++) {
       const crit = critP > 0 && Math.random() < critP;
-      const b = this.makeBullet(c, mx, my, S.a, crit ? dmg * critX : dmg, crit && f.cap && f.crit ? 99 : pierce, true);
+      const b = this.makeBullet(sp, mx, my, S.a, (crit ? dmg * critX : dmg) * pd, crit && f.cap && f.crit && f.critX >= 3 ? 99 : Math.max(pierce, hastePierce), true);
       if (crit) b.crit = true;
       if (this.cls === 'kimyager' && !c.path) b.col = '#9dff6b';
+      if (f.bounce) { b.bounce = f.bounce; b.bounceK = f.bounceK || 0.5; b.bounceAoe = f.bounceAoe || 1; }
       this.bullets.push(b);
     }
     if (c.heavy) this.shake = Math.min(8, this.shake + 1.5 * c.heavy);
@@ -582,8 +592,9 @@ export class ClientGame {
       x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: c.life, max: c.life,
       dmg, pierce, own, hit: null, kind: c.kind || 'b', aoe: c.aoe || 0,
       w: (c.pellets > 1 ? 1.6 : c.gun >= 36 ? 2.6 : 2) + (c.heavy || 0) * 0.6,
-      col: c.path ? c.col : null, frost: !!c.frost, pk: c.path || 0, tier: c.tier || 0,
-      rico: c.fx && c.fx.rico ? c.fx.rico : 0, noShield: !!(c.fx && c.fx.noShield), look: c.look || '', home: own ? c.home || 0 : 0,
+      col: c.path ? c.col : null, frost: !!c.frost, pk: c.path || 0, tier: c.tier || 0, fire: c.kind === 'f',
+      rico: c.fx && c.fx.rico ? c.fx.rico : 0, ricoN: c.fx && c.fx.rico ? c.fx.ricoN || 1 : 0, ricoUp: (c.fx && c.fx.ricoUp) || 0, pierceUp: (c.fx && c.fx.pierceUp) || 0,
+      noShield: !!(c.fx && c.fx.noShield), look: c.look || '', home: own ? c.home || 0 : 0,
     };
   }
 
@@ -624,8 +635,8 @@ export class ClientGame {
     if (SETTINGS.dmgNums && this.texts.length < 40) this.texts.push({ x: p.x + (Math.random() - 0.5) * 14, y: p.y - PLAYER_R - 6, txt: String(Math.round(dmg * PVP_DMG / (1 + 0.25 * (this.self.wt | 0)))) + (crit ? '!' : ''), col: crit ? '#ff5a36' : '#ff9a9a', t: 0.5, small: !crit });
   }
   // the Kılıççı's sword: everything in an arc in front gets hit at once
-  swing(c, dmg, critP, critX) {
-    const S = this.self, reach = c.reach * (c.path === 3 ? 1 + 0.12 * Math.min(4, c.tier) : 1), arc = c.arc;
+  swing(c, dmg, critP, critX, second) {
+    const S = this.self, reach = c.reach, arc = c.arc, f = c.fx || {};
     const inArc = (x, y, r) => {
       const dx = x - S.x, dy = y - S.y, d = Math.hypot(dx, dy);
       if (d > reach + r) return false;
@@ -649,7 +660,11 @@ export class ClientGame {
     this.slash(S.x, S.y, S.a, reach, c.col || '#e8f1ff', true, arc, this.swingMark(this.me));
     this.shotsQ.push([Math.round(S.x), Math.round(S.y), Math.round(S.a * 100) / 100]);
     if (n || this.pHitMark > 0.15) this.shake = Math.min(8, this.shake + 2);
-    sfx.swish(S.x, S.y, true, c.path === 1);
+    sfx.swish(S.x, S.y, true, !!f.heavySwing);
+    // Çift kılıç's top power: a second, quicker cut right after
+    if (f.doubleCut && !second) setTimeout(() => { if (this.self && this.self.alive && this.myWeapon === c) this.swing(c, dmg * f.doubleCut, critP, critX, true); }, 110);
+    // Mızrak's top power: a slash wave flies on through everything in its way
+    if (f.wave) this.bullets.push({ x: S.x + Math.cos(S.a) * reach * 0.6, y: S.y + Math.sin(S.a) * reach * 0.6, vx: Math.cos(S.a) * 900, vy: Math.sin(S.a) * 900, life: 0.4, max: 0.4, dmg: dmg * 0.6, pierce: 99, own: true, hit: null, kind: 'b', aoe: 0, w: 4, col: c.col, frost: false, pk: c.path || 0, tier: c.tier || 0, rico: 0, ricoN: 0, noShield: true, look: 'wave' });
   }
   // a quick message to the team; messages that point somewhere use the aim point (mouse, or 220 px ahead on a phone)
   quick(k, wx, wy) {
@@ -699,7 +714,7 @@ export class ClientGame {
     const cls = this.clsOf(pid);
     const pl = this.ps.get(pid);
     const c = weaponOf(cls, pl ? pl.wt : 0, pl ? pl.wp : 0, pl ? pl.wb : 0);
-    if (c.kind === 'm') { this.slash(x, y, a, c.reach, c.col || '#e8f1ff', false, c.arc, this.swingMark(pid)); sfx.swish(x, y, false, c.path === 1); return; }
+    if (c.kind === 'm') { this.slash(x, y, a, c.reach, c.col || '#e8f1ff', false, c.arc, this.swingMark(pid)); sfx.swish(x, y, false, !!(c.fx && c.fx.heavySwing)); return; }
     if (c.kind === 'f') this.flameAt.set(pid, { t: this.time, x, y });
     for (let i = 0; i < c.pellets; i++) this.bullets.push(this.makeBullet(c, x, y, a, 0, c.pierce, false));
     if (c.kind !== 'f') this.flash(x, y, a);
@@ -726,21 +741,21 @@ export class ClientGame {
         if (b.kind === 'b' && z.t === 6 && !(z.fl & 2) && !(z.fl & 32) && !b.noShield && this.blocks(z, b)) {
           this.sparks(b.x, b.y); sfx.clang(b.x, b.y);
           // Delici rounds punch through the shield once, losing 40 % of their power
-          if (b.pk === 3 && !b.shPass) { b.shPass = 1; b.dmg *= 0.6; } else { alive = false; break; }
+          if (b.pierce >= 2 && !b.shPass) { b.shPass = 1; b.dmg *= 0.6; } else { alive = false; break; }
         }
         if (b.own) this.dealHit(z, b.dmg, true, b.crit);
         if (b.kind === 'b') this.blood(b.x, b.y, Math.atan2(b.vy, b.vx), 4);
-        if (b.pk) this.hitFx(b.pk, b.x, b.y, b.tier);
-        if (b.pierce > 0 || (b.shPass === 1 && b.pk === 3)) {
-          // a Delici round loses 15 % with every zombie it goes through (the shield pass itself never costs a pierce)
+        if (b.pk) this.hitFx(b.col, b.fire, b.x, b.y, b.tier);
+        if (b.pierce > 0 || b.shPass === 1) {
+          // a piercing round loses 10 % with every zombie it goes through (some paths gain instead); the shield pass never costs a pierce
           if (b.shPass === 1) b.shPass = 2; else b.pierce--;
-          if (b.pk === 3) b.dmg *= 0.85;
+          if (b.pierceUp) b.dmg *= b.pierceUp; else if (b.pierce < 90) b.dmg *= 0.9;
           (b.hit || (b.hit = new Set())).add(z.id);
         }
-        else if (b.rico && Math.random() < b.rico) {
-          // Fırtına's top level: the bullet bounces to the nearest other zombie
+        else if (b.ricoN > 0 && Math.random() < b.rico) {
+          // a ricochet: the bullet bounces to the nearest other zombie it has not hit yet
           (b.hit || (b.hit = new Set())).add(z.id);
-          b.rico = 0;
+          b.ricoN--;
           let best = null, bd = 230 * 230;
           for (const o of this.zs.values()) {
             if (o.dying || b.hit.has(o.id)) continue;
@@ -749,7 +764,7 @@ export class ClientGame {
           }
           if (!best) { alive = false; break; }
           const sp = Math.hypot(b.vx, b.vy), a = Math.atan2(best.y - b.y, best.x - b.x);
-          b.vx = Math.cos(a) * sp; b.vy = Math.sin(a) * sp; b.dmg *= 0.6; b.life = Math.max(b.life, 0.35); b.max = Math.max(b.max, b.life);
+          b.vx = Math.cos(a) * sp; b.vy = Math.sin(a) * sp; b.dmg *= b.ricoUp || 0.7; b.life = Math.max(b.life, 0.35); b.max = Math.max(b.max, b.life);
           this.sparks(b.x, b.y);
           break;
         } else { alive = false; break; }
@@ -796,7 +811,7 @@ export class ClientGame {
 
   dealHit(z, dmg, eff, crit) {
     if (this.cls === 'ajan') dmg *= this.ajanBonus(z.face, z.x, z.y);
-    this.hitsQ.push(eff ? [z.id, Math.round(dmg), 1] : [z.id, Math.round(dmg)]);
+    this.hitsQ.push(eff ? [z.id, Math.round(dmg), crit ? 2 : 1] : [z.id, Math.round(dmg)]);
     z.pend.push({ d: dmg, t: this.time });
     z.flash = 0.08;
     const pending = z.pend.reduce((s, e) => s + e.d, 0);
@@ -817,17 +832,22 @@ export class ClientGame {
       for (const [pid, p] of this.foes()) if (Math.hypot(p.x - b.x, p.y - b.y) < b.aoe + PLAYER_R) this.dealPHit(pid, p, b.dmg, b.pk || 0, b.crit);
     }
     this.explode(b.x, b.y, b.aoe);
-    if (b.pk) this.ring(b.x, b.y, PATHS[b.pk].col, b.aoe);
+    if (b.pk && b.col) this.ring(b.x, b.y, b.col, b.aoe);
+    // a bouncing bomb hops on and goes off again, weaker each time
+    if (b.bounce > 0 && this.bullets.length < 400) {
+      const sp = Math.hypot(b.vx, b.vy) || 600, a = Math.atan2(b.vy, b.vx) + (Math.random() - 0.5) * 0.6;
+      this.bullets.push({ ...b, x: b.x - Math.cos(a) * 6, y: b.y - Math.sin(a) * 6, vx: Math.cos(a) * sp * 0.7, vy: Math.sin(a) * sp * 0.7, life: 0.32, max: 0.32, dmg: b.dmg * b.bounceK, aoe: b.aoe * b.bounceAoe, bounce: b.bounce - 1, hit: null });
+    }
   }
 
   // ---------- path effects ----------
-  hitFx(k, x, y, tier) {
+  hitFx(col, fire, x, y, tier) {
     if (this.parts.length > QUAL.parts * 0.8) return;
-    const col = PATHS[k] ? PATHS[k].col : '#fff';
+    col = col || '#fff';
     const n = tier >= 5 ? 4 : tier >= 3 ? 3 : 2;
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, s = 40 + Math.random() * 110;
-      this.addPart({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.28, max: 0.28, col, size: 1.8 + Math.random() * 1.6, kind: k === 7 ? 'fire' : 'dot' });
+      this.addPart({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.28, max: 0.28, col, size: 1.8 + Math.random() * 1.6, kind: fire ? 'fire' : 'dot' });
     }
   }
   // Avcı's arrow fan: bolts that fly out in a fan from the player

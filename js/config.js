@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 19;
+export const VERSION = 20;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 54;
+export const BUILD = 55;
 // the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
 export const APP_BUILD = 47;
 export const MAX_PLAYERS = 20;
@@ -323,214 +323,308 @@ export const WEAPON_COST = [0, 150, 400, 850, 1500, 2400];
 export const BRANCH_SWAP = 250;
 export const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
 export const weaponSpent = (wt) => WEAPON_COST.slice(1, (wt | 0) + 1).reduce((a, b) => a + b, 0);
-export const PATHS = [
-  { name: 'Standart', adj: '', col: '#ffe1a6', dmg: [1, 1, 1, 1, 1, 1], rate: [1, 1, 1, 1, 1, 1], br: [] },
-  { name: 'Ağır', adj: 'Ağır', desc: 'Daha yavaş ama çok sert vurur', col: '#ff8a3d',
-    dmg: [1, 1.4, 1.75, 2.05, 2.35, 2.7], rate: [1, 0.92, 0.88, 0.86, 0.84, 0.82],
-    br: [
-      { name: 'Sarsıcı', adj: 'Sarsıcı', desc: 'Vuruşlar zombileri geri iter ve sendeletir', cap: 'Her vuruş zombiyi sersemletir' },
-      { name: 'Yıkıcı', adj: 'Yıkıcı', desc: 'İri zombilere ve bosslara çok daha sert', cap: 'Mermiler küçük patlamalar yapar' },
-    ] },
-  { name: 'Seri', adj: 'Seri', desc: 'Çok daha hızlı ateş eder', col: '#ffd23f',
-    dmg: [1, 1.03, 1.05, 1.08, 1.1, 1.12], rate: [1, 1.25, 1.5, 1.6, 1.72, 1.85],
-    br: [
-      { name: 'Fırtına', adj: 'Fırtına', desc: 'Ateş hızı katlanarak artar', cap: 'Mermiler bir zombiden diğerine seker' },
-      { name: 'Çift namlu', adj: 'Çift namlulu', desc: 'Her atışta iki mermi', cap: 'Her atışta üç mermi' },
-    ] },
-  { name: 'Delici', adj: 'Delici', desc: 'Mermiler zombileri deler, menzil artar', col: '#c77dff',
-    dmg: [1, 1.18, 1.32, 1.46, 1.6, 1.75], rate: [1, 1.04, 1.08, 1.1, 1.12, 1.15],
-    br: [
-      { name: 'Keskin', adj: 'Keskin', desc: 'Kritik vuruş şansı', cap: 'Kritikler üç kat vurur ve her şeyi deler' },
-      { name: 'Ray', adj: 'Raylı', desc: 'Çok uzun menzil, çok daha fazla delme', cap: 'Mermiler her şeyi deler, kalkanları da' },
-    ] },
-  { name: 'Buz', adj: 'Buzlu', desc: 'Vurduğun zombiler yavaşlar', col: '#7bdff2',
-    dmg: [1, 1.2, 1.32, 1.45, 1.58, 1.72], rate: [1, 1.06, 1.1, 1.14, 1.18, 1.22],
-    br: [
-      { name: 'Donduran', adj: 'Donduran', desc: 'Zombiler çok daha fazla yavaşlar', cap: 'Vuruşlar zombileri buz kalıbına çevirebilir' },
-      { name: 'Kırılgan', adj: 'Kırıcı', desc: 'Yavaşlayan zombiler daha çok hasar alır', cap: 'Donan zombiler ölünce buz parçalarına patlar' },
-    ] },
-  { name: 'Zehir', adj: 'Zehirli', desc: 'Vurduğun zombiler zehirlenip can kaybeder', col: '#8fd14f',
-    dmg: [1, 1.1, 1.2, 1.3, 1.4, 1.5], rate: [1, 1.05, 1.1, 1.13, 1.16, 1.2],
-    br: [
-      { name: 'Salgın', adj: 'Salgın', desc: 'Zehir ölünce yakındakilere bulaşır', cap: 'Ölen zombiler zehir bulutu bırakır' },
-      { name: 'Asit', adj: 'Asitli', desc: 'Zehirli zombiler daha çok hasar alır', cap: 'Asit kalkanları eritir, bosslara tam işler' },
-    ] },
-  { name: 'Elektrik', adj: 'Elektrikli', desc: 'Vuruşlar yakındaki zombilere sıçrar', col: '#9ad8ff',
-    dmg: [1, 1.1, 1.2, 1.3, 1.4, 1.5], rate: [1, 1.05, 1.1, 1.12, 1.15, 1.18],
-    br: [
-      { name: 'Zincir', adj: 'Zincirleme', desc: 'Şimşek daha çok zombiye sıçrar', cap: 'Şimşek çarptığı zombileri sersemletir' },
-      { name: 'Aşırı yük', adj: 'Aşırı yüklü', desc: 'Sıçrayan şimşek çok daha sert', cap: 'Arada bir hedefe yıldırım düşer' },
-    ] },
-  { name: 'Yangın', adj: 'Ateşli', desc: 'Vurduğun zombiler tutuşur', col: '#ff5a36',
-    dmg: [1, 1.1, 1.2, 1.3, 1.4, 1.5], rate: [1, 1.05, 1.1, 1.13, 1.16, 1.2],
-    br: [
-      { name: 'Napalm', adj: 'Napalm', desc: 'Yanan zombiler değdiklerini tutuşturur', cap: 'Yanan zombiler ölünce patlar' },
-      { name: 'Kor', adj: 'Kor', desc: 'Yanma çok daha fazla hasar verir', cap: 'Vuruşlar yerde alev bırakır' },
-    ] },
-  { name: 'Özel', adj: 'Özel', desc: 'Sınıfına özel silah', col: '#ffd34d', dmg: [1, 1, 1, 1, 1, 1], rate: [1, 1, 1, 1, 1, 1], br: [{ name: '', adj: '', desc: '', cap: '' }, { name: '', adj: '', desc: '', cap: '' }] },
-];
-export const PATH_N = PATHS.length - 1;
-export const SPECIAL_K = 8;
-// The eighth path is different for each class that has one: a new weapon, not just a new effect.
-export const SPECIAL = {
-  asker: { name: 'Bomba atar', adj: 'Patlayıcı', desc: 'Tüfek yerine bomba atar: yavaş ama her atış patlar', col: '#c2d16a', kind: 'g', aoe: 70, bspd: 720, life: 0.8,
-    dmg: [1, 2.6, 2.9, 3.2, 3.5, 3.9], rate: [1, 0.2, 0.21, 0.22, 0.23, 0.25],
-    br: [{ name: 'Geniş alan', adj: 'Yıkıcı', desc: 'Patlama alanı çok büyür', cap: 'Patlamalar zombileri tutuşturur' },
-      { name: 'Seri atar', adj: 'Seri', desc: 'Daha hızlı bomba atar', cap: 'Her atışta iki bomba' }] },
-  doktor: { name: 'Uyutucu dart', adj: 'Uyutucu', desc: 'Dartlar zombileri uyuşturur: çok yavaşlarlar ve sersemlerler', col: '#5fd38d',
-    dmg: [1, 1.15, 1.25, 1.35, 1.45, 1.55], rate: [1, 0.85, 0.87, 0.9, 0.92, 0.95],
-    br: [{ name: 'Narkoz', adj: 'Narkozlu', desc: 'Zombiler çok daha fazla yavaşlar', cap: 'Dartlar zombileri bir an uyutur' },
-      { name: 'Teşhis', adj: 'Teşhisli', desc: 'Uyuşan zombiler çok daha fazla hasar alır', cap: 'Sersemleyen zombiler iki kat hasar alır' }] },
-  nisanci: { name: 'Raylı top', adj: 'Raylı', desc: 'Tek dev atış, her şeyi ve kalkanları deler', col: '#7ad8ff', bspd: 2600, range: 1.4,
-    dmg: [1, 1.6, 1.8, 2, 2.2, 2.45], rate: [1, 0.72, 0.74, 0.76, 0.78, 0.8],
-    br: [{ name: 'Aşırı yük', adj: 'Aşırı yüklü', desc: 'Atışlar çok daha sert', cap: 'Kritik atışlar üç kat vurur' },
-      { name: 'Hızlı şarj', adj: 'Hızlı', desc: 'Daha sık ateş eder', cap: 'Atış yolunda şimşek bırakır' }] },
-  tamirci: { name: 'Çivi tabancası', adj: 'Çivili', desc: 'Pompalı yerine çok hızlı çivi yağdırır, çiviler zombileri yere çakar', col: '#d8c7a0', spread: 0.07, pellets: 1, bspd: 1300, life: 0.5,
-    dmg: [1, 1.2, 1.35, 1.5, 1.65, 1.85], rate: [1, 5.2, 5.5, 5.8, 6.1, 6.5],
-    br: [{ name: 'Çakıcı', adj: 'Çakıcı', desc: 'Çiviler zombileri daha uzun tutar', cap: 'Çivilenen zombiler %30 fazla hasar alır' },
-      { name: 'Şarapnel', adj: 'Şarapnelli', desc: 'Her atışta iki çivi', cap: 'Her atışta üç çivi' }] },
+// ---------- weapon paths: every class has four of its own ----------
+// A path changes how the gun works from level 1; at level 3 the player picks one of its two branches and
+// level 5 (the "cap") unlocks the branch's top power. Each path is built from small effect pieces that
+// the host applies on hit (fx) and that every player's bullets use (weapon fields).
+// Curves: how damage and fire rate grow over levels 0..5 (on top of the shared level bonus).
+const CURVE = {
+  H: { dmg: [1, 1.4, 1.75, 2.05, 2.35, 2.7], rate: [1, 0.92, 0.88, 0.86, 0.84, 0.82] },   // heavy: slower, much harder
+  R: { dmg: [1, 1.03, 1.05, 1.08, 1.1, 1.12], rate: [1, 1.25, 1.5, 1.6, 1.72, 1.85] },     // rapid
+  M: { dmg: [1, 1.18, 1.32, 1.46, 1.6, 1.75], rate: [1, 1.04, 1.08, 1.1, 1.12, 1.15] },    // balanced
+  E: { dmg: [1, 1.1, 1.2, 1.3, 1.4, 1.5], rate: [1, 1.05, 1.1, 1.13, 1.16, 1.2] },         // the effect does part of the work
+  S: { dmg: [1, 1.08, 1.15, 1.22, 1.3, 1.38], rate: [1, 1.04, 1.07, 1.1, 1.12, 1.15] },    // a strong effect does most of it
 };
-// Every class has its own short list of weapon paths. Effects that belong to a class stay with it:
-// poison only for the Kimyager, lightning only for Tesla, fire only for the Alevci, ice only for the Nişancı.
-export const CLASS_PATHS = {
-  asker: [1, 2, 3, 8], doktor: [2, 3, 8], tamirci: [1, 2, 8], nisanci: [1, 4, 8], kalkanci: [1, 2, 3], alevci: [7, 2, 3],
-  bombaci: [1, 2, 3], izci: [2, 3, 1], muhendis: [2, 1, 3], kimyager: [5, 2, 3], komutan: [1, 2, 3], tesla: [6, 2, 1], avci: [3, 1, 2],
-  kilicci: [1, 2, 3], egitmen: [2, 1, 3], ajan: [3, 1, 2], hacker: [2, 3, 1],
+const L3 = (a, i) => a[Math.max(0, Math.min(2, i))];
+// [name, adjective, description, colour, gun model, sound, curve, base(f, w, t), [branch1, branch2]]
+// branch: [name, adjective, description, top power, (f, w, i, cap) => {}]
+// gun models: 1 heavy shroud, 2 drum, 3 long barrel and scope, 4 frost, 5 vial, 6 coils, 7 fuel tank, 9 blade, 10 dish, 11 twin
+// sounds: 1 heavy, 2 rapid, 3 crack, 4 ice, 5 hiss, 6 lightning, 7 fire, 8 special
+const CP = {
+  asker: [
+    ['Ağır kalibre', 'Ağır', 'Daha yavaş ama çok sert vurur; vuruşlar zombileri biraz iter', '#ff8a3d', 1, 1, 'H', (f, w, t) => { f.kb = 30 + 6 * t; w.heavy = Math.min(3, Math.ceil(t * 0.6)); }, [
+      ['Sarsıcı', 'Sarsıcı', 'Vuruşlar zombileri geri iter ve sendeletir', 'Her vuruş zombiyi sersemletir', (f, w, i, cap) => { f.kb = L3([90, 110, 130], i); f.stun = cap ? 0.45 : 0.12; f.dazed = L3([1.3, 1.45, 1.6], i); }],
+      ['Yıkıcı', 'Yıkıcı', 'İri zombilere ve bosslara çok daha sert', 'Mermiler küçük patlamalar yapar', (f, w, i, cap) => { f.big = L3([1.25, 1.4, 1.55], i); if (cap) f.blast = 45; }]]],
+    ['Taramalı', 'Taramalı', 'Tetiğe bastıkça ısınır: ateş hızı gittikçe artar', '#ffd23f', 2, 2, 'S', (f, w, t) => { f.ramp = 0.2 + 0.06 * t; f.rampT = 1.6; }, [
+      ['Kızgın namlu', 'Kızgın', 'Çok daha çabuk ısınır, daha da hızlanır', 'Mermiler bir zombiden diğerine seker', (f, w, i, cap) => { f.ramp += L3([0.1, 0.15, 0.2], i); f.rampT = 0.9; if (cap) f.rico = 0.6; }],
+      ['Çift şarjör', 'Çift şarjörlü', 'Isınınca her atışta iki mermi', 'Isınınca her atışta üç mermi', (f, w, i, cap) => { f.rampPel = cap ? 2 : 1; f.rampPelK = cap ? 0.45 : L3([0.58, 0.6, 0.6], i); }]]],
+    ['Süngü', 'Süngülü', 'Yakındaki zombilere çok daha sert vurur ve onları iter', '#e8e2d2', 9, 1, 'M', (f, w, t) => { f.close = [190, 1.2 + 0.06 * t]; f.kb = 20 + 6 * t; }, [
+      ['Hücum', 'Hücum', 'Öldürdüğün her zombi seni bir an hızlandırır', 'Hızlanırken iki kat hasar', (f, w, i, cap) => { f.haste = L3([1, 1.5, 2], i); if (cap) f.hasteDmg = 2; }],
+      ['Siper', 'Siper', 'Yakın vuruşlar zombileri sersemletir', 'Yakın vuruşlar canını yeniler', (f, w, i, cap) => { f.closeStun = L3([0.15, 0.22, 0.3], i); if (cap) f.leechClose = 0.06; }]]],
+    ['Bomba atar', 'Patlayıcı', 'Tüfek yerine bomba atar: yavaş ama her atış patlar', '#c2d16a', 2, 8, { dmg: [1, 2.6, 2.9, 3.2, 3.5, 3.9], rate: [1, 0.2, 0.21, 0.22, 0.23, 0.25] }, (f, w, t) => { w.kind = 'g'; w.aoe = 70 + 10 * t; w.bspd = 720; w.life = 0.8; }, [
+      ['Geniş alan', 'Yıkıcı', 'Patlama alanı çok büyür', 'Patlamalar zombileri sarsar', (f, w, i, cap) => { w.aoe += L3([25, 40, 60], i); if (cap) f.stun = 0.3; }],
+      ['Seri atar', 'Seri', 'Daha hızlı bomba atar', 'Her atışta iki bomba', (f, w, i, cap) => { f.rateX = L3([1.3, 1.4, 1.5], i); if (cap) { w.pellets = 2; f.pelDmg = 0.7; w.spread = 0.08; } }]]],
+  ],
+  doktor: [
+    ['Uyutucu dart', 'Uyutucu', 'Dartlar zombileri uyuşturur: çok yavaşlarlar ve sersemlerler', '#5fd38d', 5, 8, { dmg: [1, 1.15, 1.25, 1.35, 1.45, 1.55], rate: [1, 0.85, 0.87, 0.9, 0.92, 0.95] }, (f, w, t) => { f.slow = 2.5; f.slowK = 0.55; f.stun = t >= 2 ? 0.08 : 0; }, [
+      ['Narkoz', 'Narkozlu', 'Zombiler çok daha fazla yavaşlar', 'Dartlar zombileri bir an uyutur', (f, w, i, cap) => { f.slowK = L3([0.4, 0.34, 0.28], i); if (cap) f.sleep = 0.12; }],
+      ['Teşhis', 'Teşhisli', 'Uyuşan zombiler çok daha fazla hasar alır', 'Sersemleyen zombiler iki kat hasar alır', (f, w, i, cap) => { f.brittle = L3([1.2, 1.28, 1.36], i); if (cap) { f.stun = 0.2; f.dazed = 2; } }]]],
+    ['Kan emici', 'Kan emici', 'Vurduğun hasarın bir kısmı canına döner', '#e5484d', 5, 5, 'E', (f, w, t) => { f.leech = 0.03 + 0.012 * t; }, [
+      ['Kan bankası', 'Bankalı', 'Çok daha fazla can emer', 'Fazla can yakındaki takım arkadaşlarına gider', (f, w, i, cap) => { f.leech += L3([0.03, 0.045, 0.06], i); if (cap) f.leechAll = 0.5; }],
+      ['Bağışıklık', 'Bağışık', 'Her vuruş yeteneğini biraz doldurur', 'Can emerken bir süre daha az hasar alırsın', (f, w, i, cap) => { f.cdr = L3([0.04, 0.06, 0.08], i); if (cap) f.guard = 1.5; }]]],
+    ['Neşter', 'Neşterli', 'Canı azalmış zombileri bitirir; dartlar bir zombiyi deler', '#dfe6ee', 3, 3, 'M', (f, w, t) => { f.exec = [0.3 + 0.02 * t, 1.4 + 0.08 * t]; f.pierce = 1; }, [
+      ['Cerrah', 'Cerrah', 'Bitirme vuruşları çok daha sert', 'Canı üçte birin altındakiler tek vuruşta düşer', (f, w, i, cap) => { f.exec = [f.exec[0] + 0.05, f.exec[1] + L3([0.4, 0.6, 0.8], i)]; if (cap) f.execKill = 0.33; }],
+      ['Otopsi', 'Otopsili', 'Öldürdüğün zombi çevresine şarapnel saçar', 'Şarapnel daha geniş ve sert', (f, w, i, cap) => { f.burst = [cap ? 110 : 80, L3([0.35, 0.45, 0.55], i)]; }]]],
+    ['Adrenalin', 'Adrenalinli', 'Vuruşlar yeteneğini doldurur, öldürmek seni hızlandırır', '#ff7ab6', 2, 2, 'R', (f, w, t) => { f.cdr = 0.02 + 0.006 * t; f.haste = 0.8; }, [
+      ['Yüksek doz', 'Yüksek dozlu', 'Yetenek çok daha çabuk dolar', 'Hızlanırken çok daha hızlı ateş', (f, w, i, cap) => { f.cdr += L3([0.03, 0.045, 0.06], i); if (cap) f.hasteRate = 1.4; }],
+      ['Şok iğnesi', 'Şok', 'Dartlar zombileri bir an sersemletir', 'Sersemleyen zombiler daha çok hasar alır', (f, w, i, cap) => { f.stun = L3([0.1, 0.14, 0.18], i); if (cap) f.dazed = 1.6; }]]],
+  ],
+  tamirci: [
+    ['Çivi tabancası', 'Çivili', 'Pompalı yerine çok hızlı çivi yağdırır, çiviler zombileri yere çakar', '#d8c7a0', 11, 8, { dmg: [1, 1.2, 1.35, 1.5, 1.65, 1.85], rate: [1, 5.2, 5.5, 5.8, 6.1, 6.5] }, (f, w, t) => { w.spread = 0.07; w.pellets = 1; w.bspd = 1300; w.life = 0.5; w.look = 'nail'; f.kb = 40; f.stun = 0.1; f.noPel = 1; }, [
+      ['Çakıcı', 'Çakıcı', 'Çiviler zombileri daha uzun tutar', 'Çivilenen zombiler %30 fazla hasar alır', (f, w, i, cap) => { f.stun = L3([0.15, 0.2, 0.25], i); if (cap) f.dazed = 1.3; }],
+      ['Şarapnel', 'Şarapnelli', 'Her atışta iki çivi', 'Her atışta üç çivi', (f, w, i, cap) => { w.pellets = cap ? 3 : 2; f.pelDmg = 0.7; }]]],
+    ['Kalın saçma', 'Kalın', 'Daha az ama çok sert saçma; yakındakileri geri fırlatır', '#ff8a3d', 1, 1, 'H', (f, w, t) => { f.pelK = 0.75; f.kb = 40 + 8 * t; w.heavy = Math.min(3, Math.ceil(t * 0.6)); }, [
+      ['Koç', 'Koç', 'Zombileri çok daha uzağa fırlatır ve sersemletir', 'Fırlayan zombiler çarptıklarına hasar verir', (f, w, i, cap) => { f.kb = L3([110, 135, 160], i); f.stun = 0.15; if (cap) f.blast = 40; }],
+      ['Saçma yağmuru', 'Yağmur', 'Saçma sayısı geri gelir, ateş hızlanır', 'Çok daha fazla saçma', (f, w, i, cap) => { f.pelK = cap ? 1.15 : L3([0.9, 0.95, 1], i); f.rateX = L3([1.1, 1.15, 1.15], i); if (cap) f.pelDmg = 0.7; }]]],
+    ['Şarapnel', 'Şarapnelli', 'Her saçma çarptığı yerde küçük bir patlama yapar', '#f4a259', 2, 3, 'S', (f, w, t) => { f.blast = 18 + 3 * t; f.blastK = 0.22; }, [
+      ['Misket', 'Misketli', 'Patlamalar çok daha geniş', 'Patlamalar zombileri sersemletir', (f, w, i, cap) => { f.blast += L3([10, 15, 22], i); if (cap) f.stun = 0.2; }],
+      ['Tahrip', 'Tahripli', 'Patlamalar çok daha sert', 'İri zombilere ve bosslara iki kat', (f, w, i, cap) => { f.blastK = L3([0.32, 0.38, 0.45], i); if (cap) f.big = 2; }]]],
+    ['Mıknatıs', 'Mıknatıslı', 'Vurduğun zombileri sana doğru çeker; çekilenler bir an sendeler', '#8fa8ff', 10, 6, 'E', (f, w, t) => { f.pull = 45 + 9 * t; f.stun = 0.06; }, [
+      ['Çekim', 'Çekimli', 'Çok daha güçlü çeker', 'Çekilen zombiler birbirine çarpıp hasar alır', (f, w, i, cap) => { f.pull += L3([30, 45, 60], i); if (cap) f.blast = 35; }],
+      ['Ezici', 'Ezici', 'Sendeleyen zombilere çok daha sert', 'Çekilen zombiler bir süre daha yavaş', (f, w, i, cap) => { f.dazed = L3([1.35, 1.5, 1.65], i); f.stun = 0.12; if (cap) { f.slow = 1.5; f.slowK = 0.6; } }]]],
+  ],
+  nisanci: [
+    ['Raylı top', 'Raylı', 'Tek dev atış, her şeyi ve kalkanları deler', '#7ad8ff', 6, 8, { dmg: [1, 1.6, 1.8, 2, 2.2, 2.45], rate: [1, 0.72, 0.74, 0.76, 0.78, 0.8] }, (f, w, t) => { w.bspd = 2600; w.life *= 1.4; w.look = 'rail'; f.pierce = 99; f.noShield = t >= 3; }, [
+      ['Aşırı yük', 'Aşırı yüklü', 'Atışlar çok daha sert', 'Kritik atışlar üç kat vurur', (f, w, i, cap) => { f.dmgX = L3([1.12, 1.18, 1.25], i); f.crit = 0.18; f.critX = cap ? 3 : 2; }],
+      ['Hızlı şarj', 'Hızlı', 'Daha sık ateş eder', 'Atış yolundaki zombiler sersemler', (f, w, i, cap) => { f.rateX = L3([1.1, 1.15, 1.22], i); if (cap) f.stun = 0.35; }]]],
+    ['Kriyojenik', 'Kriyojenik', 'Mermiler zombileri dondurur ve yavaşlatır', '#7bdff2', 4, 4, 'E', (f, w, t) => { f.slow = [0, 1.5, 2.5, 3, 3.5, 4][t]; f.slowK = 0.55; f.frost = 1; }, [
+      ['Donduran', 'Donduran', 'Zombiler çok daha fazla yavaşlar', 'Vuruşlar zombileri buz kalıbına çevirebilir', (f, w, i, cap) => { f.slowK = L3([0.45, 0.4, 0.35], i); f.dazed = cap ? 1.5 : L3([1.15, 1.25, 1.25], i); if (cap) f.freeze = 0.12; }],
+      ['Kırılgan', 'Kırıcı', 'Yavaşlayan zombiler daha çok hasar alır', 'Donan zombiler ölünce buz parçalarına patlar', (f, w, i, cap) => { f.brittle = L3([1.15, 1.22, 1.3], i); f.shatter = cap; }]]],
+    ['Av işareti', 'İşaretli', 'Vurduğun zombi işaretlenir: herkesten daha çok hasar alır', '#ffb347', 3, 3, 'M', (f, w, t) => { f.mark = [1.08 + 0.04 * t, 4]; }, [
+      ['Gözcü', 'Gözcü', 'İşaret daha güçlü ve daha uzun', 'İşaret yakındaki zombilere de yayılır', (f, w, i, cap) => { f.mark = [f.mark[0] + L3([0.08, 0.12, 0.16], i), 6]; if (cap) f.markR = 120; }],
+      ['Kafadan', 'Kafadan', 'İşaretli zombilere kritik şansı', 'Kritikler üç kat vurur', (f, w, i, cap) => { f.crit = L3([0.18, 0.24, 0.3], i); f.critX = cap ? 3 : 2.2; }]]],
+    ['Seken mermi', 'Seken', 'Mermi vurduğu zombiden yakındaki bir başkasına seker', '#c9a2ff', 3, 3, 'M', (f, w, t) => { f.rico = 0.4 + 0.06 * t; f.ricoN = 1 + (t >= 2 ? 1 : 0); }, [
+      ['Bilardo', 'Bilardo', 'Mermi daha çok zombiye seker', 'Her sekme biraz daha sert vurur', (f, w, i, cap) => { f.ricoN += L3([1, 2, 3], i); if (cap) f.ricoUp = 1.2; }],
+      ['Delip geçen', 'Delici', 'Seken mermi zombileri deler', 'Mermiler kalkanları da deler', (f, w, i, cap) => { f.pierce = L3([2, 3, 5], i); if (cap) f.noShield = true; }]]],
+  ],
+  kalkanci: [
+    ['Koçbaşı', 'Koçbaşı', 'Ağır mermiler zombileri geri iter, yaklaşmalarını zorlaştırır', '#ff8a3d', 1, 1, 'H', (f, w, t) => { f.kb = 35 + 9 * t; w.heavy = Math.min(3, Math.ceil(t * 0.6)); }, [
+      ['Duvar', 'Duvar', 'Çok daha güçlü iter', 'İtilen zombiler sersemler', (f, w, i, cap) => { f.kb = L3([100, 125, 150], i); if (cap) f.stun = 0.3; }],
+      ['Ezen', 'Ezen', 'İri zombilere ve bosslara çok daha sert', 'Bosslara karşı her vuruş zırhını deler', (f, w, i, cap) => { f.big = L3([1.3, 1.45, 1.6], i); if (cap) f.noShield = true; }]]],
+    ['Baskı ateşi', 'Bastıran', 'Kalkanın arkasından hızlı ateş; vurulan zombiler yavaşlar', '#ffd23f', 2, 2, 'R', (f, w, t) => { f.slow = 1; f.slowK = 0.8 - 0.02 * t; }, [
+      ['Kurşun duvarı', 'Duvarlı', 'Zombiler çok daha fazla yavaşlar', 'Yavaşlayan zombiler daha çok hasar alır', (f, w, i, cap) => { f.slowK = L3([0.65, 0.58, 0.5], i); if (cap) f.brittle = 1.25; }],
+      ['Sürekli ateş', 'Sürekli', 'Tetiğe bastıkça ısınıp hızlanır', 'Isınınca mermiler zombileri deler', (f, w, i, cap) => { f.ramp = L3([0.15, 0.2, 0.25], i); f.rampT = 1.5; if (cap) f.pierce = 2; }]]],
+    ['Zırh kıran', 'Zırh kıran', 'Mermiler kalkanlı ve zırhlı zombileri deler', '#c77dff', 3, 3, 'M', (f, w, t) => { f.noShield = true; f.pierce = Math.min(2, t); f.armorK = 1.3 + 0.05 * t; }, [
+      ['Delici', 'Delici', 'Mermiler daha çok zombiyi deler', 'Mermiler her şeyi deler', (f, w, i, cap) => { f.pierce = cap ? 99 : L3([3, 5, 5], i); }],
+      ['Parçalayıcı', 'Parçalayıcı', 'İri zombilere çok daha sert', 'Zırhlı ve elit zombilere iki kat', (f, w, i, cap) => { f.big = L3([1.25, 1.4, 1.5], i); if (cap) f.armorK = 2; }]]],
+    ['Kan bağı', 'Kan bağlı', 'Yakındaki zombilere daha sert vurur ve canını yeniler', '#e5484d', 5, 5, 'E', (f, w, t) => { f.close = [200, 1.15 + 0.04 * t]; f.leechClose = 0.02 + 0.008 * t; }, [
+      ['Kale', 'Kale', 'Yakın vuruşlar çok daha fazla can verir', 'Can yenilerken daha az hasar alırsın', (f, w, i, cap) => { f.leechClose += L3([0.02, 0.03, 0.04], i); if (cap) f.guard = 1.5; }],
+      ['Öfke', 'Öfkeli', 'Canın azaldıkça daha sert vurursun', 'Canın yarının altındayken iki kat hasar', (f, w, i, cap) => { f.rage = L3([0.4, 0.55, 0.7], i); if (cap) f.rageCap = 2; }]]],
+  ],
+  alevci: [
+    ['Cehennem', 'Cehennem', 'Alev çok daha uzun yakar ve yayılır', '#ff5a36', 7, 7, 'E', (f, w, t) => { f.burn = [0, 0.25, 0.3, 0.34, 0.38, 0.42][t]; f.bdur = 3.5; }, [
+      ['Napalm', 'Yapışkan', 'Yanan zombiler değdiklerini tutuşturur', 'Yanan zombiler ölünce patlar', (f, w, i, cap) => { f.burn *= 0.75; f.napalm = true; f.boomOnDeath = cap; }],
+      ['Kor', 'Kor', 'Yanma çok daha fazla hasar verir', 'Vuruşlar yerde alev bırakır', (f, w, i, cap) => { f.burn *= L3([1.5, 1.8, 2.2], i); if (cap) f.patch = true; }]]],
+    ['Alev halısı', 'Halı', 'Alev yere yapışır: arkanda yanan bir yol bırakırsın', '#ff9f1c', 7, 7, 'S', (f, w, t) => { f.patch = true; f.patchK = 0.3 + 0.04 * t; f.patchT = 0.9 - 0.05 * t; }, [
+      ['Orman yangını', 'Yangın', 'Yanan zemin daha geniş ve uzun', 'Yanan zemin zombileri yavaşlatır', (f, w, i, cap) => { f.patchR = L3([70, 80, 95], i); if (cap) f.patchSlow = true; }],
+      ['Lav', 'Lav', 'Yanan zemin çok daha sert yakar', 'Zeminde yanan zombiler patlar', (f, w, i, cap) => { f.patchK += L3([0.15, 0.25, 0.35], i); if (cap) f.boomOnDeath = true; }]]],
+    ['Uzun hortum', 'Uzun', 'Alev daha uzağa gider, daha çok zombiyi deler', '#ffd166', 3, 7, 'M', (f, w, t) => { w.life *= 1 + 0.12 * t; f.pierce = 2 + t; }, [
+      ['Alev topu', 'Toplu', 'Alev uçta küçük patlamalar yapar', 'Patlamalar zombileri tutuşturur', (f, w, i, cap) => { f.blast = L3([30, 40, 50], i); f.blastK = 0.3; if (cap) f.burn = 0.3; }],
+      ['Basınç', 'Basınçlı', 'Alev çok daha sık püskürür', 'Alev zombileri geri iter', (f, w, i, cap) => { f.rateX = L3([1.2, 1.3, 1.4], i); if (cap) f.kb = 60; }]]],
+    ['Termit', 'Termit', 'Kalkan ve zırhları eritir, iri zombilere çok sert', '#fff1a8', 6, 7, 'E', (f, w, t) => { f.noShield = true; f.big = 1.15 + 0.06 * t; f.armorK = 1.4; }, [
+      ['Eritici', 'Eritici', 'Bosslara ve iri zombilere daha da sert', 'Bossları tutuşturur, yanmaları uzun sürer', (f, w, i, cap) => { f.big += L3([0.2, 0.3, 0.4], i); if (cap) { f.burn = 0.35; f.bdur = 6; } }],
+      ['Kıvılcım', 'Kıvılcımlı', 'Vuruşlar çevreye kıvılcım saçar', 'Kıvılcımlar zombileri sersemletir', (f, w, i, cap) => { f.blast = L3([35, 45, 55], i); f.blastK = 0.25; if (cap) f.stun = 0.15; }]]],
+  ],
+  bombaci: [
+    ['Büyük şarj', 'Büyük', 'Bombalar daha sert ve geniş patlar', '#ff8a3d', 1, 1, 'H', (f, w, t) => { w.aoe += 10 * t; w.heavy = Math.min(3, Math.ceil(t * 0.6)); }, [
+      ['Yer sarsan', 'Sarsan', 'Patlamalar zombileri geri fırlatır', 'Patlamalar zombileri sersemletir', (f, w, i, cap) => { f.kb = L3([80, 100, 120], i); if (cap) f.stun = 0.4; }],
+      ['Bunker kırıcı', 'Kırıcı', 'İri zombilere ve bosslara çok daha sert', 'Patlama alanı çok büyür', (f, w, i, cap) => { f.big = L3([1.3, 1.45, 1.6], i); if (cap) w.aoe += 50; }]]],
+    ['Misket', 'Misketli', 'Her atışta birden çok küçük bomba saçar', '#f4a259', 11, 2, 'M', (f, w, t) => { w.pellets = 2 + (t >= 2 ? 1 : 0); f.pelDmg = t >= 2 ? 0.34 : 0.5; w.spread = 0.18; w.aoe *= 0.65; f.noPel = 1; }, [
+      ['Halı bombası', 'Halı', 'Daha çok bomba', 'Her atışta beş bomba', (f, w, i, cap) => { w.pellets = cap ? 5 : 4; f.pelDmg = cap ? 0.23 : 0.27; }],
+      ['Seri misket', 'Seri', 'Çok daha sık atar', 'Bombalar daha geniş patlar', (f, w, i, cap) => { f.rateX = L3([1.15, 1.22, 1.2], i); if (cap) w.aoe *= 1.4; }]]],
+    ['Yapışkan', 'Yapışkan', 'Patlama yapışkan bir sıvı saçar: zombiler çok yavaşlar', '#9ad86b', 5, 5, 'E', (f, w, t) => { f.slow = 2 + 0.3 * t; f.slowK = 0.55; }, [
+      ['Zamk', 'Zamklı', 'Zombiler neredeyse durur', 'Yapışan zombiler bir an tamamen durur', (f, w, i, cap) => { f.slowK = L3([0.42, 0.36, 0.3], i); if (cap) f.stun = 0.5; }],
+      ['Katran', 'Katranlı', 'Yapışan zombiler daha çok hasar alır', 'Yere zombileri yavaşlatan bir katran gölü bırakır', (f, w, i, cap) => { f.brittle = L3([1.2, 1.28, 1.36], i); if (cap) f.tar = [70, 3]; }]]],
+    ['Sekme bombası', 'Seken', 'Bomba ilk çarptığı yerde patlar, sonra bir kez daha sekip patlar', '#c77dff', 2, 1, 'M', (f, w, t) => { f.bounce = 1; f.bounceK = 0.45 + 0.05 * t; }, [
+      ['Zıplayan', 'Zıplayan', 'Bomba bir kez daha seker', 'Her sekme daha geniş patlar', (f, w, i, cap) => { f.bounce = 2; f.bounceK += L3([0.05, 0.1, 0.15], i); if (cap) f.bounceAoe = 1.3; }],
+      ['Gecikmeli', 'Gecikmeli', 'İkinci patlama çok daha sert', 'İkinci patlama zombileri sersemletir', (f, w, i, cap) => { f.bounceK += L3([0.3, 0.45, 0.6], i); if (cap) f.stun = 0.35; }]]],
+  ],
+  izci: [
+    ['Hazine avcısı', 'Avcı', 'Öldürdüğün zombilerden fazladan altın düşer', '#ffd34d', 11, 2, 'E', (f, w, t) => { f.goldK = 0.1 + 0.05 * t; }, [
+      ['Yağmacı', 'Yağmacı', 'Çok daha fazla altın', 'Elit ve iri zombilerden üç kat altın', (f, w, i, cap) => { f.goldK += L3([0.15, 0.22, 0.3], i); if (cap) f.goldBig = 3; }],
+      ['Kumarbaz', 'Kumarbaz', 'Altının arttıkça kritik şansın artar', 'Kritikler fazladan altın verir', (f, w, i, cap) => { f.critGold = L3([0.04, 0.06, 0.08], i); f.critX = 2.2; if (cap) f.critGoldK = 1; }]]],
+    ['Sekme', 'Seken', 'Mermiler vurduğu zombiden bir başkasına seker', '#c9a2ff', 3, 3, 'M', (f, w, t) => { f.rico = 0.45 + 0.05 * t; f.ricoN = 1 + (t >= 2 ? 1 : 0); }, [
+      ['Akrobat', 'Akrobat', 'Mermiler çok daha çok seker', 'Her sekme biraz daha sert', (f, w, i, cap) => { f.ricoN += L3([1, 2, 3], i); if (cap) f.ricoUp = 1.2; }],
+      ['Kesişen', 'Kesişen', 'İki tabancanın mermileri aynı zombiye çarpınca sersemletir', 'Sekmeler kritik vurabilir', (f, w, i, cap) => { f.stun = L3([0.08, 0.12, 0.16], i); if (cap) f.crit = 0.2; }]]],
+    ['Akıncı', 'Akıncı', 'Öldürmek seni hızlandırır, koşarken daha hızlı ateş edersin', '#7cf29c', 2, 2, 'R', (f, w, t) => { f.haste = 0.6 + 0.15 * t; f.hasteRate = 1.15 + 0.03 * t; }, [
+      ['Rüzgar', 'Rüzgar', 'Hızlanma çok daha uzun sürer', 'Hızlanırken mermiler deler', (f, w, i, cap) => { f.haste += L3([0.8, 1.2, 1.6], i); if (cap) f.hastePierce = 2; }],
+      ['Vur kaç', 'Vurkaç', 'Hızlanırken çok daha sert vurursun', 'Hızlanırken iki kat hasar', (f, w, i, cap) => { f.hasteDmg = cap ? 2 : L3([1.3, 1.45, 1.45], i); }]]],
+    ['Keskin nişan', 'Keskin', 'Yüksek kritik şansı; kritikler çok sert', '#ff5a5a', 3, 3, 'M', (f, w, t) => { f.crit = 0.08 + 0.025 * t; f.critX = 2.2; }, [
+      ['Ölümcül', 'Ölümcül', 'Kritikler çok daha sert', 'Kritikler üç kat vurur ve deler', (f, w, i, cap) => { f.critX = cap ? 3 : L3([2.5, 2.7, 2.7], i); }],
+      ['Göz kararı', 'Göz kararı', 'Kritik şansı çok artar', 'Kritik vuruşlar zombiyi sersemletir', (f, w, i, cap) => { f.crit += L3([0.08, 0.12, 0.16], i); if (cap) f.critStun = 0.3; }]]],
+  ],
+  muhendis: [
+    ['Hedef lazeri', 'Lazerli', 'Vurduğun zombiler işaretlenir, dronlar ve taretler onlara çok daha sert vurur', '#ff3b3b', 10, 3, 'E', (f, w, t) => { f.mark = [1.08 + 0.04 * t, 3.5]; f.home = 2; }, [
+      ['Kilit', 'Kilitli', 'Mermiler hedefe daha çok döner, işaret güçlenir', 'İşaretli zombiye taretler iki kat vurur', (f, w, i, cap) => { f.home = 4; f.mark = [f.mark[0] + L3([0.06, 0.1, 0.14], i), 4.5]; if (cap) f.markTur = 2; }],
+      ['Tarama', 'Taramalı', 'İşaret yakındaki zombilere de yayılır', 'İşaretli zombiler yavaşlar', (f, w, i, cap) => { f.markR = L3([80, 110, 140], i); if (cap) { f.slow = 1.5; f.slowK = 0.7; } }]]],
+    ['Şok tabancası', 'Şoklu', 'Mermiler zombileri bir an sersemletir', '#9ad8ff', 6, 6, 'E', (f, w, t) => { f.stun = 0.06 + 0.015 * t; }, [
+      ['Kısa devre', 'Kısa devreli', 'Daha uzun sersemletir', 'Sersemleyen zombiler daha çok hasar alır', (f, w, i, cap) => { f.stun = L3([0.16, 0.2, 0.25], i); if (cap) f.dazed = 1.5; }],
+      ['Darbe', 'Darbeli', 'Sersemletme çevreye yayılır', 'Darbe zombileri geri iter', (f, w, i, cap) => { f.blast = L3([40, 50, 60], i); f.blastK = 0.2; f.stunAoe = 1; if (cap) f.kb = 60; }]]],
+    ['Perçin', 'Perçinli', 'Aynı zombiye art arda vurdukça her mermi daha sert vurur', '#d8c7a0', 11, 1, 'M', (f, w, t) => { f.stack = [0.05 + 0.01 * t, 6]; }, [
+      ['Matkap', 'Matkaplı', 'Art arda vuruşlar çok daha çok birikir', 'Birikim dolunca zombi sersemler', (f, w, i, cap) => { f.stack = [f.stack[0] + L3([0.02, 0.03, 0.04], i), 8]; if (cap) f.stackStun = 0.4; }],
+      ['Hidrolik', 'Hidrolik', 'Birikim daha hızlı ve ateş hızı artar', 'Birikim dolunca zombi patlar', (f, w, i, cap) => { f.rateX = L3([1.15, 1.22, 1.3], i); if (cap) f.stackBoom = 70; }]]],
+    ['Seyyar havan', 'Havanlı', 'Tüfek yerine küçük havan mermileri atar: yavaş ama alan hasarı', '#c2d16a', 1, 8, { dmg: [1, 2, 2.25, 2.5, 2.75, 3], rate: [1, 0.32, 0.33, 0.34, 0.36, 0.38] }, (f, w, t) => { w.kind = 'g'; w.aoe = 55 + 8 * t; w.bspd = 800; w.life = 0.75; }, [
+      ['Şarapnel', 'Şarapnelli', 'Patlama alanı büyür', 'Patlamalar zombileri sersemletir', (f, w, i, cap) => { w.aoe += L3([20, 30, 45], i); if (cap) f.stun = 0.3; }],
+      ['Otomatik yükleyici', 'Otomatik', 'Çok daha sık atar', 'Her atışta iki havan', (f, w, i, cap) => { f.rateX = L3([1.25, 1.35, 1.25], i); if (cap) { w.pellets = 2; f.pelDmg = 0.62; w.spread = 0.1; } }]]],
+  ],
+  kimyager: [
+    ['Toksin', 'Toksik', 'Vurduğun zombiler zehirlenip can kaybeder', '#8fd14f', 5, 5, 'E', (f, w, t) => { f.poison = [0, 0.25, 0.32, 0.38, 0.44, 0.5][t]; f.pdur = 4; }, [
+      ['Salgın', 'Salgın', 'Zehir ölünce yakındakilere bulaşır', 'Ölen zombiler zehir bulutu bırakır', (f, w, i, cap) => { f.spread = L3([2, 3, 5], i); f.gas = cap; }],
+      ['Nörotoksin', 'Nörotoksik', 'Zehirlenen zombiler yavaşlar', 'Zehirlenen zombiler bir an felç olur', (f, w, i, cap) => { f.poison *= 1.1; f.slow = 2; f.slowK = L3([0.7, 0.62, 0.55], i); if (cap) f.stun = 0.3; }]]],
+    ['Asit gölü', 'Göllü', 'Atışlar yere asit gölü bırakır', '#b5e61d', 5, 5, 'S', (f, w, t) => { f.puddle = [55 + 5 * t, 2.5]; f.puddleK = 0.25 + 0.04 * t; }, [
+      ['Bataklık', 'Bataklık', 'Göller daha geniş ve uzun sürer', 'Göldeki zombiler yavaşlar', (f, w, i, cap) => { f.puddle = [f.puddle[0] + L3([15, 25, 35], i), 4]; if (cap) f.puddleSlow = true; }],
+      ['Kostik', 'Kostik', 'Göller çok daha sert yakar', 'Göller kalkanları da eritir', (f, w, i, cap) => { f.puddleK += L3([0.15, 0.25, 0.35], i); if (cap) f.noShield = true; }]]],
+    ['Aşındırıcı', 'Aşındırıcı', 'Asit zombilerin derisini eritir: herkesten daha çok hasar alırlar', '#e8ff5a', 3, 5, 'E', (f, w, t) => { f.acidHit = [1.1 + 0.03 * t, 3]; f.pierce = 1; }, [
+      ['Eritici', 'Eritici', 'Eriyen zombiler çok daha çok hasar alır', 'Asit kalkanları eritir, bosslara tam işler', (f, w, i, cap) => { f.acidHit = [f.acidHit[0] + L3([0.08, 0.12, 0.16], i), 3.5]; if (cap) f.noShield = true; }],
+      ['Delici asit', 'Delici', 'Atışlar daha çok zombiyi deler', 'Atışlar her şeyi deler', (f, w, i, cap) => { f.pierce = cap ? 99 : L3([3, 4, 5], i); }]]],
+    ['Patlayan şişe', 'Şişeli', 'Şişe atar: çarptığı yerde patlayıp zehir saçar', '#6bd36b', 5, 8, { dmg: [1, 1.9, 2.1, 2.35, 2.6, 2.85], rate: [1, 0.36, 0.37, 0.38, 0.4, 0.42] }, (f, w, t) => { w.kind = 'g'; w.aoe = 60 + 8 * t; w.bspd = 700; w.life = 0.8; f.poison = 0.25 + 0.03 * t; f.pdur = 3; }, [
+      ['Bulut', 'Bulutlu', 'Patlama zehir bulutu bırakır', 'Bulut daha geniş ve uzun', (f, w, i, cap) => { f.cloud = [cap ? 100 : 75, L3([2.5, 3, 3.5], i)]; }],
+      ['Molotof kimyası', 'Patlayıcı', 'Patlama alanı büyür, daha sert vurur', 'Her atışta iki şişe', (f, w, i, cap) => { w.aoe += L3([20, 30, 25], i); f.dmgX = L3([1.1, 1.18, 1.1], i); if (cap) { w.pellets = 2; f.pelDmg = 0.7; w.spread = 0.12; } }]]],
+  ],
+  komutan: [
+    ['Hedef göster', 'Hedefli', 'Vurduğun yerdeki zombiler işaretlenir: takımın onlara çok daha sert vurur', '#ff3b3b', 10, 3, 'E', (f, w, t) => { f.mark = [1.1 + 0.035 * t, 4]; f.markR = 70; }, [
+      ['Ateş desteği', 'Destekli', 'İşaret daha güçlü ve daha geniş', 'İşaretli zombiler yavaşlar', (f, w, i, cap) => { f.mark = [f.mark[0] + L3([0.06, 0.09, 0.12], i), 5]; f.markR = L3([100, 120, 140], i); if (cap) { f.slow = 1.5; f.slowK = 0.7; } }],
+      ['Taarruz', 'Taarruz', 'İşaretli zombiyi öldürmek takımı hızlandırır', 'Takım hızlanırken daha sert vurur', (f, w, i, cap) => { f.teamHaste = L3([1, 1.5, 2], i); if (cap) f.teamPower = 2; }]]],
+    ['Komuta tüfeği', 'Ağır', 'Daha yavaş ama çok sert, delip geçen atışlar', '#ff8a3d', 1, 1, 'H', (f, w, t) => { f.pierce = 1 + (t >= 2 ? 1 : 0); w.heavy = Math.min(3, Math.ceil(t * 0.6)); }, [
+      ['Top', 'Toplu', 'İri zombilere ve bosslara çok daha sert', 'Atışlar küçük patlamalar yapar', (f, w, i, cap) => { f.big = L3([1.3, 1.45, 1.6], i); if (cap) f.blast = 50; }],
+      ['Mermi yolu', 'Delici', 'Atışlar çok daha çok zombiyi deler', 'Atışlar her şeyi deler, kalkanları da', (f, w, i, cap) => { f.pierce = cap ? 99 : L3([3, 4, 6], i); if (cap) f.noShield = true; }]]],
+    ['Sancak', 'Sancaklı', 'Öldürdüğün her zombi yakındaki takım arkadaşlarının canını yeniler', '#43d17a', 11, 2, 'M', (f, w, t) => { f.healAll = [220, 2 + t]; }, [
+      ['Moral', 'Moralli', 'Daha çok can verir', 'Öldürmek takımı bir an hızlandırır', (f, w, i, cap) => { f.healAll = [260, f.healAll[1] + L3([2, 3, 4], i)]; if (cap) f.teamHaste = 1; }],
+      ['Saflar', 'Saflı', 'Takım arkadaşlarının yanındayken daha sert vurursun', 'Yanındaki her arkadaş için daha sert', (f, w, i, cap) => { f.nearAlly = [260, L3([1.15, 1.22, 1.3], i)]; if (cap) f.nearAllyEach = 0.08; }]]],
+    ['Keskin göz', 'Keskin', 'Yüksek kritik şansı, menzil artar', '#c77dff', 3, 3, 'M', (f, w, t) => { f.crit = 0.08 + 0.025 * t; f.critX = 2.2; w.life *= 1 + 0.05 * t; }, [
+      ['Usta nişancı', 'Usta', 'Kritik şansı çok artar', 'Kritikler üç kat vurur', (f, w, i, cap) => { f.crit += L3([0.08, 0.12, 0.15], i); if (cap) f.critX = 3; }],
+      ['Emir', 'Emirli', 'Kritik vuruşlar yeteneğini doldurur', 'Kritik vuruşlar zombiyi işaretler', (f, w, i, cap) => { f.critCdr = L3([0.4, 0.6, 0.8], i); if (cap) f.critMark = 1.25; }]]],
+  ],
+  tesla: [
+    ['Yüksek gerilim', 'Gerilimli', 'Vuruşlar yakındaki zombilere sıçrar', '#9ad8ff', 6, 6, 'E', (f, w, t) => { f.chain = [0, 2, 3, 4, 5, 6][t]; f.chainK = [0, 0.19, 0.2, 0.22, 0.24, 0.26][t]; w.look = 'arc'; }, [
+      ['Zincir', 'Zincirleme', 'Şimşek daha çok zombiye sıçrar', 'Şimşek çarptığı zombileri sersemletir', (f, w, i, cap) => { f.chain += L3([0, 0, 1], i); if (cap) f.chainStun = 0.5; }],
+      ['Aşırı yük', 'Aşırı yüklü', 'Sıçrayan şimşek çok daha sert', 'Arada bir hedefe yıldırım düşer', (f, w, i, cap) => { f.chain = 3; f.chainK *= L3([1.3, 1.45, 1.6], i); if (cap) f.bolt = 3; }]]],
+    ['Plazma topu', 'Plazmalı', 'Yavaş, parlayan plazma topları: çarptığı yerde patlar ve sersemletir', '#c77dff', 10, 6, { dmg: [1, 1.9, 2.15, 2.4, 2.65, 2.9], rate: [1, 0.48, 0.5, 0.52, 0.54, 0.56] }, (f, w, t) => { w.kind = 'g'; w.aoe = 50 + 6 * t; w.bspd = 650; w.life = 0.9; w.look = 'orb'; f.stun = 0.12; }, [
+      ['Yıldız', 'Yıldız', 'Patlama çok daha geniş', 'Patlama yakındaki zombilere şimşek atar', (f, w, i, cap) => { w.aoe += L3([20, 30, 40], i); if (cap) { f.chain = 3; f.chainK = 0.25; } }],
+      ['Füzyon', 'Füzyon', 'Çok daha sert patlar', 'Sersemletme çok daha uzun', (f, w, i, cap) => { f.dmgX = L3([1.1, 1.18, 1.25], i); if (cap) f.stun = 0.45; }]]],
+    ['Kondansatör', 'Yüklü', 'Aynı zombiye vurdukça yük birikir, her vuruş daha sert', '#ffe066', 6, 6, 'M', (f, w, t) => { f.stack = [0.06 + 0.012 * t, 6]; }, [
+      ['Boşalma', 'Boşalan', 'Birikim dolunca zombi yıldırımla çarpılır', 'Yıldırım çevredekilere de vurur', (f, w, i, cap) => { f.stackBolt = L3([1.5, 2, 2.5], i); if (cap) f.stackBoom = 80; }],
+      ['Yüksek kapasite', 'Kapasiteli', 'Daha çok yük birikir', 'Birikim hiç sıfırlanmaz, sadece azalır', (f, w, i, cap) => { f.stack = [f.stack[0] + L3([0.015, 0.025, 0.03], i), L3([8, 10, 12], i)]; if (cap) f.stackKeep = 1; }]]],
+    ['Manyetik alan', 'Manyetik', 'Vurduğun zombileri kendine çeker ve şimşekle yavaşlatır', '#8fa8ff', 10, 6, 'E', (f, w, t) => { f.pull = 40 + 8 * t; f.slow = 1; f.slowK = 0.75; }, [
+      ['Kara delik', 'Delikli', 'Çok daha güçlü çeker', 'Çekilen zombiler sıkışıp birbirine hasar verir', (f, w, i, cap) => { f.pull += L3([30, 45, 60], i); if (cap) f.blast = 40; }],
+      ['Faraday', 'Faraday', 'Çekilen zombiler daha çok yavaşlar', 'Yakındaki zombiler sana vurunca çarpılır', (f, w, i, cap) => { f.slowK = L3([0.65, 0.58, 0.5], i); if (cap) f.thorns = 0.5; }]]],
+  ],
+  avci: [
+    ['Çelik uç', 'Çelik uçlu', 'Oklar daha çok zombiyi deler, menzil artar', '#c77dff', 3, 3, 'M', (f, w, t) => { w.life *= 1 + 0.08 * t; f.pierce = 4 + t; }, [
+      ['Ok yağmuru', 'Yağmur', 'Oklar her şeyi deler', 'Deldiği her zombi oku daha sert yapar', (f, w, i, cap) => { f.pierce = 99; if (cap) f.pierceUp = 1.1; }],
+      ['Keskin uç', 'Keskin', 'Kritik şansı', 'Kritikler kalkanları da deler', (f, w, i, cap) => { f.crit = L3([0.12, 0.18, 0.24], i); f.critX = 2.2; if (cap) f.noShield = true; }]]],
+    ['Kanca', 'Kancalı', 'Oklar zombileri sana doğru çeker', '#d8c7a0', 9, 1, 'E', (f, w, t) => { f.pull = 50 + 10 * t; f.pierce = 0; }, [
+      ['Zıpkın', 'Zıpkınlı', 'Çok daha güçlü çeker, iri zombileri bile', 'Çekilen zombiler sersemler', (f, w, i, cap) => { f.pull += L3([40, 60, 80], i); f.pullBig = true; if (cap) f.stun = 0.4; }],
+      ['Tuzak', 'Tuzaklı', 'Çekilen zombiler daha çok hasar alır', 'Çekilen zombilere iki kat', (f, w, i, cap) => { f.dazed = L3([1.3, 1.45, 1.6], i); f.stun = 0.1; if (cap) f.dazed = 2; }]]],
+    ['Çift kiriş', 'Çift kirişli', 'Her atışta iki ok', '#7cf29c', 11, 2, 'M', (f, w, t) => { w.pellets = 2; f.pelDmg = 0.56 + 0.01 * t; w.spread = 0.07; f.noPel = 1; }, [
+      ['Yelpaze', 'Yelpaze', 'Her atışta üç ok', 'Her atışta beş ok', (f, w, i, cap) => { w.pellets = cap ? 5 : 3; f.pelDmg = cap ? 0.26 : 0.4; w.spread = 0.14; }],
+      ['Paralel', 'Paralel', 'İki ok aynı zombiye çarparsa sersemletir', 'Oklar daha hızlı atılır', (f, w, i, cap) => { f.stun = L3([0.12, 0.16, 0.2], i); if (cap) f.rateX = 1.15; }]]],
+    ['Patlayıcı ok', 'Patlayıcı', 'Oklar ilk zombiye saplanıp patlar', '#ff6b2c', 1, 1, 'S', (f, w, t) => { f.pierce = 0; f.blast = 40 + 6 * t; f.blastK = 0.45; }, [
+      ['Fişek', 'Fişekli', 'Patlama daha geniş', 'Patlama zombileri sersemletir', (f, w, i, cap) => { f.blast += L3([15, 25, 35], i); if (cap) f.stun = 0.3; }],
+      ['Dinamit', 'Dinamitli', 'Patlama çok daha sert', 'İri zombilere ve bosslara iki kat', (f, w, i, cap) => { f.blastK = L3([0.6, 0.7, 0.8], i); if (cap) f.big = 2; }]]],
+  ],
+  kilicci: [
+    ['Ağır kılıç', 'Ağır', 'Daha yavaş ama çok sert savurur, zombileri geri iter', '#ff8a3d', 9, 1, 'H', (f, w, t) => { f.kb = 40 + 8 * t; f.heavySwing = 1; }, [
+      ['Balyoz', 'Balyoz', 'Zombileri çok daha uzağa fırlatır ve sersemletir', 'Savuruş yere çarpıp çevreye hasar verir', (f, w, i, cap) => { f.kb = L3([110, 130, 150], i); f.stun = 0.15; if (cap) f.blast = 60; }],
+      ['Cellat', 'Cellat', 'İri zombilere ve bosslara çok daha sert', 'Canı azalmış zombileri tek vuruşta bitirir', (f, w, i, cap) => { f.big = L3([1.3, 1.45, 1.6], i); if (cap) f.execKill = 0.2; }]]],
+    ['Çift kılıç', 'Çift', 'Çok daha hızlı savurur', '#ffd23f', 9, 2, 'R', (f, w, t) => { }, [
+      ['Kasırga dansı', 'Dansçı', 'Çok daha da hızlı savurur', 'Her savuruşta iki kesik', (f, w, i, cap) => { f.rateX = L3([1.15, 1.25, 1.2], i); if (cap) f.doubleCut = 0.6; }],
+      ['Kan çiçeği', 'Kanlı', 'Savuruşlar kanatır: zombiler bir süre can kaybeder', 'Kanayan zombiler yavaşlar', (f, w, i, cap) => { f.bleed = L3([0.25, 0.32, 0.4], i); if (cap) { f.slow = 1.5; f.slowK = 0.7; } }]]],
+    ['Uzun kılıç', 'Uzun', 'Savuruş daha uzağa ve daha geniş yetişir', '#c9a2ff', 9, 3, 'M', (f, w, t) => { f.reach = 1 + 0.06 * t; f.arcX = 1 + 0.04 * t; }, [
+      ['Mızrak', 'Mızrak', 'Çok daha uzağa yetişir', 'Savuruş havaya bir kesik dalgası fırlatır', (f, w, i, cap) => { f.reach += L3([0.12, 0.18, 0.24], i); if (cap) f.wave = 1; }],
+      ['Pala', 'Pala', 'Çok daha geniş savurur', 'Savuruş arkayı da keser', (f, w, i, cap) => { f.arcX += L3([0.2, 0.3, 0.4], i); if (cap) f.arcX = 3; }]]],
+    ['Kan kılıcı', 'Kan', 'Çok daha fazla can emer, canı azalmış zombilere sert', '#e5484d', 5, 5, 'E', (f, w, t) => { f.leech = 0.05 + 0.012 * t; f.exec = [0.3, 1.3 + 0.06 * t]; }, [
+      ['Vampir', 'Vampir', 'Çok daha fazla can emer', 'Canın doluyken emilen can kalkan olur', (f, w, i, cap) => { f.leech += L3([0.04, 0.06, 0.08], i); if (cap) f.guard = 1.5; }],
+      ['İnfazcı', 'İnfazcı', 'Bitirme vuruşları çok daha sert', 'Bitirdiğin zombi canını doldurur', (f, w, i, cap) => { f.exec = [0.35, f.exec[1] + L3([0.4, 0.6, 0.8], i)]; if (cap) f.killHeal = 8; }]]],
+  ],
+  egitmen: [
+    ['İz sürme', 'İzli', 'Vurduğun zombiler işaretlenir; köpeğin onlara saldırır ve çok sert ısırır', '#ffb347', 10, 3, 'E', (f, w, t) => { f.mark = [1.08 + 0.04 * t, 4]; f.markDog = 1.3 + 0.06 * t; }, [
+      ['Koku', 'Kokulu', 'İşaret daha güçlü ve daha uzun', 'İşaret yakındaki zombilere de yayılır', (f, w, i, cap) => { f.mark = [f.mark[0] + L3([0.07, 0.11, 0.15], i), 6]; if (cap) f.markR = 110; }],
+      ['Sürü', 'Sürü', 'Köpek işaretli zombiye çok daha sert ısırır', 'Işaretli zombiler yavaşlar', (f, w, i, cap) => { f.markDog += L3([0.3, 0.5, 0.7], i); if (cap) { f.slow = 1.5; f.slowK = 0.7; } }]]],
+    ['Kemik kıran', 'Kemik kıran', 'Vuruşlar zombileri sakatlar: yavaşlar ve sendelerler', '#e8e2d2', 1, 1, 'M', (f, w, t) => { f.slow = 1.2; f.slowK = 0.8 - 0.02 * t; f.stun = 0.05; }, [
+      ['Topal', 'Topal', 'Zombiler çok daha fazla yavaşlar', 'Sakat zombilere köpek iki kat ısırır', (f, w, i, cap) => { f.slowK = L3([0.65, 0.58, 0.5], i); if (cap) f.markDog = 2; }],
+      ['Kırık', 'Kırık', 'Yavaşlayan zombiler daha çok hasar alır', 'Yavaşlayan zombiler sersemler', (f, w, i, cap) => { f.brittle = L3([1.2, 1.28, 1.36], i); if (cap) f.stun = 0.25; }]]],
+    ['Seri tabanca', 'Seri', 'Çok daha hızlı ateş eder; köpeğin de hızlanır', '#ffd23f', 2, 2, 'R', (f, w, t) => { f.dogRate = 1.1 + 0.04 * t; }, [
+      ['Fırtına', 'Fırtına', 'Daha da hızlı ateş', 'Mermiler bir zombiden diğerine seker', (f, w, i, cap) => { f.rateX = L3([1.15, 1.25, 1.35], i); if (cap) f.rico = 0.5; }],
+      ['Takım işi', 'Takımlı', 'Köpeğin yanındayken daha sert vurursun', 'Köpek ısırdığı zombiyi sersemletir', (f, w, i, cap) => { f.nearDog = [220, L3([1.2, 1.3, 1.4], i)]; if (cap) f.dogStun = 0.3; }]]],
+    ['Ödül tasması', 'Tasmalı', 'Vuruşlar Saldır! yeteneğini doldurur; köpek öldürünce altın düşer', '#43d17a', 11, 2, 'E', (f, w, t) => { f.cdr = 0.03 + 0.008 * t; f.dogGold = 0.2 + 0.05 * t; }, [
+      ['Eğitimli', 'Eğitimli', 'Yetenek çok daha çabuk dolar', 'Saldır! sırasında köpek iki kat ısırır', (f, w, i, cap) => { f.cdr += L3([0.03, 0.045, 0.06], i); if (cap) f.dogAtk = 2; }],
+      ['Av köpeği', 'Av', 'Köpeğin öldürdüklerinden çok daha fazla altın', 'Köpek her öldürdüğünde seni iyileştirir', (f, w, i, cap) => { f.dogGold += L3([0.3, 0.5, 0.7], i); if (cap) f.dogHeal = 4; }]]],
+  ],
+  ajan: [
+    ['Suikast', 'Suikastçı', 'Yüksek kritik şansı; kritikler çok sert ve sessiz', '#b07cff', 3, 3, 'M', (f, w, t) => { f.crit = 0.1 + 0.025 * t; f.critX = 2.3; }, [
+      ['Kalp atışı', 'Kalpten', 'Kritikler çok daha sert', 'Kritikler üç kat vurur', (f, w, i, cap) => { f.critX = cap ? 3 : L3([2.6, 2.8, 2.8], i); }],
+      ['Gölge vuruşu', 'Gölge', 'Görünmezken kritik şansı çok artar', 'Görünmezken her atış kritik', (f, w, i, cap) => { f.critInv = cap ? 1 : L3([0.3, 0.45, 0.45], i); }]]],
+    ['İnfaz', 'İnfazcı', 'Canı azalmış zombileri çok sert vurur', '#e5484d', 1, 1, 'M', (f, w, t) => { f.exec = [0.3 + 0.02 * t, 1.5 + 0.1 * t]; }, [
+      ['Temizlik', 'Temiz', 'Bitirme vuruşları çok daha sert', 'Canı üçte birin altındakiler tek vuruşta düşer', (f, w, i, cap) => { f.exec = [f.exec[0] + 0.05, f.exec[1] + L3([0.4, 0.6, 0.8], i)]; if (cap) f.execKill = 0.3; }],
+      ['İz bırakmayan', 'İzsiz', 'Öldürmek Gölge yeteneğini doldurur', 'Öldürünce bir an görünmez olursun', (f, w, i, cap) => { f.killCdr = L3([1, 1.5, 2], i); if (cap) f.killInv = 1.2; }]]],
+    ['Hayalet mermi', 'Hayalet', 'Mermiler hedefe döner ve zombileri deler', '#7ad8ff', 3, 3, 'M', (f, w, t) => { f.home = 2.5; f.pierce = 1 + (t >= 3 ? 1 : 0); }, [
+      ['Güdümlü', 'Güdümlü', 'Mermiler hedefe çok daha iyi döner', 'Mermiler her şeyi deler', (f, w, i, cap) => { f.home = 5; if (cap) f.pierce = 99; }],
+      ['Sızma', 'Sızan', 'Mermiler kalkanları deler', 'Kalkanlı zombilere iki kat', (f, w, i, cap) => { f.noShield = true; f.armorK = cap ? 2 : 1.3; }]]],
+    ['Çapraz ateş', 'Çapraz', 'Her atışta iki mermi açılı gider', '#ffd23f', 11, 2, 'M', (f, w, t) => { w.pellets = 2; f.pelDmg = 0.56 + 0.01 * t; w.spread = 0.09; f.noPel = 1; }, [
+      ['Saçılım', 'Saçılan', 'Her atışta üç mermi', 'Her atışta dört mermi', (f, w, i, cap) => { w.pellets = cap ? 4 : 3; f.pelDmg = cap ? 0.32 : 0.4; w.spread = 0.14; }],
+      ['Tuzak ateşi', 'Tuzaklı', 'İki mermi birden çarparsa zombi sersemler', 'Sersemleyen zombiler daha çok hasar alır', (f, w, i, cap) => { f.stun = L3([0.1, 0.14, 0.18], i); if (cap) f.dazed = 1.6; }]]],
+  ],
+  hacker: [
+    ['Aşırı hız', 'Overclock', 'Tetiğe bastıkça işlemci ısınır: ateş hızı gittikçe artar', '#4cf0d0', 6, 2, 'S', (f, w, t) => { f.ramp = 0.2 + 0.06 * t; f.rampT = 1.4; }, [
+      ['Soğutucu', 'Soğutmalı', 'Çok daha çabuk ısınır', 'Isınınca mermiler zombileri deler', (f, w, i, cap) => { f.ramp += L3([0.1, 0.15, 0.2], i); f.rampT = 0.9; if (cap) f.pierce = 2; }],
+      ['Paralel işlem', 'Paralel', 'Isınınca her atışta iki mermi', 'Isınınca her atışta üç mermi', (f, w, i, cap) => { f.rampPel = cap ? 2 : 1; f.rampPelK = cap ? 0.45 : L3([0.58, 0.6, 0.6], i); }]]],
+    ['Virüs', 'Virüslü', 'Vurduğun zombiye virüs bulaşır: ölünce yakındakilere geçer ve onları sersemletir', '#9dff6b', 10, 6, 'E', (f, w, t) => { f.virus = [90 + 5 * t, 0.35 + 0.03 * t]; }, [
+      ['Solucan', 'Solucan', 'Virüs daha çok zombiye geçer', 'Virüslü zombiler yavaşlar', (f, w, i, cap) => { f.virusN = L3([2, 3, 4], i); if (cap) { f.slow = 1.5; f.slowK = 0.7; } }],
+      ['Truva', 'Truva', 'Virüs geçerken patlar ve hasar verir', 'Patlama zombileri sersemletir', (f, w, i, cap) => { f.virusBoom = L3([0.4, 0.55, 0.7], i); if (cap) f.stun = 0.25; }]]],
+    ['Güçlü çekirdek', 'Çekirdekli', 'Daha yavaş ama çok sert, hedefe daha iyi dönen mermiler', '#ff8a3d', 1, 1, 'H', (f, w, t) => { f.home = 3; w.heavy = Math.min(3, Math.ceil(t * 0.6)); }, [
+      ['Kuantum', 'Atomik', 'İri zombilere ve bosslara çok daha sert', 'Mermiler küçük patlamalar yapar', (f, w, i, cap) => { f.big = L3([1.3, 1.45, 1.6], i); if (cap) f.blast = 45; }],
+      ['Yeniden başlat', 'Yenilenen', 'Vuruşlar Ele Geçir yeteneğini doldurur', 'Öldürmek yeteneği çok daha çabuk doldurur', (f, w, i, cap) => { f.cdr = L3([0.05, 0.07, 0.09], i); if (cap) f.killCdr = 1.5; }]]],
+    ['EMP', 'EMP', 'Mermi yerine EMP topu atar: çarptığı yerde patlar, zombileri sersemletir', '#7bdff2', 10, 8, { dmg: [1, 1.8, 2, 2.2, 2.45, 2.7], rate: [1, 0.42, 0.44, 0.46, 0.48, 0.5] }, (f, w, t) => { w.kind = 'g'; w.aoe = 60 + 7 * t; w.bspd = 750; w.life = 0.85; w.look = 'orb'; f.stun = 0.18; w.home = 0; }, [
+      ['Kısa devre', 'Devreli', 'Sersemletme çok daha uzun', 'Sersemleyen zombiler daha çok hasar alır', (f, w, i, cap) => { f.stun = L3([0.3, 0.38, 0.45], i); if (cap) f.dazed = 1.6; }],
+      ['Elektromanyetik', 'Manyetik', 'Patlama çok daha geniş', 'Patlamaya yakalanan zombiler sana doğru çekilir', (f, w, i, cap) => { w.aoe += L3([25, 35, 45], i); if (cap) f.pull = 70; }]]],
+  ],
 };
-// the same path reads differently on each class: [name, adjective, description]
-const PFLAV = {
-  asker: { 1: ['Ağır kalibre', 'Ağır', 'Daha yavaş ama çok sert vurur'], 2: ['Otomatik', 'Otomatik', 'Çok daha hızlı ateş eder'], 3: ['Zırh delici', 'Delici', 'Mermiler sıradaki zombileri de deler'] },
-  doktor: { 2: ['Hızlı dart', 'Hızlı', 'Dartları çok daha sık atar'], 3: ['İğne', 'İğneli', 'Dartlar zombileri delip geçer'] },
-  tamirci: { 1: ['Kalın saçma', 'Kalın', 'Az ama çok sert saçma'], 2: ['Seri pompalı', 'Seri', 'Pompalı çok daha hızlı ateşler'] },
-  nisanci: { 1: ['Ağır mermi', 'Ağır', 'Tek atışta çok daha fazla hasar'], 4: ['Kriyojenik', 'Kriyojenik', 'Mermiler zombileri dondurur ve yavaşlatır'] },
-  kalkanci: { 1: ['Koçbaşı', 'Koçbaşı', 'Sert ve sarsıcı atışlar'], 2: ['Baskı ateşi', 'Bastıran', 'Kalkanın arkasından seri ateş'], 3: ['Zırh kıran', 'Zırh kıran', 'Mermiler kalkanlı ve zırhlı zombileri deler'] },
-  alevci: { 7: ['Cehennem', 'Cehennem', 'Alev çok daha uzun yakar ve yayılır'], 2: ['Basınç', 'Basınçlı', 'Alev daha sık püskürür'], 3: ['Uzun hortum', 'Uzun', 'Alev daha uzağa gider, daha çok zombiyi deler'] },
-  bombaci: { 1: ['Büyük şarj', 'Büyük', 'Bombalar daha sert ve geniş patlar'], 2: ['Seri atış', 'Seri', 'Bombaları çok daha sık atar'], 3: ['Geniş alan', 'Geniş', 'Patlama alanı çok büyür, menzil artar'] },
-  izci: { 2: ['Makineli', 'Makineli', 'Çok daha hızlı ateş eder'], 3: ['Uzun namlu', 'Uzun namlulu', 'Menzil artar, mermiler deler'], 1: ['Sert vuruş', 'Sert', 'Daha yavaş ama çok sert vurur'] },
-  muhendis: { 2: ['Hızlı tetik', 'Hızlı', 'Çok daha hızlı ateş eder'], 1: ['Ağır namlu', 'Ağır', 'Daha yavaş ama çok sert vurur'], 3: ['Delici çekirdek', 'Delici', 'Mermiler zombileri deler, menzil artar'] },
-  kimyager: { 5: ['Toksin', 'Toksik', 'Vurduğun zombiler zehirlenip can kaybeder'], 2: ['Seri sprey', 'Seri', 'Çok daha hızlı ateş eder'], 3: ['Aşındırıcı', 'Aşındırıcı', 'Atışlar zombileri delip geçer'] },
-  komutan: { 1: ['Komuta tüfeği', 'Ağır', 'Daha yavaş ama çok sert vurur'], 2: ['Hücum', 'Hücum', 'Çok daha hızlı ateş eder'], 3: ['Keskin göz', 'Keskin', 'Mermiler deler, menzil artar'] },
-  tesla: { 6: ['Yüksek gerilim', 'Gerilimli', 'Vuruşlar yakındaki zombilere sıçrar'], 2: ['Hızlı deşarj', 'Hızlı', 'Çok daha sık ateşler'], 1: ['Kondansatör', 'Yüklü', 'Daha yavaş ama çok sert vurur'] },
-  avci: { 3: ['Çelik uç', 'Çelik uçlu', 'Oklar zombileri deler, menzil artar'], 1: ['Ağır yay', 'Ağır', 'Daha yavaş ama çok sert vurur'], 2: ['Çift kiriş', 'Hızlı', 'Okları çok daha sık atar'] },
-  kilicci: { 1: ['Ağır kılıç', 'Ağır', 'Daha yavaş ama çok sert savurur'], 2: ['Çift kılıç', 'Seri', 'Çok daha hızlı savurur'], 3: ['Uzun kılıç', 'Uzun', 'Savuruş daha uzağa yetişir'] },
-  egitmen: { 2: ['Seri tabanca', 'Seri', 'Çok daha hızlı ateş eder'], 1: ['Büyük kalibre', 'Ağır', 'Daha yavaş ama çok sert vurur'], 3: ['Delici mermi', 'Delici', 'Mermiler deler, menzil artar'] },
-  ajan: { 3: ['Zırh delici', 'Delici', 'Mermiler deler, menzil artar'], 1: ['Suikast', 'Ölümcül', 'Daha yavaş ama çok sert vurur'], 2: ['Hızlı tetik', 'Hızlı', 'Çok daha hızlı ateş eder'] },
-  hacker: { 2: ['Aşırı hız', 'Hızlı', 'Çok daha hızlı ateş eder'], 3: ['Delici kod', 'Delici', 'Mermiler deler, menzil artar'], 1: ['Güçlü çekirdek', 'Ağır', 'Daha yavaş ama çok sert vurur'] },
-};
-const PCACHE = new Map();
-export const pathOf = (cls, k) => {
-  if (k === SPECIAL_K && SPECIAL[cls]) return SPECIAL[cls];
-  const P = PATHS[k] || PATHS[0], f = PFLAV[cls] && PFLAV[cls][k];
-  if (!f) return P;
-  const key = cls + k;
-  if (!PCACHE.has(key)) PCACHE.set(key, { ...P, name: f[0], adj: f[1], desc: f[2] });
-  return PCACHE.get(key);
-};
-export const pathsFor = (cls) => (CLASS_PATHS[cls] || [1, 2, 3]).filter((k) => k !== SPECIAL_K || SPECIAL[cls]);
-export const pathOk = (cls, k) => pathsFor(cls).includes(k);
-const lowerFirst = (s) => s.charAt(0).toLocaleLowerCase('tr') + s.slice(1);
+// paths as objects (name, adj, desc, col, gfx, snd, curves, branches); the path number is 1..4 within the class
+const CPATH = Object.fromEntries(Object.entries(CP).map(([cls, L]) => [cls, L.map((x, i) => {
+  const cv = typeof x[6] === 'string' ? CURVE[x[6]] : x[6];
+  return { k: i + 1, name: x[0], adj: x[1], desc: x[2], col: x[3], gfx: x[4], snd: x[5], dmg: cv.dmg, rate: cv.rate, base: x[7], br: x[8].map((b) => ({ name: b[0], adj: b[1], desc: b[2], cap: b[3], fn: b[4] })) };
+})]));
+export const PATH_N = 4;
+const STD = { k: 0, name: 'Standart', adj: '', desc: '', col: '#ffe1a6', gfx: 0, snd: 0, dmg: [1, 1, 1, 1, 1, 1], rate: [1, 1, 1, 1, 1, 1], base: null, br: [] };
+export const pathOf = (cls, k) => (CPATH[cls] && CPATH[cls][k - 1]) || STD;
+export const pathsFor = (cls) => (CPATH[cls] || CPATH.asker).map((p) => p.k);
+export const pathOk = (cls, k) => Number.isInteger(k) && k >= 1 && k <= (CPATH[cls] || []).length;
+export const pathDesc = (cls, k) => pathOf(cls, k).desc;
+const lowerFirst = (s) => (/^\p{Lu}\p{Lu}/u.test(s) ? s : s.charAt(0).toLocaleLowerCase('tr') + s.slice(1));
 const cut = (v, a, b) => Math.max(a, Math.min(b, v | 0));
-
-// Everything a weapon level changes beyond damage and fire rate. Shared by the host (on-hit effects)
-// and every player (bullets). t: level 0..5, k: path 1..7, b: branch 1..2 (from level 3).
-export function pathFx(t, k, b) {
+// the weapon and its effects for a class at weapon level t (0..5), path k (1..4) and branch b (1..2, from level 3)
+const WCACHE = new Map();
+function build(cls, t, k, b) {
+  const c = CLASSES[cls] || CLASSES.asker;
   t = cut(t, 0, WMAX); k = t > 0 ? cut(k, 1, PATH_N) : 0; b = t >= 3 ? cut(b, 1, 2) : 0;
-  const i = t - 3; // 0..2 on branch levels
-  const cap = t >= WMAX;
+  const P = pathOf(cls, k), cap = t >= WMAX;
   const f = { t, k, b, cap };
-  if (k === 1) {
-    if (b === 1) { f.kb = [90, 110, 130][i]; f.stun = cap ? 0.45 : 0.12; f.dazed = [1.3, 1.45, 1.6][i]; }
-    if (b === 2) { f.big = [1.2, 1.35, 1.5][i]; if (cap) f.blast = 45; }
-  } else if (k === 2) {
-    if (b === 1) { f.rateX = [1.15, 1.3, 1.45][i]; f.rico = cap ? 0.6 : 0; }
-    if (b === 2) { f.pel = [1, 1, 2][i]; f.pelDmg = [0.62, 0.68, 0.52][i]; }
-  } else if (k === 3) {
-    if (b === 1) { f.crit = [0.15, 0.22, 0.3][i]; f.critX = cap ? 3 : 2.2; }
-    if (b === 2) { f.pierce = [3, 5, 99][i]; f.range = 1.25; f.noShield = cap; }
-  } else if (k === 4) {
-    f.slow = [0, 1.5, 2.5, 3, 3.5, 4][t];
-    f.slowK = b === 1 ? [0.45, 0.4, 0.35][i] : 0.55;
-    if (b === 1) f.dazed = cap ? 1.5 : [1.15, 1.25][i];
-    if (b === 1 && cap) f.freeze = 0.12;
-    if (b === 2) { f.brittle = [1.15, 1.22, 1.3][i]; f.shatter = cap; }
-  } else if (k === 5) {
-    f.poison = [0, 0.25, 0.32, 0.38, 0.44, 0.5][t] * (b === 2 ? 1.15 : 1); f.pdur = 4;
-    if (b === 1) { f.spread = [2, 3, 5][i]; f.gas = cap; }
-    if (b === 2) { f.acid = [1.15, 1.2, 1.25][i]; f.melt = cap; }
-  } else if (k === 6) {
-    f.chain = b === 2 ? 3 : [0, 2, 3, 4, 5, 6][t] + (b === 1 ? [0, 0, 1][i] : 0);
-    f.chainK = [0, 0.22, 0.24, 0.26, 0.28, 0.3][t] * (b === 2 ? [1.3, 1.45, 1.6][i] : 1);
-    if (b === 1 && cap) f.chainStun = 0.5;
-    if (b === 2 && cap) f.bolt = 3;
-  } else if (k === 7) {
-    f.burn = [0, 0.25, 0.3, 0.34, 0.38, 0.42][t] * (b === 2 ? [1.5, 1.8, 2.2][i] : b === 1 ? 0.75 : 1); f.bdur = 3.5;
-    if (b === 1) { f.napalm = true; f.boomOnDeath = cap; }
-    if (b === 2 && cap) f.patch = true;
-  }
-  return f;
-}
-
-// the class's own eighth-path weapon
-function special(cls, c, f, P, B) {
-  const t = f.t, b = f.b, i = t - 3, cap = f.cap;
-  f.k = SPECIAL_K;
-  const w = { ...c, tier: t, path: SPECIAL_K, branch: b, fx: f, col: P.col, frost: false, heavy: 0, pelDmg: 1,
-    name: B ? `${B.adj} ${lowerFirst(P.name)}` : P.name, kind: P.kind || c.kind, aoe: P.aoe || c.aoe || 0,
-    bspd: P.bspd || c.bspd, life: (P.life || c.life) * (P.range || 1), spread: P.spread || c.spread, pellets: P.pellets || c.pellets, pierce: c.pierce };
-  w.look = { tamirci: 'nail', nisanci: 'rail' }[cls] || '';
-  if (cls === 'asker') {
-    w.aoe = 70 + 10 * t + (b === 1 ? [25, 40, 60][i] : 0);
-    if (b === 1 && cap) { f.burn = 0.3; f.bdur = 3; }
-    if (b === 2) { w.pellets = cap ? 2 : 1; w.pelDmg = cap ? 0.7 : 1; w.spread = 0.08; }
-  } else if (cls === 'doktor') {
-    // sedative darts: no poison (that is the Kimyager's), heavy slow and a short daze instead
-    f.slow = 2.5; f.slowK = b === 1 ? [0.4, 0.34, 0.28][i] : 0.55; f.stun = t >= 2 ? 0.08 : 0;
-    if (b === 1 && cap) { f.freeze = 0.12; }
-    if (b === 2) { f.brittle = [1.2, 1.28, 1.36][i]; if (cap) { f.stun = 0.2; f.dazed = 2; } }
-  } else if (cls === 'nisanci') {
-    w.pierce = 99; f.noShield = t >= 3; f.pierce = 99;
-    if (b === 1) { f.crit = 0.18; f.critX = cap ? 3 : 2; }
-    if (b === 2 && cap) { f.chain = 3; f.chainK = 0.3; }
-  } else if (cls === 'tamirci') {
-    f.kb = 40; f.stun = b === 1 ? [0.15, 0.2, 0.25][i] : 0.1;
-    if (b === 1 && cap) f.dazed = 1.3;
-    if (b === 2) { w.pellets = cap ? 3 : 2; w.pelDmg = 0.7; }
-  }
+  const w = { ...c, tier: t, path: k, branch: b, fx: f, col: k ? P.col : null, gfx: P.gfx, snd: P.snd, look: c.look || '', heavy: 0, pelDmg: 1, home: c.home || 0 };
+  if (k && P.base) P.base(f, w, t);
+  const B = b && P.br[b - 1];
+  if (B) B.fn(f, w, t - 3, cap);
+  // pellet weapons (the shotgun) keep their spread of pellets; other paths that fire more than one round set it themselves
+  if (cls === 'tamirci' && !f.noPel) w.pellets = Math.max(1, Math.round((c.pellets + 2 * Math.min(2, t)) * (f.pelK || 1)));
+  if (cls === 'bombaci') w.aoe = (w.aoe || c.aoe || 0) + 15 * Math.min(2, t);
+  if (cls === 'alevci') w.life = (w.life || c.life) + 0.05 * Math.min(2, t);
+  if (cls === 'nisanci' && !f.pierce) w.pierce = c.pierce + Math.min(2, t);
+  w.pelDmg = f.pelDmg || 1;
+  if (f.pierce) w.pierce = Math.max(f.pierce, c.pierce);
+  if (f.home) w.home = f.home;
+  if (f.frost) w.frost = true;
+  if (f.reach) w.reach = c.reach * f.reach;
+  if (f.arcX) w.arc = Math.min(Math.PI, c.arc * f.arcX);
+  const nameT = c.tiers[t === 0 ? 0 : t < 3 ? 1 : 2];
+  w.name = t === 0 ? c.tiers[0] : (P.snd === 8 ? (B ? `${B.adj} ${lowerFirst(P.name)}` : P.name) : `${B ? B.adj : P.adj} ${lowerFirst(nameT)}`);
   return w;
 }
-
+export function pathFx(cls, t, k, b) { return weaponOf(cls, t, k, b).fx; }
 export function weaponOf(cls, wt, wp = 0, wb = 0) {
-  const c = CLASSES[cls] || CLASSES.asker;
-  const f = pathFx(wt, wp, wb);
-  const t = f.t, k = f.k;
-  const P = pathOf(cls, k);
-  const B = f.b ? P.br[f.b - 1] : null;
-  if (k === SPECIAL_K && SPECIAL[cls]) return special(cls, c, f, P, B);
-  const pierceT = k === 3 ? Math.min(2, t) + (t >= 3 && f.b === 1 ? t - 2 : 0) : 0;
-  const nameT = c.tiers[t === 0 ? 0 : t < 3 ? 1 : 2];
-  const pelMul = f.pel ? 1 + f.pel : 1;
-  return {
-    ...c,
-    tier: t,
-    path: k,
-    branch: f.b,
-    fx: f,
-    col: P.col,
-    frost: k === 4,
-    name: t === 0 ? c.tiers[0] : `${B ? B.adj : P.adj} ${lowerFirst(nameT)}`,
-    pellets: Math.round((c.pellets + (cls === 'tamirci' ? 2 * Math.min(2, t) : 0)) * pelMul),
-    pelDmg: f.pelDmg || 1,
-    spread: c.spread * (f.pel ? 1.5 : 1),
-    pierce: f.pierce ? Math.max(f.pierce, c.pierce) : c.pierce + (cls === 'nisanci' ? Math.min(2, t) : 0) + (c.kind === 'g' ? 0 : pierceT),
-    aoe: (c.aoe || 0) + (cls === 'bombaci' ? 15 * Math.min(2, t) : 0) + (c.kind === 'g' && k === 3 ? 25 * Math.min(2, t) + 10 * Math.max(0, t - 2) : 0) + (c.kind === 'g' && k === 1 ? 10 * t : 0),
-    life: (c.life + (cls === 'alevci' ? 0.05 * Math.min(2, t) : 0)) * (k === 3 ? 1 + 0.15 * Math.min(2, t) : 1) * (f.range || 1),
-    bspd: c.bspd * (k === 3 ? 1 + 0.15 * Math.min(2, t) : 1) * (f.range ? 1.15 : 1),
-    heavy: k === 1 ? Math.min(3, Math.ceil(t * 0.6)) : 0,
-  };
-}
-// Short path description for the shop, with class-specific wording where it differs.
-export function pathDesc(cls, k) {
-  return pathOf(cls, k).desc;
+  const key = cls + '|' + (wt | 0) + '|' + (wp | 0) + '|' + (wb | 0);
+  let w = WCACHE.get(key);
+  if (!w) { w = build(cls, wt, wp, wb); WCACHE.set(key, w); }
+  return w;
 }
 
 // Quick team messages (Z or the phone's Hızlı button) and the map ping (G, or the last one in the list);
@@ -662,15 +756,14 @@ const TIER_DMG = [1, 1.1, 1.2, 1.28, 1.36, 1.45];
 export function stats(cls, lv, wt = 0, wp = 0, wb = 0, tm) {
   const c = CLASSES[cls] || CLASSES.asker;
   const L = lv || {};
-  const f = pathFx(wt, wp, wb);
+  const f = weaponOf(cls, wt, wp, wb).fx;
   const P = pathOf(cls, f.k);
   const td = tm ? tm[1] | 0 : 0;
-  const sp = f.k === SPECIAL_K && SPECIAL[cls] ? (cls === 'asker' && f.b === 2 ? [1, [1.3, 1.4, 1.5][f.t - 3]] : cls === 'nisanci' && f.b === 1 ? [[1.12, 1.18, 1.25][f.t - 3], 1] : cls === 'nisanci' && f.b === 2 ? [1, [1.1, 1.15, 1.22][f.t - 3]] : [1, 1]) : [1, 1];
   return {
     maxHp: c.hp + 20 * (L.hp | 0),
     spd: c.spd * (1 + 0.06 * (L.spd | 0)),
-    dmg: c.dmg * (1 + 0.15 * (L.dmg | 0)) * TIER_DMG[f.t] * P.dmg[f.t] * (1 + 0.08 * td) * sp[0],
-    rate: c.rate * (1 + 0.1 * (L.rate | 0)) * P.rate[f.t] * (f.rateX || 1) * sp[1],
+    dmg: c.dmg * (1 + 0.15 * (L.dmg | 0)) * TIER_DMG[f.t] * P.dmg[f.t] * (1 + 0.08 * td) * (f.dmgX || 1),
+    rate: c.rate * (1 + 0.1 * (L.rate | 0)) * P.rate[f.t] * (f.rateX || 1),
     cd: Math.max(0.4, 1 - 0.1 * (L.cd | 0)),
     crit: 0.04 * (L.crit | 0) + (cls === 'nisanci' ? 0.12 : 0),
     regen: 0.5 * (L.regen | 0) + (tm ? tm[2] | 0 : 0),

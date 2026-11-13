@@ -1,5 +1,5 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
-import { ZTYPES, isBoss, QUICK, PING_K, WEAPON_COST, weaponOf, PATHS, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, APP_BUILD, TIPS, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
+import { ZTYPES, isBoss, QUICK, PING_K, WEAPON_COST, weaponOf, pathOf, pathsFor, pathDesc, BASH, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, dailyRules, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, APP_BUILD, TIPS, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
 import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
@@ -14,7 +14,7 @@ import { consentStart, manage as cookieSettings } from './consent.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings, QUALITY, QORDER, QUAL } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePvp, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveConn, liveChat, errorReports } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePvp, liveBlock, acctSign, acctOut, acctCheck, topGet, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveConn, liveChat, errorReports, acctOp } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -2480,7 +2480,16 @@ $('#room-go').onclick = () => {
   createRoom(false, { map: ROOM.map, diff: ROOM.diff, mode: MODE_ORDER.includes(ROOM.mode) || ROOM.mode === 'pvp' ? ROOM.mode : 'normal', pv: PVP[ROOM.pv] ? ROOM.pv : 'tdm', max: ROOM.mode === 'pvp' && ROOM.pv === 'duel' ? 2 : ROOM.max, name: roomVis === 1 ? ROOM.name : '' });
 };
 acctUi();
-acctCheck().then(() => { acctUi(); dashRefresh(); });
+acctCheck().then(() => { acctUi(); dashRefresh(); inviteFromPush(); });
+// opened from a room-invite phone notice (oyun/davet): ask which room it was and join it straight away
+async function inviteFromPush() {
+  if (!/\/oyun\/davet\/?$/.test(location.pathname)) return;
+  try { history.replaceState(null, '', window.KROOT || './'); } catch (e) { /* ignore */ }
+  if (!ACCT || S.net) return;
+  const j = await acctOp('linv');
+  if (j.ok && j.room) { toast(`${j.f} seni odasına çağırdı, katılıyorsun…`, 'good'); $('#code').value = j.room; joinRoom(); }
+  else toast('Bu davetin süresi dolmuş ya da oda kapanmış.', '');
+}
 
 // ---------- live link to the owner's server ----------
 const online = () => S.role && S.net && !(S.net instanceof OfflineNet);
@@ -2492,16 +2501,17 @@ function liveNews() {
 }
 // ---------- room invites: send to online friends, and the pop-up when a friend calls you ----------
 function invDraw() {
-  const ul = $('#inv-list'), L = frList().filter((f) => f.on);
+  // online friends first; offline ones can be called too (their phone gets a notice that joins the room when tapped)
+  const ul = $('#inv-list'), all0 = frList(), L = all0.filter((f) => f.on).concat(all0.filter((f) => !f.on).slice(0, 20));
   const here = new Set((S.roster ? S.roster.players : []).map((p) => p.name));
   ul.replaceChildren(...(L.length ? L.map((f) => {
     const li = el('li'); const cv = el('canvas'); drawAvatar(cv, f.eq || {}, { size: 36 });
-    const tx = el('div'); tx.append(el('strong', '', f.name), el('span', '', f.room ? (f.room === (S.roster && S.roster.code) ? 'Bu odada' : 'Başka bir odada') : f.solo ? 'Tek başına oynuyor' : 'Menüde'));
+    const tx = el('div'); tx.append(el('strong', '', f.name), el('span', '', !f.on ? 'Çevrimdışı · telefonuna bildirim gider' : f.room ? (f.room === (S.roster && S.roster.code) ? 'Bu odada' : 'Başka bir odada') : f.solo ? 'Tek başına oynuyor' : 'Menüde'));
     const b = el('button', 'btn small', here.has(f.name) ? 'Odada' : 'Davet'); b.type = 'button'; b.disabled = here.has(f.name);
-    b.onclick = async () => { b.disabled = true; b.textContent = '…'; const j = await inviteSend(f.id); b.textContent = j.ok ? 'Gönderildi ✓' : 'Olmadı'; if (!j.ok) { b.disabled = false; toast({ off: `${f.name} şu an çevrimdışı.`, slow: 'Çok fazla davet. Biraz bekle.', room: 'Önce bir oda kur.' }[j.reason] || 'Davet gönderilemedi.', 'bad'); } };
+    b.onclick = async () => { b.disabled = true; b.textContent = '…'; const j = await inviteSend(f.id); b.textContent = j.ok ? (j.reason === 'push' ? 'Bildirim gitti ✓' : 'Gönderildi ✓') : 'Olmadı'; if (!j.ok) { b.disabled = false; toast({ off: `${f.name} çevrimdışı ve telefon bildirimi açık değil.`, slow: 'Çok fazla davet. Biraz bekle.', room: 'Önce bir oda kur.' }[j.reason] || 'Davet gönderilemedi.', 'bad'); } };
     li.append(cv, tx, b); return li;
-  }) : [el('li', 'empty', 'Şu an çevrimiçi arkadaşın yok.')]));
-  const all = $('#inv-all'), can = L.filter((f) => !here.has(f.name));
+  }) : [el('li', 'empty', 'Henüz arkadaşın yok.')]));
+  const all = $('#inv-all'), can = L.filter((f) => f.on && !here.has(f.name));
   all.hidden = can.length < 2; all.textContent = `Hepsini davet et (${can.length})`;
   all.onclick = async () => { all.disabled = true; let n = 0; for (const f of can) { const j = await inviteSend(f.id); if (j.ok) n++; } all.disabled = false; toast(n ? `${n} arkadaşına davet gitti.` : 'Davet gönderilemedi.', n ? 'good' : 'bad'); for (const b of ul.querySelectorAll('button')) if (!b.disabled) { b.textContent = 'Gönderildi ✓'; b.disabled = true; } };
 }

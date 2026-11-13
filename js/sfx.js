@@ -81,8 +81,8 @@ const SHOT = {
 // w: the weapon (its path and level change the sound: heavy rounds boom, rapid fire clicks, piercing rounds crack)
 export function shot(cls, x, y, own, w) {
   if (cls === 'alevci') return; // the flamethrower is a continuous loop, see flame()
-  const k = w ? w.path | 0 : 0, t = w ? w.tier | 0 : 0;
-  if (cls === 'bombaci' || (k === 8 && cls === 'asker')) {
+  const k = w ? w.snd | 0 : 0, t = w ? w.tier | 0 : 0;
+  if (cls === 'bombaci' || (w && w.kind === 'g')) {
     // hollow launcher thump, nothing like a gunshot
     const v = vol(x, y, own ? 0.5 : 0.28);
     if (v) { tone(v, 0.22, k === 1 ? 110 : 140, 55, 'sine'); burst(v * 0.5, 0.12, 500, 0.6); tone(v * 0.25, 0.08, 900, 600, 'triangle', 0.02); }

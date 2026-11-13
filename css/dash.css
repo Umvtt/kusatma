@@ -650,3 +650,7 @@ body.signed .build { z-index: 41; }
 @media (max-width: 600px) { .sp-col.sp-lab { width: 68px; } .sp-rl small { font-size: 9px; white-space: nowrap; } .sp-rl { height: 96px; padding: 6px 2px; } .sp-rl-ic { width: 28px; height: 28px; } .sp-rl-ic svg { width: 16px; height: 16px; } .sp-rl strong { font-size: 12px; } }
 .sp-wrap:has(.sp-track) .sp-arrow.l { left: 104px; }
 @media (max-width: 600px) { .sp-wrap:has(.sp-track) .sp-arrow.l { left: 80px; } }
+/* notification choices: quiet hours */
+.qh-row { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; }
+.qh-sel { appearance: none; -webkit-appearance: none; padding: 8px 30px 8px 12px; border-radius: 10px; border: 1px solid var(--t-line); background: var(--t-card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23aaa'/%3E%3C/svg%3E") no-repeat right 11px center; color: var(--text); font: inherit; font-weight: 600; min-height: 40px; }
+.qh-sel:disabled { opacity: .45; }

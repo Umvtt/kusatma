@@ -5,7 +5,7 @@ import {
   QUICK, CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, scaleFor, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD,
   WEAPON_COST, ITEMS, BASH, WMAX, PATH_N, BRANCH_SWAP, weaponSpent, weaponOf, pathOk,
   newLv, lvArr, AB_COST, abDur, GEAR, GEAR_RANGE, TEAM, teamCost, TEAM_CHUNK, gearCost, gearMax, bashCd,
-  FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, SPECIAL, SPECIAL_K, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER,
+  FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER,
 } from './config.js';
 import { PvpMixin } from './pvp.js';
 import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldDir, fieldAhead, fieldAt, outOfMap, GW, GH, escapePocket, resolveCircle } from './world.js';
@@ -359,7 +359,7 @@ export class HostGame {
         if (!Number.isInteger(id) || !num(d) || d < 0 || d > 5000) continue;
         const z = this.zIndex.get(id);
         if (!z) continue;
-        this.onHit(z, d, p, C, h[2] === 1);
+        this.onHit(z, d, p, C, h[2] === 1 || h[2] === 2, h[2] === 2);
       }
     }
     if (this.mode === 'pvp' && Array.isArray(m.p)) this.pvpHits(p, m.p);
@@ -395,7 +395,7 @@ export class HostGame {
   }
 
   // A player's bullet hit a zombie. eff: the hit came from their weapon, so the path's effects apply.
-  onHit(z, d, p, C, eff) {
+  onHit(z, d, p, C, eff, crit) {
     const now = this.time;
     if (z.ally) return; // a hacked zombie is on our side for now
     if (p.cls === 'kilicci' && p.alive) { const h = Math.min(d, z.hp) * 0.09; if (now - (p.lsT || 0) > 1) { p.lsT = now; p.lsN = 0; } if (p.lsN < 40) { p.lsN += h; p.hp = Math.min(p.maxHp, p.hp + h); } }
@@ -412,7 +412,47 @@ export class HostGame {
     if (eff && p.cls === 'avci' && !boss && !(z.pinImm > now)) { z.stunT = Math.max(z.stunT || 0, z.t === 2 ? 0.06 : 0.2); z.pinImm = now + 0.5; if ((p.lv.ab | 0) >= 3) { z.slowUntil = now + 1.5; z.slowK = Math.min(z.slowK || 1, 0.6); } }
     if (this.leaders && this.leaders.length && this.leaders.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < 220)) d *= 1.1;
     if (!eff || !C.fx.k) { this.damage(z, d, p); return; }
-    const f = C.fx;
+    const f = C.fx, mh = z.mhp || (z.mhp = Math.max(1, z.hp)), dist = Math.hypot(z.x - p.x, z.y - p.y);
+    // ---- damage changes that depend on the situation ----
+    if (f.close && dist < f.close[0]) {
+      d *= f.close[1];
+      if (f.closeStun && !boss && !(z.stunImm > now)) { z.stunT = Math.max(z.stunT || 0, f.closeStun); z.stunImm = now + 0.7; }
+      if (f.leechClose) this.leech(p, d * f.leechClose, f);
+    }
+    if (f.exec && !boss && z.hp / mh < f.exec[0]) { d *= f.exec[1]; if (f.execKill && z.hp / mh < f.execKill) d = Math.max(d, z.hp + 1); }
+    if (f.rage) d *= f.rageCap && p.hp < p.maxHp * 0.5 ? f.rageCap : 1 + f.rage * (1 - p.hp / p.maxHp);
+    if (f.hasteDmg && p.hasteUntil > now) d *= f.hasteDmg;
+    if (f.armorK && (z.t === 11 || z.t === 6 || z.el === 4)) d *= f.armorK;
+    if (f.nearAlly) { let n = 0; for (const q of this.inGame()) if (q !== p && q.alive && this.ally(p, q) && Math.hypot(q.x - p.x, q.y - p.y) < f.nearAlly[0]) n++; if (n) d *= f.nearAlly[1] + (f.nearAllyEach ? f.nearAllyEach * (n - 1) : 0); }
+    if (f.nearDog && this.turrets.some((t) => t.k === 5 && t.owner === p.pid && Math.hypot(t.x - p.x, t.y - p.y) < f.nearDog[0])) d *= f.nearDog[1];
+    if (f.stack) {
+      if (p.stkZ === z.id) p.stkN = Math.min(f.stack[1], (p.stkN | 0) + 1); else { p.stkZ = z.id; p.stkN = f.stackKeep ? Math.max(0, (p.stkN | 0) - 2) : 0; }
+      d *= 1 + (p.stkN | 0) * f.stack[0];
+      if (p.stkN >= f.stack[1] && (f.stackStun || f.stackBolt || f.stackBoom)) {
+        p.stkN = f.stackKeep ? Math.floor(f.stack[1] / 2) : 0;
+        if (f.stackStun && !boss) z.stunT = Math.max(z.stunT || 0, f.stackStun);
+        if (f.stackBolt) { d += C.dps * 0.25 * f.stackBolt; this.ev(['lb', Math.round(z.x), Math.round(z.y), 50]); }
+        if (f.stackBoom) { for (const o of this.zombies) if (!o.dead && o !== z && Math.hypot(o.x - z.x, o.y - z.y) < f.stackBoom + ZTYPES[o.t].r) this.damage(o, d * 0.5, p); this.ev(['bx', Math.round(z.x), Math.round(z.y), f.stackBoom]); }
+      }
+    }
+    // ---- marks, acid and crit reactions ----
+    if (f.mark) this.markAt(z, f.mark[0], f.mark[1], f.markR || 0, f);
+    if (crit && f.critMark) this.markAt(z, f.critMark, 3, 0, f);
+    if (f.acidHit) { z.acidT = now + f.acidHit[1]; z.acidK = Math.max(z.acidT > now && z.acidK ? z.acidK : 1, f.acidHit[0]); }
+    if (crit && f.critCdr) p.abAt = Math.max(now, p.abAt - f.critCdr);
+    if (crit && f.critStun && !boss) z.stunT = Math.max(z.stunT || 0, f.critStun);
+    if (crit && f.critGoldK && Math.random() < 0.5) p.gold += 1;
+    if (f.cdr) p.abAt = Math.max(now, p.abAt - f.cdr);
+    if (f.leech) this.leech(p, Math.min(d, z.hp) * f.leech, f);
+    if (f.virus) z.virus = { o: p.pid, r: f.virus[0], k: f.virus[1], n: f.virusN || 1, b: f.virusBoom || 0, s: f.slow ? 1 : 0, g: 0, dps: C.dps };
+    if (f.bleed) { const v = C.dps * f.bleed; z.blD = z.blT > now ? Math.max(z.blD, v) : v; z.blT = now + 3; z.blO = p.pid; }
+    if (f.pull && (!boss || f.pullBig) && !(z.t === 2 && !f.pullBig) && !(z.stunImm > now && z.kvx)) {
+      const dx = p.x - z.x, dy = p.y - z.y, dl = Math.hypot(dx, dy) || 1, k = Math.min(1, dl / 120);
+      z.kvx = (dx / dl) * f.pull * k; z.kvy = (dy / dl) * f.pull * k;
+    }
+    if (f.puddle && now >= (p.pudAt || 0)) { p.pudAt = now + 0.6; this.addZone(0, z.x, z.y, f.puddle[0], f.puddle[1], C.dps * (f.puddleK || 0.3), p.pid, !!f.puddleSlow); }
+    if (f.tar && now >= (p.pudAt || 0)) { p.pudAt = now + 0.6; this.addZone(2, z.x, z.y, f.tar[0], f.tar[1], C.dps * 0.15, p.pid, true); }
+    if (f.cloud && now >= (p.pudAt || 0)) { p.pudAt = now + 0.5; this.addZone(0, z.x, z.y, f.cloud[0], f.cloud[1], C.dps * 0.35, p.pid); }
     if (f.big && (z.t === 2 || boss)) d *= f.big;
     if (f.brittle && z.slowUntil > now) d *= f.brittle;
     if (f.dazed && z.stunT > 0) d *= f.dazed;
@@ -424,12 +464,13 @@ export class HostGame {
         z.stunT = Math.max(z.stunT || 0, 1.2); z.frozenT = now + 1.2; z.stunImm = now + 2.5;
       }
     }
+    if (f.sleep && !boss && !(z.stunImm > now) && Math.random() < f.sleep) { z.stunT = Math.max(z.stunT || 0, 1.2); z.stunImm = now + 2.5; }
     if (f.stun && !f.kb && !boss && !(z.stunImm > now)) { z.stunT = Math.max(z.stunT || 0, f.stun); z.stunImm = now + 0.7; }
     if (f.kb && !boss) {
       const dx = z.x - p.x, dy = z.y - p.y, dl = Math.hypot(dx, dy) || 1, k = z.t === 2 ? 0.5 : 1;
       if (!(z.stunImm > now)) {
         z.kvx = (dx / dl) * f.kb * k; z.kvy = (dy / dl) * f.kb * k;
-        z.stunT = Math.max(z.stunT || 0, f.stun);
+        if (f.stun) z.stunT = Math.max(z.stunT || 0, f.stun);
         if (f.cap) z.stunImm = now + 1.1;
         if (z.st === ZS.WINDUP || z.st === ZS.SPIT || z.st === ZS.SUMMON) { z.st = ZS.NORMAL; z.cd = Math.max(z.cd, 1); }
       }
@@ -442,7 +483,7 @@ export class HostGame {
       if (f.melt) z.meltT = z.psT;
     }
     if (f.burn) this.ignite(z, C.dps * f.burn, f.bdur, p.pid, !!f.napalm, !!f.boomOnDeath);
-    if (f.patch && now >= (p.patchAt || 0)) { p.patchAt = now + 0.7; this.addZone(1, z.x, z.y, 55, 3, C.dps * 0.45, p.pid); }
+    if (f.patch && now >= (p.patchAt || 0)) { p.patchAt = now + (f.patchT || 0.7); this.addZone(1, z.x, z.y, f.patchR || 55, 3, C.dps * (f.patchK || 0.45), p.pid, !!f.patchSlow); }
     if (f.chain && now >= (p.zapAt || 0)) { p.zapAt = now + 0.3; this.zap(z, p, f, C); }
     if (f.bolt && now >= (p.boltAt || 0)) {
       p.boltAt = now + f.bolt;
@@ -453,10 +494,48 @@ export class HostGame {
     }
     if (f.blast) {
       const R = f.blast, x = z.x, y = z.y;
-      for (const o of this.zombies) if (!o.dead && o !== z && Math.hypot(o.x - x, o.y - y) < R + ZTYPES[o.t].r) this.damage(o, d * 0.35, p);
+      for (const o of this.zombies) if (!o.dead && o !== z && Math.hypot(o.x - x, o.y - y) < R + ZTYPES[o.t].r) {
+        this.damage(o, d * (f.blastK || 0.35), p);
+        if (f.stunAoe && f.stun && !isBoss(o.t) && !(o.stunImm > now)) { o.stunT = Math.max(o.stunT || 0, f.stun); o.stunImm = now + 0.7; }
+      }
       if (now >= (p.blastFx || 0)) { p.blastFx = now + 0.12; this.ev(['bx', Math.round(x), Math.round(y), R]); }
     }
-    this.damage(z, d, p);
+    const was = z.dead;
+    this.bulletHit = true; this.damage(z, d, p); this.bulletHit = false;
+    if (!was && z.dead) this.killFx(z, p, f, C, d);
+  }
+
+  // ---- path effects that need more than one line ----
+  // mark a zombie (and, with a radius, the zombies around it): it takes more damage from everyone
+  markAt(z, k, dur, r, f) {
+    const now = this.time;
+    const one = (o) => { o.markT = now + dur; o.markK = Math.max(o.markT > now && o.markK ? o.markK : 1, k); if (f.markTur) o.markTur = f.markTur; if (f.markDog) o.markDog = f.markDog; if (f.slow && f.mark) { o.slowUntil = Math.max(o.slowUntil || 0, now + 0.6); o.slowK = Math.min(o.slowK || 1, f.slowK || 0.7); } };
+    one(z);
+    if (r) for (const o of this.zombies) if (!o.dead && o !== z && Math.hypot(o.x - z.x, o.y - z.y) < r) one(o);
+  }
+  // heal from damage dealt (at most 30 a second); with leechAll the extra goes to teammates close by, guard gives a short damage cut
+  leech(p, v, f) {
+    const now = this.time;
+    if (!p.alive || !(v > 0)) return;
+    if (now - (p.lcT || 0) > 1) { p.lcT = now; p.lcN = 0; }
+    v = Math.min(v, 30 - (p.lcN || 0)); if (v <= 0) return;
+    p.lcN += v;
+    const room = p.maxHp - p.hp;
+    p.hp = Math.min(p.maxHp, p.hp + v);
+    if (f.guard) p.guardUntil = now + f.guard;
+    if (f.leechAll && v > room) for (const q of this.inGame()) if (q !== p && q.alive && this.ally(p, q) && Math.hypot(q.x - p.x, q.y - p.y) < 150) q.hp = Math.min(q.maxHp, q.hp + (v - room) * f.leechAll);
+  }
+  // what a path does when its hit kills
+  killFx(z, p, f, C, d) {
+    const now = this.time, boss = isBoss(z.t);
+    if (f.haste) p.hasteUntil = Math.max(p.hasteUntil || 0, now + f.haste);
+    if (f.goldK) p.gold += Math.max(1, Math.round(ZTYPES[z.t].gold * DIFFS[this.diff].gold * f.goldK * (f.goldBig && (z.el || z.t === 2 || boss) ? f.goldBig : 1)));
+    if (f.killCdr) p.abAt = Math.max(now, p.abAt - f.killCdr);
+    if (f.killHeal && p.alive) p.hp = Math.min(p.maxHp, p.hp + f.killHeal);
+    if (f.killInv && p.cls === 'ajan' && !(p.invUntil > now)) { p.invUntil = now + f.killInv; this.ev(['iv', p.pid, 1]); }
+    if (f.burst) { const R = f.burst[0]; for (const o of this.zombies) if (!o.dead && Math.hypot(o.x - z.x, o.y - z.y) < R + ZTYPES[o.t].r) this.damage(o, Math.max(C.dps * 0.3, d) * f.burst[1], p); this.ev(['bx', Math.round(z.x), Math.round(z.y), R]); }
+    if (f.healAll) for (const q of this.inGame()) if (q.alive && this.ally(p, q) && Math.hypot(q.x - p.x, q.y - p.y) < f.healAll[0]) q.hp = Math.min(q.maxHp, q.hp + f.healAll[1]);
+    if (f.teamHaste && (z.markT > now || !f.mark)) for (const q of this.inGame()) if (q.alive && this.ally(p, q) && Math.hypot(q.x - p.x, q.y - p.y) < 420) { q.hasteUntil = Math.max(q.hasteUntil || 0, now + f.teamHaste); if (f.teamPower) q.powerUntil = Math.max(q.powerUntil || 0, now + 1); }
   }
 
   ignite(z, v, dur, pid, napalm, boom) {
@@ -502,6 +581,7 @@ export class HostGame {
       if (z.dead) continue;
       if (z.psT > now) this.damage(z, z.psD * dt * (isBoss(z.t) && !(z.meltT > now) ? 0.5 : 1), this.players.get(z.psO) || null);
       if (z.dead) continue;
+      if (z.blT > now) { this.damage(z, z.blD * dt * (isBoss(z.t) ? 0.6 : 1), this.players.get(z.blO) || null); if (z.dead) continue; }
       if (z.brT > now) {
         this.damage(z, z.brD * dt * (isBoss(z.t) ? 0.6 : 1), this.players.get(z.brO) || null);
         if (z.brN && !z.dead && now >= (z.brSp || 0)) {
@@ -531,6 +611,16 @@ export class HostGame {
   // What happens when a zombie dies with an effect on it.
   deathFx(z, p) {
     const now = this.time;
+    if (z.virus && z.virus.g < 3) {
+      const V = z.virus, owner = this.players.get(V.o) || null;
+      const near = this.zombies.filter((o) => !o.dead && o !== z && !o.ally && Math.hypot(o.x - z.x, o.y - z.y) < V.r).sort((a, b) => Math.hypot(a.x - z.x, a.y - z.y) - Math.hypot(b.x - z.x, b.y - z.y)).slice(0, V.n);
+      for (const o of near) {
+        if (!isBoss(o.t)) { o.stunT = Math.max(o.stunT || 0, V.k); if (V.s) { o.slowUntil = now + 1.5; o.slowK = Math.min(o.slowK || 1, 0.7); } }
+        if (V.b) this.damage(o, V.dps * V.b, owner);
+        if (!o.dead) o.virus = { ...V, g: V.g + 1 };
+      }
+      if (near.length) this.ev(['vr2', Math.round(z.x), Math.round(z.y), V.r]);
+    }
     if (z.psT > now && (z.psS || z.psG)) {
       const owner = this.players.get(z.psO) || null;
       if (z.psG) this.addZone(0, z.x, z.y, 85, 4, z.psD * 0.6, z.psO);
@@ -1367,7 +1457,9 @@ export class HostGame {
     p.lastBy = src !== undefined ? src : this.curZ ? this.curZ.t : p.lastBy;
     const sprint = p.cls === 'izci' && (p.lv.ab | 0) >= 3 && this.time < p.abUntil;
     if (this.curBoss) dmg *= BOSS_DMG;
-    p.hp -= dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1) * this.pc(p).st.armor * (sprint ? 0.4 : 1) * (p.spinUntil > this.time ? 0.6 : 1);
+    const pf = this.pc(p).fx || {};
+    if (pf.thorns && this.curZ && !this.curZ.dead && Math.hypot(this.curZ.x - p.x, this.curZ.y - p.y) < 160) this.damage(this.curZ, dmg * pf.thorns * 3, p);
+    p.hp -= dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1) * this.pc(p).st.armor * (sprint ? 0.4 : 1) * (p.spinUntil > this.time ? 0.6 : 1) * (p.guardUntil > this.time ? 0.7 : 1);
     if (p.hp <= 0) this.down(p);
   }
 
@@ -1403,7 +1495,8 @@ export class HostGame {
       H.n += m.h.length;
       if (now - H.t >= 2) {
         const w = weaponOf(p.cls, p.wt, p.wp, p.wb), perSec = H.n / (now - H.t);
-        const cap = st.rate * 2.2 * Math.max(1, w.pellets) * (Math.min(6, (w.pierce | 0) + 1) + (w.aoe ? 8 : 0) + (w.fx && w.fx.chain ? 4 : 0)) * 1.6 + 25;
+        const wf = w.fx || {}, rate = st.rate * (1 + (wf.ramp || 0)) * (wf.hasteRate || 1);
+        const cap = rate * 2.2 * Math.max(1, w.pellets, 1 + (wf.rampPel | 0)) * (Math.min(6, (w.pierce | 0) + 1) + (w.aoe ? 8 : 0) + (wf.chain ? 4 : 0) + (wf.rico ? (wf.ricoN | 0) : 0) + (wf.bounce ? 6 : 0) + (wf.doubleCut ? 4 : 0) + (wf.wave ? 6 : 0)) * 1.6 + 25;
         if (perSec > cap) this.acStrike(p, 'atış', `saniyede ${Math.round(perSec)} isabet, en çok ${Math.round(cap)}`);
         H.n = 0; H.t = now;
       }
@@ -1964,10 +2057,16 @@ export class HostGame {
     if (d > reach) { const st = Math.min(d - reach, spd * dt); moveCircle(t, dx / d * st, dy / d * st, 9); t.a = Math.atan2(dy, dx); }
     if (Math.hypot(t.x - owner.x, t.y - owner.y) > 900) { t.x = owner.x - 20; t.y = owner.y; }
     if (!tg || d > reach + 6 || t.cd > 0 || this.phase !== 'combat') return;
-    const L = owner.lv.ab | 0, dm = D.dmg * (1 + 0.15 * (owner.lv.dmg | 0)) * (L >= 2 ? 1.4 : 1) * (atk ? 2 : 1) * this.netBoost(t);
-    t.cd = D.rate * (atk ? 0.6 : 1);
+    const of = this.pc(owner).fx || {};
+    const L = owner.lv.ab | 0, dm = D.dmg * (1 + 0.15 * (owner.lv.dmg | 0)) * (L >= 2 ? 1.4 : 1) * (atk ? 2 * (of.dogAtk || 1) : 1) * this.netBoost(t);
+    t.cd = D.rate * (atk ? 0.6 : 1) / (of.dogRate || 1);
     if (tg.pid != null) { this.pvpDamage(owner, tg, dm * 0.8, 0); tg.chillUntil = Math.max(tg.chillUntil || 0, now + (atk ? 1 : 0.5)); }
-    else { this.damage(tg, dm, owner); if (!tg.dead && !isBoss(tg.t)) { tg.slowUntil = now + 1.2; tg.slowK = Math.min(tg.slowK || 1, 0.55); if (atk) tg.stunT = Math.max(tg.stunT || 0, 0.6); } }
+    else {
+      const was = tg.dead;
+      this.dogHit = true; this.damage(tg, dm * (of.markDog && !of.mark && tg.slowUntil > now ? of.markDog : 1), owner); this.dogHit = false;
+      if (!tg.dead && !isBoss(tg.t)) { tg.slowUntil = now + 1.2; tg.slowK = Math.min(tg.slowK || 1, 0.55); if (atk) tg.stunT = Math.max(tg.stunT || 0, 0.6); if (of.dogStun) tg.stunT = Math.max(tg.stunT || 0, of.dogStun); }
+      if (!was && tg.dead) { if (of.dogGold) owner.gold += Math.max(1, Math.round(ZTYPES[tg.t].gold * DIFFS[this.diff].gold * of.dogGold)); if (of.dogHeal && owner.alive) owner.hp = Math.min(owner.maxHp, owner.hp + of.dogHeal); }
+    }
     this.ev(['bt', Math.round(tg.x), Math.round(tg.y)]);
   }
   // the Kılıççı's whirlwind
@@ -2014,6 +2113,8 @@ export class HostGame {
     if (z.dead || z.st === ZS.BURROW || !(d > 0)) return; // NaN or negative damage is ignored
     if (Number.isNaN(z.hp)) z.hp = 1; // a broken health value never makes a zombie unkillable
     if (z.el === 4) d *= 0.55;
+    if (!this.bulletHit && z.acidT > this.time) d *= z.acidK || 1;
+    if (z.markT > this.time) { d *= z.markK || 1; if (!this.bulletHit && z.markTur && p && !this.dogHit) d *= z.markTur; if (this.dogHit && z.markDog) d *= z.markDog; }
     const dealt = Math.min(d, z.hp);
     z.hp -= d;
     if (p && p.inGame) p.dmg += dealt;

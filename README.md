@@ -103,7 +103,7 @@ Oda kurarken (ya da lobide) mod olarak **PvP** seçilince oyuncular birbirine ka
 - **Sınıf seviyeleri:** her sınıf, onunla temizlediğin her dalgada 10 + 2×dalga XP kazanır; seviye en çok 30. Her seviye 20 elmas verir. Seviyeler profilindeki sınıf kartlarında görünür.
 - **Rozetler:** dalga rekoru, öldürme sayısı, PvP galibiyetleri ve ligi, sınıf seviyeleri, klan, oyuncu seviyesi ve giriş serisi için 16 rozet. Oynadıkça kendiliğinden kazanılır, profilinde koleksiyon olarak görünür.
 - **Tarayıcı bildirimleri:** Ayarlar'dan açarsan site arka plandaki bir sekmedeyken mesaj, arkadaşlık isteği, oda ve klan davetleri bildirim olarak gelir.
-- **Telefon bildirimleri (Android uygulaması 45.0 ve sonrası):** uygulamada hesabına girince bir kez izin sorulur. İzin verirsen oyun kapalıyken bile özel mesaj, arkadaşlık isteği, klan daveti ve klan katılma isteği telefonuna bildirim olarak gelir; bildirime dokununca oyun ilgili sayfada açılır. Ayarlar'daki **Telefon bildirimleri** anahtarıyla kapatabilirsin; çıkış yapınca telefonun hesaptan ayrılır. Bildirim gelmiyorsa telefonun Ayarlar → Uygulamalar → Kuşatma → Bildirimler bölümünden açık olduğuna bak.
+- **Telefon bildirimleri (Android uygulaması 45.0 ve sonrası):** uygulamada hesabına girince bir kez izin sorulur. İzin verirsen oyun kapalıyken bile özel mesaj, arkadaşlık isteği, klan daveti ve klan katılma isteği telefonuna bildirim olarak gelir; bildirime dokununca oyun ilgili sayfada açılır. Ayarlar → **Bildirim seçenekleri**'nden hangi bildirimleri istediğini (özel mesaj, arkadaşlık isteği, oda daveti, klan, duyurular) tek tek seçebilir ve **sessiz saatler** koyabilirsin (o saatlerde bildirim gelmez); aynı seçimler tarayıcı bildirimlerine de uygulanır. Oyunda olmayan bir arkadaşını odana davet edersen telefonuna bildirim gider; dokununca uygulama açılır ve doğrudan odaya katılır. Duyurularda resim de olabilir (uygulama arka plandayken görünür). Ayarlar'daki **Telefon bildirimleri** anahtarıyla hepsini kapatabilirsin; çıkış yapınca telefonun hesaptan ayrılır. Bildirim gelmiyorsa telefonun Ayarlar → Uygulamalar → Kuşatma → Bildirimler bölümünden açık olduğuna bak.
 
 ## Hesap, elmas ve mağaza
 
@@ -185,19 +185,162 @@ Her 5 dalgada bir boss gelir: sırayla **Dev** (yere vurur), **Kraliçe** (yelpa
 
 Cephanelik dört sekmedir: **Silah**, **Gelişim**, **Eşya**, **Takım**.
 
-**Silah:** beş seviye (150, 400, 850, 1500, 2400 altın). Seviye I'de sınıfına açık yollardan birini seçersin (her sınıfın 3–4 yolu var), seviye III'te yolun iki dalından birini. Seviye V dalın özel gücünü açar. Dalı 250 altına değiştirebilir, yolu sıfırlayıp harcadığının yarısını geri alabilirsin.
+**Silah:** beş seviye (150, 400, 850, 1500, 2400 altın). Seviye I'de sınıfının dört yolundan birini seçersin; her sınıfın yolları kendine özeldir, başka sınıfta yoktur. Seviye III'te yolun iki dalından birini seçersin, seviye V dalın özel gücünü açar. Dalı 250 altına değiştirebilir ya da yolu sıfırlayıp harcadığın altının yarısını geri alabilirsin. Her yolun kendi rengi, silah görünümü ve sesi var.
+
+Bazı yollar yeni şeyler yapar: **ısınan** silahlar tetiğe bastıkça hızlanır; **işaret** vurulan zombinin herkesten daha çok hasar almasını sağlar; **bitirme** canı azalmış zombilere çok sert vurur; **can emme** vurduğun hasarın bir kısmını canına çevirir; **çekme** zombileri sana doğru çeker; **birikim** aynı zombiye art arda vurdukça hasarı artırır; **sekme** mermiyi bir zombiden ötekine sektirir. Zehir yalnızca Kimyager'de, şimşek yalnızca Tesla'da, ateş yalnızca Alevci'de, buz yalnızca Nişancı'da vardır.
+
+**Asker**
 
 | Yol | Etkisi | Dallar (seviye V gücü) |
 | --- | --- | --- |
-| Ağır | Yavaş ama çok sert | Sarsıcı (her vuruş sersemletir) · Yıkıcı (patlayan mermi) |
-| Seri | Çok hızlı ateş | Fırtına (seken mermi) · Çift namlu (üç mermi) |
-| Delici | Deler, menzil artar; Kalkanlı'nın kalkanını bir kez deler ama mermi %40 güç kaybeder, her zombide %15 daha | Keskin (üç kat kritik) · Ray (her şeyi, kalkanları da deler) |
-| Buz | Yavaşlatır | Donduran (buz kalıbı) · Kırılgan (ölünce buz patlaması) |
-| Zehir | Zehirler | Salgın (zehir bulutu) · Asit (kalkan eritir, bosslara tam işler) |
-| Elektrik | Şimşek sıçrar | Zincir (sersemletir) · Aşırı yük (yıldırım düşer) |
-| Yangın | Tutuşturur | Napalm (yananlar patlar) · Kor (yerde alev bırakır) |
+| Ağır kalibre | Daha yavaş ama çok sert vurur; vuruşlar zombileri biraz iter | Sarsıcı (her vuruş zombiyi sersemletir) · Yıkıcı (mermiler küçük patlamalar yapar) |
+| Taramalı | Tetiğe bastıkça ısınır: ateş hızı gittikçe artar | Kızgın namlu (mermiler bir zombiden diğerine seker) · Çift şarjör (ısınınca her atışta üç mermi) |
+| Süngü | Yakındaki zombilere çok daha sert vurur ve onları iter | Hücum (hızlanırken iki kat hasar) · Siper (yakın vuruşlar canını yeniler) |
+| Bomba atar | Tüfek yerine bomba atar: yavaş ama her atış patlar | Geniş alan (patlamalar zombileri sarsar) · Seri atar (her atışta iki bomba) |
 
-Zehir yalnızca Kimyager'de, elektrik yalnızca Tesla'da, yangın yalnızca Alevci'de, buz yalnızca Nişancı'da vardır. Asker, Doktor, Nişancı ve Tamirci'nin bir de sınıfa özel sekizinci yolu var: bomba atar, uyutucu dart, raylı top ve çivi tabancası.
+**Doktor**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Uyutucu dart | Dartlar zombileri uyuşturur: çok yavaşlarlar ve sersemlerler | Narkoz (dartlar zombileri bir an uyutur) · Teşhis (sersemleyen zombiler iki kat hasar alır) |
+| Kan emici | Vurduğun hasarın bir kısmı canına döner | Kan bankası (fazla can yakındaki takım arkadaşlarına gider) · Bağışıklık (can emerken bir süre daha az hasar alırsın) |
+| Neşter | Canı azalmış zombileri bitirir; dartlar bir zombiyi deler | Cerrah (canı üçte birin altındakiler tek vuruşta düşer) · Otopsi (şarapnel daha geniş ve sert) |
+| Adrenalin | Vuruşlar yeteneğini doldurur, öldürmek seni hızlandırır | Yüksek doz (hızlanırken çok daha hızlı ateş) · Şok iğnesi (sersemleyen zombiler daha çok hasar alır) |
+
+**Tamirci**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Çivi tabancası | Pompalı yerine çok hızlı çivi yağdırır, çiviler zombileri yere çakar | Çakıcı (çivilenen zombiler %30 fazla hasar alır) · Şarapnel (her atışta üç çivi) |
+| Kalın saçma | Daha az ama çok sert saçma; yakındakileri geri fırlatır | Koç (fırlayan zombiler çarptıklarına hasar verir) · Saçma yağmuru (çok daha fazla saçma) |
+| Şarapnel | Her saçma çarptığı yerde küçük bir patlama yapar | Misket (patlamalar zombileri sersemletir) · Tahrip (iri zombilere ve bosslara iki kat) |
+| Mıknatıs | Vurduğun zombileri sana doğru çeker; çekilenler bir an sendeler | Çekim (çekilen zombiler birbirine çarpıp hasar alır) · Ezici (çekilen zombiler bir süre daha yavaş) |
+
+**Nişancı**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Raylı top | Tek dev atış, her şeyi ve kalkanları deler | Aşırı yük (kritik atışlar üç kat vurur) · Hızlı şarj (atış yolundaki zombiler sersemler) |
+| Kriyojenik | Mermiler zombileri dondurur ve yavaşlatır | Donduran (vuruşlar zombileri buz kalıbına çevirebilir) · Kırılgan (donan zombiler ölünce buz parçalarına patlar) |
+| Av işareti | Vurduğun zombi işaretlenir: herkesten daha çok hasar alır | Gözcü (işaret yakındaki zombilere de yayılır) · Kafadan (kritikler üç kat vurur) |
+| Seken mermi | Mermi vurduğu zombiden yakındaki bir başkasına seker | Bilardo (her sekme biraz daha sert vurur) · Delip geçen (mermiler kalkanları da deler) |
+
+**Kalkancı**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Koçbaşı | Ağır mermiler zombileri geri iter, yaklaşmalarını zorlaştırır | Duvar (itilen zombiler sersemler) · Ezen (bosslara karşı her vuruş zırhını deler) |
+| Baskı ateşi | Kalkanın arkasından hızlı ateş; vurulan zombiler yavaşlar | Kurşun duvarı (yavaşlayan zombiler daha çok hasar alır) · Sürekli ateş (ısınınca mermiler zombileri deler) |
+| Zırh kıran | Mermiler kalkanlı ve zırhlı zombileri deler | Delici (mermiler her şeyi deler) · Parçalayıcı (zırhlı ve elit zombilere iki kat) |
+| Kan bağı | Yakındaki zombilere daha sert vurur ve canını yeniler | Kale (can yenilerken daha az hasar alırsın) · Öfke (canın yarının altındayken iki kat hasar) |
+
+**Alevci**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Cehennem | Alev çok daha uzun yakar ve yayılır | Napalm (yanan zombiler ölünce patlar) · Kor (vuruşlar yerde alev bırakır) |
+| Alev halısı | Alev yere yapışır: arkanda yanan bir yol bırakırsın | Orman yangını (yanan zemin zombileri yavaşlatır) · Lav (zeminde yanan zombiler patlar) |
+| Uzun hortum | Alev daha uzağa gider, daha çok zombiyi deler | Alev topu (patlamalar zombileri tutuşturur) · Basınç (alev zombileri geri iter) |
+| Termit | Kalkan ve zırhları eritir, iri zombilere çok sert | Eritici (bossları tutuşturur, yanmaları uzun sürer) · Kıvılcım (kıvılcımlar zombileri sersemletir) |
+
+**Bombacı**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Büyük şarj | Bombalar daha sert ve geniş patlar | Yer sarsan (patlamalar zombileri sersemletir) · Bunker kırıcı (patlama alanı çok büyür) |
+| Misket | Her atışta birden çok küçük bomba saçar | Halı bombası (her atışta beş bomba) · Seri misket (bombalar daha geniş patlar) |
+| Yapışkan | Patlama yapışkan bir sıvı saçar: zombiler çok yavaşlar | Zamk (yapışan zombiler bir an tamamen durur) · Katran (yere zombileri yavaşlatan bir katran gölü bırakır) |
+| Sekme bombası | Bomba ilk çarptığı yerde patlar, sonra bir kez daha sekip patlar | Zıplayan (her sekme daha geniş patlar) · Gecikmeli (ikinci patlama zombileri sersemletir) |
+
+**İzci**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Hazine avcısı | Öldürdüğün zombilerden fazladan altın düşer | Yağmacı (elit ve iri zombilerden üç kat altın) · Kumarbaz (kritikler fazladan altın verir) |
+| Sekme | Mermiler vurduğu zombiden bir başkasına seker | Akrobat (her sekme biraz daha sert) · Kesişen (sekmeler kritik vurabilir) |
+| Akıncı | Öldürmek seni hızlandırır, koşarken daha hızlı ateş edersin | Rüzgar (hızlanırken mermiler deler) · Vur kaç (hızlanırken iki kat hasar) |
+| Keskin nişan | Yüksek kritik şansı; kritikler çok sert | Ölümcül (kritikler üç kat vurur ve deler) · Göz kararı (kritik vuruşlar zombiyi sersemletir) |
+
+**Mühendis**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Hedef lazeri | Vurduğun zombiler işaretlenir, dronlar ve taretler onlara çok daha sert vurur | Kilit (işaretli zombiye taretler iki kat vurur) · Tarama (işaretli zombiler yavaşlar) |
+| Şok tabancası | Mermiler zombileri bir an sersemletir | Kısa devre (sersemleyen zombiler daha çok hasar alır) · Darbe (darbe zombileri geri iter) |
+| Perçin | Aynı zombiye art arda vurdukça her mermi daha sert vurur | Matkap (birikim dolunca zombi sersemler) · Hidrolik (birikim dolunca zombi patlar) |
+| Seyyar havan | Tüfek yerine küçük havan mermileri atar: yavaş ama alan hasarı | Şarapnel (patlamalar zombileri sersemletir) · Otomatik yükleyici (her atışta iki havan) |
+
+**Kimyager**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Toksin | Vurduğun zombiler zehirlenip can kaybeder | Salgın (ölen zombiler zehir bulutu bırakır) · Nörotoksin (zehirlenen zombiler bir an felç olur) |
+| Asit gölü | Atışlar yere asit gölü bırakır | Bataklık (göldeki zombiler yavaşlar) · Kostik (göller kalkanları da eritir) |
+| Aşındırıcı | Asit zombilerin derisini eritir: herkesten daha çok hasar alırlar | Eritici (asit kalkanları eritir, bosslara tam işler) · Delici asit (atışlar her şeyi deler) |
+| Patlayan şişe | Şişe atar: çarptığı yerde patlayıp zehir saçar | Bulut (bulut daha geniş ve uzun) · Molotof kimyası (her atışta iki şişe) |
+
+**Komutan**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Hedef göster | Vurduğun yerdeki zombiler işaretlenir: takımın onlara çok daha sert vurur | Ateş desteği (işaretli zombiler yavaşlar) · Taarruz (takım hızlanırken daha sert vurur) |
+| Komuta tüfeği | Daha yavaş ama çok sert, delip geçen atışlar | Top (atışlar küçük patlamalar yapar) · Mermi yolu (atışlar her şeyi deler, kalkanları da) |
+| Sancak | Öldürdüğün her zombi yakındaki takım arkadaşlarının canını yeniler | Moral (öldürmek takımı bir an hızlandırır) · Saflar (yanındaki her arkadaş için daha sert) |
+| Keskin göz | Yüksek kritik şansı, menzil artar | Usta nişancı (kritikler üç kat vurur) · Emir (kritik vuruşlar zombiyi işaretler) |
+
+**Tesla**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Yüksek gerilim | Vuruşlar yakındaki zombilere sıçrar | Zincir (şimşek çarptığı zombileri sersemletir) · Aşırı yük (arada bir hedefe yıldırım düşer) |
+| Plazma topu | Yavaş, parlayan plazma topları: çarptığı yerde patlar ve sersemletir | Yıldız (patlama yakındaki zombilere şimşek atar) · Füzyon (sersemletme çok daha uzun) |
+| Kondansatör | Aynı zombiye vurdukça yük birikir, her vuruş daha sert | Boşalma (yıldırım çevredekilere de vurur) · Yüksek kapasite (birikim hiç sıfırlanmaz, sadece azalır) |
+| Manyetik alan | Vurduğun zombileri kendine çeker ve şimşekle yavaşlatır | Kara delik (çekilen zombiler sıkışıp birbirine hasar verir) · Faraday (yakındaki zombiler sana vurunca çarpılır) |
+
+**Avcı**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Çelik uç | Oklar daha çok zombiyi deler, menzil artar | Ok yağmuru (deldiği her zombi oku daha sert yapar) · Keskin uç (kritikler kalkanları da deler) |
+| Kanca | Oklar zombileri sana doğru çeker | Zıpkın (çekilen zombiler sersemler) · Tuzak (çekilen zombilere iki kat) |
+| Çift kiriş | Her atışta iki ok | Yelpaze (her atışta beş ok) · Paralel (oklar daha hızlı atılır) |
+| Patlayıcı ok | Oklar ilk zombiye saplanıp patlar | Fişek (patlama zombileri sersemletir) · Dinamit (iri zombilere ve bosslara iki kat) |
+
+**Kılıççı**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Ağır kılıç | Daha yavaş ama çok sert savurur, zombileri geri iter | Balyoz (savuruş yere çarpıp çevreye hasar verir) · Cellat (canı azalmış zombileri tek vuruşta bitirir) |
+| Çift kılıç | Çok daha hızlı savurur | Kasırga dansı (her savuruşta iki kesik) · Kan çiçeği (kanayan zombiler yavaşlar) |
+| Uzun kılıç | Savuruş daha uzağa ve daha geniş yetişir | Mızrak (savuruş havaya bir kesik dalgası fırlatır) · Pala (savuruş arkayı da keser) |
+| Kan kılıcı | Çok daha fazla can emer, canı azalmış zombilere sert | Vampir (canın doluyken emilen can kalkan olur) · İnfazcı (bitirdiğin zombi canını doldurur) |
+
+**Eğitmen**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| İz sürme | Vurduğun zombiler işaretlenir; köpeğin onlara saldırır ve çok sert ısırır | Koku (işaret yakındaki zombilere de yayılır) · Sürü (ışaretli zombiler yavaşlar) |
+| Kemik kıran | Vuruşlar zombileri sakatlar: yavaşlar ve sendelerler | Topal (sakat zombilere köpek iki kat ısırır) · Kırık (yavaşlayan zombiler sersemler) |
+| Seri tabanca | Çok daha hızlı ateş eder; köpeğin de hızlanır | Fırtına (mermiler bir zombiden diğerine seker) · Takım işi (köpek ısırdığı zombiyi sersemletir) |
+| Ödül tasması | Vuruşlar Saldır! yeteneğini doldurur; köpek öldürünce altın düşer | Eğitimli (saldır! sırasında köpek iki kat ısırır) · Av köpeği (köpek her öldürdüğünde seni iyileştirir) |
+
+**Ajan**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Suikast | Yüksek kritik şansı; kritikler çok sert ve sessiz | Kalp atışı (kritikler üç kat vurur) · Gölge vuruşu (görünmezken her atış kritik) |
+| İnfaz | Canı azalmış zombileri çok sert vurur | Temizlik (canı üçte birin altındakiler tek vuruşta düşer) · İz bırakmayan (öldürünce bir an görünmez olursun) |
+| Hayalet mermi | Mermiler hedefe döner ve zombileri deler | Güdümlü (mermiler her şeyi deler) · Sızma (kalkanlı zombilere iki kat) |
+| Çapraz ateş | Her atışta iki mermi açılı gider | Saçılım (her atışta dört mermi) · Tuzak ateşi (sersemleyen zombiler daha çok hasar alır) |
+
+**Hacker**
+
+| Yol | Etkisi | Dallar (seviye V gücü) |
+| --- | --- | --- |
+| Aşırı hız | Tetiğe bastıkça işlemci ısınır: ateş hızı gittikçe artar | Soğutucu (ısınınca mermiler zombileri deler) · Paralel işlem (ısınınca her atışta üç mermi) |
+| Virüs | Vurduğun zombiye virüs bulaşır: ölünce yakındakilere geçer ve onları sersemletir | Solucan (virüslü zombiler yavaşlar) · Truva (patlama zombileri sersemletir) |
+| Güçlü çekirdek | Daha yavaş ama çok sert, hedefe daha iyi dönen mermiler | Kuantum (mermiler küçük patlamalar yapar) · Yeniden başlat (öldürmek yeteneği çok daha çabuk doldurur) |
+| EMP | Mermi yerine EMP topu atar: çarptığı yerde patlar, zombileri sersemletir | Kısa devre (sersemleyen zombiler daha çok hasar alır) · Elektromanyetik (patlamaya yakalanan zombiler sana doğru çekilir) |
 
 **Gelişim:** hasar, atış hızı, can, hız, yetenek süresi, kritik vuruş, yenilenme, zırh, mıknatıs, üç seviyelik yetenek ustalığı ve Sargı.
 

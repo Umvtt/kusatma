@@ -297,8 +297,9 @@ export const PvpMixin = {
       this.pvpDamage(p, q, d, tag);
       // path effects on players: ice slows, fire and poison keep hurting for a moment
       if (q.alive) {
-        if (tag === 4) q.chillUntil = Math.max(q.chillUntil || 0, now + 1.2);
-        else if (tag === 7 || tag === 5) q.dot = { dps: Math.min(30, d * 0.25), until: now + 2.5, att: p.pid };
+        const fx = C.fx || {};
+        if (fx.slow || fx.frost) q.chillUntil = Math.max(q.chillUntil || 0, now + 1.2);
+        else if (fx.burn || fx.poison || fx.bleed) q.dot = { dps: Math.min(30, d * 0.25), until: now + 2.5, att: p.pid };
       }
     }
   },

@@ -28,7 +28,7 @@ const keepMe = (j) => {
   for (const k of NUMS) if (k in j) ME[k] = Math.max(0, +j[k] || 0);
   if (Array.isArray(j.own)) ME.own = j.own.filter((x) => typeof x === 'string').slice(0, 300);
   if (j.eq && typeof j.eq === 'object') ME.eq = cleanEq(j.eq);
-  if (j.set && typeof j.set === 'object') ME.set = { fr: j.set.fr ? 1 : 0, on: j.set.on ? 1 : 0, room: j.set.room ? 1 : 0 };
+  if (j.set && typeof j.set === 'object') ME.set = { fr: j.set.fr ? 1 : 0, on: j.set.on ? 1 : 0, room: j.set.room ? 1 : 0, pn: j.set.pn && typeof j.set.pn === 'object' ? Object.fromEntries(['dm', 'fr', 'inv', 'clan', 'news'].map((k) => [k, j.set.pn[k] === 0 ? 0 : 1])) : {}, qh: Array.isArray(j.set.qh) && j.set.qh.length === 2 ? [j.set.qh[0] | 0, j.set.qh[1] | 0] : null };
   if (typeof j.pass === 'string') ME.pass = j.pass.slice(0, 4000);
   if ('dl' in j) ME.dl = !!j.dl;
   ME.ls = Math.max(0, Math.min(7, j.ls | 0)); if (Array.isArray(j.lsm) && j.lsm.length === 7) ME.lsm = j.lsm.map((x) => +x || 1);
@@ -101,18 +101,18 @@ function onData(raw) {
   else if (d.e === 'rooms') { if (roomsWait) roomsWait(cleanRooms(d.L)); }
   else if (d.e === 'clv') { if (Array.isArray(d.L)) for (const r of d.L.slice(0, 20)) { ME.gems += r.g | 0; if (H.onClv) H.onClv(String(r.c || '').slice(0, 12), r.l | 0, r.g | 0); } }
   else if (d.e === 'clan') { if (H.onClan) H.onClan(); }
-  else if (d.e === 'cinv') { sysNotify('Klan daveti', `${str(d.by, 16)} seni ${str(d.n, 20)} klanına çağırıyor.`); if (H.onCinv) H.onCinv(str(d.n, 20), str(d.by, 16)); }
+  else if (d.e === 'cinv') { sysNotify('Klan daveti', `${str(d.by, 16)} seni ${str(d.n, 20)} klanına çağırıyor.`, 'clan'); if (H.onCinv) H.onCinv(str(d.n, 20), str(d.by, 16)); }
   else if (d.e === 'pvp') { ME.gems += Math.max(0, d.g | 0); ME.pvp = Object.assign({}, ME.pvp || {}, { rp: d.rp | 0 }); if (H.onPvp) H.onPvp(d); }
   else if (d.e === 'gem') { const n = Math.max(0, d.n | 0); ME.gems += n; ME.gd += n; addXp(Math.max(0, d.xp | 0)); if (H.onGem) H.onGem(n, d.xp | 0, !!d.cap); }
   else if (d.e === 'fl') { if (H.onFriends) H.onFriends(cleanFl(d)); }
-  else if (d.e === 'dm') { sysNotify(str(d.n, 16), str(d.x, 120)); if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
+  else if (d.e === 'dm') { sysNotify(str(d.n, 16), str(d.x, 120), 'dm'); if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
   else if (d.e === 'dmh') { const w = DMW.get(str(d.w, 12)); if (w) { DMW.delete(str(d.w, 12)); w(d.ok ? cleanMsgs(d.L) : null); } }
   else if (d.e === 'dmok') { const w = DMW.get('c' + (d.c | 0)); if (w) { DMW.delete('c' + (d.c | 0)); w(d); } }
   else if (d.e === 'lvl') { if (Array.isArray(d.L)) for (const r of d.L.slice(0, 20)) { ME.gems += r.g | 0; if (r.it && ITEMS[r.it] && !ME.own.includes(r.it)) ME.own.push(r.it); if (H.onRoad) H.onRoad(r.l | 0, r.g | 0, ITEMS[r.it] ? r.it : ''); } }
-  else if (d.e === 'inv') { sysNotify('Oda daveti', `${str(d.f, 16)} seni odasına çağırıyor.`); if (H.onInv) H.onInv({ fid: str(d.fid, 12), f: str(d.f, 16), room: str(d.room, 6).toUpperCase().replace(/[^A-Z0-9]/g, ''), rn: str(d.rn, 24), n: d.n | 0, mx: d.mx | 0, eq: d.eq && typeof d.eq === 'object' ? cleanEq(d.eq) : {} }); }
+  else if (d.e === 'inv') { sysNotify('Oda daveti', `${str(d.f, 16)} seni odasına çağırıyor.`, 'inv'); if (H.onInv) H.onInv({ fid: str(d.fid, 12), f: str(d.f, 16), room: str(d.room, 6).toUpperCase().replace(/[^A-Z0-9]/g, ''), rn: str(d.rn, 24), n: d.n | 0, mx: d.mx | 0, eq: d.eq && typeof d.eq === 'object' ? cleanEq(d.eq) : {} }); }
   else if (d.e === 'invok') { const w = DMW.get('i' + str(d.to, 12)); if (w) { DMW.delete('i' + str(d.to, 12)); w(d); } }
-  else if (d.e === 'fr') { if (d.k !== 'acc') sysNotify('Arkadaşlık isteği', `${str(d.n, 16)} seni arkadaş olarak eklemek istiyor.`); if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }
-  else if (d.e === 'msg') H.onMsg(str(d.text, 300), str(d.title, 120));
+  else if (d.e === 'fr') { if (d.k !== 'acc') sysNotify('Arkadaşlık isteği', `${str(d.n, 16)} seni arkadaş olarak eklemek istiyor.`, 'fr'); if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }
+  else if (d.e === 'msg') { H.onMsg(str(d.text, 300), str(d.title, 120)); msgReceipt(str(d.mid, 12)); }
   else if (d.e === 'kick') H.onKick(str(d.text, 200));
   else if (d.e === 'ban') { LIVE.ban = str(d.text, 120); try { localStorage.setItem(BAN_KEY, LIVE.ban); } catch (e) { /* ignore */ } H.onBan(); }
   else if (d.e === 'ev') H.onEv(['boss', 'gold', 'horde', 'mev', 'item', 'zombie'].includes(d.k) ? d.k : 'gold', d.n | 0, str(d.text, 120), { who: str(d.who, 16), i: d.i | 0, t: d.t | 0, q: str(d.q, 8) });
@@ -229,6 +229,19 @@ export function liveChat(name, text) {
 // connection troubles for the owner's log (why someone dropped, rejoined or could not get in); kept for a moment if the
 // live socket is down, since that is often exactly when they happen
 const cnQ = [];
+// owner messages: tell the panel the message arrived (1) and when it was on a visible screen (2)
+const MR = new Set();
+function msgReceipt(mid) {
+  if (!mid) return;
+  try { send({ e: 'mr', mid, s: 1 }); } catch (e) {}
+  if (document.visibilityState === 'visible') { try { send({ e: 'mr', mid, s: 2 }); } catch (e) {} return; }
+  MR.add(mid); if (MR.size > 20) MR.delete(MR.values().next().value);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !MR.size || !sockOk()) return;
+  for (const mid of MR) { try { send({ e: 'mr', mid, s: 2 }); } catch (e) {} }
+  MR.clear();
+});
 export function liveConn(o) {
   const c = navigator.connection || {};
   const m = { e: 'cn', r: str(o.r, 12), why: str(o.why, 40), room: str(o.room, 6), who: str(o.who, 16), secs: Math.max(0, Math.round(o.secs || 0)), tries: o.tries | 0, ping: Math.round(o.ping || 0), net: str(c.effectiveType || '', 10) };
@@ -377,8 +390,15 @@ export async function sysNotifySet(on) {
     return p === 'granted';
   } catch (e) { return false; }
 }
-export function sysNotify(title, body) {
-  if (!sysNotifyOn() || !document.hidden) return;
+// the player's notification choices (stored on the account): a switch per kind and quiet hours, Turkey time
+export function notifyAllowed(kind) {
+  const set = (ME && ME.set) || {}, pn = set.pn || {}, q = set.qh;
+  if (kind && pn[kind] === 0) return false;
+  if (Array.isArray(q) && q.length === 2 && q[0] !== q[1]) { const h = new Date(Date.now() + 3 * 36e5).getUTCHours(); if (q[0] < q[1] ? h >= q[0] && h < q[1] : h >= q[0] || h < q[1]) return false; }
+  return true;
+}
+export function sysNotify(title, body, kind) {
+  if (!sysNotifyOn() || !document.hidden || !notifyAllowed(kind)) return;
   try { const n = new Notification(String(title).slice(0, 60), { body: String(body).slice(0, 160), icon: (window.KROOT || './') + 'app/icon.png', tag: 'kusatma-' + String(title).slice(0, 20) }); n.onclick = () => { window.focus(); n.close(); }; } catch (e) { /* ignore */ }
 }
 export function livePvp(o) {

@@ -1,5 +1,5 @@
 // Canvas drawing: an abandoned plaza at night, seen from above, lit by the team's flashlights.
-import { WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, PLAYER_R, QUICK, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, PATHS, ROMAN, isBoss, clamp, TEAM_COL } from './config.js';
+import { WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, PLAYER_R, QUICK, CLASSES, ZTYPES, ZS, CHARGE, ITEMS, ROMAN, isBoss, clamp, TEAM_COL, weaponOf } from './config.js';
 import { WORLD, obstaclesIn } from './world.js';
 import { SETTINGS, QUALITY } from './settings.js';
 import { ITEMS as COS } from './catalog.js';
@@ -171,6 +171,17 @@ export class Renderer {
     g.lineCap = 'round';
     for (const b of game.bullets) {
       if (b.kind === 'f') continue;
+      if (b.look === 'orb') { // plasma and EMP balls: a glowing core with a halo
+        const pul = 0.75 + 0.25 * Math.sin(game.time * 30 + b.x * 0.05);
+        g.globalAlpha = 0.35; g.fillStyle = b.col || '#c77dff'; g.beginPath(); g.arc(b.x, b.y, 10 * pul, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1; g.fillStyle = '#ffffff'; g.beginPath(); g.arc(b.x, b.y, 3.6, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = b.col || '#c77dff'; g.lineWidth = 1.6; g.beginPath(); g.arc(b.x, b.y, 6, 0, Math.PI * 2); g.stroke(); continue;
+      }
+      if (b.look === 'wave') { // the sword's flying slash
+        const a = Math.atan2(b.vy, b.vx), k = Math.max(0, b.life / b.max);
+        g.save(); g.translate(b.x, b.y); g.rotate(a); g.globalAlpha = 0.85 * k; g.strokeStyle = b.col || '#e8f1ff'; g.lineWidth = 4;
+        g.beginPath(); g.arc(-10, 0, 26, -1.1, 1.1); g.stroke(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke(); g.restore(); g.globalAlpha = 1; continue;
+      }
       if (b.kind === 'g') {
         g.fillStyle = '#3d4a2a';
         g.beginPath(); g.arc(b.x, b.y, 5, 0, Math.PI * 2); g.fill();
@@ -1395,7 +1406,7 @@ export function drawCharacter(g, cls, color, angle, walk, opts = {}) {
   const thrust = opts.bash > 0 ? Math.sin((1 - opts.bash / 0.25) * Math.PI) * 9 : 0;
   g.save();
   if (thrust) g.translate(thrust, 0);
-  if (opts.rc > 0) g.translate(-opts.rc * (opts.wp === 1 ? 6 : 3.5), 0); // the gun kicks back on each shot
+  if (opts.rc > 0) g.translate(-opts.rc * (opts.wt && weaponOf(cls, opts.wt, opts.wp || 1, opts.wb || 0).heavy ? 6 : 3.5), 0); // the gun kicks back on each shot
   // a sword swing: the blade sweeps from one side to the other (opts.sw: 0..1 through the swing, opts.sd: direction)
   if (opts.sw != null && opts.sw >= 0 && opts.sw < 1) {
     const e = 1 - (1 - opts.sw) ** 3, from = 1.25, to = -1.05;
@@ -1542,7 +1553,7 @@ export function drawWeaponPreview(g, cls, wt, wp, w, h, wb = 0, time = 0) {
   g.clearRect(0, 0, w, h);
   g.save();
   const m = MUZZLE[cls] || MUZZLE.asker;
-  const len = m[0] + (wp === 3 ? 14 : 6) + 24;
+  const len = m[0] + (wt && weaponOf(cls, wt, wp, wb).gfx === 3 ? 14 : 6) + 24;
   const k = Math.min((w - 16) / len, (h - 8) / 22);
   g.translate((w - len * k) / 2 + 24 * k, h / 2 - 4 * k);
   g.scale(k, k);
@@ -1590,19 +1601,21 @@ function drawCrate(g, t) {
 
 // Where each class's weapon ends and what height its barrel sits at (izci has two pistols).
 const MUZZLE = { asker: [34, 4], doktor: [26, 4], tamirci: [32, 4.2], nisanci: [42, 4.7], kalkanci: [36, 4], alevci: [31, 4.2], bombaci: [34, 4.5], izci: [25, -7, 7], muhendis: [32, 4], kimyager: [30, 4.2], komutan: [24, 4], tesla: [31, 4.2], avci: [33, 4.2] };
-const PATH_COL = PATHS.map((p) => p.col);
+// a weapon's colour and gun model come from its path (every class has its own four)
+const wLook = (cls, wt, wp, wb) => { const W = weaponOf(cls, wt, wp, wb); return { col: W.col || '#ffe1a6', gfx: W.gfx || 1 }; };
 
 // Visible parts an upgraded weapon gets, different for each of the four paths; tier 2 adds more.
 function drawWeaponMod(g, cls, wt, wp, time, wb = 0) {
-  drawWeaponMod2(g, cls, wt, wp, time);
-  if (wt >= 3) drawWeaponHigh(g, cls, wt, wp, time, wb);
+  const L = wLook(cls, wt, wp, wb);
+  drawWeaponMod2(g, cls, wt, L.gfx, time, L.col);
+  if (wt >= 3) drawWeaponHigh(g, cls, wt, L.col, time, wb);
 }
 
 // Levels 3-5: a branch stripe, extra parts and, at the top level, a pulsing glow.
-function drawWeaponHigh(g, cls, wt, wp, time, wb) {
+function drawWeaponHigh(g, cls, wt, col, time, wb) {
   const m = MUZZLE[cls] || MUZZLE.asker;
   const ys = m.length > 2 ? [m[1], m[2]] : [m[1]];
-  const x = m[0], col = PATH_COL[wp] || PATH_COL[1];
+  const x = m[0];
   const small = ys.length > 1;
   for (const y of ys) {
     // branch marking: one bar for the first branch, two for the second
@@ -1628,10 +1641,10 @@ function drawWeaponHigh(g, cls, wt, wp, time, wb) {
   }
 }
 
-function drawWeaponMod2(g, cls, wt, wp, time) {
+function drawWeaponMod2(g, cls, wt, wp, time, col) {
   const m = MUZZLE[cls] || MUZZLE.asker;
   const ys = m.length > 2 ? [m[1], m[2]] : [m[1]];
-  const x = m[0], two = wt >= 2, col = PATH_COL[wp] || PATH_COL[1];
+  const x = m[0], two = wt >= 2;
   const M = '#191c19';
   for (const y of ys) {
     const small = ys.length > 1;
@@ -1668,6 +1681,20 @@ function drawWeaponMod2(g, cls, wt, wp, time) {
       g.fillStyle = '#e6f7ff';
       if (Math.sin(time * 23 + y) > 0.2) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + 4, y - 2); g.lineTo(x + 2.5, y); g.lineTo(x + 6, y + 2); g.lineTo(x + 1, y + 0.8); g.closePath(); g.fill(); }
       if (two && !small) { g.fillStyle = '#1d211d'; g.fillRect(x - 24, y + 3.5, 8, 4); g.fillStyle = col; g.fillRect(x - 23, y + 4.5, 2, 2); g.fillRect(x - 19.5, y + 4.5, 2, 2); }
+    } else if (wp === 9) { // a blade under the barrel (bayonets, hooks, swords)
+      g.fillStyle = '#c9ced3'; g.beginPath(); g.moveTo(x - 4, y + 2.6); g.lineTo(x + (two ? 12 : 8), y + 3.6); g.lineTo(x - 4, y + 5.4); g.closePath(); g.fill();
+      g.fillStyle = col; g.fillRect(x - 8, y + 2.4, 4, 3.2);
+      if (two) { g.strokeStyle = '#ffffff'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x - 2, y + 3.4); g.lineTo(x + 9, y + 3.9); g.stroke(); }
+    } else if (wp === 10) { // a dish emitter with a pulsing ring (lasers, magnets, plasma)
+      g.fillStyle = '#2b2f2b'; g.fillRect(x - (small ? 7 : 11), y - 2.4, small ? 7 : 11, 4.8);
+      const pul = 0.6 + 0.4 * Math.sin(time * 8 + y);
+      g.strokeStyle = col; g.lineWidth = 1.6; g.beginPath(); g.ellipse(x + 1.5, y, 1.8, two ? 5 : 4, 0, 0, Math.PI * 2); g.stroke();
+      g.globalAlpha = pul; g.fillStyle = col; g.beginPath(); g.arc(x + 1.5, y, 1.6, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+      if (!small) { g.fillStyle = '#1d211d'; g.fillRect(x - 20, y - 6.5, 8, 3); g.fillStyle = col; g.fillRect(x - 18.5, y - 5.8, 2, 1.6); }
+    } else if (wp === 11) { // a second barrel on top (twin shots, scatter, mortars)
+      g.fillStyle = M; g.fillRect(x - (small ? 6 : 10), y - 4.6, small ? 8 : 12, 2.4);
+      g.fillStyle = col; g.fillRect(x + (small ? 1 : 1.5), y - 4.8, 1.6, 2.8);
+      if (two && !small) { g.fillStyle = '#2b2f2b'; g.fillRect(x - 18, y + 3, 10, 3.5); g.fillStyle = col; g.fillRect(x - 16, y + 3.8, 2, 1.8); g.fillRect(x - 12, y + 3.8, 2, 1.8); }
     } else if (wp === 7) { // Yangın: fuel tank and a pilot flame at the muzzle
       g.fillStyle = '#7a2a1c'; rr(g, x - (small ? 12 : 20), y + (small ? 2 : 3.5), small ? 6 : 10, small ? 4 : 5, 2); g.fill();
       g.fillStyle = '#2b2f2b'; g.fillRect(x - (small ? 6 : 9), y - 2.6, small ? 6 : 9, 5.2);
@@ -1806,8 +1833,9 @@ function drawTag(g, p, info, isMe, game) {
     g.font = '700 9px Rubik, system-ui, sans-serif';
     const bw = g.measureText(txt).width + 7;
     g.fillStyle = 'rgba(0,0,0,0.7)'; rr(g, bx, by, bw, 12, 3); g.fill();
-    g.strokeStyle = PATH_COL[p.wp] || '#fff'; g.lineWidth = p.wt >= 5 ? 1.6 : 1; g.stroke();
-    g.fillStyle = PATH_COL[p.wp] || '#fff'; g.textAlign = 'left';
+    const pc = weaponOf(info.cls || p.cls || 'asker', p.wt, p.wp, p.wb).col || '#fff';
+    g.strokeStyle = pc; g.lineWidth = p.wt >= 5 ? 1.6 : 1; g.stroke();
+    g.fillStyle = pc; g.textAlign = 'left';
     g.fillText(txt, bx + 3.5, by + 9.5);
     g.textAlign = 'center';
   }
@@ -1832,6 +1860,13 @@ function drawZone(g, q, time) {
     }
     g.strokeStyle = `rgba(143,209,79,${0.35 * a})`; g.lineWidth = 2; g.setLineDash([6, 8]);
     g.beginPath(); g.arc(x, y, r, time, time + Math.PI * 2); g.stroke(); g.setLineDash([]);
+  } else if (k === 2) { // sticky tar
+    g.fillStyle = `rgba(22,18,14,${0.62 * a})`;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = `rgba(90,80,64,${0.35 * a})`;
+    for (let i = 0; i < 4; i++) { const ang = i * 1.7 + id, d = r * (0.25 + (i % 2) * 0.3), bl = 3 + 2 * Math.sin(time * 2 + i * 2); g.beginPath(); g.arc(x + Math.cos(ang) * d, y + Math.sin(ang) * d, bl, 0, Math.PI * 2); g.fill(); }
+    g.strokeStyle = `rgba(60,52,40,${0.6 * a})`; g.lineWidth = 2;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.stroke();
   } else { // ground fire
     g.fillStyle = `rgba(90,30,10,${0.35 * a})`;
     g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();

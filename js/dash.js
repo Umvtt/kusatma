@@ -363,7 +363,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Haftalık görevler ve haftanın sıralaması: ilk 10 her pazartesi elmas alır.', 'Oyunda bir görev ya da başarım tamamlanınca ekranda hemen kart çıkar.', 'Oyun sonunda yeni ödüller (Boss avcısı, Elit avcısı) ve Sonucu paylaş: sonucunun resmini paylaş.', 'Bir arkadaşın odaya girince Katıl tuşlu bildirim gelir.', 'Telefon yan tutulunca Cephanelik ve sınıf seçimi ekrana sığıyor: menüler solda, liste sağda ve kendi içinde kayıyor.', 'Telefonda kayıt ve giriş düzeltildi; yavaş internette "ad alınmış" hatası da giderildi.', 'Sayfayı yenileyince odadaki yerine hemen geri dönersin (iki kopya oluşmaz).', 'Hızlı oyna: tek dokunuşla açık bir odaya katıl, yoksa hemen tek başına başla.', 'Telefonda kontrolleri düzenle: tuşları taşı, boyutlarını ve saydamlığını ayarla, serbest joystick.', 'Pil tasarrufu: 30 FPS ve daha az parçacık; pil azalınca kendiliğinden açılır.', 'Bekleme ekranında ipuçları, lobide harita önizlemesi.', 'Vuruş hissi: ağır vuruşlar ekranı sarsar, silahlar geri teper; her silahın ve zombinin kendi sesi var.', 'Oyunun kendi müziği (Ayarlar → Müzik).', 'Hızlı takım mesajları: Z ya da telefonda Hızlı; G ile haritada işaretle.', 'Düşünce seni neyin devirdiğini görürsün; mikrofonun açıkken üstte gösterge çıkar.', 'Denge: Kılıççı, Ajan ve Nişancı güçlendi; Tesla\'nın yüksek gerilim yolu biraz zayıfladı.', 'Kılıç savurma ve Kasırga artık net görünüyor.', 'Yeni mikrofon düğmesi: basılı tut konuş, kısa dokun mikrofonu açık bırak. Telefonda artık oyunda da görünüyor.', 'Hacker\'ın ele geçirdiği zombilerin ısırdığı zombilerin ölmemesi düzeltildi.', 'Odadan düşenler ve sayfayı yenileyenler yerlerine geri dönebiliyor.', 'Android uygulaması 45.0: oyun kapalıyken bile mesaj, arkadaşlık isteği ve klan davetleri telefonuna bildirim olarak gelir.', 'Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
+const WHATS_NEW = ['Her sınıfın artık dört kendine özel silah yolu var: ısınan namlular, işaret, can emme, çekme, birikim, sekme, virüs ve daha fazlası.', 'Bildirim seçenekleri: hangi bildirimleri istediğini seç, sessiz saatler koy.', 'Çevrimdışı arkadaşını odana davet et: telefonuna bildirim gider, dokununca odaya katılır.', 'Haftalık görevler ve haftanın sıralaması: ilk 10 her pazartesi elmas alır.', 'Oyunda bir görev ya da başarım tamamlanınca ekranda hemen kart çıkar.', 'Oyun sonunda yeni ödüller (Boss avcısı, Elit avcısı) ve Sonucu paylaş: sonucunun resmini paylaş.', 'Bir arkadaşın odaya girince Katıl tuşlu bildirim gelir.', 'Telefon yan tutulunca Cephanelik ve sınıf seçimi ekrana sığıyor: menüler solda, liste sağda ve kendi içinde kayıyor.', 'Telefonda kayıt ve giriş düzeltildi; yavaş internette "ad alınmış" hatası da giderildi.', 'Sayfayı yenileyince odadaki yerine hemen geri dönersin (iki kopya oluşmaz).', 'Hızlı oyna: tek dokunuşla açık bir odaya katıl, yoksa hemen tek başına başla.', 'Telefonda kontrolleri düzenle: tuşları taşı, boyutlarını ve saydamlığını ayarla, serbest joystick.', 'Pil tasarrufu: 30 FPS ve daha az parçacık; pil azalınca kendiliğinden açılır.', 'Bekleme ekranında ipuçları, lobide harita önizlemesi.', 'Vuruş hissi: ağır vuruşlar ekranı sarsar, silahlar geri teper; her silahın ve zombinin kendi sesi var.', 'Oyunun kendi müziği (Ayarlar → Müzik).', 'Hızlı takım mesajları: Z ya da telefonda Hızlı; G ile haritada işaretle.', 'Düşünce seni neyin devirdiğini görürsün; mikrofonun açıkken üstte gösterge çıkar.', 'Denge: Kılıççı, Ajan ve Nişancı güçlendi; Tesla\'nın yüksek gerilim yolu biraz zayıfladı.', 'Kılıç savurma ve Kasırga artık net görünüyor.', 'Yeni mikrofon düğmesi: basılı tut konuş, kısa dokun mikrofonu açık bırak. Telefonda artık oyunda da görünüyor.', 'Hacker\'ın ele geçirdiği zombilerin ısırdığı zombilerin ölmemesi düzeltildi.', 'Odadan düşenler ve sayfayı yenileyenler yerlerine geri dönebiliyor.', 'Android uygulaması 45.0: oyun kapalıyken bile mesaj, arkadaşlık isteği ve klan davetleri telefonuna bildirim olarak gelir.', 'Klanlar: klan kur ya da katıl, etiketin oyunda adının önünde görünür. Sıralamada klan sekmesi var.', 'Sınıf seviyeleri: her sınıf kendi seviyesini kazanır (en çok 30), her seviye 20 elmas.', 'Rozet koleksiyonu profilinde: oynadıkça kendiliğinden kazanılır.', 'Tarayıcı bildirimleri: Ayarlar\'dan açarsan arka plandaki sekmede mesaj ve davetleri bildirir.', 'Önceki yapılardan: PvP ve dereceli lig, 4 yeni sınıf, 4 yeni harita, yeni düşmanlar, sesli sohbet, 20 kişilik odalar.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -1338,6 +1338,27 @@ function topPage(sec) {
   });
 }
 
+// which notices this player wants (phone and browser alike) and quiet hours, saved on the account
+const PN_KINDS = [['dm', 'Özel mesajlar'], ['fr', 'Arkadaşlık istekleri'], ['inv', 'Oda davetleri (dokununca odaya katılırsın)'], ['clan', 'Klan davetleri ve istekleri'], ['news', 'Duyurular ve etkinlikler']];
+function notifyCard() {
+  const c = card('Bildirim seçenekleri'), set = ME.set || {}, pn = Object.assign({}, set.pn || {});
+  const save = async (patch) => { const j = await acctOp('set', { s: patch }); if (j.ok) { ME.set = j.set; H.toast('Kaydedildi.', 'good'); } else H.toast('Kaydedilemedi.', 'bad'); };
+  for (const [k, label] of PN_KINDS) {
+    const lab = el('label', 'voice-open'), cb = el('input'); cb.type = 'checkbox'; cb.checked = pn[k] !== 0; cb.dataset.pn = k;
+    cb.onchange = () => { pn[k] = cb.checked ? 1 : 0; save({ pn }); };
+    lab.append(cb, el('span', '', label)); c.append(lab);
+  }
+  // quiet hours: no notices between two hours (Turkey time)
+  const q = Array.isArray(set.qh) ? set.qh : null, row = el('div', 'qh-row'), on = el('input'); on.type = 'checkbox'; on.checked = !!q;
+  const hourSel = (v) => { const s2 = el('select', 'qh-sel'); for (let h = 0; h < 24; h++) { const o = el('option', '', String(h).padStart(2, '0') + ':00'); o.value = String(h); s2.append(o); } s2.value = String(v); return s2; };
+  const from = hourSel(q ? q[0] : 23), to = hourSel(q ? q[1] : 8);
+  const apply = () => { from.disabled = to.disabled = !on.checked; if (on.checked && from.value === to.value) to.value = String((+from.value + 8) % 24); save({ qh: on.checked ? [+from.value, +to.value] : null }); };
+  on.onchange = apply; from.onchange = apply; to.onchange = apply; from.disabled = to.disabled = !on.checked;
+  const lab = el('label', 'voice-open'); lab.append(on, el('span', '', 'Sessiz saatler'));
+  row.append(from, el('span', 'dim', '–'), to);
+  c.append(lab, row, el('p', 'note', 'Sessiz saatlerde telefonuna ve tarayıcına bildirim gelmez (Türkiye saati). Oyundayken gelenleri yine görürsün.'));
+  return c;
+}
 // ---------- account settings ----------
 function accountPage(sec) {
   head(sec, 'Ayarlar', 'Hesap ve görünüm');
@@ -1349,6 +1370,7 @@ function accountPage(sec) {
     cb.onchange = async () => { const ok = await sysNotifySet(cb.checked); cb.checked = ok && cb.checked; if (!ok && cb.checked === false && typeof Notification !== 'undefined' && Notification.permission === 'denied') H.toast('Tarayıcı bildirimleri engellemiş. Adres çubuğundaki kilit simgesinden izin verebilirsin.', 'bad'); };
     lab.append(cb, el('span', '', 'Oyun arka plandaki bir sekmedeyken mesaj, arkadaşlık isteği, oda ve klan davetlerini bildir'));
     nc.append(lab, el('p', 'note', 'Bildirimler yalnızca site açıkken (arka planda bile olsa) gelir. Android uygulamasında oyun kapalıyken de gelir.')); sec.append(nc); }
+  sec.append(notifyCard());
   const th = card('Tema');
   const tg = el('div', 'theme-grid');
   for (const id of Object.keys(THEMES)) {
