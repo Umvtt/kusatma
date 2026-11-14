@@ -2,9 +2,9 @@
 
 export const VERSION = 21;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 58;
+export const BUILD = 59;
 // the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
-export const APP_BUILD = 47;
+export const APP_BUILD = 48;
 export const MAX_PLAYERS = 20;
 export const NAME_MAX = 16;
 export const CODE_LEN = 6;

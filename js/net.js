@@ -10,10 +10,46 @@ const peerOpts = () => ({ debug: 0, config: { iceServers: ICE } });
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O or 1/I lookalikes
 const MAX_MSGS_PER_SEC = 80;   // normal play sends about 22
 const MSG_BURST = 400;         // a link that stalled and then delivers its backlog at once is not spam
-const PIECE = 5000;            // PeerJS refuses JSON messages over 16 KB; bigger ones go in pieces of this many characters
+const PIECE = 5000;
+// A guest's link counts as busy while more than this is still waiting to leave the host (about three snapshots).
+// Kept small on purpose: a snapshot queued behind older ones only arrives late, so the host skips it and sends the
+// newest picture once the link is free. (Until build 58 this was 64 KB, about 2 s of data on a phone's upload: the
+// guest then saw zombies stand still and jump.) The weak-upload test in the test repo measures the effect.
+export const SNAP_BUF = 6000;
+export const linkBusy = (buffered) => buffered > SNAP_BUF;
+// The limit also follows how fast this link really drains: at most about a quarter second of data may wait, so a guest
+// on a very slow link gets fewer but fresh snapshots instead of a steady stream that is always a second old.
+// L is that link's own record; add() is told how much each snapshot handed over was.
+export function linkGate(L, buffered, now) {
+  if (!L.t) { L.t = now; L.b = buffered; L.add = 0; }
+  else if (now - L.t > 20) {
+    const r = Math.max(0, L.b + L.add - buffered) / ((now - L.t) / 1000);
+    // only a link with data still waiting shows its real speed; an idle one only shows what was sent
+    if (L.b > 0 || buffered > 0) L.rate = L.rate ? L.rate * 0.8 + r * 0.2 : r;
+    L.t = now; L.b = buffered; L.add = 0;
+  }
+  const lim = Math.max(1500, Math.min(SNAP_BUF, L.rate ? L.rate * 0.25 : SNAP_BUF));
+  return buffered > lim;
+}
+// what this page has sent, for the performance report (characters of JSON, close to bytes)
+export const NETSTAT = { out: 0 };            // PeerJS refuses JSON messages over 16 KB; bigger ones go in pieces of this many characters
 const MAX_MSG_CHARS = 6000;
 const HOST_STALE_MS = 30000;   // drop a player we have not heard from in this long
 const CLIENT_STALE_MS = 8000;  // the host pings every 2 s; this long without anything means the link is down
+
+// gzip + base64, for big messages that are not urgent (the host backup); the browser does the work off the main thread
+export async function gzip64(str) {
+  const buf = new Uint8Array(await new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+  let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+export async function gunzip64(b64, max = 2000000) {
+  const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  // read with a size limit, so a broken or hostile message can never fill the memory
+  const rd = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip')).pipeThrough(new TextDecoderStream()).getReader();
+  let out = '';
+  for (;;) { const { done, value } = await rd.read(); if (done) return out; out += value; if (out.length > max) { rd.cancel(); throw new Error('too big'); } }
+}
 
 export function makeCode() {
   const bytes = new Uint8Array(CODE_LEN);
@@ -33,6 +69,7 @@ const peerAvailable = () => typeof Peer === 'function';
 let packId = 0;
 function pack(msg) {
   const str = JSON.stringify(msg);
+  NETSTAT.out += str.length;
   if (str.length <= PIECE) return [msg];
   const id = ++packId, n = Math.ceil(str.length / PIECE), out = [];
   for (let i = 0; i < n; i++) out.push({ t: 'ck', id, i, n, d: str.slice(i * PIECE, (i + 1) * PIECE) });
@@ -157,15 +194,33 @@ export class HostNet {
   canSnap(pid) {
     const i = this.conns.get(pid);
     if (!i || !i.player || !i.conn.open) return false;
-    const c = i.u && i.u.open ? i.u : i.conn, dc = c.dataChannel;
-    if ((dc && dc.bufferedAmount > 64000) || c.bufferSize > 0) { i.skipped = (i.skipped || 0) + 1; return false; }
+    const c = i.u && i.u.open ? i.u : i.conn, dc = c.dataChannel, b = dc ? dc.bufferedAmount : 0;
+    if (b > (i.bufPeak || 0)) i.bufPeak = b;
+    if (linkGate(i.gate || (i.gate = {}), b, performance.now()) || c.bufferSize > 0) { i.skipped = (i.skipped || 0) + 1; i.skipAt = performance.now(); return false; }
     return true;
+  }
+  // both channels of a guest are idle: big, unhurried messages (the host backup) wait for this
+  idle(pid) {
+    const i = this.conns.get(pid);
+    if (!i || !i.player || !i.conn.open) return false;
+    let b = i.conn.dataChannel ? i.conn.dataChannel.bufferedAmount : 0;
+    if (i.u && i.u.open && i.u.dataChannel) b += i.u.dataChannel.bufferedAmount;
+    return b < 2000 && !(i.conn.bufferSize > 0);
+  }
+  // some guest's link could not keep up in the last few seconds (voice then uses less of the upload)
+  struggling() { const now = performance.now(); for (const i of this.conns.values()) if (i.player && now - (i.skipAt || -1e9) < 4000) return true; return false; }
+  // per guest: snapshots skipped and the most data ever waiting, since the last call (for the performance report)
+  linkStats() {
+    const out = [];
+    for (const i of this.conns.values()) if (i.player) { out.push([i.skipped || 0, i.bufPeak || 0]); i.skipped = 0; i.bufPeak = 0; }
+    return out;
   }
   sendSnap(pid, msg) {
     const i = this.conns.get(pid);
     if (!i || !i.conn.open) return;
-    const c = i.u && i.u.open ? i.u : i.conn;
+    const c = i.u && i.u.open ? i.u : i.conn, n0 = NETSTAT.out;
     for (const part of pack(msg)) { try { c.send(part); } catch (e) { /* closed mid-send */ } }
+    if (i.gate) i.gate.add += NETSTAT.out - n0;
   }
   fast(pid) { const i = this.conns.get(pid); return !!(i && i.u && i.u.open); }
 

@@ -10,6 +10,18 @@ const PEND_T = 0.45; // how long a hit we predicted counts before the host's own
 import { QUAL } from './settings.js';
 const MAX_PARTS_CAP = 700;
 
+// how long zombies keep walking on their own while the host's snapshots are late
+const EXTRAP_MS = 600;
+// a zombie's new position from the host, and how fast it was moving (for the gaps above); x/y from the last snapshot
+// are kept apart from tx/ty, which the gap-walk moves on
+function zMove(z, x, y, now) {
+  if (z.ut != null && now - z.ut > 30 && now - z.ut < 700) {
+    const k = 1000 / (now - z.ut), lim = 420;
+    z.vx = Math.max(-lim, Math.min(lim, (x - z.bx) * k)); z.vy = Math.max(-lim, Math.min(lim, (y - z.by) * k));
+  } else if (z.ut == null) { z.vx = 0; z.vy = 0; }
+  z.bx = x; z.by = y; z.ut = now; z.tx = x; z.ty = y;
+}
+
 export class ClientGame {
   constructor(send, me) {
     this.send = send;
@@ -171,7 +183,7 @@ export class ClientGame {
     for (const e of s.Z) {
       if (e.length === 3) { // unchanged since last time: only where it is now
         const z = this.zs.get(e[0]);
-        if (z) { z.tx = e[1]; z.ty = e[2]; z.seenN = this.snapN; } else if (!this.zrAsk || this.time - this.zrAsk > 1) { this.zrAsk = this.time; this.send({ t: 'zr' }); }
+        if (z) { zMove(z, e[1], e[2], this.lastSnapAt); z.seenN = this.snapN; } else if (!this.zrAsk || this.time - this.zrAsk > 1) { this.zrAsk = this.time; this.send({ t: 'zr' }); }
         continue;
       }
       const [id, t, x, y, hp, st, cdir, sface, fl] = e;
@@ -198,7 +210,7 @@ export class ClientGame {
       }
       if (st === 9 && z.st !== 9) z.leapT = this.time;
       z.seenN = this.snapN;
-      z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm) * ((fl >> 8) & 7 ? 2.5 : 1);
+      zMove(z, x, y, this.lastSnapAt); z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm) * ((fl >> 8) & 7 ? 2.5 : 1);
       if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
     }
     if (s.zd) { for (const id of s.ZD || []) this.zs.delete(id); }
@@ -491,7 +503,11 @@ export class ClientGame {
       p.walk += Math.hypot(p.x - ox, p.y - oy);
       p.a = lerpAngle(p.a, p.ta, kf);
     }
+    // the host's snapshots are late (a busy link): zombies keep walking the way they were going for a short while
+    // instead of standing still, then wait. The next snapshot puts them back where the host has them.
+    const gap = performance.now() - this.lastSnapAt, walkOn = this.onlineGuest && gap > 140 && gap < 140 + EXTRAP_MS;
     for (const z of this.zs.values()) {
+      if (walkOn && z.st === ZS.NORMAL && z.vx != null) { z.tx += z.vx * dt; z.ty += z.vy * dt; }
       const ox = z.x, oy = z.y;
       z.x += (z.tx - z.x) * kf; z.y += (z.ty - z.y) * kf;
       const moved = Math.hypot(z.x - ox, z.y - oy);

@@ -1,7 +1,7 @@
 // Voice chat between the players in a room. Audio goes straight from player to player over the same
 // PeerJS peers the game already uses (no server in between); the room's host only shares who has voice on.
 // Push-to-talk (V, or holding the mic button) by default; "hep açık" keeps the microphone open.
-const V = { on: false, stream: null, peer: null, calls: new Map(), talk: false, open: false, muted: new Set(), levels: new Map(), ac: null };
+const V = { br: 20000, on: false, stream: null, peer: null, calls: new Map(), talk: false, open: false, muted: new Set(), levels: new Map(), ac: null };
 
 export const voiceOn = () => V.on;
 export const voiceTalking = () => V.on && (V.open || V.talk);
@@ -24,12 +24,29 @@ function meter(pid, stream) {
     return () => { an.getByteTimeDomainData(buf); let s = 0; for (const v of buf) s += (v - 128) * (v - 128); V.levels.set(pid, Math.sqrt(s / buf.length)); };
   } catch (e) { return () => {}; }
 }
+// Voice uses the same upload as the game. Talking stays clear at 20 kbps (browsers use about twice that by default);
+// while the host's link is struggling the game asks for 12 kbps: a bit rougher for a moment instead of a frozen game.
+function capRate(call) {
+  try {
+    const pc = call.peerConnection; if (!pc) return;
+    for (const snd of pc.getSenders()) {
+      if (!snd.track || snd.track.kind !== 'audio') continue;
+      const prm = snd.getParameters(); if (!prm.encodings || !prm.encodings.length) prm.encodings = [{}];
+      if (prm.encodings[0].maxBitrate === V.br) continue;
+      prm.encodings[0].maxBitrate = V.br; snd.setParameters(prm).catch(() => {});
+    }
+  } catch (e) { /* older browsers: default rate */ }
+}
+export function voiceRate(bps) { if (bps === V.br) return; V.br = bps; for (const c of V.calls.values()) capRate(c.call); }
+export const voiceBitrate = () => V.br;
 function hookCall(pid, call) {
   const old = V.calls.get(pid);
   if (old && old.call !== call) { try { old.call.close(); } catch (e) { /* ignore */ } if (old.audio) old.audio.remove(); }
   const rec = { call, audio: null, tick: null };
   V.calls.set(pid, rec);
+  capRate(call); setTimeout(() => capRate(call), 1500); // once the connection has its sender
   call.on('stream', (s) => {
+    capRate(call);
     if (!rec.audio) { rec.audio = document.createElement('audio'); rec.audio.autoplay = true; rec.audio.hidden = true; document.body.append(rec.audio); }
     rec.audio.srcObject = s; rec.audio.muted = V.muted.has(pid);
     rec.audio.play().catch(() => {});

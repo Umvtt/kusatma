@@ -405,6 +405,8 @@ export function livePvp(o) {
   const v = o.pvp; if (!v) return;
   send({ e: 'pvr', k: v.k, win: v.k === 'ffa' ? -1 : v.win, t: o.time | 0, P: (o.P || []).slice(0, 16).map((p) => [p.name, p.tm | 0, p.pk | 0, p.dth | 0]) });
 }
+// performance reports (js/perf.js); only sent with the statistics choice, checked there and here
+export function livePerf(o) { if (statsOk()) send(o); }
 export function liveStat(wave, host, kills, extra) { send(Object.assign({ e: 'stat', w: wave | 0, host: host ? 1 : 0, k: kills | 0 }, extra || {})); }
 
 // why online play is closed right now, or '' when it's open

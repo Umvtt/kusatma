@@ -322,6 +322,7 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
     <button type="button" data-tab="kerr" data-g="k" aria-selected="false">Errors</button>
     <button type="button" data-tab="kstats" data-g="k" aria-selected="false">Stats</button>
     <button type="button" data-tab="kan" data-g="k" aria-selected="false">Analytics</button>
+    <button type="button" data-tab="kpf" data-g="k" aria-selected="false">Performance</button>
     <button type="button" data-tab="kdat" data-g="k" aria-selected="false">Data</button>
     <button type="button" data-tab="kbn" data-g="k" aria-selected="false">Bans</button>
     <div class="navfoot">
@@ -524,6 +525,15 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
     <div class="dash"><div class="sect"><h2>Classes: average wave and reach wave 10</h2><div class="list" id="anCls"></div></div><div class="sect"><h2>Modes (30 days)</h2><div class="hlist" id="anMode"></div></div></div>
     <div class="msg" id="anMsg"></div>
   </section>
+  <section class="card" data-pane="kpf" hidden>
+    <p class="sub">From players who allowed statistics, sent while they play. A <b>wait</b> is a guest getting no game update from the host for over half a second (zombies stand still, the guest can still move): a connection problem. A <b>stall</b> is the phone itself stopping for over half a second: a slow phone. Numbers are per hour of play.</p>
+    <div class="kpis" id="pfK"></div>
+    <h2>Guest waits per hour, by day</h2><div class="bars" id="pfD"></div><div class="axis" id="pfDa"></div>
+    <h2>Phone stalls per hour, by day</h2><div class="bars g" id="pfS"></div><div class="axis" id="pfSa"></div>
+    <div class="dash" id="pfDims"></div>
+    <h2>Latest freezes (today)</h2><div class="list" id="pfEv"></div>
+    <div class="msg" id="pfMsg"></div>
+  </section>
   <div data-pane="kss" hidden>
     <section class="card"><div class="kpis" id="ssK"></div></section>
     <section class="card" style="margin-top:16px"><h2>Season settings</h2><div class="grid"><label>Name <input id="ssName" maxlength="40"></label><label>XP per tier <input id="ssXp" type="number" min="50" max="5000"></label><label>Premium price (gems) <input id="ssPrice" type="number" min="0" max="100000"></label></div>
@@ -648,13 +658,13 @@ $('#aGo').onclick=async()=>{const o=$('#aOld').value,n=$('#aNew').value;
   if(!strongEnough(n))return say('#aMsg','Pick a stronger new password.','bad');if(n!==$('#aNew2').value)return say('#aMsg','The two new passwords are different.','bad');
   say('#aMsg','Changing…');try{const obj=await unseal(o);await seal(n,obj);const st=load();st.url=obj.url;keep(st);for(const s of['#aOld','#aNew','#aNew2'])$(s).value='';say('#aMsg','Password changed.','ok');}
   catch(e){say('#aMsg','The current password is wrong.','bad');}};
-const KTABS=['kerr','kcl','kdat','klive','kpl','kec','ksh','krp','klb','kbn','kev','kset','kstats','kctl','ksc','kmod','kan','kss'],SHARED=['alog','acct','home','logs'];let GAME='k';const gameOf=()=>'k';
+const KTABS=['kpf','kerr','kcl','kdat','klive','kpl','kec','ksh','krp','klb','kbn','kev','kset','kstats','kctl','ksc','kmod','kan','kss'],SHARED=['alog','acct','home','logs'];let GAME='k';const gameOf=()=>'k';
 function setGame(g){GAME='k';document.body.dataset.game='k';}
 
 
 const startTab=()=>'home';
 function openTab(t){const pn=document.querySelector('[data-pane="'+t+'"]');if(pn&&!pn.dataset.seen){pn.dataset.seen=1;ENTER_T=performance.now();STAG=0;}else ENTER_T=0;setGame(gameOf(t));if(!SHARED.includes(t))try{localStorage.setItem('ptab_'+GAME,t);}catch(e){}const tb=document.querySelector('.tabs button[data-tab="'+t+'"]');if(tb){$('#pgT').textContent=tb.textContent;$('#crumb').textContent=SHARED.includes(t)||t==='home'?'Panel':'Kuşatma';$('#tbSec').textContent='';document.title=tb.textContent+' · Admin';}for(const b of document.querySelectorAll('.tabs button[data-tab]'))b.setAttribute('aria-selected',String(b.dataset.tab===t));
-  for(const p of document.querySelectorAll('[data-pane]'))p.hidden=p.dataset.pane!==t;({alog:loadAlog,klive:kLoad,kset:kLoad,kstats:kLoad,kpl:kSearch,klb:kLb,kcl:kClans,kerr:kErr,kec:kEco,ksh:kEco,krp:kRep,home:hLoad,kbn:()=>banTab(1),kctl:kCtl,ksc:kSched,kmod:kMod,kan:kAn,kdat:()=>kData(),kss:kSeason,logs:()=>lgLoad(false)})[t]?.();if(t!=='logs')lgAutoOff();}
+  for(const p of document.querySelectorAll('[data-pane]'))p.hidden=p.dataset.pane!==t;({alog:loadAlog,klive:kLoad,kset:kLoad,kstats:kLoad,kpl:kSearch,klb:kLb,kcl:kClans,kerr:kErr,kec:kEco,ksh:kEco,krp:kRep,home:hLoad,kbn:()=>banTab(1),kctl:kCtl,ksc:kSched,kmod:kMod,kan:kAn,kpf:kPf,kdat:()=>kData(),kss:kSeason,logs:()=>lgLoad(false)})[t]?.();if(t!=='logs')lgAutoOff();}
 for(const b of document.querySelectorAll('.tabs button[data-tab]'))b.onclick=()=>openTab(b.dataset.tab);
 const toLocal=ms=>{if(!ms)return '';const d=new Date(ms),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());};
 const fromLocal=v=>v?new Date(v).getTime()||0:0;
@@ -1362,6 +1372,25 @@ $('#dtCsv').onclick=async()=>{const b=$('#dtCsv');b.disabled=true;try{const j=aw
     const esc=v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};const H=['id','name','country','stats_allowed','platform','system','browser','app','language','timezone','screen','touch','memory_gb','cpu_cores','network','sessions','minutes','level','build','devices','made','last_seen'];
     const L=[H.join(',')].concat(j.rows.map(r=>{const d=r.di||{};return[r.id,r.name,r.cc,r.cs,d.p,d.os,d.b,d.app||'',d.lang,d.tz,d.w?d.w+'x'+d.h:'',d.tc,d.mem||'',d.cpu||'',d.net,r.plays,r.mins,r.lvl,r.ver||'',r.devs,r.made?new Date(r.made).toISOString():'',r.last?new Date(r.last).toISOString():''].map(esc).join(',');}));
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/csv'}));a.download='players-'+new Date().toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);note(j.rows.length+' rows','ok');}catch(e){note(e.message,'bad');}finally{b.disabled=false;}};
+/* performance reports (build 59+): rows per dimension hold n reports, secs played, st stalls, wt waits, lf long frames, fs fps x secs, up upload x secs, sk skipped snapshots, bf/stx/wtx worst values */
+async function kPf(){let j;try{j=await admin('kperf');}catch(e){say('#pfMsg',e.message,'bad');return;}
+  const D=j.days.slice().reverse(),last7=j.days.slice(0,7);const z=()=>({n:0,secs:0,st:0,wt:0,lf:0,fs:0,up:0,sk:0,bf:0,stx:0,wtx:0});
+  const merge=(dim,days)=>{const T={};for(const d of days)for(const[k,o]of Object.entries((d.rows||{})[dim]||{})){const t=T[k]||(T[k]=z());for(const f of['n','secs','st','wt','lf','fs','up','sk'])t[f]+=o[f]||0;for(const f of['bf','stx','wtx'])t[f]=Math.max(t[f],o[f]||0);}return T;};
+  const ph=(n,secs)=>secs>0?(n/(secs/3600)):0,f1=v=>v.toFixed(1),hrs=s=>s>=3600?(s/3600).toFixed(1)+' h':Math.round(s/60)+' min';
+  const R=merge('role',last7),g=R.g||z(),A=merge('all',last7).all||z();
+  const kk=$('#pfK');kk.textContent='';for(const[v,l]of[[hrs(A.secs),'played, last 7 days (reports on)'],[f1(ph(g.wt,g.secs)),'guest waits per hour'],[g.wtx?(g.wtx/1000).toFixed(1)+' s':'–','longest guest wait'],[f1(ph(A.st,A.secs)),'phone stalls per hour'],[A.secs?Math.round(A.fs/A.secs)+'':'–','average FPS'],[R.h&&R.h.secs?f1(R.h.up/R.h.secs)+' KB/s':'–','host upload, average']]){const k=mk('div','kpi');k.append(mk('b','',v),mk('span','',l));kk.append(k);}
+  const bx=(el,ax,vals,labels,fmt)=>{const box=$(el);box.textContent='';const mx=Math.max(0.01,...vals);vals.forEach((v,i)=>{const b=mk('div');b.style.height=Math.max(2,Math.round(v/mx*100))+'%';b.dataset.tip=labels[i]+'\n'+fmt(v);box.append(b);});const a=$(ax);a.textContent='';if(vals.length)a.append(mk('span','',labels[0]),mk('span','','max '+fmt(mx)),mk('span','',labels[labels.length-1]));};
+  bx('#pfD','#pfDa',D.map(d=>{const o=((d.rows||{}).role||{}).g;return o?ph(o.wt,o.secs):0;}),D.map(d=>d.d.slice(5)),v=>f1(v)+' per hour');
+  bx('#pfS','#pfSa',D.map(d=>{const o=((d.rows||{}).all||{}).all;return o?ph(o.st,o.secs):0;}),D.map(d=>d.d.slice(5)),v=>f1(v)+' per hour');
+  const NAMES={role:['Host, guest or solo',{h:'Host',g:'Guest',s:'Solo'}],net:['Guests: Wi-Fi or mobile data',{wifi:'Wi-Fi',cell:'Mobile data','?':'Unknown (iPhone or browser does not say)'}],relay:['Guests: direct or through the relay',{direct:'Direct',relay:'Relay server','?':'Unknown'}],voice:['Voice chat',{on:'On',off:'Off'}],players:['Players in the game',{}],mem:['Phone memory',{'?':'Unknown'}],device:['Device',{}],quality:['Graphics setting',{}],map:['Map',{}],build:['Game build',{}]};
+  const box=$('#pfDims');box.textContent='';
+  for(const[dim,[title,nm]]of Object.entries(NAMES)){const T=merge(dim,last7);const L=Object.entries(T).filter(([k])=>k!=='-').sort((a,b)=>b[1].secs-a[1].secs).slice(0,10);const sec=mk('div','sect');sec.append(mk('h2','',title));const l=mk('div','list');
+    for(const[k,o]of L){const it=mk('div','item');it.append(mk('span','k',nm[k]||k),mk('span','d',hrs(o.secs)),mk('span','d',(dim==='role'&&k!=='g'?'':'waits '+f1(ph(o.wt,o.secs))+'/h')),mk('span','d','stalls '+f1(ph(o.st,o.secs))+'/h'),mk('span','d',o.secs?Math.round(o.fs/o.secs)+' FPS':''));l.append(it);}
+    if(!L.length)l.append(mk('p','sub','No reports yet.'));sec.append(l);box.append(sec);}
+  const ev=$('#pfEv');ev.textContent='';const E=((j.days[0]||{}).ev||[]).slice().reverse();
+  for(const e of E.slice(0,80)){const it=mk('div','item');const t=new Date(e.t);it.append(mk('span','k',String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')),mk('span','d',(e.k==='wait'?'Waited for host ':'Phone stuck ')+(e.ms/1000).toFixed(1)+' s'),mk('span','d',{h:'host',g:'guest',s:'solo'}[e.r]+' · wave '+e.w+' · '+e.z+' zombies · '+e.pl+' players'),mk('span','d',[e.r==='g'?'ping '+e.ping+' ms':'',e.nt!=='?'?(e.nt==='cell'?'mobile data':e.nt):'',e.rl!=='?'?e.rl:'',e.vo?'voice on':'',e.dev,e.mem?e.mem+' GB':'',e.map,'build '+e.v].filter(Boolean).join(' · ')));ev.append(it);}
+  if(!E.length)ev.append(mk('p','sub','No freezes reported today.'));
+  say('#pfMsg','');}
 async function kAn(){let j;try{j=await admin('kan');}catch(e){say('#anMsg',e.message,'bad');return;}
   const D=j.days.slice().reverse(),sum=(f)=>D.reduce((a,d)=>a+f(d),0);const gn=sum(d=>d.gn),gt=sum(d=>d.gt);
   const C=Object.entries(j.coh).sort((a,b)=>b[0].localeCompare(a[0])),e1=C.reduce((a,[,c])=>a+c.e1,0),d1=C.reduce((a,[,c])=>a+c.d1,0),e7=C.reduce((a,[,c])=>a+c.e7,0),d7=C.reduce((a,[,c])=>a+c.d7,0);
