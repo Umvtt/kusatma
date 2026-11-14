@@ -11,7 +11,7 @@
 8. **Dead bodies never land outside the map border.**
 9. **Phone screens still cluttered:** clean up the in-game phone layout.
 10. **Website UI much better, much more Roblox-like** (bright, rounded, card-based, playful), everything working together seamlessly. Inspired by, not copying (no Roblox names, logos or art).
-11. **Working style:** when the owner asks how it is going mid-build, answer with an estimate of when it will finish, not a list of steps.
+11. **Working style:** during a build, give short progress updates on your own as you go, each with the estimated time left, never a list of steps.
 
 ## Build 64 list (from before)
 1. Hacker ability + charging zombies: they get stuck facing one angle, the charge misbehaves.

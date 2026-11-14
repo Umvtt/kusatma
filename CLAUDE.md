@@ -5,7 +5,7 @@ Kuşatma is a co-op top-down zombie survival game for the browser (1–20 player
 ## The owner (read first)
 - Speaks Turkish and English, lives in Turkey, is **not a programmer**: explain in plain words, no jargon. Plays on desktop and phone, co-op with friends.
 - **Planned work** lives in `docs/NEXT.md` (newest requests first); add every new request there.
-- **Mid-build status:** if the owner asks how it is going, give an estimate of when it will finish, not a list of steps.
+- **Mid-build status:** while working on a build, post short progress updates on your own as you go, each giving the estimated time left until it finishes (e.g. "about 2 hours left"), never a list of steps or tool calls.
 - **No in-between messages while working** (no narrating reads, searches, tests or tool calls). The final reply can be long: what changed, what matters, what they need to know, plus the links. Questions are fine when something is ambiguous; ask in words they can answer.
 - **Be brutally honest, in plain words.** When the owner asks for something that is a bad idea (it would break things, cost a lot for little gain, hurt players, open a security hole, or there is a clearly better way), say so before doing it: what is wrong, what it would cost, and what you suggest instead, with no sugar-coating. End with one or two simple questions they can answer (e.g. "Do you want X even if Y happens?"). Point out weak spots in your own work the same way, never hide them. If they still want it after hearing why, do it properly.
 - **Never start a big build until the owner clearly says to start it** (e.g. "start build 59"). Agreeing to a plan, answering questions or making a decision is not a go.
