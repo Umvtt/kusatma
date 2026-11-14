@@ -4,6 +4,7 @@ import { CX, CY, PLAYER_R, QUICK, CLASSES, ZTYPES, ZS, zMaxHp, stats, weaponOf, 
 import { moveCircle, resolveCircle, pointInObstacle, outOfMap, setBounds, WORLD, escapePocket } from './world.js';
 import * as sfx from './sfx.js';
 import { SETTINGS } from './settings.js';
+import { unpackZ, unpackFar, rowApply } from './pack.js';
 
 const SEND_INTERVAL = 0.05;
 const PEND_T = 0.45; // how long a hit we predicted counts before the host's own numbers take over
@@ -135,9 +136,30 @@ export class ClientGame {
   onSnap(s) {
     // snapshots on the fast channel can arrive late or twice: only newer ones count (a new host starts counting again)
     if (s.q) {
-      if (s.hi !== this.snapHi) { this.snapHi = s.hi; this.lastQ = 0; this.lastEv = 0; }
+      if (s.hi !== this.snapHi) { this.snapHi = s.hi; this.lastQ = 0; this.lastEv = 0; this.pHist = new Map(); this.zHist = new Map(); }
       if (s.q <= this.lastQ) return;
+      // players come as changes against a snapshot we confirmed: rebuild the full rows from our copy of it. Without
+      // that copy (it should not happen) this snapshot is skipped and the host is asked for everything again.
+      if (Array.isArray(s.PD)) {
+        const base = this.pHist && this.pHist.get(s.pb), P = Array.isArray(s.P) ? s.P.slice() : [];
+        let bad = !base;
+        if (base) for (const d of s.PD) { const b = Array.isArray(d) && base.get(d[0]), r = b && rowApply(d, b); if (!r) { bad = true; break; } P.push(r); }
+        if (bad) { this.askAll(); return; }
+        s.P = P;
+      }
+      // zombies that only moved: how far since the confirmed snapshot, against our copy of where it put them
+      if (typeof s.ZM === 'string') {
+        const z = unpackZ(s.ZM, this.zHist && this.zHist.get(s.pb), (id) => { const q = this.zs.get(id); return q ? q.t : null; });
+        if (!z) { this.askAll(); return; }
+        s.Z = (Array.isArray(s.Z) ? s.Z : []).concat(z);
+      }
       this.lastQ = s.q;
+      const ph = this.pHist || (this.pHist = new Map());
+      ph.set(s.q, new Map((s.P || []).map((r) => [r[0], r])));
+      if (ph.size > 64) ph.delete(ph.keys().next().value);
+      const zh = this.zHist || (this.zHist = new Map()), zp = new Map();
+      for (const e of s.Z) zp.set(e[0], e.length >= 9 ? [e[2], e[3]] : [e[1], e[2]]);
+      zh.set(s.q, zp); if (zh.size > 64) zh.delete(zh.keys().next().value);
     }
     const prevPhase = this.phase;
     this.lastSnapAt = performance.now();
@@ -180,10 +202,17 @@ export class ClientGame {
     if (!seenP.has(this.me)) this.self.inGame = false;
 
     const seenZ = new Set();
+    // zombies that only moved (decoded above) are [id, x, y]
     for (const e of s.Z) {
       if (e.length === 3) { // unchanged since last time: only where it is now
         const z = this.zs.get(e[0]);
-        if (z) { zMove(z, e[1], e[2], this.lastSnapAt); z.seenN = this.snapN; } else if (!this.zrAsk || this.time - this.zrAsk > 1) { this.zrAsk = this.time; this.send({ t: 'zr' }); }
+        if (z) { zMove(z, e[1], e[2], this.lastSnapAt); z.seenN = this.snapN; } else this.askAll();
+        continue;
+      }
+      if (e.length === 4) { // only its health changed: position and health
+        const z = this.zs.get(e[0]);
+        if (!z) { this.askAll(); continue; }
+        seenZ.add(e[0]); zMove(z, e[1], e[2], this.lastSnapAt); z.seenN = this.snapN; this.zHp(z, e[3]);
         continue;
       }
       const [id, t, x, y, hp, st, cdir, sface, fl] = e;
@@ -194,24 +223,14 @@ export class ClientGame {
         this.zs.set(id, z);
         if (Math.random() < (isBoss(t) ? 1 : 0.15)) sfx.growl(x, y, t);
       }
-      if (z.hp != null && hp < z.hp) {
-        z.flash = 0.08;
-        // the host has now applied some damage: stop counting that much of our own unconfirmed hits,
-        // otherwise the same damage is subtracted twice and the zombie looks dead when it isn't
-        let applied = z.hp - hp;
-        while (applied > 0 && z.pend.length) {
-          const e = z.pend[0];
-          if (e.d <= applied) { applied -= e.d; z.pend.shift(); } else { e.d -= applied; applied = 0; }
-        }
-      }
+      this.zHp(z, hp, true);
       if (st !== z.st) {
         if (st === ZS.WINDUP || st === ZS.SLAM) sfx.growl(x, y, z.t);
         if (st === ZS.SPIT) sfx.spit(x, y);
       }
       if (st === 9 && z.st !== 9) z.leapT = this.time;
       z.seenN = this.snapN;
-      zMove(z, x, y, this.lastSnapAt); z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm) * ((fl >> 8) & 7 ? 2.5 : 1);
-      if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
+      zMove(z, x, y, this.lastSnapAt); z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm) * ((fl >> 8) & 7 ? 2.5 : 1);
     }
     if (s.zd) { for (const id of s.ZD || []) this.zs.delete(id); }
     else for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
@@ -234,7 +253,7 @@ export class ClientGame {
     }
     for (const id of [...this.ts.keys()]) if (!seenT.has(id)) this.ts.delete(id);
 
-    if (Array.isArray(s.ZF)) { this.zf = s.ZF; this.zfAt = this.time; } else if (!this.zfAt || this.time - this.zfAt > 2) this.zf = null;
+    if (typeof s.ZFS === 'string') { this.zf = unpackFar(s.ZFS); this.zfAt = this.time; } else if (Array.isArray(s.ZF)) { this.zf = s.ZF; this.zfAt = this.time; } else if (!this.zfAt || this.time - this.zfAt > 2) this.zf = null;
     this.mines = s.M;
     this.mev = Array.isArray(s.V) && typeof s.V[0] === 'string' ? s.V : null;
     this.items = s.I || [];
@@ -260,6 +279,24 @@ export class ClientGame {
       for (let i = 0; i < s.E.length; i++) { const n = s.es + i; if (n > (this.lastEv || 0)) { this.lastEv = n; this.onEvent(s.E[i]); } }
     } else for (const ev of s.E) this.onEvent(ev);
   }
+
+  // a zombie's health from the host
+  zHp(z, hp) {
+    if (z.hp != null && hp < z.hp) {
+      z.flash = 0.08;
+      // the host has now applied some damage: stop counting that much of our own unconfirmed hits,
+      // otherwise the same damage is subtracted twice and the zombie looks dead when it isn't
+      let applied = z.hp - hp;
+      while (applied > 0 && z.pend.length) {
+        const e = z.pend[0];
+        if (e.d <= applied) { applied -= e.d; z.pend.shift(); } else { e.d -= applied; applied = 0; }
+      }
+    }
+    z.hp = hp;
+    if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
+  }
+  // something did not fit what we have: ask the host for the whole picture again (at most once a second)
+  askAll() { if (!this.zrAsk || this.time - this.zrAsk > 1) { this.zrAsk = this.time; this.send({ t: 'zr' }); } }
 
   onEvent(ev) {
     switch (ev[0]) {

@@ -3,6 +3,7 @@
 import { WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS, QUICK, CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, scaleFor, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD, WEAPON_COST, ITEMS, BASH, WMAX, BRANCH_SWAP, weaponSpent, weaponOf, pathOk, newLv, lvArr, AB_COST, abDur, GEAR, GEAR_RANGE, TEAM, teamCost, TEAM_CHUNK, gearCost, gearMax, bashCd, FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER } from './config.js';
 import { PvpMixin } from './pvp.js';
 import { gzip64 } from './net.js';
+import { packZ, packFar, rowDelta } from './pack.js';
 import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldAhead, fieldAt, outOfMap, GW, GH, escapePocket } from './world.js';
 import { generateMap, METRO_TRACKS } from './mapgen.js';
 import { ITEMS as COS, checkPass, ownsCls, nkey } from './catalog.js';
@@ -111,6 +112,7 @@ export class HostGame {
     if (this.evLog.length > 600) this.evLog.splice(0, this.evLog.length - 600);
     const logFirst = this.evSeq - this.evLog.length + 1;
     let far = null; const now = performance.now(); // the minimap's coarse picture of every zombie, about twice a second per guest
+    const bJ = JSON.stringify(s.B), tmJ = JSON.stringify(s.TM), pr = new Map(s.P.map((r) => [r[0], r]));
     const R2 = 1800 * 1800, N2 = 1000 * 1000, q = this.snapN;
     // each zombie's state key, worked out once per snapshot instead of once per guest
     const keys = s.Z.map((z) => z[4] + ',' + z[5] + ',' + z[6] + ',' + z[7] + ',' + z[8]), bossF = s.Z.map((z) => isBoss(z[1]));
@@ -126,8 +128,10 @@ export class HostGame {
         if (!full && !boss && d2 >= R2) continue;
         const key = keys[zi];
         cur.set(z[0], key);
-        if (!bz || bz.get(z[0]) !== key || (zh.rm && zh.rm.has(z[0]))) Z.push(z); // also in full when its removal was sent since the confirmed snapshot
-        else if (boss || d2 < N2 || third) Z.push([z[0], z[2], z[3]]); // far (off-screen), unchanged zombies move every third snapshot
+        const bk = bz ? bz.get(z[0]) : undefined;
+        if (bk === undefined || (zh.rm && zh.rm.has(z[0]))) Z.push([3, z]); // new to this guest, or its removal was sent since the confirmed snapshot: whole, with its type
+        else if (bk !== key) Z.push(bk.slice(bk.indexOf(',')) === key.slice(key.indexOf(',')) ? [1, [z[0], z[2], z[3], z[4]]] : [2, z]); // only its health changed, or its state
+        else if (boss || d2 < N2 || third) Z.push([0, [z[0], z[2], z[3]]]); // unchanged: only where it is now (far, off-screen ones every third snapshot)
       }
       // removals: every zombie this guest may have (from any snapshot sent, confirmed or not) that is gone now. A removal is
       // repeated until the guest confirms a snapshot newer than the last one that still carried the zombie, so one that
@@ -141,10 +145,24 @@ export class HostGame {
       for (const id of cur.keys()) seen.set(id, q);
       const evFrom = Math.max((base ? base.ev : zh.ev0) + 1, logFirst, this.evSeq - 299);
       const E = evFrom <= this.evSeq ? this.evLog.slice(evFrom - logFirst) : [];
-      zh.hist.set(q, { zk: cur, ev: this.evSeq, t: performance.now() });
+      // where each zombie mentioned here is, so a later snapshot can send only how far it moved since this one
+      const zp = new Map(); for (const [k, e] of Z) zp.set(e[0], k >= 2 ? [e[2], e[3]] : [e[1], e[2]]);
+      zh.hist.set(q, { zk: cur, ev: this.evSeq, t: performance.now(), pr, zp });
       if (zh.hist.size > 48) zh.hist.delete(zh.hist.keys().next().value);
-      const m = Object.assign({}, s, { Z, ZD, zd: bz ? 1 : 0, q, hi: this.hid, E, es: evFrom });
-      if (!full && now - (zh.zfAt || 0) > 550) { far = far || s.Z.map((z) => [z[1], z[2] >> 3, z[3] >> 3]); m.ZF = far; zh.zfAt = now; }
+      const m = Object.assign({}, s, { Z: [], ZM: packZ(Z, base && base.zp), ZD, zd: bz ? 1 : 0, q, hi: this.hid, E, es: evFrom });
+      if (base) m.pb = zh.ack;
+      // players: only what changed since the snapshot this guest confirmed (it rebuilds the rest from its copy of it)
+      const bp = base && base.pr;
+      if (bp) {
+        const P = [], PD = [];
+        for (const r of s.P) { const b = bp.get(r[0]), d = b && rowDelta(r, b); if (d) PD.push(d); else P.push(r); }
+        m.P = P; m.PD = PD; m.pb = zh.ack;
+      }
+      // bounds and team upgrades rarely change: left out while they match both the confirmed and the last sent value
+      if (bp && base.bJ === bJ && zh.bJ === bJ) m.B = undefined;
+      if (bp && base.tmJ === tmJ && zh.tmJ === tmJ) m.TM = undefined;
+      zh.bJ = bJ; zh.tmJ = tmJ; zh.hist.get(q).bJ = bJ; zh.hist.get(q).tmJ = tmJ;
+      if (!full && now - (zh.zfAt || 0) > 550) { far = far || packFar(s.Z.map((z) => [z[1], z[2] >> 3, z[3] >> 3])); m.ZFS = far; zh.zfAt = now; }
       this.net.sendSnap(p.pid, m);
     }
   }
