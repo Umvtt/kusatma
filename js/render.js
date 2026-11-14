@@ -6,6 +6,13 @@ import { ITEMS as COS } from './catalog.js';
 import { generateMap } from './mapgen.js';
 
 const DECAL_SCALE = 0.4;
+// Blood and scorch marks live in small square pieces (tiles) that exist only where something was spilled (build 61).
+// One big picture of the whole map had to be sent to the phone's graphics chip again after every kill and was faded
+// all at once every 1.5 s; now only the touched pieces change, faded pieces are thrown away and only the ones on
+// screen are drawn.
+const TILE = 256;                // tile size in decal pixels (640 world pixels)
+const TILE_W = TILE / DECAL_SCALE;
+const TILE_DROP = 140;           // fades (1.5 s each) after the last mark before a tile is empty enough to throw away
 const MINI_W = 180;
 const SKIN = '#d9a77a';
 // extra shading and small details on characters and zombies (off on the low graphics level)
@@ -17,25 +24,22 @@ export class Renderer {
     this.ctx = canvas.getContext('2d');
     this.ground = null;
     this.mapKey = '';
-    this.decal = document.createElement('canvas');
-    this.decal.width = WORLD_W * DECAL_SCALE;
-    this.decal.height = WORLD_H * DECAL_SCALE;
-    this.dctx = this.decal.getContext('2d');
+    this.tiles = new Map(); // tile key -> { cv, g, fades }
     this.lightCv = document.createElement('canvas');
     this.lctx = this.lightCv.getContext('2d');
     this.lastT = performance.now();
     this.fadeT = 0; this.checkT = 0;
     // phones under memory pressure can throw away an off-screen picture; rebuild it instead of drawing nothing
-    for (const c of [this.decal, this.lightCv]) c.addEventListener('contextrestored', () => { this.mapKey = ''; });
+    for (const c of [this.lightCv]) c.addEventListener('contextrestored', () => { this.mapKey = ''; });
     canvas.addEventListener('contextrestored', () => { this.mapKey = ''; });
     this.resize();
   }
 
-  // graphics level: screen sharpness and light-map size
+  // graphics level: screen sharpness, light-map size and (on low, from the next map) a lighter ground picture
   setQuality(q) {
     DETAIL = q !== 'low';
     if (this.q === q) return;
-    this.q = q; this.resize();
+    this.q = q; this.resize(); // (the ground picture follows on the next map: rebuilding it mid-game would be a hitch)
   }
 
   resize() {
@@ -51,13 +55,15 @@ export class Renderer {
   }
 
   // Rebuild the ground picture when the map changes.
-  syncMap() {
+  syncMap(keepDecals) {
     const key = WORLD.theme + ':' + WORLD.seed;
     if (!WORLD.theme || key === this.mapKey) return;
-    this.mapKey = key;
-    this.ground = makeGround(WORLD.theme, WORLD.seed, WORLD.decor);
+    const sameMap = key === this.mapKeyFull; // the same map rebuilt (graphics level changed, picture dropped): keep the marks
+    this.mapKey = key; this.mapKeyFull = key;
+    this.ground = null; // let the old picture go before the new one is made (two at once is a lot of memory on a phone)
+    this.ground = makeGround(WORLD.theme, WORLD.seed, WORLD.decor, this.q === 'low' ? GROUND_SCALE_LOW : GROUND_SCALE);
     this.ground.addEventListener('contextrestored', () => { this.mapKey = ''; });
-    this.clearDecals();
+    if (!keepDecals && !sameMap) this.clearDecals();
   }
 
   // Blood and scorch marks fade out over about a minute and a half; every few seconds check the ground
@@ -66,8 +72,10 @@ export class Renderer {
     this.fadeT += dt;
     if (this.fadeT >= 1.5) {
       this.fadeT = 0;
-      const g = this.dctx;
-      g.save(); g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,0.025)'; g.fillRect(0, 0, this.decal.width, this.decal.height); g.restore();
+      for (const [k, t] of this.tiles) {
+        if (++t.fades > TILE_DROP) { this.tiles.delete(k); continue; }
+        const g = t.g; g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,0.025)'; g.fillRect(0, 0, TILE, TILE); g.globalCompositeOperation = 'source-over';
+      }
     }
     this.checkT += dt;
     if (this.checkT >= 5 && this.ground) {
@@ -82,30 +90,53 @@ export class Renderer {
     }
   }
 
-  clearDecals() { this.dctx.clearRect(0, 0, this.decal.width, this.decal.height); }
+  clearDecals() { this.tiles.clear(); }
+
+  // the tile at tile column tx, row ty (made when first needed)
+  tile(tx, ty) {
+    const k = ty * 1000 + tx; let t = this.tiles.get(k);
+    if (!t) { const cv = document.createElement('canvas'); cv.width = cv.height = TILE; t = { cv, g: cv.getContext('2d'), fades: 0, tx, ty }; this.tiles.set(k, t); }
+    t.fades = 0; return t;
+  }
 
   bake(decals) {
-    const g = this.dctx;
     for (const d of decals) {
-      if (d.scorch) {
-        const gr = g.createRadialGradient(d.x * DECAL_SCALE, d.y * DECAL_SCALE, 0, d.x * DECAL_SCALE, d.y * DECAL_SCALE, d.r * DECAL_SCALE);
-        gr.addColorStop(0, 'rgba(0,0,0,0.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-        g.fillStyle = gr;
-        g.beginPath(); g.arc(d.x * DECAL_SCALE, d.y * DECAL_SCALE, d.r * DECAL_SCALE, 0, Math.PI * 2); g.fill();
-        continue;
+      // the shapes are chosen once, then drawn into every tile the mark touches
+      const x = d.x * DECAL_SCALE, y = d.y * DECAL_SCALE, R = d.r * DECAL_SCALE;
+      const shapes = [];
+      if (d.scorch) shapes.push(null);
+      else {
+        const n = 5 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * Math.PI * 2, r = Math.random() * d.r;
+          const col = d.green
+            ? `rgba(${90 + Math.random() * 30 | 0},${110 + Math.random() * 30 | 0},${20 + Math.random() * 10 | 0},${0.3 + Math.random() * 0.25})`
+            : `rgba(${70 + Math.random() * 40 | 0},${12 + Math.random() * 10 | 0},${10 + Math.random() * 8 | 0},${0.35 + Math.random() * 0.3})`;
+          shapes.push([col, (d.x + Math.cos(a) * r) * DECAL_SCALE, (d.y + Math.sin(a) * r) * DECAL_SCALE, (d.r * (0.2 + Math.random() * 0.35)) * DECAL_SCALE]);
+        }
       }
-      const n = 5 + Math.floor(Math.random() * 4);
-      for (let i = 0; i < n; i++) {
-        const a = Math.random() * Math.PI * 2, r = Math.random() * d.r;
-        g.fillStyle = d.green
-          ? `rgba(${90 + Math.random() * 30 | 0},${110 + Math.random() * 30 | 0},${20 + Math.random() * 10 | 0},${0.3 + Math.random() * 0.25})`
-          : `rgba(${70 + Math.random() * 40 | 0},${12 + Math.random() * 10 | 0},${10 + Math.random() * 8 | 0},${0.35 + Math.random() * 0.3})`;
-        g.beginPath();
-        g.arc((d.x + Math.cos(a) * r) * DECAL_SCALE, (d.y + Math.sin(a) * r) * DECAL_SCALE, (d.r * (0.2 + Math.random() * 0.35)) * DECAL_SCALE, 0, Math.PI * 2);
-        g.fill();
+      const tx0 = Math.max(0, Math.floor((x - R) / TILE)), tx1 = Math.floor((x + R) / TILE), ty0 = Math.max(0, Math.floor((y - R) / TILE)), ty1 = Math.floor((y + R) / TILE);
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+        const g = this.tile(tx, ty).g; g.setTransform(1, 0, 0, 1, -tx * TILE, -ty * TILE);
+        for (const sh of shapes) {
+          if (!sh) {
+            const gr = g.createRadialGradient(x, y, 0, x, y, R);
+            gr.addColorStop(0, 'rgba(0,0,0,0.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+            g.fillStyle = gr; g.beginPath(); g.arc(x, y, R, 0, Math.PI * 2); g.fill(); continue;
+          }
+          g.fillStyle = sh[0]; g.beginPath(); g.arc(sh[1], sh[2], sh[3], 0, Math.PI * 2); g.fill();
+        }
+        g.setTransform(1, 0, 0, 1, 0, 0);
       }
     }
     decals.length = 0;
+  }
+
+  // the marks on screen: only the tiles that exist and can be seen
+  drawDecals(g, view) {
+    if (!this.tiles.size) return;
+    const tx0 = Math.floor(view.l / TILE_W), tx1 = Math.floor(view.r / TILE_W), ty0 = Math.floor(view.t / TILE_W), ty1 = Math.floor(view.b / TILE_W);
+    for (const t of this.tiles.values()) if (t.tx >= tx0 && t.tx <= tx1 && t.ty >= ty0 && t.ty <= ty1) g.drawImage(t.cv, t.tx * TILE_W, t.ty * TILE_W, TILE_W + 0.5, TILE_W + 0.5);
   }
 
   draw(game, roster) {
@@ -144,7 +175,7 @@ export class Renderer {
     this.syncMap();
     { const now = performance.now(); this.upkeep(Math.min(0.1, (now - (this.upT || now)) / 1000)); this.upT = now; }
     if (this.ground) g.drawImage(this.ground, 0, 0, WORLD_W, WORLD_H);
-    g.drawImage(this.decal, 0, 0, WORLD_W, WORLD_H);
+    this.drawDecals(g, view);
 
     for (const o of new Set(obstaclesIn(view.l - 60, view.t - 60, view.r + 60, view.b + 60))) drawObstacle(g, o);
     for (const q of game.zones) if (inView(q[2], q[3])) drawZone(g, q, game.time);
@@ -297,7 +328,7 @@ export class Renderer {
     g.restore();
 
     // ---------- night lighting ----------
-    this.drawLights(game, world, inView);
+    this.drawLights(game, world, inView, view);
     g.drawImage(this.lightCv, 0, 0, vw, vh);
 
     // things that glow in the dark sit above the darkness
@@ -393,7 +424,7 @@ export class Renderer {
     if (S.inGame && S.alive && !game.touch) this.drawCrosshair(g, game);
   }
 
-  drawLights(game, world, inView) {
+  drawLights(game, world, inView, view0) {
     const l = this.lctx;
     l.setTransform(1, 0, 0, 1, 0, 0);
     l.globalCompositeOperation = 'source-over';
@@ -421,15 +452,17 @@ export class Renderer {
       l.fillStyle = gr;
       l.beginPath(); l.moveTo(p.x, p.y); l.arc(p.x, p.y, len, p.a - half, p.a + half); l.closePath(); l.fill();
     }
-    for (const t of game.ts.values()) glow(t.x, t.y, 90, 0.6);
-    for (const it of game.items) glow(it[2], it[3], 70, 0.7);
-    for (const q of game.spits.values()) glow(q.x, q.y, 50, 0.6);
-    for (const li of game.lights) glow(li.x, li.y, li.r, Math.min(1, li.life / li.max + 0.2));
+    // only lights near the screen (each one is a gradient drawn every frame)
+    const near = (x, y, r) => x > view0.l - r && x < view0.r + r && y > view0.t - r && y < view0.b + r;
+    for (const t of game.ts.values()) if (near(t.x, t.y, 90)) glow(t.x, t.y, 90, 0.6);
+    for (const it of game.items) if (near(it[2], it[3], 70)) glow(it[2], it[3], 70, 0.7);
+    for (const q of game.spits.values()) if (near(q.x, q.y, 50)) glow(q.x, q.y, 50, 0.6);
+    for (const li of game.lights) if (near(li.x, li.y, li.r)) glow(li.x, li.y, li.r, Math.min(1, li.life / li.max + 0.2));
     for (const b of game.bullets) if (b.kind === 'f' && inView(b.x, b.y)) glow(b.x, b.y, 50, 0.35);
     for (const q of game.zones) if (q[1] === 1 && inView(q[2], q[3])) glow(q[2], q[3], q[4] * 1.6, 0.5);
     for (const z of game.zaps) for (let i = 0; i + 1 < z.pts.length; i += 2) glow(z.pts[i], z.pts[i + 1], 80, 0.5);
     for (const z of game.zs.values()) if (z.fl & 8 && inView(z.x, z.y)) glow(z.x, z.y, 45, 0.35);
-    for (const m of game.marks) glow(m.x, m.y, 160, 0.4);
+    for (const m of game.marks) if (near(m.x, m.y, 160)) glow(m.x, m.y, 160, 0.4);
     l.restore();
   }
 
@@ -592,8 +625,9 @@ export function drawMapPreview(cv, theme) {
   g.drawImage(img, 0, 0);
 }
 const GROUND_SCALE = 0.38; // the whole map's ground in one canvas: about the same memory as before the map grew
-function makeGround(theme, seed, decor) {
-  const s = GROUND_SCALE;
+const GROUND_SCALE_LOW = 0.26; // low graphics: less than half the memory, a little softer
+function makeGround(theme, seed, decor, scale) {
+  const s = scale || GROUND_SCALE;
   const cv = document.createElement('canvas');
   cv.width = WORLD_W * s; cv.height = WORLD_H * s;
   const g = cv.getContext('2d');
