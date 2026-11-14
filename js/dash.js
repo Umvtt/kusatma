@@ -5,6 +5,7 @@ import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, da
 import { ITEMS, SLOTS, SLOT_OF, RARITY, FREE_CLS, isFree, titleOf } from './catalog.js';
 import { CLASSES, CLASS_ORDER, DIFFS, MAPS, BUILD, dailyRules, league, LEAGUES, clsNext, BADGES, APP_BUILD } from './config.js';
 import { drawCharacter, drawPet } from './render.js';
+import { msgPop, callFriend } from './social.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -298,7 +299,7 @@ function homePage(sec) {
   lv.append(lvlBadge(ME.lvl), el('span', '', `Seviye ${ME.lvl}`), bar, el('span', 'dim', `${fmt(ME.lx)} / ${fmt(ME.ln)} XP`));
   txt.append(lv);
   const acts = el('div', 'dp-hero-acts');
-  acts.append(btn('btn primary big play-btn', 'Oyna', () => dashGo('play')), btn('btn ghost quick-btn', 'Hızlı oyna', () => H.quick()), btn('btn ghost', 'Tek başına', () => H.solo()), btn('btn ghost', 'Oda kur', () => H.roomDlg()), btn('btn ghost phone-only', 'Sıralama', () => dashGo('top')));
+  acts.append(btn('btn big play-btn', 'Oyna', () => dashGo('play')), btn('btn tile-btn t-blue quick-btn', 'Hızlı oyna', () => H.quick()), btn('btn tile-btn t-purple', 'Tek başına', () => H.solo()), btn('btn tile-btn t-teal', 'Oda kur', () => H.roomDlg()), btn('btn tile-btn phone-only', 'Sıralama', () => dashGo('top')));
   txt.append(acts);
   heroBox.append(cv, txt);
   sec.append(heroBox);
@@ -363,7 +364,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Oyuncuları susturabilirsin: lobide Sustur düğmesi yazıyı ve sesi birlikte, skor tablosunda ayrı ayrı susturur; seçimin hatırlanır.', 'Yönetici artık bir oyunu istediği dalgaya taşıyabiliyor ya da istediği uzunlukta mola verebiliyor; mola bitince sonraki dalga kendiliğinden başlıyor.', 'Herkes için güvenli bir oyun ortamı sağlamak amacıyla moderatörler zaman zaman sesli sohbete katılabilir. Konuşmalar kaydedilmez.', 'Tek başına oyunlarda günlük elmas sınırı daha düşük (ortak oyunlar daha çok kazandırır).', 'Normal, Zor ve Kâbus çok daha zor; misafirler artık cephanelikten eşya alabiliyor.'];
+const WHATS_NEW = ['Yeni görünüm: daha parlak renkler, yuvarlak yazılar, büyük yeşil Oyna düğmesi ve renkli kısayollar; telefonda daha sade bir oyun ekranı.', 'Arkadaşından mesaj gelince ekranın üstünde bir kart çıkıyor; Yanıtla\'ya basıp oyundayken bile hemen cevap verebilirsin.', 'Arkadaşlarını sesli arayabilirsin: arkadaş listesinde Ara, mesaj penceresinde telefon düğmesi. Ulaşılamazsa telefonuna cevapsız arama bildirimi gider.', 'Oyuncuları susturabilirsin; tek başına oyunlarda günlük elmas sınırı daha düşük.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -430,7 +431,7 @@ function drawWheel(cv, rot) {
     const a = a0 + (i / n) * Math.PI * 2 - Math.PI / n, b = a + Math.PI * 2 / n;
     g.fillStyle = SPIN_COL[i]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, r, a, b); g.closePath(); g.fill();
     g.strokeStyle = 'rgba(255,255,255,0.15)'; g.lineWidth = 1; g.stroke();
-    g.save(); g.rotate(a0 + (i / n) * Math.PI * 2); g.fillStyle = SPIN[i][1] === 'item' ? '#ffd34d' : '#ece6d6'; g.font = `700 ${Math.round(S / 17)}px Rubik, system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle';
+    g.save(); g.rotate(a0 + (i / n) * Math.PI * 2); g.fillStyle = SPIN[i][1] === 'item' ? '#ffd34d' : '#ece6d6'; g.font = `700 ${Math.round(S / 17)}px Nunito, system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle';
     g.fillText(SPIN[i][0], r - 8, 0); g.restore();
   }
   g.restore();
@@ -752,7 +753,7 @@ function drawClassPic(cv, cls, S, eq) {
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.translate(S * 0.42, S * 0.55); g.scale(S / 44, S / 44);
   if (CLASSES[cls]) drawCharacter(g, cls, colorOf(eq || ME.eq), -0.6, 0, { alive: true, hat: eq && eq.hat, wsk: eq && eq.wsk });
-  else { g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.arc(0, 0, 15, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(255,255,255,0.5)'; g.font = '700 16px Rubik'; g.textAlign = 'center'; g.fillText('?', 0, 6); }
+  else { g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.arc(0, 0, 15, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(255,255,255,0.5)'; g.font = '700 16px Nunito'; g.textAlign = 'center'; g.fillText('?', 0, 6); }
 }
 let lockSlot = 'hat', lockCls = '';
 function lockerPage(sec) {
@@ -1001,6 +1002,7 @@ function drawFriends() {
     const acts = el('span', 'fr-acts');
     if (f.room) acts.append(btn('btn small primary', 'Katıl', () => H.join(f.room)));
     const mb = btn('btn small', 'Mesaj', () => openDm(f)); if (FR.un[f.id]) mb.append(el('span', 'badge', String(FR.un[f.id]))); acts.append(mb);
+    if (f.on) acts.append(btn('btn small tile-btn t-teal', 'Ara', () => startCall(f)));
     acts.append(btn('btn small ghost', 'Profil', () => openProfile({ id: f.id })));
     li.append(avw, info, acts); ul.append(li);
   }
@@ -1045,7 +1047,7 @@ const refreshFriends = () => friendsGet().then((d) => { if (d) onFriends(d); });
 
 // the message drawer
 let dmWith = null;
-async function openDm(f) {
+export async function openDm(f) {
   dmWith = f;
   const d = $('#dm'); d.hidden = false;
   $('#dm-name').replaceChildren(nameEl(f.name, f.eq));
@@ -1081,7 +1083,14 @@ export function onDm(m) {
   if (dmWith && dmWith.id === m.f && !$('#dm').hidden) { addMsg(m); acctOp('dmh', { w: m.f }); return; }
   FR.un[m.f] = (FR.un[m.f] || 0) + 1; ME.un = (ME.un | 0) + 1; topBar();
   if (page === 'friends') drawFriends();
-  H.toast(`${m.n}: ${m.x}`, 'dm');
+  msgPop(m, FR.L.find((x) => x.id === m.f)); // a pop-up you can answer right there (build 66)
+}
+// a voice call to a friend (build 66)
+export async function startCall(f) {
+  const r = await callFriend(f);
+  if (r === 'mic') H.toast('Arama için mikrofon izni gerekli.', 'bad');
+  else if (r === 'net') H.toast('Bağlantı kurulamadı, biraz sonra yeniden dene.', 'bad');
+  else if (r === 'busy') H.toast('Zaten bir görüşmedesin.', 'bad');
 }
 export function onFr(k, n) { H.toast(k === 'acc' ? `${n} arkadaşlık isteğini kabul etti!` : `${n} sana arkadaşlık isteği gönderdi.`, 'good'); refreshFriends(); }
 
@@ -1464,6 +1473,7 @@ export function dashInit(hooks) {
   document.addEventListener('click', (e) => { const p = $('#bell-pop'); if (!p.hidden && !p.contains(e.target)) { p.hidden = true; $('#dp-bell').setAttribute('aria-expanded', 'false'); } });
   $('#dp-search').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.value.trim()) { openProfile({ name: e.target.value.trim() }); e.target.value = ''; } });
   $('#dm-close').onclick = () => { $('#dm').hidden = true; dmWith = null; };
+  $('#dm-call').onclick = () => { if (dmWith) startCall(dmWith); };
   $('#dm-send').onclick = sendDm;
   $('#dm-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendDm(); e.stopPropagation(); });
   $('#prof-close').onclick = () => { $('#prof-dlg').hidden = true; };

@@ -63,6 +63,8 @@ export function cleanCode(s) {
 }
 
 const peerAvailable = () => typeof Peer === 'function';
+// a plain peer for friend voice calls (build 66), with the same connection settings as games
+export function makeCallPeer() { return peerAvailable() ? new Peer(peerOpts()) : null; }
 
 // Splits a message that is too big for one PeerJS message into pieces the client puts back together.
 let packId = 0;

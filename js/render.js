@@ -372,21 +372,21 @@ export class Renderer {
       g.globalAlpha = a; g.fillStyle = 'rgba(10,14,12,0.75)'; g.beginPath(); g.arc(q.x, q.y - 26, 15, 0, Math.PI * 2); g.fill();
       g.strokeStyle = Q.col; g.lineWidth = 2.5; g.stroke();
       g.beginPath(); g.moveTo(q.x - 6, q.y - 13); g.lineTo(q.x, q.y - 3); g.lineTo(q.x + 6, q.y - 13); g.fillStyle = Q.col; g.fill();
-      g.fillStyle = Q.col; g.font = '700 16px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(Q.ic, q.x, q.y - 26);
-      const r = roster.get(q.pid); if (r) { g.font = '700 11px Rubik, system-ui, sans-serif'; g.fillStyle = '#fff'; g.fillText(r.name, q.x, q.y - 50); }
+      g.fillStyle = Q.col; g.font = '700 16px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(Q.ic, q.x, q.y - 26);
+      const r = roster.get(q.pid); if (r) { g.font = '700 11px Nunito, system-ui, sans-serif'; g.fillStyle = '#fff'; g.fillText(r.name, q.x, q.y - 50); }
       g.textBaseline = 'alphabetic'; g.globalAlpha = 1;
     }
     // what each player just said (quick messages): a bubble over their head for 3 s
     if (game.qmSay) for (const [pid, m] of game.qmSay) {
       const p = game.ps.get(pid), age = game.time - m.t, Q = QUICK[m.k]; if (!p || !Q || age > 3 || !inView(p.x, p.y)) continue;
-      g.globalAlpha = Math.min(1, (3 - age) / 0.5); g.font = '700 12px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
+      g.globalAlpha = Math.min(1, (3 - age) / 0.5); g.font = '700 12px Nunito, system-ui, sans-serif'; g.textAlign = 'center';
       const txt = Q.ic + ' ' + Q.t, w = g.measureText(txt).width + 16, x = p.x, y = p.y - PLAYER_R - 46 - Math.min(1, age * 6) * 4;
       g.fillStyle = 'rgba(10,14,12,0.85)'; g.beginPath(); g.roundRect ? g.roundRect(x - w / 2, y - 12, w, 22, 11) : g.rect(x - w / 2, y - 12, w, 22); g.fill();
       g.strokeStyle = Q.col; g.lineWidth = 1.5; g.stroke(); g.fillStyle = Q.col; g.fillText(txt, x, y + 4); g.globalAlpha = 1;
     }
-    g.font = '700 14px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
+    g.font = '700 14px Nunito, system-ui, sans-serif'; g.textAlign = 'center';
     for (const t of game.texts) {
-      g.font = t.small ? '700 12px Rubik, system-ui, sans-serif' : '700 14px Rubik, system-ui, sans-serif';
+      g.font = t.small ? '700 12px Nunito, system-ui, sans-serif' : '700 14px Nunito, system-ui, sans-serif';
       g.globalAlpha = Math.max(0, 1 - t.t / 1.2);
       g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillText(t.txt, t.x + 1, t.y + 1);
       g.fillStyle = t.col; g.fillText(t.txt, t.x, t.y);
@@ -490,7 +490,7 @@ export class Renderer {
       g.beginPath(); g.moveTo(19, 0); g.lineTo(12, -5); g.lineTo(12, 5); g.closePath(); g.fill();
       g.rotate(-a);
       g.fillStyle = down ? '#e5484d' : '#ece6d6';
-      g.font = '700 11px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = '700 11px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText(down ? '+' : (info ? info.name.slice(0, 1).toLocaleUpperCase('tr-TR') : '?'), 0, 0.5);
       g.restore();
     }
@@ -998,7 +998,7 @@ function drawTurretBody(g, t) {
   g.restore();
   if (t.life <= 5) {
     g.fillStyle = 'rgba(255,210,63,0.9)';
-    g.font = '600 11px Rubik, system-ui, sans-serif';
+    g.font = '600 11px Nunito, system-ui, sans-serif';
     g.textAlign = 'center';
     g.fillText(String(t.life), t.x, t.y - 20);
   }
@@ -1016,7 +1016,7 @@ function drawItem(g, it, time) {
   g.fillStyle = col; g.strokeStyle = col;
   if (k === 0) { g.fillRect(-2.5, -7, 5, 14); g.fillRect(-7, -2.5, 14, 5); }
   else if (k === 1) { g.beginPath(); g.arc(-3, 2, 4.5, 0, Math.PI * 2); g.arc(3, 2, 4.5, 0, Math.PI * 2); g.arc(0, -3, 4.5, 0, Math.PI * 2); g.fill(); }
-  else if (k === 2) { g.beginPath(); g.moveTo(0, -8); g.lineTo(7, 0); g.lineTo(0, 8); g.lineTo(-7, 0); g.closePath(); g.fill(); g.fillStyle = '#1a0d05'; g.font = '700 9px Rubik, sans-serif'; g.textAlign = 'center'; g.fillText('2×', 0, 3); }
+  else if (k === 2) { g.beginPath(); g.moveTo(0, -8); g.lineTo(7, 0); g.lineTo(0, 8); g.lineTo(-7, 0); g.closePath(); g.fill(); g.fillStyle = '#1a0d05'; g.font = '700 9px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText('2×', 0, 3); }
   else { g.beginPath(); g.moveTo(2, -9); g.lineTo(-5, 1); g.lineTo(0, 1); g.lineTo(-2, 9); g.lineTo(5, -1); g.lineTo(0, -1); g.closePath(); g.fill(); }
   g.restore();
 }
@@ -1321,7 +1321,7 @@ function drawPlayer(g, game, pid, p, info, alive) {
     g.beginPath(); g.ellipse(0, 6, 22, 16, 0, 0, Math.PI * 2); g.stroke();
     g.globalAlpha = alpha;
     if (p.pfl & 1) { g.strokeStyle = `rgba(255,255,255,${0.35 + 0.25 * Math.sin(game.time * 10)})`; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 27, 0, Math.PI * 2); g.stroke(); }
-    if (p.pfl & 4) { g.fillStyle = '#4cf0d0'; g.font = '700 11px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('⦸', 0, -34); }
+    if (p.pfl & 4) { g.fillStyle = '#4cf0d0'; g.font = '700 11px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('⦸', 0, -34); }
   }
   if (p.flash > 0) { p.flash -= 1 / 60; g.fillStyle = 'rgba(255,90,90,0.35)'; g.beginPath(); g.arc(0, 0, 22, 0, Math.PI * 2); g.fill(); }
   if (alive && fxk === 'spin') { // the Kılıççı's whirlwind (Kasırga): the blade circles all around, everything inside is cut
@@ -1877,7 +1877,7 @@ function drawTag(g, p, info, isMe, game) {
   const pv = game && game.pv, foe = !!pv && !isMe && (pv[0] === 'ffa' || p.tm !== game.self.tm);
   if (foe && (p.pfl & 2)) return;
   const y = p.y - PLAYER_R - 14;
-  g.font = '600 12px Rubik, system-ui, sans-serif';
+  g.font = '600 12px Nunito, system-ui, sans-serif';
   g.textAlign = 'center';
   g.fillStyle = 'rgba(0,0,0,0.75)';
   const tagged = info.ct ? `[${info.ct}] ${info.name}` : info.name;
@@ -1888,7 +1888,7 @@ function drawTag(g, p, info, isMe, game) {
   if (p.wt > 0) { // weapon level badge after the name
     const tw = g.measureText(tagged).width;
     const bx = p.x + tw / 2 + 4, by = y - 16, txt = ROMAN[p.wt] || '';
-    g.font = '700 9px Rubik, system-ui, sans-serif';
+    g.font = '700 9px Nunito, system-ui, sans-serif';
     const bw = g.measureText(txt).width + 7;
     g.fillStyle = 'rgba(0,0,0,0.7)'; rr(g, bx, by, bw, 12, 3); g.fill();
     const pc = weaponOf(info.cls || p.cls || 'asker', p.wt, p.wp, p.wb).col || '#fff';
@@ -2132,7 +2132,7 @@ function drawCoil(g, t) {
   g.fillStyle = '#bff3ff'; g.beginPath(); g.arc(0, -4, 5, 0, Math.PI * 2); g.fill();
   g.strokeStyle = 'rgba(191,243,255,0.8)'; g.lineWidth = 1.2;
   for (let i = 0; i < 3; i++) { const a = now * 7 + i * 2.1; g.beginPath(); g.moveTo(0, -4); g.lineTo(Math.cos(a) * 10 + (Math.random() - 0.5) * 4, -4 + Math.sin(a) * 10); g.stroke(); }
-  if (t.life != null && t.life < 3) { g.globalAlpha = 0.6; g.fillStyle = '#fff'; g.font = '700 10px Rubik, sans-serif'; g.textAlign = 'center'; g.fillText(String(Math.ceil(t.life)), 0, 24); }
+  if (t.life != null && t.life < 3) { g.globalAlpha = 0.6; g.fillStyle = '#fff'; g.font = '700 10px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(String(Math.ceil(t.life)), 0, 24); }
   g.restore();
 }
 
