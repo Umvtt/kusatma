@@ -116,13 +116,14 @@ export class HostGame {
     if (this.evLog.length > 600) this.evLog.splice(0, this.evLog.length - 600);
     const logFirst = this.evSeq - this.evLog.length + 1;
     const far = this.snapN % 4 === 0 ? s.Z.map((z) => [z[1], z[2] >> 3, z[3] >> 3]) : null;
-    const R2 = 1800 * 1800, N2 = 1000 * 1000, odd = this.snapN & 1, q = this.snapN;
+    const R2 = 1800 * 1800, N2 = 1000 * 1000, q = this.snapN;
     for (const p of this.players.values()) {
       if (p.pid === this.hostPid || !this.net.canSnap(p.pid)) continue;
       // zombies are described against what the guest has confirmed (not what was last sent), so lost or late snapshots heal by themselves
       const zh = p.zh || (p.zh = { ack: 0, hist: new Map(), ev0: es0 - 1 });
       const base = (zh.ack && zh.hist.get(zh.ack)) || null, bz = base ? base.zk : null;
       const full = !p.inGame || !p.alive, cur = new Map(), Z = [];
+      const odd = (zh.n = (zh.n || 0) + 1) & 1; // per guest, so a guest that gets every other snapshot still sees far zombies move
       for (const z of s.Z) {
         const boss = isBoss(z[1]), d2 = (z[2] - p.x) ** 2 + (z[3] - p.y) ** 2;
         if (!full && !boss && d2 >= R2) continue;
@@ -137,8 +138,9 @@ export class HostGame {
       const seen = zh.seen || (zh.seen = new Map()), ZD = [];
       const rm = zh.rm || (zh.rm = new Map());
       for (const [id, rq] of rm) if (zh.ack > rq) rm.delete(id);
-      if (bz) for (const [id, lastQ] of seen) { if (cur.has(id)) continue; if (zh.ack > lastQ) seen.delete(id); else { ZD.push(id); rm.set(id, q); } }
-      else { seen.clear(); rm.clear(); } // nothing confirmed to build on: this snapshot is the whole picture and replaces what the guest has
+      // (a full snapshot replaces what the guest has, but it may be lost: what was sent before stays remembered until
+      // the guest confirms something newer, so a later delta snapshot still removes it)
+      for (const [id, lastQ] of seen) { if (cur.has(id)) continue; if (zh.ack > lastQ) seen.delete(id); else if (bz) { ZD.push(id); rm.set(id, q); } } // nothing confirmed to build on: this snapshot is the whole picture and replaces what the guest has
       for (const id of cur.keys()) seen.set(id, q);
       const evFrom = Math.max((base ? base.ev : zh.ev0) + 1, logFirst, this.evSeq - 299);
       const E = evFrom <= this.evSeq ? this.evLog.slice(evFrom - logFirst) : [];
@@ -1033,7 +1035,7 @@ export class HostGame {
     this.seed = (Math.random() * 2 ** 31) | 0;
     if (this.daily) { this.theme = this.daily.map; this.seed = this.daily.seed; this.diff = this.daily.diff; for (const q of this.players.values()) q.cls = this.daily.cls; }
     const map = generateMap(this.theme, this.seed);
-    setMap(map.theme, map.seed, map.obstacles, map.decor);
+    setMap(map.theme, map.seed, map.obstacles, map.decor); this.fieldKey = "";
     this.areaN = Math.max(1, this.players.size);
     const a = areaFor(this.areaN);
     this.bounds = { x0: CX - a.w / 2, y0: CY - a.h / 2, x1: CX + a.w / 2, y1: CY + a.h / 2 };
@@ -1330,7 +1332,10 @@ export class HostGame {
     this.fieldT -= dt;
     if (this.fieldT <= 0) {
       this.fieldT = 0.25;
-      buildField(this.inGame().filter((p) => p.alive && !(p.invUntil > this.time)), this.field);
+      // the path map only changes when a target player changes cell or the arena moves a little: otherwise keep it
+      const src = this.inGame().filter((p) => p.alive && !(p.invUntil > this.time)), B = WORLD.bounds;
+      const fk = src.map((p) => ((p.x / 40) | 0) + ',' + ((p.y / 40) | 0)).join(';') + '|' + ((B.x0 / 40) | 0) + ',' + ((B.y0 / 40) | 0) + ',' + ((B.x1 / 40) | 0) + ',' + ((B.y1 / 40) | 0);
+      if (fk !== this.fieldKey) { this.fieldKey = fk; buildField(src, this.field); }
     }
     this.spawn(dt);
     this.updateRevives(dt);
@@ -2158,6 +2163,7 @@ export class HostGame {
 
   damage(z, d, p) {
     if (z.dead || z.st === ZS.BURROW || !(d > 0)) return; // NaN or negative damage is ignored
+    if (z.ally && p && p.pid != null && z.ally !== 0 && this.ally(p, this.players.get(z.ally) || p)) return; // our side's blasts and turrets spare a hacked zombie
     if (Number.isNaN(z.hp)) z.hp = 1; // a broken health value never makes a zombie unkillable
     if (z.el === 4) d *= 0.55;
     if (!this.bulletHit && z.acidT > this.time) d *= z.acidK || 1;
@@ -2326,7 +2332,7 @@ export class HostGame {
     this.shots = []; this.events = [];
     if (this.theme && (WORLD.theme !== this.theme || WORLD.seed !== this.seed)) {
       const map = generateMap(this.theme, this.seed);
-      setMap(map.theme, map.seed, map.obstacles, map.decor);
+      setMap(map.theme, map.seed, map.obstacles, map.decor); this.fieldKey = "";
     }
     if (this.bounds) setBounds(this.bounds.x0, this.bounds.y0, this.bounds.x1, this.bounds.y1);
     this.fieldT = 0;

@@ -129,6 +129,7 @@ export class ClientGame {
     }
     const prevPhase = this.phase;
     this.lastSnapAt = performance.now();
+    this.snapN = (this.snapN || 0) + 1;
     this.phase = s.ph === 'c' ? 'combat' : 'break';
     this.wave = s.w;
     this.waveN = s.n;
@@ -170,7 +171,7 @@ export class ClientGame {
     for (const e of s.Z) {
       if (e.length === 3) { // unchanged since last time: only where it is now
         const z = this.zs.get(e[0]);
-        if (z) { z.tx = e[1]; z.ty = e[2]; } else if (!this.zrAsk || this.time - this.zrAsk > 1) { this.zrAsk = this.time; this.send({ t: 'zr' }); }
+        if (z) { z.tx = e[1]; z.ty = e[2]; z.seenN = this.snapN; } else if (!this.zrAsk || this.time - this.zrAsk > 1) { this.zrAsk = this.time; this.send({ t: 'zr' }); }
         continue;
       }
       const [id, t, x, y, hp, st, cdir, sface, fl] = e;
@@ -196,6 +197,7 @@ export class ClientGame {
         if (st === ZS.SPIT) sfx.spit(x, y);
       }
       if (st === 9 && z.st !== 9) z.leapT = this.time;
+      z.seenN = this.snapN;
       z.tx = x; z.ty = y; z.hp = hp; z.st = st; z.cdir = cdir; z.sface = sface; z.fl = fl || 0; z.max = zMaxHp(t, this.wave, this.waveN, this.hm) * ((fl >> 8) & 7 ? 2.5 : 1);
       if (z.dying && hp - z.pend.reduce((sum, e) => sum + e.d, 0) > 0) z.dying = 0;
     }
@@ -203,6 +205,12 @@ export class ClientGame {
     else for (const id of [...this.zs.keys()]) if (!seenZ.has(id)) this.zs.delete(id);
     // nothing is left alive on the host between waves: whatever is still here is a leftover and goes
     if (this.phase === 'break' && !s.zl && !s.Z.length && this.zs.size) this.zs.clear();
+    // safety net: the host mentions every zombie near us in every snapshot it sends us. One near us that has not been
+    // mentioned for 4 snapshots in a row is gone on the host (a lost removal, an older host): remove it here too.
+    if (s.q) {
+      const S = this.self, mx = S.inGame ? S.x : this.cam.x, my = S.inGame ? S.y : this.cam.y;
+      for (const [id, z] of this.zs) if (this.snapN - (z.seenN || 0) >= 4 && (z.tx - mx) ** 2 + (z.ty - my) ** 2 < 950 * 950) this.zs.delete(id);
+    }
 
     const seenT = new Set();
     for (const [id, x, y, a, life, k, hp] of s.T) {

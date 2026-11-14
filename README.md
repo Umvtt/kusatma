@@ -14,7 +14,7 @@ Oyna:
 
 İlk oyununda kısa bir eğitim seni adım adım gezdirir (ana menüde **Nasıl oynanır?** ile tekrar açabilirsin).
 
-Hemen oynamak istersen **Hızlı oyna**'ya bas: bu sürümde açık, yer olan bir oda varsa ona katılırsın (önce lobidekiler, sonra moladakiler); yoksa tek başına bir oyun hemen başlar. Arkadaşlarınla oynamak için:
+Hemen oynamak istersen **Hızlı oyna**'ya bas: bu sürümde lobisinde bekleyen, yer olan bir oda varsa ona katılırsın ve sınıfını seçersin; yoksa tek başına bir oyunun lobisi açılır, sınıfını seçip **Hazırım**'a basarsın. Arkadaşlarınla oynamak için:
 
 1. Takma adını yaz ve **Oda kur**'a bas.
 2. Ekranda çıkan 6 karakterlik **oda kodunu** arkadaşlarına gönder. Onlar da kodu girip **Katıl**'a bassın.
@@ -42,7 +42,7 @@ Hemen oynamak istersen **Hızlı oyna**'ya bas: bu sürümde açık, yer olan bi
 
 Telefonu yan çevir. Sol çubukla yürü, sağ çubukla nişan al; çubuğu ittiğin sürece silah ateş eder. Yetenek, Dipçik, eşyalar, Menü ve Skor için ekrandaki düğmeleri kullan. Odada **Hızlı** düğmesi takım mesajlarını açar ("Yardım!", "Buraya gel!", "Şuraya bak" gibi); yeri olan mesajlar haritada işaret bırakır.
 
-**Kontrolleri düzenle** (Ayarlar → Dokunmatik kontroller → Düzenle): çubukları, Yetenek, Dipçik ve mikrofon düğmelerini parmağınla sürükleyip istediğin yere koy; joystick ve düğme boyutunu, saydamlığı ayarla. **Serbest joystick** açıkken sol çubuk ekranın sol yarısında parmağını nereye koyarsan orada belirir. **Sıfırla** her şeyi ilk hâline döndürür. Düzen yalnızca o telefonda saklanır.
+**Ekran düzeni** (telefonda Ayarlar → Ekran düzeni → Düzenle): iki joystick, Yetenek, Dipçik, mikrofon, eşyalar, Menü/Skor tuşları, dalga kutusu, can ve altın, boss çubuğu, Cephanelik tuşu ve haritayı parmağınla sürükleyip istediğin yere koy. Bir parçaya dokununca seçilir; kaydırma çubuğuyla boyutunu ayarlarsın (çoğu %70–150, harita %60–160). Parçalar ekran dışına çıkamaz. Saydamlığı da ayarlayabilir, tek parçayı ya da hepsini sıfırlayabilirsin. Düzen yalnız o telefonda saklanır. **Serbest joystick** açıkken sol çubuk ekranın sol yarısında parmağını nereye koyarsan orada belirir. **Sıfırla** her şeyi ilk hâline döndürür. Düzen yalnızca o telefonda saklanır.
 
 Telefon yan tutulunca lobi ve Cephanelik ekrana sığar: lobide oda kodu ve sekmeler üstte, sınıf kartları solda kayar, seçili sınıfın ayrıntıları sağda durur, tuşlar altta; Cephanelik'te sekmeler, altın, Sargı ve Hazırım solda, satın alınacaklar sağda kendi içinde kayar.
 
@@ -313,7 +313,7 @@ Bazı yollar yeni şeyler yapar: **ısınan** silahlar tetiğe bastıkça hızla
 | Ağır kılıç | Daha yavaş ama çok sert savurur, zombileri geri iter | Balyoz (savuruş yere çarpıp çevreye hasar verir) · Cellat (canı azalmış zombileri tek vuruşta bitirir) |
 | Çift kılıç | Çok daha hızlı savurur | Kasırga dansı (her savuruşta iki kesik) · Kan çiçeği (kanayan zombiler yavaşlar) |
 | Uzun kılıç | Savuruş daha uzağa ve daha geniş yetişir | Mızrak (savuruş havaya bir kesik dalgası fırlatır) · Pala (savuruş arkayı da keser) |
-| Kan kılıcı | Çok daha fazla can emer, canı azalmış zombilere sert | Vampir (canın doluyken emilen can kalkan olur) · İnfazcı (bitirdiğin zombi canını doldurur) |
+| Kan kılıcı | Çok daha fazla can emer, canı azalmış zombilere sert | Vampir (canın doluyken emilen can kan kalkanına dönüşür: canının %35'ine kadar, önce o hasar alır; kırmızı çubuk olarak görünür) · İnfazcı (bitirdiğin zombi canını doldurur) |
 
 **Eğitmen**
 

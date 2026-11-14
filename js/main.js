@@ -264,16 +264,18 @@ async function quickPlay() {
       let res = null; try { res = await Promise.race([roomsGet(), new Promise((r) => setTimeout(() => r(null), 4000))]); } catch (e) { res = null; }
       busy(false);
       const L = res && res.ok && Array.isArray(res.rooms) ? res.rooms : [];
-      const rank = (r) => (r.st === 'lobby' ? 1000 : r.st === 'break' ? 500 : 0) + r.n * 10 - r.wave;
-      pick = L.filter((r) => r.ver === BUILD && r.gm !== 'pvp' && r.gm !== 'sandbox' && r.gm !== 'daily' && r.n < (r.mx || MAX_PLAYERS) && r.wave < 25)
+      // only rooms still in their lobby: there you pick your class before the game starts (a running game would put you
+      // straight in with whatever class you had)
+      const rank = (r) => r.n * 10 - r.wave;
+      pick = L.filter((r) => r.ver === BUILD && r.st === 'lobby' && r.gm !== 'pvp' && r.gm !== 'sandbox' && r.gm !== 'daily' && r.n < (r.mx || MAX_PLAYERS))
         .sort((a, b) => rank(b) - rank(a))[0] || null;
     }
     if (pick) { $('#code').value = pick.code; if (await joinRoom()) return; }
     if (S.net) return;
-    S.again = true; menuMsg('');
+    // no room: a solo game whose lobby opens on the class picker (you start it with Hazırım)
+    menuMsg('');
     await createRoom(true);
-    if (!S.net) S.again = false;
-    else toast(pick ? 'Odaya girilemedi, tek başına başlıyorsun.' : 'Açık oda yok, tek başına başlıyorsun. Biri gelince arkadaşlarını davet edebilirsin.');
+    if (S.net) { const tb = document.querySelector('.lobby-tabs button[data-lt="cls"]'); if (tb) tb.click(); toast(pick ? 'Odaya girilemedi: sınıfını seç ve tek başına başla.' : 'Açık oda yok: sınıfını seç, Hazırım\'a bas ve tek başına başla.'); }
   } finally { quickBusy = false; }
 }
 
