@@ -388,7 +388,7 @@ export class ClientGame {
       case 'ab2': this.ring(ev[1], ev[2], '#d8d0b0', 40); sfx.turretShot(ev[1], ev[2]); break;
       case 'sm': this.ring(ev[1], ev[2], '#b07ad8', 90); this.light(ev[1], ev[2], 200, 0.5, '176,122,216'); sfx.summon(ev[1], ev[2]); break;
       case 'pk': {
-        const [, pid, k, x, y, amount] = ev;
+        const [, , k, x, y, amount] = ev;
         const txt = k === 0 ? `+${amount} can` : k === 1 ? `+${amount} altın` : k === 2 ? 'Güç! 2× hasar' : 'Hız!';
         this.float(x, y - 20, txt, ITEMS[k].col);
         this.ring(x, y, ITEMS[k].col, 40);
@@ -445,7 +445,6 @@ export class ClientGame {
     const S = this.self;
     const st = this.myStats;
     const cls = this.cls;
-    const c = CLASSES[cls];
     const active = !this.paused && S.inGame && S.alive && (this.phase === 'combat' || this.phase === 'break');
     const meP = this.ps.get(this.me);
 

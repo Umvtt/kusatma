@@ -8,24 +8,6 @@ for (let i = 0; i < 64; i++) VAL[ABC.charCodeAt(i)] = i;
 function put(out, n, w) { for (let i = w - 1; i >= 0; i--) out.push(ABC[(n >> (6 * i)) & 63]); }
 function get(s, at, w) { let n = 0; for (let i = 0; i < w; i++) { const v = VAL[s.charCodeAt(at + i)]; if (v < 0) return NaN; n = n * 64 + v; } return n; }
 
-const OFF = 65536; // positions may sit a little outside the world; 3 digits hold 0..262143
-const clampPos = (v) => Math.max(0, Math.min(262143, (v | 0) + OFF));
-
-// zombies that only moved: id (4 digits) + x (3) + y (3)
-export function packMoves(list) {
-  const out = [];
-  for (const [id, x, y] of list) { put(out, id & 0xffffff, 4); put(out, clampPos(x), 3); put(out, clampPos(y), 3); }
-  return out.join('');
-}
-export function unpackMoves(s) {
-  const out = [];
-  if (typeof s !== 'string' || s.length % 10) return out;
-  for (let i = 0; i < s.length; i += 10) {
-    const id = get(s, i, 4), x = get(s, i + 4, 3) - OFF, y = get(s, i + 7, 3) - OFF;
-    if (Number.isFinite(id) && Number.isFinite(x) && Number.isFinite(y)) out.push([id, x, y]);
-  }
-  return out;
-}
 
 // Zombies that only moved, smallest form: sorted by id, each as the gap to the previous id, then its position either
 // as the change since the snapshot the guest confirmed (a few px: one or two digits) or, when that snapshot did not
