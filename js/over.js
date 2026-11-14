@@ -91,31 +91,31 @@ function resultImage() {
   const glow = g.createRadialGradient(W * 0.75, H * 0.32, 20, W * 0.75, H * 0.32, 420); glow.addColorStop(0, 'rgba(255,107,44,.28)'); glow.addColorStop(1, 'rgba(255,107,44,0)'); g.fillStyle = glow; g.fillRect(0, 0, W, H);
   // hazard stripe and logo
   g.save(); g.beginPath(); g.rect(70, 70, 360, 14); g.clip(); for (let x = 40; x < 460; x += 28) { g.fillStyle = (x / 28) % 2 < 1 ? '#ff6b2c' : '#1d1d1d'; g.beginPath(); g.moveTo(x, 84); g.lineTo(x + 14, 70); g.lineTo(x + 28, 70); g.lineTo(x + 14, 84); g.fill(); } g.restore();
-  g.fillStyle = '#ece6d6'; g.font = '900 92px Rubik, system-ui, sans-serif'; g.textBaseline = 'top'; g.fillText('KUŞATMA', 66, 104);
+  g.fillStyle = '#ece6d6'; g.font = '900 92px Nunito, system-ui, sans-serif'; g.textBaseline = 'top'; g.fillText('KUŞATMA', 66, 104);
   const pv = !!o.pvp, won = pv && (o.pvp.k === 'ffa' ? o.pvp.win === S.me : o.pvp.win === me.tm);
-  g.fillStyle = pv ? (won ? '#ffd23f' : '#e5484d') : '#ff6b2c'; g.font = '800 34px Rubik, system-ui, sans-serif';
+  g.fillStyle = pv ? (won ? '#ffd23f' : '#e5484d') : '#ff6b2c'; g.font = '800 34px Nunito, system-ui, sans-serif';
   g.fillText(pv ? (won ? 'ZAFER' : 'MAÇ BİTTİ') : 'KUŞATMA DÜŞTÜ', 70, 214);
   // the big number
-  g.fillStyle = '#fff'; g.font = '900 210px Rubik, system-ui, sans-serif'; const big = pv ? String(me.pk | 0) : String(o.wave | 0); g.fillText(big, 62, 262);
-  const bw = g.measureText(big).width; g.fillStyle = 'rgba(236,230,214,.75)'; g.font = '700 46px Rubik, system-ui, sans-serif'; g.fillText(pv ? 'leş' : '. dalga', 80 + bw, 400);
+  g.fillStyle = '#fff'; g.font = '900 210px Nunito, system-ui, sans-serif'; const big = pv ? String(me.pk | 0) : String(o.wave | 0); g.fillText(big, 62, 262);
+  const bw = g.measureText(big).width; g.fillStyle = 'rgba(236,230,214,.75)'; g.font = '700 46px Nunito, system-ui, sans-serif'; g.fillText(pv ? 'leş' : '. dalga', 80 + bw, 400);
   const sub = [o.theme && MAPS[o.theme] ? MAPS[o.theme].name : '', o.diff && DIFFS[o.diff] ? DIFFS[o.diff].name : '', S.roster && S.roster.mode && MODES[S.roster.mode] ? MODES[S.roster.mode].name : '', `${Math.floor((o.time || 0) / 60)}:${String((o.time || 0) % 60).padStart(2, '0')} dk`].filter(Boolean).join('  ·  ');
-  g.fillStyle = 'rgba(236,230,214,.7)'; g.font = '600 32px Rubik, system-ui, sans-serif'; g.fillText(sub, 70, 500);
+  g.fillStyle = 'rgba(236,230,214,.7)'; g.font = '600 32px Nunito, system-ui, sans-serif'; g.fillText(sub, 70, 500);
   // my character
   g.save(); g.translate(W * 0.76, 330); g.scale(5.2, 5.2); try { drawCharacter(g, me.cls, me.color || '#ff8a3d', -0.5, 0, { alive: true, hat: ACCT ? ME.eq.hat : undefined, wsk: ACCT ? ME.eq.wsk : undefined, wt: me.wt | 0, wp: me.wp | 0, wb: me.wb | 0 }); } catch (e) { /* the picture still works without it */ } g.restore();
-  g.textAlign = 'center'; g.fillStyle = '#ece6d6'; g.font = '800 40px Rubik, system-ui, sans-serif'; g.fillText(me.name, W * 0.76, 470); g.fillStyle = 'rgba(236,230,214,.65)'; g.font = '600 28px Rubik, system-ui, sans-serif'; g.fillText(CLASSES[me.cls] ? CLASSES[me.cls].name : '', W * 0.76, 520); g.textAlign = 'left';
+  g.textAlign = 'center'; g.fillStyle = '#ece6d6'; g.font = '800 40px Nunito, system-ui, sans-serif'; g.fillText(me.name, W * 0.76, 470); g.fillStyle = 'rgba(236,230,214,.65)'; g.font = '600 28px Nunito, system-ui, sans-serif'; g.fillText(CLASSES[me.cls] ? CLASSES[me.cls].name : '', W * 0.76, 520); g.textAlign = 'left';
   // number tiles
   const tiles = pv ? [[me.pk | 0, 'leş'], [me.dth | 0, 'ölüm'], [me.as | 0, 'asist']] : [[me.kills | 0, 'leş'], [me.dmg | 0, 'hasar'], [me.revives | 0, 'kaldırma'], [me.bk | 0, 'boss']];
   const tw = (W - 140 - (tiles.length - 1) * 20) / tiles.length;
   tiles.forEach(([v, l], i) => { const x = 70 + i * (tw + 20), y = 590; g.fillStyle = 'rgba(255,255,255,.06)'; g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 2; g.beginPath(); g.roundRect ? g.roundRect(x, y, tw, 150, 22) : g.rect(x, y, tw, 150); g.fill(); g.stroke();
-    g.fillStyle = '#fff'; g.font = '900 64px Rubik, system-ui, sans-serif'; g.fillText(fmt(v), x + 26, y + 26); g.fillStyle = 'rgba(236,230,214,.65)'; g.font = '600 28px Rubik, system-ui, sans-serif'; g.fillText(l, x + 28, y + 104); });
+    g.fillStyle = '#fff'; g.font = '900 64px Nunito, system-ui, sans-serif'; g.fillText(fmt(v), x + 26, y + 26); g.fillStyle = 'rgba(236,230,214,.65)'; g.font = '600 28px Nunito, system-ui, sans-serif'; g.fillText(l, x + 28, y + 104); });
   // my awards and the team
   const mine = [...$('#over-awards').querySelectorAll('.award')].filter((c) => /\(sen\)/.test(c.querySelector('b') ? c.querySelector('b').textContent : '')).map((c) => c.querySelector('.eyebrow').textContent);
   let y = 790;
-  if (mine.length) { g.fillStyle = '#ffd23f'; g.font = '800 34px Rubik, system-ui, sans-serif'; g.fillText('★ ' + mine.slice(0, 3).join('  ·  '), 70, y); y += 60; }
+  if (mine.length) { g.fillStyle = '#ffd23f'; g.font = '800 34px Nunito, system-ui, sans-serif'; g.fillText('★ ' + mine.slice(0, 3).join('  ·  '), 70, y); y += 60; }
   const team = (o.P || []).filter((p) => p.pid !== me.pid).map((p) => p.name);
-  if (team.length) { g.fillStyle = 'rgba(236,230,214,.7)'; g.font = '600 30px Rubik, system-ui, sans-serif'; let t = 'Takım: ' + team.join(', '); while (g.measureText(t).width > W - 140 && t.length > 10) t = t.slice(0, -2); if (t !== 'Takım: ' + team.join(', ')) t += '…'; g.fillText(t, 70, y); }
-  g.fillStyle = 'rgba(236,230,214,.5)'; g.font = '600 26px Rubik, system-ui, sans-serif'; g.fillText(new Date().toLocaleDateString('tr', { day: 'numeric', month: 'long', year: 'numeric' }), 70, H - 90);
-  g.textAlign = 'right'; g.fillStyle = '#ff6b2c'; g.font = '800 30px Rubik, system-ui, sans-serif'; g.fillText('umvtt.github.io/kusatma', W - 70, H - 92); g.textAlign = 'left';
+  if (team.length) { g.fillStyle = 'rgba(236,230,214,.7)'; g.font = '600 30px Nunito, system-ui, sans-serif'; let t = 'Takım: ' + team.join(', '); while (g.measureText(t).width > W - 140 && t.length > 10) t = t.slice(0, -2); if (t !== 'Takım: ' + team.join(', ')) t += '…'; g.fillText(t, 70, y); }
+  g.fillStyle = 'rgba(236,230,214,.5)'; g.font = '600 26px Nunito, system-ui, sans-serif'; g.fillText(new Date().toLocaleDateString('tr', { day: 'numeric', month: 'long', year: 'numeric' }), 70, H - 90);
+  g.textAlign = 'right'; g.fillStyle = '#ff6b2c'; g.font = '800 30px Nunito, system-ui, sans-serif'; g.fillText('umvtt.github.io/kusatma', W - 70, H - 92); g.textAlign = 'left';
   return cv;
 }
 let shareBlob = null, shareUrl = '';

@@ -6,13 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Kuşatma</title>
   <meta name="description" content="Arkadaşlarınla birlikte zombi sürülerine karşı dayan. 20 kişiye kadar, tarayıcıda, ücretsiz.">
-  <meta name="theme-color" content="#0d110f">
+  <meta name="theme-color" content="#10131b">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d110f'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%23ff6b2c'/%3E%3Cpath d='M16 3v6M16 23v6M3 16h6M23 16h6' stroke='%23ece6d6' stroke-width='2.5'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=65">
-  <link rel="stylesheet" href="css/dash.css?v=65">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=66">
+  <link rel="stylesheet" href="css/dash.css?v=66">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -47,14 +47,14 @@
           <span>Takma adın</span>
           <input id="name" maxlength="16" autocomplete="off" spellcheck="false" placeholder="ör. Kartal">
         </label>
-        <button id="btn-quick" class="btn primary big" type="button">Hızlı oyna</button>
+        <button id="btn-quick" class="btn play big lp-play" type="button">Hızlı oyna</button>
         <button id="btn-create" class="btn" type="button">Oda kur</button>
         <div class="join-row">
           <label class="sr-only" for="code">Oda kodu</label>
           <input id="code" class="code-input" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ODA KODU">
           <button id="btn-join" class="btn" type="button">Katıl</button>
         </div>
-        <button id="btn-solo" class="btn ghost" type="button">Tek başına oyna</button>
+        <button id="btn-solo" class="btn tile-btn t-blue" type="button">Tek başına oyna</button>
         <button id="btn-tut" class="btn ghost" type="button">Nasıl oynanır?</button>
         <p id="menu-block" class="msg" role="alert" hidden></p>
         <p id="menu-msg" class="msg" role="status" hidden></p>
@@ -108,7 +108,7 @@
         </main>
       </div>
       <aside id="dm" class="dm" hidden aria-label="Mesajlar">
-        <div class="dm-head"><canvas id="dm-av" width="36" height="36" aria-hidden="true"></canvas><span class="dm-who"><span id="dm-name"></span><span id="dm-st" class="dim"></span></span><button id="dm-close" class="btn small ghost" type="button">Kapat</button></div>
+        <div class="dm-head"><canvas id="dm-av" width="36" height="36" aria-hidden="true"></canvas><span class="dm-who"><span id="dm-name"></span><span id="dm-st" class="dim"></span></span><button id="dm-call" class="btn small tile-btn t-teal" type="button" aria-label="Sesli ara" title="Sesli ara">📞</button><button id="dm-close" class="btn small ghost" type="button">Kapat</button></div>
         <div id="dm-log" class="dm-log" aria-live="polite"></div>
         <div class="dm-foot"><input id="dm-in" maxlength="200" autocomplete="off" placeholder="Mesaj yaz…"><button id="dm-send" class="btn primary" type="button">Gönder</button></div>
       </aside>
@@ -179,7 +179,7 @@
         <p id="lobby-tip" class="note lobby-tip"></p>
         <div class="row">
           <button id="btn-leave" class="btn ghost" type="button">Odadan ayrıl</button>
-          <button id="btn-ready" class="btn primary big" type="button">Hazırım</button>
+          <button id="btn-ready" class="btn play big" type="button">Hazırım</button>
         </div>
       </footer>
     </div>
@@ -264,7 +264,7 @@
           <button id="esc-diag" class="btn small" type="button">Bağlantı testi</button>
         </div>
         <div class="esc-actions">
-          <button id="esc-resume" class="btn primary" type="button">Oyuna dön</button>
+          <button id="esc-resume" class="btn play" type="button">Oyuna dön</button>
           <button id="esc-mute" class="btn" type="button">Ses açık</button>
           <button id="esc-settings" class="btn" type="button">Ayarlar</button>
           <button id="esc-leave" class="btn ghost" type="button">Odadan ayrıl</button>
@@ -305,7 +305,7 @@
       <div id="shop-tabs" class="shop-tabs" role="tablist" aria-label="Cephanelik"></div>
       <button id="shop-heal" class="shop-heal" type="button"><span class="sh-t"><b>Sargı</b><span>Canını tamamen doldurur</span></span><span class="cost"><span class="coin" aria-hidden="true"></span><b id="shop-heal-c"></b></span></button>
       <ul id="shop-list" class="shop-list"></ul>
-      <button id="btn-shop-ready" class="btn primary" type="button">Hazırım</button>
+      <button id="btn-shop-ready" class="btn play" type="button">Hazırım</button>
       <p id="shop-ready-count" class="note center"></p>
     </aside>
 
@@ -364,7 +364,7 @@
       <div class="row">
         <button id="btn-over-leave" class="btn ghost" type="button">Odadan ayrıl</button>
         <button id="btn-over-lobby" class="btn" type="button">Lobiye dön</button>
-        <button id="btn-over-again" class="btn primary" type="button" hidden>Tekrar oyna</button>
+        <button id="btn-over-again" class="btn play" type="button" hidden>Tekrar oyna</button>
         <button id="btn-over-share" class="btn ghost" type="button">Sonucu paylaş</button>
       </div>
     </div>
@@ -454,7 +454,7 @@
       <div class="room-set"><span class="eyebrow">Mod</span><div class="chip-row" id="room-mode"></div></div>
       <div class="room-set" id="room-pvp-set"><div class="chip-row" id="room-pvp" hidden></div></div>
       <div class="room-set"><span class="eyebrow">En fazla oyuncu</span><div class="chip-row" id="room-max"></div></div>
-      <div class="room-foot"><p id="room-note" class="note"></p><button id="room-go" class="btn primary big" type="button">Odayı kur</button></div>
+      <div class="room-foot"><p id="room-note" class="note"></p><button id="room-go" class="btn play big" type="button">Odayı kur</button></div>
     </div>
   </div>
   <div id="inv-dlg" class="confirm" hidden>
@@ -604,41 +604,42 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/acct.js":"./js/acct.js?v=65","./js/app.js":"./js/app.js?v=65","./js/catalog.js":"./js/catalog.js?v=65","./js/chat.js":"./js/chat.js?v=65","./js/client.js":"./js/client.js?v=65","./js/config.js":"./js/config.js?v=65","./js/consent.js":"./js/consent.js?v=65","./js/dash.js":"./js/dash.js?v=65","./js/esc.js":"./js/esc.js?v=65","./js/host-combat.js":"./js/host-combat.js?v=65","./js/host-gear.js":"./js/host-gear.js?v=65","./js/host-util.js":"./js/host-util.js?v=65","./js/host-zombies.js":"./js/host-zombies.js?v=65","./js/host.js":"./js/host.js?v=65","./js/hud.js":"./js/hud.js?v=65","./js/layout.js":"./js/layout.js?v=65","./js/live.js":"./js/live.js?v=65","./js/lobby.js":"./js/lobby.js?v=65","./js/main.js":"./js/main.js?v=65","./js/mapgen.js":"./js/mapgen.js?v=65","./js/net.js":"./js/net.js?v=65","./js/over.js":"./js/over.js?v=65","./js/pack.js":"./js/pack.js?v=65","./js/perf.js":"./js/perf.js?v=65","./js/pvp.js":"./js/pvp.js?v=65","./js/render.js":"./js/render.js?v=65","./js/scene.js":"./js/scene.js?v=65","./js/settings.js":"./js/settings.js?v=65","./js/sfx.js":"./js/sfx.js?v=65","./js/shop.js":"./js/shop.js?v=65","./js/voice.js":"./js/voice.js?v=65","./js/voiceui.js":"./js/voiceui.js?v=65","./js/world.js":"./js/world.js?v=65"}}</script>
+  <script type="importmap">{"imports":{"./js/acct.js":"./js/acct.js?v=66","./js/app.js":"./js/app.js?v=66","./js/catalog.js":"./js/catalog.js?v=66","./js/chat.js":"./js/chat.js?v=66","./js/client.js":"./js/client.js?v=66","./js/config.js":"./js/config.js?v=66","./js/consent.js":"./js/consent.js?v=66","./js/dash.js":"./js/dash.js?v=66","./js/esc.js":"./js/esc.js?v=66","./js/host-combat.js":"./js/host-combat.js?v=66","./js/host-gear.js":"./js/host-gear.js?v=66","./js/host-util.js":"./js/host-util.js?v=66","./js/host-zombies.js":"./js/host-zombies.js?v=66","./js/host.js":"./js/host.js?v=66","./js/hud.js":"./js/hud.js?v=66","./js/layout.js":"./js/layout.js?v=66","./js/live.js":"./js/live.js?v=66","./js/lobby.js":"./js/lobby.js?v=66","./js/main.js":"./js/main.js?v=66","./js/mapgen.js":"./js/mapgen.js?v=66","./js/net.js":"./js/net.js?v=66","./js/over.js":"./js/over.js?v=66","./js/pack.js":"./js/pack.js?v=66","./js/perf.js":"./js/perf.js?v=66","./js/pvp.js":"./js/pvp.js?v=66","./js/render.js":"./js/render.js?v=66","./js/scene.js":"./js/scene.js?v=66","./js/settings.js":"./js/settings.js?v=66","./js/social.js":"./js/social.js?v=66","./js/sfx.js":"./js/sfx.js?v=66","./js/shop.js":"./js/shop.js?v=66","./js/voice.js":"./js/voice.js?v=66","./js/voiceui.js":"./js/voiceui.js?v=66","./js/world.js":"./js/world.js?v=66"}}</script>
   <!-- every module starts downloading at once instead of one after another as the imports are found (faster start on slow connections) -->
-  <link rel="modulepreload" href="js/acct.js?v=65">
-  <link rel="modulepreload" href="js/app.js?v=65">
-  <link rel="modulepreload" href="js/catalog.js?v=65">
-  <link rel="modulepreload" href="js/chat.js?v=65">
-  <link rel="modulepreload" href="js/client.js?v=65">
-  <link rel="modulepreload" href="js/config.js?v=65">
-  <link rel="modulepreload" href="js/consent.js?v=65">
-  <link rel="modulepreload" href="js/dash.js?v=65">
-  <link rel="modulepreload" href="js/esc.js?v=65">
-  <link rel="modulepreload" href="js/host-combat.js?v=65">
-  <link rel="modulepreload" href="js/host-gear.js?v=65">
-  <link rel="modulepreload" href="js/host-util.js?v=65">
-  <link rel="modulepreload" href="js/host-zombies.js?v=65">
-  <link rel="modulepreload" href="js/host.js?v=65">
-  <link rel="modulepreload" href="js/hud.js?v=65">
-  <link rel="modulepreload" href="js/layout.js?v=65">
-  <link rel="modulepreload" href="js/live.js?v=65">
-  <link rel="modulepreload" href="js/lobby.js?v=65">
-  <link rel="modulepreload" href="js/main.js?v=65">
-  <link rel="modulepreload" href="js/mapgen.js?v=65">
-  <link rel="modulepreload" href="js/net.js?v=65">
-  <link rel="modulepreload" href="js/over.js?v=65">
-  <link rel="modulepreload" href="js/pack.js?v=65">
-  <link rel="modulepreload" href="js/perf.js?v=65">
-  <link rel="modulepreload" href="js/pvp.js?v=65">
-  <link rel="modulepreload" href="js/render.js?v=65">
-  <link rel="modulepreload" href="js/scene.js?v=65">
-  <link rel="modulepreload" href="js/settings.js?v=65">
-  <link rel="modulepreload" href="js/sfx.js?v=65">
-  <link rel="modulepreload" href="js/shop.js?v=65">
-  <link rel="modulepreload" href="js/voice.js?v=65">
-  <link rel="modulepreload" href="js/voiceui.js?v=65">
-  <link rel="modulepreload" href="js/world.js?v=65">
-  <script type="module" src="js/main.js?v=65"></script>
+  <link rel="modulepreload" href="js/acct.js?v=66">
+  <link rel="modulepreload" href="js/app.js?v=66">
+  <link rel="modulepreload" href="js/catalog.js?v=66">
+  <link rel="modulepreload" href="js/chat.js?v=66">
+  <link rel="modulepreload" href="js/client.js?v=66">
+  <link rel="modulepreload" href="js/config.js?v=66">
+  <link rel="modulepreload" href="js/consent.js?v=66">
+  <link rel="modulepreload" href="js/dash.js?v=66">
+  <link rel="modulepreload" href="js/esc.js?v=66">
+  <link rel="modulepreload" href="js/host-combat.js?v=66">
+  <link rel="modulepreload" href="js/host-gear.js?v=66">
+  <link rel="modulepreload" href="js/host-util.js?v=66">
+  <link rel="modulepreload" href="js/host-zombies.js?v=66">
+  <link rel="modulepreload" href="js/host.js?v=66">
+  <link rel="modulepreload" href="js/hud.js?v=66">
+  <link rel="modulepreload" href="js/layout.js?v=66">
+  <link rel="modulepreload" href="js/live.js?v=66">
+  <link rel="modulepreload" href="js/lobby.js?v=66">
+  <link rel="modulepreload" href="js/main.js?v=66">
+  <link rel="modulepreload" href="js/mapgen.js?v=66">
+  <link rel="modulepreload" href="js/net.js?v=66">
+  <link rel="modulepreload" href="js/over.js?v=66">
+  <link rel="modulepreload" href="js/pack.js?v=66">
+  <link rel="modulepreload" href="js/perf.js?v=66">
+  <link rel="modulepreload" href="js/pvp.js?v=66">
+  <link rel="modulepreload" href="js/render.js?v=66">
+  <link rel="modulepreload" href="js/scene.js?v=66">
+  <link rel="modulepreload" href="js/settings.js?v=66">
+  <link rel="modulepreload" href="js/sfx.js?v=66">
+  <link rel="modulepreload" href="js/shop.js?v=66">
+  <link rel="modulepreload" href="js/social.js?v=66">
+  <link rel="modulepreload" href="js/voice.js?v=66">
+  <link rel="modulepreload" href="js/voiceui.js?v=66">
+  <link rel="modulepreload" href="js/world.js?v=66">
+  <script type="module" src="js/main.js?v=66"></script>
 </body>
 </html>

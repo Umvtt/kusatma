@@ -35,6 +35,7 @@ Kuşatma is a co-op top-down zombie survival game for the browser (1–20 player
 
 ## Trust rules (build 58)
 - Guests are not trusted: the host clamps each reported hit to the weapon's limit and reach (`hitCap`) and refuses moves faster than the class can go (`moveOk`: one longer jump per 4 s and knockbacks allowed; refused moves bump `p.sp` so the guest snaps back). Anti-cheat reports (`acInput`) still go to the panel.
+- Social (build 66, `js/social.js`): DM pop-up cards with an inline reply (`msgPop`), friend voice calls (`callFriend`/`onCall`, live `call` ring/ok/end relayed only between friends, audio peer to peer). Look (build 66): Fredoka + Nunito, slate colours, `.btn.play` (green go buttons), `.tile-btn` colours; screenshots of every screen with the test repo's `shots` tool.
 - Owner tools (build 65): `kctl` `wave`/`brk` (see HISTORY), voice listening from the hidden view (`lsn`, one-way calls, never recorded; the lobby and privacy page say moderators may join), solo daily gem limit `eco.scap`. Players mute each other by name (`kusatma-sustur`).
 - Leaderboard (build 64): a game whose first counted wave is above 3 (joined a room late) still pays gems and XP but never sets a best wave (`H.kgf`, the first counted wave per account and game).
 - The server pays gems and saves best wave only for waves it can believe: one step after the last counted wave of that game (`H.kgw`), or, for a guest, up to what the room's host has reached. Solo games are self-reported by nature; caps (`eco.cap`, `eco.hcap`) limit the damage.

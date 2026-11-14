@@ -110,6 +110,7 @@ function onData(raw) {
   else if (d.e === 'dmok') { const w = DMW.get('c' + (d.c | 0)); if (w) { DMW.delete('c' + (d.c | 0)); w(d); } }
   else if (d.e === 'lvl') { if (Array.isArray(d.L)) for (const r of d.L.slice(0, 20)) { ME.gems += r.g | 0; if (r.it && ITEMS[r.it] && !ME.own.includes(r.it)) ME.own.push(r.it); if (H.onRoad) H.onRoad(r.l | 0, r.g | 0, ITEMS[r.it] ? r.it : ''); } }
   else if (d.e === 'inv') { sysNotify('Oda daveti', `${str(d.f, 16)} seni odasına çağırıyor.`, 'inv'); if (H.onInv) H.onInv({ fid: str(d.fid, 12), f: str(d.f, 16), room: str(d.room, 6).toUpperCase().replace(/[^A-Z0-9]/g, ''), rn: str(d.rn, 24), n: d.n | 0, mx: d.mx | 0, eq: d.eq && typeof d.eq === 'object' ? cleanEq(d.eq) : {} }); }
+  else if (d.e === 'call') { if (H.onCall) H.onCall({ k: str(d.k, 6), f: str(d.f, 12), n: str(d.n, 16), eq: d.eq && typeof d.eq === 'object' ? d.eq : {}, id: str(d.id, 64), why: str(d.why, 8) }); }
   else if (d.e === 'invok') { const w = DMW.get('i' + str(d.to, 12)); if (w) { DMW.delete('i' + str(d.to, 12)); w(d); } }
   else if (d.e === 'fr') { if (d.k !== 'acc') sysNotify('Arkadaşlık isteği', `${str(d.n, 16)} seni arkadaş olarak eklemek istiyor.`, 'fr'); if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }
   else if (d.e === 'msg') { H.onMsg(str(d.text, 300), str(d.title, 120)); msgReceipt(str(d.mid, 12)); }
@@ -406,6 +407,8 @@ export function livePvp(o) {
   send({ e: 'pvr', k: v.k, win: v.k === 'ffa' ? -1 : v.win, t: o.time | 0, P: (o.P || []).slice(0, 16).map((p) => [p.name, p.tm | 0, p.pk | 0, p.dth | 0]) });
 }
 // performance reports (js/perf.js); only sent with the statistics choice, checked there and here
+// a friend voice call message (build 66): ring / ok / end, relayed by the server to that friend only
+export function liveCall(to, k, id) { send({ e: 'call', to: String(to).slice(0, 12), k, id: String(id || '').slice(0, 64) }); }
 export function livePerf(o) { if (statsOk()) send(o); }
 export function liveStat(wave, host, kills, extra) { send(Object.assign({ e: 'stat', w: wave | 0, host: host ? 1 : 0, k: kills | 0 }, extra || {})); }
 
