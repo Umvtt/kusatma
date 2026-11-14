@@ -12,7 +12,6 @@ function load() {
 }
 // statistics allowed? (false until the player says yes)
 export const statsOk = () => !!(load() && C.a);
-export const consentGiven = () => !!load();
 export const onConsent = (f) => subs.push(f);
 function save(a) {
   C = { v: VER, a: a ? 1 : 0, t: Date.now() };

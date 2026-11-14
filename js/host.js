@@ -1,14 +1,8 @@
 // The host's browser runs this: zombies, waves, damage, gold and upgrades.
 // Every incoming message is checked for shape and size so bad data can't crash the game.
-import {
-  WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS,
-  QUICK, CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, scaleFor, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD,
-  WEAPON_COST, ITEMS, BASH, WMAX, PATH_N, BRANCH_SWAP, weaponSpent, weaponOf, pathOk,
-  newLv, lvArr, AB_COST, abDur, GEAR, GEAR_RANGE, TEAM, teamCost, TEAM_CHUNK, gearCost, gearMax, bashCd,
-  FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER,
-} from './config.js';
+import { WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS, QUICK, CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, scaleFor, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD, WEAPON_COST, ITEMS, BASH, WMAX, BRANCH_SWAP, weaponSpent, weaponOf, pathOk, newLv, lvArr, AB_COST, abDur, GEAR, GEAR_RANGE, TEAM, teamCost, TEAM_CHUNK, gearCost, gearMax, bashCd, FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER } from './config.js';
 import { PvpMixin } from './pvp.js';
-import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldDir, fieldAhead, fieldAt, outOfMap, GW, GH, escapePocket, resolveCircle } from './world.js';
+import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldAhead, fieldAt, outOfMap, GW, GH, escapePocket } from './world.js';
 import { generateMap, METRO_TRACKS } from './mapgen.js';
 import { ITEMS as COS, checkPass, ownsCls, nkey } from './catalog.js';
 
@@ -117,6 +111,8 @@ export class HostGame {
     const logFirst = this.evSeq - this.evLog.length + 1;
     const far = this.snapN % 4 === 0 ? s.Z.map((z) => [z[1], z[2] >> 3, z[3] >> 3]) : null;
     const R2 = 1800 * 1800, N2 = 1000 * 1000, q = this.snapN;
+    // each zombie's state key, worked out once per snapshot instead of once per guest
+    const keys = s.Z.map((z) => z[4] + ',' + z[5] + ',' + z[6] + ',' + z[7] + ',' + z[8]), bossF = s.Z.map((z) => isBoss(z[1]));
     for (const p of this.players.values()) {
       if (p.pid === this.hostPid || !this.net.canSnap(p.pid)) continue;
       // zombies are described against what the guest has confirmed (not what was last sent), so lost or late snapshots heal by themselves
@@ -124,10 +120,10 @@ export class HostGame {
       const base = (zh.ack && zh.hist.get(zh.ack)) || null, bz = base ? base.zk : null;
       const full = !p.inGame || !p.alive, cur = new Map(), Z = [];
       const odd = (zh.n = (zh.n || 0) + 1) & 1; // per guest, so a guest that gets every other snapshot still sees far zombies move
-      for (const z of s.Z) {
-        const boss = isBoss(z[1]), d2 = (z[2] - p.x) ** 2 + (z[3] - p.y) ** 2;
+      for (let zi = 0; zi < s.Z.length; zi++) {
+        const z = s.Z[zi], boss = bossF[zi], d2 = (z[2] - p.x) ** 2 + (z[3] - p.y) ** 2;
         if (!full && !boss && d2 >= R2) continue;
-        const key = z[4] + ',' + z[5] + ',' + z[6] + ',' + z[7] + ',' + z[8];
+        const key = keys[zi];
         cur.set(z[0], key);
         if (!bz || bz.get(z[0]) !== key || (zh.rm && zh.rm.has(z[0]))) Z.push(z); // also in full when its removal was sent since the confirmed snapshot
         else if (boss || d2 < N2 || odd) Z.push([z[0], z[2], z[3]]); // far, unchanged zombies move every other snapshot
@@ -355,20 +351,26 @@ export class HostGame {
     const stale = Number.isInteger(m.n) && m.n <= (p.inN || 0);
     if (Number.isInteger(m.n) && !stale) p.inN = m.n;
     if (stale) m = { h: m.h, s: m.s };
-    if (p.pid !== this.hostPid && this.phase === 'combat') this.acInput(p, m);
+    const guest = p.pid !== this.hostPid;
+    if (guest && this.phase === 'combat') this.acInput(p, m);
     const B = WORLD.bounds;
-    if (p.alive && num(m.x) && num(m.y)) { p.x = clamp(m.x, B.x0, B.x1); p.y = clamp(m.y, B.y0, B.y1); }
+    if (p.alive && num(m.x) && num(m.y)) {
+      const nx = clamp(m.x, B.x0, B.x1), ny = clamp(m.y, B.y0, B.y1);
+      if (!guest || this.moveOk(p, nx, ny)) { p.x = nx; p.y = ny; p.posT = this.time; }
+    }
     if (p.alive && num(m.a)) p.a = clamp(m.a, -10, 10);
     if (p.invUntil > this.time && ((Array.isArray(m.h) && m.h.length) || (Array.isArray(m.p) && m.p.length))) { p.invUntil = this.time; this.ev(['iv', p.pid, 0]); }
     if (this.phase === 'combat' && Array.isArray(m.h) && m.h.length <= 80) {
-      const C = this.pc(p);
+      const C = this.pc(p), cap = guest ? this.hitCap(p) : null;
       for (const h of m.h) {
         if (!Array.isArray(h) || h.length < 2 || h.length > 3) continue;
         const [id, d] = h;
         if (!Number.isInteger(id) || !num(d) || d < 0 || d > 5000) continue;
         const z = this.zIndex.get(id);
         if (!z) continue;
-        this.onHit(z, d, p, C, h[2] === 1 || h[2] === 2, h[2] === 2);
+        // a guest's hit can be no bigger than its weapon allows, and only on a zombie its weapon could reach
+        if (cap && (z.x - p.x) ** 2 + (z.y - p.y) ** 2 > cap.r2) continue;
+        this.onHit(z, cap ? Math.min(d, cap.d) : d, p, C, h[2] === 1 || h[2] === 2, h[2] === 2);
       }
     }
     if (this.mode === 'pvp' && Array.isArray(m.p)) this.pvpHits(p, m.p);
@@ -1420,8 +1422,9 @@ export class HostGame {
       const px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
       if (pointInObstacle(px, py, T.r) || outOfMap(px, py)) continue;
       this.addZombie(t, px, py);
-      return;
+      return true;
     }
+    return false;
   }
 
   addZombie(t, x, y) {
@@ -1497,6 +1500,27 @@ export class HostGame {
     if (now - k.t0 > 60) { k.n = 0; k.t0 = now; }
     k.n++;
     if (k.n >= 3 && now - k.sent > 60) { k.sent = now; k.n = 0; if (this.onCheat) this.onCheat({ name: p.name, acct: p.acct || '', kind, detail: String(detail).slice(0, 80), wave: this.wave }); }
+  }
+  // the biggest single hit and the farthest reach a guest's weapon can have (generous: power-up, crit, focus, rage,
+  // ricochets and long shots all fit; a hacked client sending 5000 damage across the map does not)
+  hitCap(p) {
+    const C = this.pc(p), key = C.key;
+    if (p._hc && p._hc.key === key) return p._hc;
+    const w = weaponOf(p.cls, p.wt, p.wp, p.wb), reach = w.kind === 'm' ? (w.reach || 100) * 2.5 + 200 : Math.max(500, (w.bspd || 900) * (w.life || 0.7)) * 2 + 400;
+    p._hc = { key, d: C.st.dmg * (w.pelDmg || 1) * 2 * 3.2 * 2.6 * 1.3 + 40, r2: reach * reach };
+    return p._hc;
+  }
+  // a guest's new position: a normal step at the fastest this class can go, a moment after a knockback or respawn,
+  // or one longer jump every 4 s (getting out of a corner the arena closed). Anything else is refused and the guest
+  // is put back where the host has it (sp changes, the guest's game snaps there).
+  moveOk(p, x, y) {
+    const now = this.time, d = Math.hypot(x - p.x, y - p.y);
+    if (d < 2) return true;
+    const st = this.pc(p).st, dt = Math.min(3, Math.max(0.05, now - (p.posT || now - 0.05)));
+    if (d <= st.spd * 1.6 * 1.4 * 1.35 * dt + 90 || now - (p.kbAt || -9) < 1.2) return true;
+    if (now - (p.jumpAt || -9) > 4 && d < 900 && !pointInObstacle(x, y, PLAYER_R)) { p.jumpAt = now; return true; }
+    p.sp = (p.sp | 0) + 1; p.spAt = now; p.acmSp = p.sp;
+    return false;
   }
   acInput(p, m) {
     const now = this.time, C = this.pc(p), st = C.st;
@@ -2216,11 +2240,13 @@ export class HostGame {
       if (this.hauntAt == null) this.hauntAt = now + 18;
       if (now >= this.hauntAt && this.queue.length) {
         this.hauntAt = now + 20 + Math.random() * 10;
-        const H = WORLD.obstacles.filter((o) => o.haunt && o.x > B.x0 && o.x + o.w < B.x1 && o.y > B.y0 && o.y + o.h < B.y1);
+        // a haunted house whose door is inside the playable area (the arena drifts, so the whole house may not be)
+        const H = WORLD.obstacles.filter((o) => o.haunt && !outOfMap(o.x + o.w / 2, o.y + o.h + 30));
         if (H.length) {
           const o = H[Math.floor(Math.random() * H.length)], dx = o.x + o.w / 2, dy = o.y + o.h + 30;
-          for (let i = 0; i < 4 && this.queue.length; i++) this.spawnAt(this.queue.shift(), dx, dy);
-          this.ev(['hh', Math.round(dx), Math.round(dy)]);
+          let out = 0;
+          for (let i = 0; i < 4 && this.queue.length; i++) { const t = this.queue.shift(); if (this.spawnAt(t, dx, dy)) out++; else this.queue.push(t); } // no room at the door: it comes later the normal way
+          if (out) this.ev(['hh', Math.round(dx), Math.round(dy)]);
         }
       }
     }

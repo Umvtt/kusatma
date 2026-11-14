@@ -130,8 +130,6 @@ export const ITEMS = {
   't.altin': { name: 'Altın Çağ', r: 'l' },
 };
 export const isFree = (id) => !!(ITEMS[id] && ITEMS[id].free) || (id.startsWith('c.') && FREE_CLS.includes(id.slice(2)));
-export const itemColor = (id) => (ITEMS[id] && ITEMS[id].c) || null;
-export const nameColor = (eq) => { const c = eq && ITEMS[eq.nc] ? ITEMS[eq.nc].c : null; return c; };
 export const titleOf = (eq) => (eq && ITEMS[eq.ttl] ? ITEMS[eq.ttl].name : '');
 // the public key that checks the server's signature on a player's pass (who they are, what they own)
 export const PASS_KEY = { kty: 'EC', crv: 'P-256', x: 'SQuMIwkdjyF2SJoCIaVgfun7uKxhOVyJc-ZF1ub5EVk', y: 'w5kPbxW9c0Pn84QcJhO0B74JsWGKoUV8ZiS1c8cm-gU' };

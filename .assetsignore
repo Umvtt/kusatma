@@ -8,3 +8,5 @@ wrangler.toml
 .assetsignore
 .nojekyll
 404.html
+test/
+docs/

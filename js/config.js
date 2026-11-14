@@ -2,7 +2,7 @@
 
 export const VERSION = 21;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 57;
+export const BUILD = 58;
 // the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
 export const APP_BUILD = 47;
 export const MAX_PLAYERS = 20;
@@ -619,7 +619,6 @@ function build(cls, t, k, b) {
   w.name = t === 0 ? c.tiers[0] : (P.snd === 8 ? (B ? `${B.adj} ${lowerFirst(P.name)}` : P.name) : `${B ? B.adj : P.adj} ${lowerFirst(nameT)}`);
   return w;
 }
-export function pathFx(cls, t, k, b) { return weaponOf(cls, t, k, b).fx; }
 export function weaponOf(cls, wt, wp = 0, wb = 0) {
   const key = cls + '|' + (wt | 0) + '|' + (wp | 0) + '|' + (wb | 0);
   let w = WCACHE.get(key);

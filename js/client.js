@@ -529,7 +529,7 @@ export class ClientGame {
     if (this.dmgDir.length && this.dmgDir[0].t <= 0) this.dmgDir = this.dmgDir.filter((d) => d.t > 0);
 
     this.sendT -= dt;
-    if (this.sendT <= 0) {
+    if (this.sendT <= 0 && this.lastStep !== false) {
       this.sendT = SEND_INTERVAL;
       if (S.inGame) {
         const h = this.hitsQ.splice(0, 60);

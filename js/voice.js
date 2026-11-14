@@ -7,7 +7,6 @@ export const voiceOn = () => V.on;
 export const voiceTalking = () => V.on && (V.open || V.talk);
 export const voiceLevel = (pid) => V.levels.get(pid) || 0;
 export const voiceMuted = (pid) => V.muted.has(pid);
-export const voiceIsOpen = () => V.open;
 // my own microphone level (0 while the track is off), for the talk button's ring
 export function voiceSelfLevel() { if (!V.on || !V.self || !(V.open || V.talk)) return 0; V.self(); return V.levels.get('me') || 0; }
 

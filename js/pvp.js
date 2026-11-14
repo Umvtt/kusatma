@@ -1,7 +1,7 @@
 // PvP on the host: teams, spawns, damage between players, kills, respawns, scores, rounds and the end of a match.
 // These methods are added to HostGame (see the bottom of host.js); in PvE none of them run.
-import { MAP_ORDER, PVP, PVP_WARM, PVP_HP, PVP_DMG, PVP_GOLD, PVP_PROT, CX, CY, WORLD_W, WORLD_H, PLAYER_R, stats, clamp, newLv, GEAR } from './config.js';
-import { WORLD, setMap, setBounds, freeSpot } from './world.js';
+import { MAP_ORDER, PVP, PVP_WARM, PVP_HP, PVP_DMG, PVP_GOLD, PVP_PROT, CX, CY, WORLD_W, WORLD_H, PLAYER_R, stats, newLv, GEAR } from './config.js';
+import { setMap, setBounds, freeSpot } from './world.js';
 import { generateMap } from './mapgen.js';
 
 const num = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -14,7 +14,6 @@ export function pvpArea(kind, n) {
 }
 
 export const PvpMixin = {
-  isPvp() { return this.mode === 'pvp'; },
   // FFA: everyone is their own team (the pid); duel and tdm use 0 and 1
   foe(a, b) { return this.mode === 'pvp' && !!a && !!b && a !== b && (this.pvp === 'ffa' || a.tm !== b.tm); },
   ally(a, b) { return this.mode !== 'pvp' || a === b || (this.pvp !== 'ffa' && a.tm === b.tm); },

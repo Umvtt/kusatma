@@ -359,6 +359,7 @@ Bazı yollar yeni şeyler yapar: **ısınan** silahlar tetiğe bastıkça hızla
 - Bir oyuncunun bağlantısı kısa süre koparsa oyun onu otomatik olarak yeniden bağlar; altını, yükseltmeleri ve yeri 45 saniye korunur. Oyuna geç katılan ya da geri dönen oyuncu, takımın ortalamasının %75'ine yetişecek kadar altın alır.
 - Büyük mesajlar (örneğin kalabalık dalgalardaki oyun yedeği) parçalara bölünerek gönderilir.
 - Gelen her mesaj biçim ve boyut açısından denetlenir. Uzun süre çok fazla mesaj gönderen oyuncu odadan atılır.
+- **Hile koruması:** kurucu, misafirlerin bildirdiği vuruşları silahın yapabileceğiyle sınırlar (silahın menzili dışındaki zombilere vuruş sayılmaz) ve sınıfın koşabileceğinden hızlı hareketleri kabul etmez; böyle bir oyuncu bulunduğu yere geri çekilir. Sunucu elması ve en iyi dalgayı yalnızca sırayla geçilen dalgalar için verir: dalga atlayan rapor sayılmaz. Oyuna sonradan katılan oyuncunun dalgası odanın kurucusunun ulaştığı dalgaya göre doğrulanır.
 
 ## GitHub Pages ile yayınlama
 
@@ -379,3 +380,9 @@ python3 -m http.server 8000
 ```
 
 Sonra tarayıcıda `http://localhost:8000` adresini aç.
+
+Tarayıcı açmadan hızlı denetim (her modül açılıyor mu, kurucu hileleri reddediyor mu, kayıplı bağlantıda ölen zombiler ekranda kalıyor mu):
+
+```bash
+node test/run.mjs
+```
