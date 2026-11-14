@@ -160,7 +160,9 @@ export const GH = Math.ceil(WORLD_H / CELL);
 export const BLOCKED = new Uint8Array(GW * GH);
 export const cellOf = (x, y) => clamp(Math.floor(y / CELL), 0, GH - 1) * GW + clamp(Math.floor(x / CELL), 0, GW - 1);
 
-const NB = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
+// step costs in tenths of a cell (10 straight, 14 diagonal): whole numbers stay exact in the Float32 field, so no cell is
+// queued again and again over rounding (on Liman that made a rebuild take 40 ms instead of a few)
+const NB = [[1, 0, 10], [-1, 0, 10], [0, 1, 10], [0, -1, 10], [1, 1, 14], [1, -1, 14], [-1, 1, 14], [-1, -1, 14]];
 
 // Distance (in cells) from every cell to the nearest source point, going around walls and staying inside the bounds.
 // typed-array binary heap, reused between calls (no allocations while the field is built)

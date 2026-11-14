@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=60">
-  <link rel="stylesheet" href="css/dash.css?v=60">
+  <link rel="stylesheet" href="css/style.css?v=61">
+  <link rel="stylesheet" href="css/dash.css?v=61">
 </head>
 <body>
   <canvas id="game" aria-label="Oyun alanı"></canvas>
@@ -604,7 +604,28 @@
       document.body.appendChild(d);
     }, 9000);
   </script>
-  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=60","./js/client.js":"./js/client.js?v=60","./js/config.js":"./js/config.js?v=60","./js/consent.js":"./js/consent.js?v=60","./js/dash.js":"./js/dash.js?v=60","./js/host.js":"./js/host.js?v=60","./js/layout.js":"./js/layout.js?v=60","./js/live.js":"./js/live.js?v=60","./js/mapgen.js":"./js/mapgen.js?v=60","./js/net.js":"./js/net.js?v=60","./js/pack.js":"./js/pack.js?v=60","./js/perf.js":"./js/perf.js?v=60","./js/voice.js":"./js/voice.js?v=60","./js/pvp.js":"./js/pvp.js?v=60","./js/render.js":"./js/render.js?v=60","./js/scene.js":"./js/scene.js?v=60","./js/settings.js":"./js/settings.js?v=60","./js/sfx.js":"./js/sfx.js?v=60","./js/world.js":"./js/world.js?v=60"}}</script>
-  <script type="module" src="js/main.js?v=60"></script>
+  <script type="importmap">{"imports":{"./js/catalog.js":"./js/catalog.js?v=61","./js/client.js":"./js/client.js?v=61","./js/config.js":"./js/config.js?v=61","./js/consent.js":"./js/consent.js?v=61","./js/dash.js":"./js/dash.js?v=61","./js/host.js":"./js/host.js?v=61","./js/layout.js":"./js/layout.js?v=61","./js/live.js":"./js/live.js?v=61","./js/mapgen.js":"./js/mapgen.js?v=61","./js/net.js":"./js/net.js?v=61","./js/pack.js":"./js/pack.js?v=61","./js/perf.js":"./js/perf.js?v=61","./js/voice.js":"./js/voice.js?v=61","./js/pvp.js":"./js/pvp.js?v=61","./js/render.js":"./js/render.js?v=61","./js/scene.js":"./js/scene.js?v=61","./js/settings.js":"./js/settings.js?v=61","./js/sfx.js":"./js/sfx.js?v=61","./js/world.js":"./js/world.js?v=61"}}</script>
+  <!-- every module starts downloading at once instead of one after another as the imports are found (faster start on slow connections) -->
+  <link rel="modulepreload" href="js/catalog.js?v=61">
+  <link rel="modulepreload" href="js/client.js?v=61">
+  <link rel="modulepreload" href="js/config.js?v=61">
+  <link rel="modulepreload" href="js/consent.js?v=61">
+  <link rel="modulepreload" href="js/dash.js?v=61">
+  <link rel="modulepreload" href="js/host.js?v=61">
+  <link rel="modulepreload" href="js/layout.js?v=61">
+  <link rel="modulepreload" href="js/live.js?v=61">
+  <link rel="modulepreload" href="js/main.js?v=61">
+  <link rel="modulepreload" href="js/mapgen.js?v=61">
+  <link rel="modulepreload" href="js/net.js?v=61">
+  <link rel="modulepreload" href="js/pack.js?v=61">
+  <link rel="modulepreload" href="js/perf.js?v=61">
+  <link rel="modulepreload" href="js/pvp.js?v=61">
+  <link rel="modulepreload" href="js/render.js?v=61">
+  <link rel="modulepreload" href="js/scene.js?v=61">
+  <link rel="modulepreload" href="js/settings.js?v=61">
+  <link rel="modulepreload" href="js/sfx.js?v=61">
+  <link rel="modulepreload" href="js/voice.js?v=61">
+  <link rel="modulepreload" href="js/world.js?v=61">
+  <script type="module" src="js/main.js?v=61"></script>
 </body>
 </html>

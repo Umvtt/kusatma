@@ -1170,8 +1170,15 @@ function startLoop() {
 
 // ---------- graphics level: auto mode steps down when the frame rate drops and back up when there is room ----------
 const PERF = { t0: 0, n: 0, ups: 0, cool: 0, good: 0, fps: 0 };
+// where "auto" starts: a phone with little memory or few processor cores starts on low, other phones on medium
+// (the auto mode still moves up or down from there as it measures the frame rate)
+const DEVICE_Q = (() => {
+  if (!IS_TOUCH) return 'high';
+  const mem = navigator.deviceMemory || 0, cpu = navigator.hardwareConcurrency || 0;
+  return (mem && mem <= 3) || (cpu && cpu <= 4) ? 'low' : 'med';
+})();
 function qApply() {
-  let want = SETTINGS.quality === 'auto' ? (QUAL.auto || (IS_TOUCH ? 'med' : 'high')) : SETTINGS.quality;
+  let want = SETTINGS.quality === 'auto' ? (QUAL.auto || DEVICE_Q) : SETTINGS.quality;
   if (!QUALITY[want]) want = 'high';
   // the saver never runs the sharpest screen and halves the particles
   if (SAVE.on && want === 'high') want = 'med';
@@ -2643,7 +2650,7 @@ function gemPop(n, xp, cap) {
 
 // For automated tests only: open the page with ?debug to expose state.
 // only on a test machine: on the real site this would let anyone edit the game
-if (new URLSearchParams(location.search).has('debug') && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__kusatma = S;
+if (new URLSearchParams(location.search).has('debug') && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) { window.__kusatma = S; S.renderer = renderer; }
 window.__kusatmaReady = true;
 // cookie choice: the banner on a first visit, and the settings window from the legal links
 document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.ck-open')) cookieSettings(); });

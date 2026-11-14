@@ -1585,8 +1585,11 @@ export class HostGame {
     const maxAlive = Math.min(110, 30 + 6 * this.waveN);
 
     // spatial hash for crowd separation
+    // (the cells' lists are kept and emptied each step instead of made anew: fewer throwaway objects, fewer pauses)
     const HC = 60, hw = Math.ceil(WORLD_W / HC);
-    const grid = new Map();
+    const grid = this.zgrid || (this.zgrid = new Map());
+    if (grid.size > 4000) grid.clear();
+    for (const a of grid.values()) a.length = 0;
     for (const z of zs) {
       const k = Math.floor(z.y / HC) * hw + Math.floor(z.x / HC);
       let a = grid.get(k); if (!a) grid.set(k, (a = [])); a.push(z);
@@ -1645,7 +1648,8 @@ export class HostGame {
       const tx = target.x, ty = target.y;
       const dist = Math.hypot(tx - z.x, ty - z.y) || 1;
       z.losT -= dt;
-      if (z.losT <= 0) { z.losT = 0.15 + Math.random() * 0.1; z.los = clearLine(z.x, z.y, tx, ty, T.r + 2); }
+      // can it see its target? checked often up close, about twice a second far off-screen (each check walks the obstacles)
+      if (z.losT <= 0) { z.losT = (dist > 1100 ? 0.4 : 0.15) + Math.random() * 0.1; z.los = clearLine(z.x, z.y, tx, ty, T.r + 2); }
       const reach = T.r + PLAYER_R + 2;
       const charge = CHARGE[z.t];
 
