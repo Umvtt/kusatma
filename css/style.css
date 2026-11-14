@@ -1625,3 +1625,8 @@ body.ctl-editing .hud-bottom, body.ctl-editing #boss { visibility: visible !impo
 @keyframes evsGlow { 50% { box-shadow: 0 6px 26px rgba(241,91,181,.5); } }
 @media (max-width: 560px) { .ev-strip { font-size: 12px; padding: 7px 10px; gap: 6px; } .ev-strip .evs-left { font-size: 11px; } }
 @media (prefers-reduced-motion: reduce) { .ev-strip { animation: none; } }
+/* the owner's hidden view, listening to voice chat (build 65) */
+.watch-lsn { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 80; padding: 5px 12px; border-radius: 999px; background: rgba(0,0,0,.75); border: 1px solid rgba(255,255,255,.2); color: #fff; font-size: 12px; pointer-events: none; }
+.voice-note { margin: 4px 0 8px; font-size: 11.5px; line-height: 1.35; color: var(--dim); }
+.player .p-name .mute { align-self: flex-start; margin-top: 3px; padding: 2px 8px; font-size: 11px; min-height: 0; }
+.player .p-name .mute.on { color: #ff8a8d; border-color: rgba(255,90,95,.45); }

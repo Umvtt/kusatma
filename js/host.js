@@ -173,6 +173,7 @@ export class HostGame {
   roster() {
     return {
       t: 'r', ph: this.phase, code: this.net.code || null, host: this.hostPid, succ: this.successor(),
+      lsn: this.spec && this.spec.listeners ? this.spec.listeners() : [], // voice listeners (the owner's hidden view)
       map: this.mapPick, diff: this.diff, mode: this.mode, pvp: this.pvp, dly: this.daily ? this.daily.cls : '', theme: this.theme, seed: this.seed, max: this.maxP,
       players: [...this.players.values()].map((p) => ({
         pid: p.pid, name: p.name, cls: p.cls, ready: p.ready, color: p.color, inGame: p.inGame || !!p.ghost, away: !!p.ghost,
@@ -576,7 +577,7 @@ export class HostGame {
   checkAllReady() {
     if (this.phase !== 'break') return;
     const ps = this.inGame();
-    if (ps.length && ps.every((p) => p.shopReady)) this.breakT = Math.min(this.breakT, 2);
+    if (ps.length && ps.every((p) => p.shopReady) && !(this.brkLock > this.time)) this.breakT = Math.min(this.breakT, 2); // the owner's break is not cut short
   }
 
   checkOver() {
@@ -596,7 +597,8 @@ export class HostGame {
 
   // events sent from the owner's admin panel
   adminEvent(k, n, x = {}) {
-    if (this.mode === 'pvp' && (k === 'boss' || k === 'horde' || k === 'zombie' || k === 'mev')) return; // no zombies in a PvP match
+    if (this.mode === 'pvp' && (k === 'boss' || k === 'horde' || k === 'zombie' || k === 'mev' || k === 'wave' || k === 'brk')) return; // no zombies in a PvP match
+    if ((k === 'wave' || k === 'brk') && this.phase !== 'combat' && this.phase !== 'break') return; // only a running game
     // everyone in the game sees a short note about it (deferred ones say they come with the next wave)
     // a gift to one player is told to that player only; anything for everyone is told to everyone
     const target = x.who && (k === 'gold' || k === 'item') ? ([...this.players.values()].find((p) => p.name === x.who) || {}).pid | 0 : 0;
@@ -626,10 +628,28 @@ export class HostGame {
       const i = Math.max(0, Math.min(GEAR.length - 1, x.i | 0)), c = Math.max(1, Math.min(20, n | 0 || 1));
       for (const p of this.inGame()) if (!x.who || p.name === x.who) { if (!Array.isArray(p.inv)) p.inv = GEAR.map(() => 0); p.inv[i] = Math.min(99, (p.inv[i] | 0) + c); }
       this.pushRoster();
+    } else if (k === 'brk') {
+      // the owner calls a break of their chosen length; when it runs out the next wave starts by itself
+      const sec = Math.max(3, Math.min(600, n | 0 || 30));
+      if (this.phase === 'combat') { this.clearWave(); this.endWave(); }
+      this.breakT = sec; this.brkLock = this.time + sec;
+      this.pushRoster();
+    } else if (k === 'wave') {
+      // the owner moves the game to wave n: what is on the field goes, a short break, then wave n
+      const w = Math.max(1, Math.min(200, n | 0 || 1));
+      if (this.phase === 'combat') { this.clearWave(); this.endWave(); }
+      this.wave = w - 1; this.breakT = Math.min(this.breakT, 6); this.brkLock = 0;
+      this.pushRoster();
     } else if (k === 'boss') {
       const t = BOSS_ORDER.includes(x.t) ? x.t : BOSS_ORDER[Math.floor(Math.random() * BOSS_ORDER.length)];
       if (this.phase === 'combat') this.spawnZombie(t); else this.pendBoss = t;
     }
+  }
+
+  // every zombie, spit and queued zombie goes at once (the owner's wave and break controls)
+  clearWave() {
+    for (const z of this.zombies) { z.dead = true; this.zIndex.delete(z.id); }
+    this.zombies = []; this.queue.length = 0; this.spits = []; this.pendBoss = null; this.pendEv = null;
   }
 
   // a gold gift from the owner to one player, found by name

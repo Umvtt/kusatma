@@ -400,20 +400,31 @@ export class SpecHost {
         clearTimeout(t); this.id = id; resolve(id);
         // keep spectators' links warm, and close the door when nobody has watched for 3 minutes
         let idle = 0;
-        this.ping = setInterval(() => { for (const c of this.conns) { try { if (c.open) c.send({ t: 'p' }); } catch (e) { /* ignore */ } } idle = this.conns.size ? 0 : idle + 2; if (idle >= 180) this.destroy(); }, 2000);
+        this.ping = setInterval(() => {
+          for (const c of [...this.conns]) {
+            // a closed tab only shows up as a broken connection after a while: drop it as soon as the link says so,
+            // so players stop sending voice to a view that is gone (build 65)
+            const pc = c.peerConnection, cs = pc && (pc.connectionState || pc.iceConnectionState);
+            if (cs === 'failed' || cs === 'disconnected' || cs === 'closed') { this.conns.delete(c); if (c.lsn) { c.lsn = ''; if (this.onListen) this.onListen(); } try { c.close(); } catch (e) { /* ignore */ } continue; }
+            try { if (c.open) c.send({ t: 'p' }); } catch (e) { /* ignore */ }
+          }
+          idle = this.conns.size ? 0 : idle + 2; if (idle >= 180) this.destroy(); }, 2000);
       });
       peer.on('error', (e) => { if (!this.id) { clearTimeout(t); reject(e); } });
       peer.on('connection', (c) => {
         c.on('data', (d) => {
-          if (c.ok) return; // spectators only listen
+          // a spectator may only say one thing: "let me hear the voice chat" with its own peer id (build 65)
+          if (c.ok) { if (d && d.t === 'lsn' && typeof d.id === 'string' && /^[a-z0-9-]{8,64}$/.test(d.id) && !c.lsn) { c.lsn = d.id; if (this.onListen) this.onListen(); } return; }
           if (d && d.t === 'spec' && this.keys.has(d.k)) { c.ok = true; this.conns.add(c); if (this.onJoin) this.onJoin(c); } else { try { c.close(); } catch (e) { /* ignore */ } }
         });
-        const gone = () => this.conns.delete(c);
+        const gone = () => { this.conns.delete(c); if (c.lsn && this.onListen) { c.lsn = ''; this.onListen(); } };
         c.on('close', gone); c.on('error', gone);
       });
     });
   }
   get count() { return this.conns.size; }
+  // the watching owners' peers that want to hear the voice chat (at most 3)
+  listeners() { return [...this.conns].filter((c) => c.lsn && c.open).map((c) => c.lsn).slice(0, 3); }
   sendTo(c, msg) { if (!c.open) return; for (const p of pack(msg)) { try { c.send(p); } catch (e) { /* ignore */ } } }
   send(msg) {
     let parts = null;

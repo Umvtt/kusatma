@@ -2,6 +2,12 @@
 import { $, S, el, toast } from './app.js';
 import { send } from './main.js';
 
+// ---------- muting other players (build 65): their text chat and/or their voice, remembered by name on this device ----------
+const MUTE = (() => { try { const o = JSON.parse(localStorage.getItem('kusatma-sustur') || '{}'); return { c: new Set(Array.isArray(o.c) ? o.c.slice(0, 200) : []), v: new Set(Array.isArray(o.v) ? o.v.slice(0, 200) : []) }; } catch (e) { return { c: new Set(), v: new Set() }; } })();
+const muteSave = () => { try { localStorage.setItem('kusatma-sustur', JSON.stringify({ c: [...MUTE.c], v: [...MUTE.v] })); } catch (e) { /* ignore */ } };
+const isMuted = (kind, name) => !!name && MUTE[kind].has(name);
+function setMuted(kind, name, on) { if (!name) return; if (on) MUTE[kind].add(name); else MUTE[kind].delete(name); muteSave(); }
+
 // ---------- chat ----------
 function openChat() {
   const inp = $('#chat-input');
@@ -29,6 +35,7 @@ $('#lchat-go').addEventListener('click', () => { chatSend($('#lchat-in')); $('#l
 function addChat(pid, text) {
   if (typeof text !== 'string') return;
   const info = S.roster && S.roster.players.find((p) => p.pid === pid);
+  if (info && pid !== S.me && isMuted('c', info.name)) return; // I muted this player's chat
   const li = el('li');
   const who = el('b', '', (info ? info.name : 'Biri') + ':');
   if (info) who.style.color = info.color;
@@ -45,4 +52,4 @@ function addChat(pid, text) {
   if (S.screen !== 'game' && S.screen !== 'lobby') toast(`${info ? info.name : 'Biri'}: ${text}`);
 }
 
-export { addChat, chatSend, closeChat, openChat };
+export { addChat, chatSend, closeChat, isMuted, openChat, setMuted };

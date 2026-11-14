@@ -11,6 +11,7 @@ import { $, IS_TOUCH, S, el, fmt, setHid, setPct, setT, toast } from './app.js';
 import { pvpHud, pvpNotice } from './over.js';
 import { myEntry, send, tutTick } from './main.js';
 import { voiceTick } from './voiceui.js';
+import { isMuted, setMuted } from './chat.js';
 import { updateShop } from './shop.js';
 import { kickPlayer } from './lobby.js';
 
@@ -74,9 +75,11 @@ function adminNote(n) {
     horde: `Koşucu sürüsü geliyor${later}!`,
     zombie: `${zt ? zt.name : 'Zombi'} ×${Math.max(1, n.n)} geliyor${later}!`,
     mev: MEV[n.q] ? `${MEV[n.q].name}${later}!` : '',
+    wave: `Yönetici oyunu ${Math.max(1, n.n)}. dalgaya taşıdı!`,
+    brk: `Yönetici ${Math.max(3, n.n)} saniyelik bir mola verdi.`,
   }[n.e];
   if (!t) return;
-  toast(t, n.e === 'gold' || n.e === 'item' ? 'good' : 'bad');
+  toast(t, n.e === 'gold' || n.e === 'item' || n.e === 'brk' ? 'good' : 'bad');
   if ((n.e === 'gold' || n.e === 'item') && (!n.who || mine)) sfx.buy();
 }
 // kill feed: bosses, elites and rarer zombies, newest on top, each line fades after a few seconds
@@ -309,7 +312,11 @@ function renderBoard() {
     who.append(dot, el('span', '', info.name + (pid === S.me ? ' (sen)' : '')));
     const td = el('td'); td.append(who);
     const act = el('td');
-    if (info.vo && pid !== S.me && voiceOn()) { const mb = el('button', 'btn ghost small', voiceMuted(pid) ? 'Sesi aç' : 'Sustur'); mb.type = 'button'; mb.addEventListener('click', () => { voiceMute(pid, !voiceMuted(pid)); renderBoard(); }); act.append(mb); }
+    if (pid !== S.me) { // mute this player's text chat, and their voice if they have it on (remembered by name)
+      const cm = isMuted('c', info.name), mc = el('button', 'btn ghost small' + (cm ? ' on' : ''), cm ? 'Yazıyı aç' : 'Yazıyı sustur'); mc.type = 'button';
+      mc.addEventListener('click', () => { setMuted('c', info.name, !cm); renderBoard(); }); act.append(mc);
+      if (info.vo && voiceOn()) { const vm = voiceMuted(pid), mb = el('button', 'btn ghost small' + (vm ? ' on' : ''), vm ? 'Sesi aç' : 'Sesi sustur'); mb.type = 'button'; mb.addEventListener('click', () => { setMuted('v', info.name, !vm); voiceMute(pid, !vm); renderBoard(); }); act.append(mb); }
+    }
     if (isHost && pid !== S.me) {
       const b = el('button', 'btn ghost small', 'At'); b.type = 'button';
       b.addEventListener('click', () => kickPlayer(info));
