@@ -724,17 +724,26 @@ function liveNews() {
 // the owner's events (gem weekends, shop sales): a bright strip at the top of every screen while one is on (build 64).
 // In a game it is a smaller pill shown only between waves, so it never covers the fight.
 function evStrip() {
-  const sh = LIVE.shop, now = Date.now(), b = $('#ev-strip'); if (!b) return;
+  const sh = LIVE.shop, now = Date.now();
   let t = '', until = 0;
   if (sh && sh.mul > 1 && (!sh.until || sh.until > now)) { t = `${sh.mul}× ELMAS ETKİNLİĞİ: her dalga ${sh.mul} kat elmas`; until = sh.until || 0; }
   else if (sh && sh.saleAll > 0 && sh.saleUntil > now) { t = `MAĞAZADA %${sh.saleAll} İNDİRİM`; until = sh.saleUntil; }
-  const inFight = S.screen === 'game' && S.game && S.game.phase === 'combat';
-  const show = !!t && !inFight;
-  b.hidden = !show; document.body.classList.toggle('has-ev', show);
-  if (!show) return;
-  b.classList.toggle('mini', S.screen === 'game');
-  $('#evs-t').textContent = t;
-  if (until) { const s = Math.max(0, Math.round((until - now) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); $('#evs-left').textContent = 'bitmesine ' + (d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : `${m} dk ${s % 60} sn`); } else $('#evs-left').textContent = '';
+  let left = '';
+  if (until) { const s = Math.max(0, Math.round((until - now) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); left = 'bitmesine ' + (d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : `${m} dk ${s % 60} sn`); }
+  // it sits inside the page (top of the signed-in panel, top of the menu card, inside the wave box between waves),
+  // taking its own room, so it never lies over buttons or the search box
+  const dash = $('#dashpage'), inDash = dash && !dash.hidden;
+  const spots = [['dp', $('.dp-main'), S.screen === 'menu' && inDash], ['mn', $('.menu-card'), S.screen === 'menu' && !inDash], ['gm', $('.wave-box'), S.screen === 'game' && S.game && S.game.phase !== 'combat']];
+  for (const [k, host, want] of spots) {
+    if (!host) continue;
+    let b = host.querySelector(':scope > .ev-strip');
+    if (!t || !want) { if (b) b.hidden = true; continue; }
+    if (!b) { b = el('div', 'ev-strip' + (k === 'gm' ? ' mini' : '')); b.setAttribute('role', 'status'); b.append(el('span', 'evs-ic', '★'), el('strong', 'evs-t'), el('span', 'evs-left')); if (k === 'gm') host.append(b); else host.prepend(b); }
+    b.hidden = false;
+    const st = b.querySelector('.evs-t'), sl = b.querySelector('.evs-left');
+    if (st.textContent !== t) st.textContent = t;
+    if (sl.textContent !== left) sl.textContent = left;
+  }
 }
 setInterval(evStrip, 1000);
 // ---------- room invites: send to online friends, and the pop-up when a friend calls you ----------
