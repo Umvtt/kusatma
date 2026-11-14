@@ -16,7 +16,6 @@ const PIECE = 5000;
 // newest picture once the link is free. (Until build 58 this was 64 KB, about 2 s of data on a phone's upload: the
 // guest then saw zombies stand still and jump.) The weak-upload test in the test repo measures the effect.
 export const SNAP_BUF = 6000;
-export const linkBusy = (buffered) => buffered > SNAP_BUF;
 // The limit also follows how fast this link really drains: at most about a quarter second of data may wait, so a guest
 // on a very slow link gets fewer but fresh snapshots instead of a steady stream that is always a second old.
 // L is that link's own record; add() is told how much each snapshot handed over was.
