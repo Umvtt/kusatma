@@ -99,338 +99,360 @@ export const ZombieMixin = {
       const k = Math.floor(z.y / HC) * hw + Math.floor(z.x / HC);
       let a = grid.get(k); if (!a) grid.set(k, (a = [])); a.push(z);
     }
+    const c = this.zc || (this.zc = {}); // what every zombie step needs, kept in one reused object
+    c.players = players; c.dt = dt; c.grid = grid; c.hw = hw; c.HC = HC; c.maxAlive = maxAlive;
 
     for (let zi = 0; zi < zs.length; zi++) {
       const z = zs[zi];
       if (z.dead) continue;
-      const T = ZTYPES[z.t];
-      this.curBoss = isBoss(z.t); this.curZ = z;
-      z.cd -= dt * (this.curBoss ? BOSS_CD : 1); z.cd2 -= dt;
-      // a zombie that has gone nowhere for 6 s while no player can see it comes back in from the edge
-      z.chkT = (z.chkT || 0) + dt;
-      if (z.chkT >= 1) {
-        z.chkT = 0;
-        if (z.cx != null && Math.hypot(z.x - z.cx, z.y - z.cy) < 25 && z.t !== 4 && z.t !== 7 && z.t !== 8) z.still = (z.still || 0) + 1; else z.still = 0;
-        z.cx = z.x; z.cy = z.y;
-        if (z.still >= 6 && !isBoss(z.t) && !players.some((p) => Math.hypot(p.x - z.x, p.y - z.y) < 750)) {
-          z.still = 0;
-          const B = WORLD.bounds, side = Math.floor(Math.random() * 4), along = Math.random();
-          let nx = side < 2 ? (side === 0 ? B.x0 + T.r + 2 : B.x1 - T.r - 2) : B.x0 + along * (B.x1 - B.x0);
-          let ny = side < 2 ? B.y0 + along * (B.y1 - B.y0) : (side === 2 ? B.y0 + T.r + 2 : B.y1 - T.r - 2);
-          if (!pointInObstacle(nx, ny, T.r + 2) && !players.some((p) => Math.hypot(p.x - nx, p.y - ny) < 600)) { z.x = nx; z.y = ny; z.st = ZS.NORMAL; z.detT = 0; }
-        }
-      }
+      this.zombieStep(z, c);
+    }
+  },
 
-      // knocked back and dazed by a Dipçik
-      if (z.stunT > 0) {
-        z.stunT -= dt;
-        if (z.kvx || z.kvy) {
-          moveCircle(z, z.kvx * dt, z.kvy * dt, T.r);
-          const damp = Math.exp(-dt * 8);
-          z.kvx *= damp; z.kvy *= damp;
-          if (Math.abs(z.kvx) + Math.abs(z.kvy) < 5) { z.kvx = 0; z.kvy = 0; }
-        }
-        this.separate(z, T, grid, hw, HC, dt, 0);
-        if (this.walls.length) this.wallPush(z, T, dt);
-        continue;
+  // one zombie's step: the parts below run in this order and the first that returns true ends it
+  zombieStep(z, c) {
+    const { players, dt, grid, hw, HC } = c;
+    const T = ZTYPES[z.t];
+    this.curBoss = isBoss(z.t); this.curZ = z;
+    z.cd -= dt * (this.curBoss ? BOSS_CD : 1); z.cd2 -= dt;
+    // a zombie that has gone nowhere for 6 s while no player can see it comes back in from the edge
+    z.chkT = (z.chkT || 0) + dt;
+    if (z.chkT >= 1) {
+      z.chkT = 0;
+      if (z.cx != null && Math.hypot(z.x - z.cx, z.y - z.cy) < 25 && z.t !== 4 && z.t !== 7 && z.t !== 8) z.still = (z.still || 0) + 1; else z.still = 0;
+      z.cx = z.x; z.cy = z.y;
+      if (z.still >= 6 && !isBoss(z.t) && !players.some((p) => Math.hypot(p.x - z.x, p.y - z.y) < 750)) {
+        z.still = 0;
+        const B = WORLD.bounds, side = Math.floor(Math.random() * 4), along = Math.random();
+        let nx = side < 2 ? (side === 0 ? B.x0 + T.r + 2 : B.x1 - T.r - 2) : B.x0 + along * (B.x1 - B.x0);
+        let ny = side < 2 ? B.y0 + along * (B.y1 - B.y0) : (side === 2 ? B.y0 + T.r + 2 : B.y1 - T.r - 2);
+        if (!pointInObstacle(nx, ny, T.r + 2) && !players.some((p) => Math.hypot(p.x - nx, p.y - ny) < 600)) { z.x = nx; z.y = ny; z.st = ZS.NORMAL; z.detT = 0; }
       }
-
-      if (z.ally) { this.allyZombie(z, T, dt, grid, hw, HC); continue; }
-      // pick the nearest living player now and then
-      z.rt -= dt;
-      if (z.rt <= 0) {
-        z.rt = 0.35 + Math.random() * 0.2;
-        let best = null, bd = Infinity;
-        for (const p of players) { const d = (p.x - z.x) ** 2 + (p.y - z.y) ** 2; if (d < bd) { bd = d; best = p; } }
-        if (z.t === 22) { let w = null, wk = 2; for (const p of players) { const k = p.hp / p.maxHp; if (k < wk && (p.x - z.x) ** 2 + (p.y - z.y) ** 2 < 900 * 900) { wk = k; w = p; } } if (w) best = w; }
-        z.tg = best ? best.pid : null;
+    }
+    // knocked back and dazed by a Dipçik
+    if (z.stunT > 0) {
+      z.stunT -= dt;
+      if (z.kvx || z.kvy) {
+        moveCircle(z, z.kvx * dt, z.kvy * dt, T.r);
+        const damp = Math.exp(-dt * 8);
+        z.kvx *= damp; z.kvy *= damp;
+        if (Math.abs(z.kvx) + Math.abs(z.kvy) < 5) { z.kvx = 0; z.kvy = 0; }
       }
-      const tp = z.tg != null ? this.players.get(z.tg) : null;
-      const target = tp && tp.alive && tp.inGame ? tp : null;
-
-      if (!target) { this.wander(z, T, dt); continue; }
-
-      const tx = target.x, ty = target.y;
-      const dist = Math.hypot(tx - z.x, ty - z.y) || 1;
-      z.losT -= dt;
-      // can it see its target? checked often up close, about twice a second far off-screen (each check walks the obstacles)
-      if (z.losT <= 0) { z.losT = (dist > 1100 ? 0.4 : 0.15) + Math.random() * 0.1; z.los = clearLine(z.x, z.y, tx, ty, T.r + 2); }
-      const reach = T.r + PLAYER_R + 2;
-      const charge = CHARGE[z.t];
-
-      // ----- special moves in progress -----
-      if (z.st === ZS.WINDUP) { // İri / Koç aiming a charge
-        z.stT -= dt;
-        z.cdir = Math.atan2(ty - z.y, tx - z.x);
-        z.dx = Math.cos(z.cdir); z.dy = Math.sin(z.cdir);
-        if (z.stT <= 0) { z.st = ZS.DASH; z.stT = charge.dur; z.hitSet = new Set(); }
-        this.separate(z, T, grid, hw, HC, dt, 0);
-        continue;
-      }
-      if (z.st === ZS.DASH && charge) {
-        z.stT -= dt;
-        const bx = z.x, by = z.y;
-        moveCircle(z, Math.cos(z.cdir) * charge.spd * dt, Math.sin(z.cdir) * charge.spd * dt, T.r);
-        if (this.walls.length) this.wallPush(z, T, dt);
-        for (const p of players) {
-          if (!z.hitSet) z.hitSet = new Set(); // a zombie restored mid-charge (new host) has none yet
-          if (z.hitSet.has(p.pid)) continue;
-          if (Math.hypot(p.x - z.x, p.y - z.y) < reach + 6) { z.hitSet.add(p.pid); this.hurt(p, charge.dmg); this.knock(p, z.x, z.y, charge.kb); }
-        }
-        if (z.stT <= 0 || Math.hypot(z.x - bx, z.y - by) < charge.spd * dt * 0.4) { z.st = ZS.NORMAL; z.cd = charge.cd; }
-        continue;
-      }
-      if (z.st === ZS.SLAM) {
-        z.stT -= dt;
-        if (z.stT <= 0) {
-          z.st = ZS.NORMAL; z.cd = 3.5;
-          this.ev(['sl', Math.round(z.x), Math.round(z.y), 165]);
-          for (const p of players) if (Math.hypot(p.x - z.x, p.y - z.y) < 165) { this.hurt(p, 30); this.knock(p, z.x, z.y, 620); }
-        }
-        continue;
-      }
-      if (z.st === ZS.SPIT) {
-        z.stT -= dt;
-        if (z.stT <= 0) {
-          z.st = ZS.NORMAL;
-          const a0 = Math.atan2(ty - z.y, tx - z.x);
-          if (z.t === 20) { z.cd = 2.6; for (let i = -1; i <= 1; i++) this.spit(z, a0 + i * 0.22, 330); } else
-          if (z.t === 8) { // the queen sprays a fan
-            z.cd = 3;
-            for (let i = -3; i <= 3; i++) this.spit(z, a0 + i * 0.16, 300);
-          } else {
-            z.cd = 2.2 + Math.random() * 0.8;
-            this.spit(z, a0 + (Math.random() - 0.5) * 0.12, 340);
-          }
-        }
-        continue;
-      }
-      if (z.st === ZS.PHASE) { // Hayalet slips straight through walls and crates
-        z.stT -= dt;
-        const a = Math.atan2(ty - z.y, tx - z.x), sp = T.spd * 1.25 * (z.slowUntil > this.time ? z.slowK || 0.55 : 1);
-        if (dist > reach) { z.x += Math.cos(a) * sp * dt; z.y += Math.sin(a) * sp * dt; }
-        z.face = a;
-        if (dist < reach + 3) this.hurt(target, T.dps * dt);
-        if (z.stT <= 0 && !pointInObstacle(z.x, z.y, T.r)) { z.st = ZS.NORMAL; z.cd = 3 + Math.random() * 2; }
-        continue;
-      }
-      if (z.st === ZS.BURROW && z.t === 23) { // Dev Solucan: hunts under the ground, a red ring warns, then it bursts out
-        if (z.emT > 0) {
-          z.emT -= dt;
-          if (z.emT <= 0) {
-            z.st = ZS.NORMAL; z.cd = 4.5;
-            this.ev(['sl', Math.round(z.x), Math.round(z.y), 120]);
-            for (const p of players) if (Math.hypot(p.x - z.x, p.y - z.y) < 120) { this.hurt(p, 42); this.knock(p, z.x, z.y, 560); }
-            for (const t of this.turrets) if (t.hp != null && Math.hypot(t.x - z.x, t.y - z.y) < 120) t.hp -= 250;
-          }
-          continue;
-        }
-        z.stT -= dt;
-        const a = Math.atan2(ty - z.y, tx - z.x), sp = T.spd * 2.2 * z.sm, B = WORLD.bounds;
-        z.x = clamp(z.x + Math.cos(a) * Math.min(sp * dt, dist), B.x0 + T.r, B.x1 - T.r); z.y = clamp(z.y + Math.sin(a) * Math.min(sp * dt, dist), B.y0 + T.r, B.y1 - T.r);
-        z.face = a;
-        if ((dist < 30 || z.stT <= 0) && !pointInObstacle(z.x, z.y, 20)) { z.emT = 1.15; this.ev(['wm', Math.round(z.x), Math.round(z.y), 1.15]); }
-        continue;
-      }
-      if (z.st === ZS.BURROW) { // Kazıcı moving underground, straight at its target
-        z.stT -= dt;
-        const a = Math.atan2(ty - z.y, tx - z.x), sp = T.spd * 1.5 * z.sm;
-        const B = WORLD.bounds;
-        z.x = clamp(z.x + Math.cos(a) * sp * dt, B.x0 + T.r, B.x1 - T.r); z.y = clamp(z.y + Math.sin(a) * sp * dt, B.y0 + T.r, B.y1 - T.r);
-        z.face = a;
-        if ((dist < reach + 22 || z.stT <= 0) && !pointInObstacle(z.x, z.y, T.r)) {
-          z.st = ZS.NORMAL; z.cd = 7;
-          this.ev(['dg', Math.round(z.x), Math.round(z.y)]);
-          for (const p of players) if (Math.hypot(p.x - z.x, p.y - z.y) < 70) { this.hurt(p, 12); this.knock(p, z.x, z.y, 300); }
-        }
-        continue;
-      }
-      if (z.st === ZS.SCREAM) {
-        z.stT -= dt;
-        if (z.stT <= 0) {
-          z.st = ZS.NORMAL; z.cd2 = 6;
-          this.ev(['sc', Math.round(z.x), Math.round(z.y), 280]);
-          for (const o of this.zombies) if (!o.dead && o !== z && Math.hypot(o.x - z.x, o.y - z.y) < 280) o.rageT = this.time + 5;
-        }
-        continue;
-      }
-      if (z.st === ZS.THROW) { // Dev Hurda heaving a wrecked car
-        z.stT -= dt; z.face = Math.atan2(ty - z.y, tx - z.x);
-        if (z.stT <= 0) {
-          z.st = ZS.NORMAL; z.cd = 4.5;
-          const lead = 0.5, ex = clamp(tx + (target.vx || 0) * lead + (Math.random() - 0.5) * 60, WORLD.bounds.x0, WORLD.bounds.x1), ey = clamp(ty + (target.vy || 0) * lead + (Math.random() - 0.5) * 60, WORLD.bounds.y0, WORLD.bounds.y1);
-          (this.cars || (this.cars = [])).push({ x: ex, y: ey, t: 1.1 });
-          this.ev(['cr', Math.round(z.x), Math.round(z.y), Math.round(ex), Math.round(ey), 1.1]);
-        }
-        continue;
-      }
-      if (z.st === ZS.CAST) { // Cadı raising the dead
-        z.stT -= dt;
-        if (z.stT <= 0) {
-          z.st = ZS.NORMAL; z.cd2 = 7;
-          this.ev(['sm', Math.round(z.x), Math.round(z.y)]);
-          const G = (this.graves || []).filter((g) => Math.hypot(g[0] - z.x, g[1] - z.y) < 600).slice(-5);
-          for (let i = 0; i < 4 && this.zombies.length < maxAlive + 15; i++) { const g = G[i]; if (g) { this.spawnAt(i % 2 ? 1 : 0, g[0], g[1]); this.ev(['rz', Math.round(g[0]), Math.round(g[1])]); } else this.spawnAt(0, z.x, z.y); }
-        }
-        continue;
-      }
-      if (z.st === ZS.CROUCH) { // Sıçrayıcı gathering for a jump
-        z.stT -= dt; z.face = Math.atan2(ty - z.y, tx - z.x);
-        if (z.stT <= 0) { z.st = ZS.LEAP; z.stT = 0.7; z.lx0 = z.x; z.ly0 = z.y; const d = Math.min(dist, 420); z.lx1 = z.x + (tx - z.x) / dist * d; z.ly1 = z.y + (ty - z.y) / dist * d; }
-        continue;
-      }
-      if (z.st === ZS.LEAP) { // in the air: over barricades and crates
-        z.stT -= dt;
-        const k = 1 - Math.max(0, z.stT) / 0.7;
-        z.x = z.lx0 + (z.lx1 - z.lx0) * k; z.y = z.ly0 + (z.ly1 - z.ly0) * k;
-        if (z.stT <= 0) {
-          z.st = ZS.NORMAL; z.cd = 3.5;
-          moveCircle(z, 0, 0, T.r);
-          this.ev(['sl', Math.round(z.x), Math.round(z.y), 90]);
-          for (const p of players) if (Math.hypot(p.x - z.x, p.y - z.y) < 90) { this.hurt(p, 14); this.knock(p, z.x, z.y, 320); }
-        }
-        continue;
-      }
-      if (z.st === ZS.FUSE) { // Patlayan about to burst
-        z.stT -= dt;
-        if (z.stT <= 0) this.burst(z, null);
-        continue;
-      }
-      if (z.st === ZS.SUMMON) {
-        z.stT -= dt;
-        if (z.stT <= 0) {
-          z.st = ZS.NORMAL;
-          z.cd2 = z.t === 8 ? 8 : 6;
-          const kind = z.t === 8 ? 1 : 0, n = z.t === 8 ? 4 : 3;
-          this.ev(['sm', Math.round(z.x), Math.round(z.y)]);
-          for (let i = 0; i < n && this.zombies.length < maxAlive + 15; i++) this.spawnAt(kind, z.x, z.y);
-        }
-        continue;
-      }
-
-      // ----- start a special move? -----
-      if (z.los) {
-        if (z.t === 5 && dist < reach + 14) { z.st = ZS.FUSE; z.stT = 0.6; continue; }
-        if ((z.t === 7 || z.t === 8) && z.cd2 <= 0 && dist < 650) { z.st = ZS.SUMMON; z.stT = z.t === 8 ? 0.9 : 1; continue; }
-        if (z.t === 12 && z.cd <= 0 && dist > 150 && dist < 430) { z.st = ZS.CROUCH; z.stT = 0.55; continue; }
-        if (z.t === 17 && z.cd2 <= 0 && dist < 600) { z.st = ZS.SCREAM; z.stT = 0.8; continue; }
-        if (z.t === 19 && z.cd <= 0 && dist > 170 && dist < 700) { z.st = ZS.THROW; z.stT = 0.75; continue; }
-        if (z.t === 20 && z.cd2 <= 0 && dist < 650) { z.st = ZS.CAST; z.stT = 1; continue; }
-        if (z.t === 20 && z.cd <= 0 && dist < 520) { z.st = ZS.SPIT; z.stT = 0.5; continue; }
-        if (z.cd <= 0) {
-          if (charge && dist > charge.min && dist < charge.max) { z.st = ZS.WINDUP; z.stT = charge.wind; continue; }
-          if (z.t === 3 && dist < 150) { z.st = ZS.SLAM; z.stT = 0.9; continue; }
-          if ((z.t === 4 && dist < 470) || (z.t === 8 && dist < 520)) { z.st = ZS.SPIT; z.stT = z.t === 8 ? 0.6 : 0.4; continue; }
-          if ((z.t === 1 || z.t === 22) && dist < 150) { z.st = ZS.DASH; z.stT = 0.45; z.cd = 2.4; }
-        }
-      }
-      if (z.st === ZS.DASH && (z.t === 1 || z.t === 22)) { z.stT -= dt; if (z.stT <= 0) z.st = ZS.NORMAL; }
-
-      if (z.t === 10 && z.cd <= 0 && dist < 700 && (!z.los || dist < 300)) { z.st = ZS.PHASE; z.stT = 2.2; continue; }
-      if (z.t === 12 && z.cd <= 0 && !z.los && dist < 430 && dist > 120) { z.st = ZS.CROUCH; z.stT = 0.55; continue; }
-      if (z.t === 20) { // Cadı vanishes when cornered and appears elsewhere
-        z.tpT = (z.tpT == null ? 9 : z.tpT) - dt;
-        if (z.tpT <= 0 && (dist < 230 || Math.random() < 0.3)) {
-          z.tpT = 8 + Math.random() * 3;
-          for (let i = 0; i < 12; i++) {
-            const a = Math.random() * Math.PI * 2, d = 320 + Math.random() * 120, nx = tx + Math.cos(a) * d, ny = ty + Math.sin(a) * d;
-            if (pointInObstacle(nx, ny, T.r) || outOfMap(nx, ny)) continue;
-            this.ev(['tp', Math.round(z.x), Math.round(z.y), Math.round(nx), Math.round(ny)]);
-            z.x = nx; z.y = ny; break;
-          }
-        }
-      }
-      if (z.t === 21) { // bats fly over walls and barricades straight at their target, with a flutter
-        const a = Math.atan2(ty - z.y, tx - z.x) + Math.sin(this.time * 7 + z.id) * 0.55, sp = T.spd * z.sm * (z.slowUntil > this.time ? (z.slowK || 0.6) : 1) * (z.stunT > 0 ? 0 : 1), B = WORLD.bounds;
-        if (dist > reach) { z.x = clamp(z.x + Math.cos(a) * sp * dt, B.x0 + T.r, B.x1 - T.r); z.y = clamp(z.y + Math.sin(a) * sp * dt, B.y0 + T.r, B.y1 - T.r); }
-        else this.hurt(target, T.dps * dt);
-        z.face = a; z.dx = Math.cos(a); z.dy = Math.sin(a);
-        continue;
-      }
-      if (z.t === 23 && z.cd <= 0 && z.st === ZS.NORMAL) { z.st = ZS.BURROW; z.stT = 7; z.emT = 0; this.ev(['dg', Math.round(z.x), Math.round(z.y)]); continue; }
-      if (z.t === 16 && z.cd <= 0 && dist > 260) { z.st = ZS.BURROW; z.stT = 6; this.ev(['dg', Math.round(z.x), Math.round(z.y)]); continue; }
-      if (z.el === 3 && z.hp < (z.mx || z.hp)) z.hp = Math.min(z.mx, z.hp + z.mx * 0.03 * dt);
-      if (z.t === 15) { // Şifacı mends the zombies around it
-        z.cd2 -= dt;
-        if (z.cd2 <= 0) {
-          z.cd2 = 1;
-          let n = 0;
-          for (const o of this.zombies) {
-            if (o === z || o.dead || isBoss(o.t) || Math.hypot(o.x - z.x, o.y - z.y) > 170) continue;
-            const mx = zMaxHp(o.t, this.wave, this.waveN, DIFFS[this.diff].hp);
-            if (o.hp < mx) { o.hp = Math.min(mx, o.hp + mx * 0.07); n++; }
-          }
-          if (n) this.ev(['hz', Math.round(z.x), Math.round(z.y)]);
-        }
-      }
-
-      // ----- steering -----
-      const ranged = z.t === 4 || z.t === 7 || z.t === 8 || z.t === 15 || z.t === 17 || z.t === 20;
-      let dx, dy, speed = T.spd * z.sm * (z.slowUntil > this.time ? z.slowK || 0.55 : 1) * (this.mev && this.mev.k === 'moon' ? 1.2 : 1) * (z.rageT > this.time ? 1.35 : 1);
-      if (z.los) {
-        let ax = tx, ay = ty;
-        if (dist < 220 && dist > reach + 20) {
-          // fan out so the crowd surrounds the player instead of queuing
-          const off = Math.min(70, dist * 0.35);
-          ax += Math.cos(z.slot) * off; ay += Math.sin(z.slot) * off;
-        }
-        dx = ax - z.x; dy = ay - z.y;
-        const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
-        if (ranged) {
-          const near = z.t === 7 || z.t === 15 || z.t === 20 ? 280 : z.t === 17 ? 200 : 240, far = z.t === 7 || z.t === 20 ? 520 : z.t === 15 ? 420 : z.t === 17 ? 360 : 470;
-          if (dist < near) { dx = -dx; dy = -dy; speed *= 0.8; }
-          else if (dist < far) { const px = -dy * z.side, py = dx * z.side; dx = px; dy = py; speed *= 0.5; }
-        }
-      } else {
-        const f = fieldAhead(this.field, z.x, z.y, T.r);
-        if (f) { dx = f.x; dy = f.y; } else { dx = (tx - z.x) / dist; dy = (ty - z.y) / dist; }
-      }
-      if (z.st === ZS.DASH && (z.t === 1 || z.t === 22)) speed *= 1.9;
-      if (dist < reach && !ranged) speed = 0;
-
-      // stuck against something? sidestep for a moment
-      if (z.detT > 0) {
-        z.detT -= dt;
-        const c = Math.cos(z.det), sn = Math.sin(z.det);
-        const nx = dx * c - dy * sn, ny = dx * sn + dy * c;
-        dx = nx; dy = ny;
-      }
-      // smooth turning
-      z.dx += (dx - z.dx) * Math.min(1, dt * 8);
-      z.dy += (dy - z.dy) * Math.min(1, dt * 8);
-      const dl = Math.hypot(z.dx, z.dy) || 1;
-      const bx = z.x, by = z.y;
-      this.separate(z, T, grid, hw, HC, dt, speed, z.dx / dl, z.dy / dl);
+      this.separate(z, T, grid, hw, HC, dt, 0);
       if (this.walls.length) this.wallPush(z, T, dt);
-      if (this.turrets.length) this.turretPush(z, T, dt);
-      // stuck? (pressed into a wall or a crowd) step sideways toward whichever side is closer to the
-      // players on the path map; if that fails too, back off a little first
-      if (speed > 0 && Math.hypot(z.x - bx, z.y - by) < speed * dt * 0.3) {
-        z.stk = (z.stk || 0) + dt;
-        if (z.stk > 0.35) {
-          z.stuckN = (z.stuckN || 0) + 1; z.freeT = 0;
-          const a = Math.atan2(dy, dx), px = Math.cos(a + Math.PI / 2), py = Math.sin(a + Math.PI / 2), o = T.r + 30;
-          const l = fieldAt(this.field, z.x + px * o, z.y + py * o), r = fieldAt(this.field, z.x - px * o, z.y - py * o);
-          let side = l < r ? 1 : r < l ? -1 : (Math.random() < 0.5 ? 1 : -1);
-          if (z.stuckN % 3 === 0) side = -side;
-          z.det = side * (z.stuckN % 4 === 3 ? Math.PI * 0.8 : Math.PI / 2);
-          z.detT = 0.5 + Math.min(0.6, z.stuckN * 0.1);
-          z.stk = 0;
-          z.los = false; z.losT = 0.6; // follow the path map for a moment
-        }
-      } else { z.stk = 0; z.freeT = (z.freeT || 0) + dt; if (z.freeT > 2) { z.stuckN = 0; z.freeT = 0; } }
-      // walled in (the arena edge moved past it, or it keeps getting stuck)? move it to open ground
-      z.pkT = (z.pkT || 0) - dt;
-      if (z.pkT <= 0) { z.pkT = 1.5; if ((z.stuckN >= 3 || fieldAt(this.field, z.x, z.y) === Infinity) && escapePocket(z, T.r, 40)) { z.stuckN = 0; z.stk = 0; } }
-      // face the target when close (matters for the Kalkanlı's shield)
-      z.face = Math.atan2(ty - z.y, tx - z.x);
+      return true;
+    }
 
-      // claw whoever is in reach
-      if (T.dps > 0) {
-        let near = null, nd = Infinity;
-        for (const p of players) { const d = Math.hypot(p.x - z.x, p.y - z.y); if (d < nd) { nd = d; near = p; } }
-        if (near && nd < reach + 3) { this.hurt(near, T.dps * dt); if (z.t === 18) near.chillUntil = this.time + 1.2; }
+    if (z.ally) { this.allyZombie(z, T, dt, grid, hw, HC); return; }
+    // pick the nearest living player now and then
+    z.rt -= dt;
+    if (z.rt <= 0) {
+      z.rt = 0.35 + Math.random() * 0.2;
+      let best = null, bd = Infinity;
+      for (const p of players) { const d = (p.x - z.x) ** 2 + (p.y - z.y) ** 2; if (d < bd) { bd = d; best = p; } }
+      if (z.t === 22) { let w = null, wk = 2; for (const p of players) { const k = p.hp / p.maxHp; if (k < wk && (p.x - z.x) ** 2 + (p.y - z.y) ** 2 < 900 * 900) { wk = k; w = p; } } if (w) best = w; }
+      z.tg = best ? best.pid : null;
+    }
+    const tp = z.tg != null ? this.players.get(z.tg) : null;
+    const target = tp && tp.alive && tp.inGame ? tp : null;
+
+    if (!target) { this.wander(z, T, dt); return true; }
+
+    const tx = target.x, ty = target.y;
+    const dist = Math.hypot(tx - z.x, ty - z.y) || 1;
+    z.losT -= dt;
+    // can it see its target? checked often up close, about twice a second far off-screen (each check walks the obstacles)
+    if (z.losT <= 0) { z.losT = (dist > 1100 ? 0.4 : 0.15) + Math.random() * 0.1; z.los = clearLine(z.x, z.y, tx, ty, T.r + 2); }
+    const reach = T.r + PLAYER_R + 2;
+    const charge = CHARGE[z.t];
+    c.T = T; c.target = target; c.tx = tx; c.ty = ty; c.dist = dist; c.reach = reach; c.charge = charge;
+    if (this.zombieMove(z, c)) return;
+    if (this.zombieStart(z, c)) return;
+    this.zombieSteer(z, c);
+  },
+
+  // a special move already under way (charge, slam, spit, burrow, leap, ...)
+  zombieMove(z, c) {
+    const { players, dt, grid, hw, HC, maxAlive, T, target, tx, ty, dist, reach, charge } = c;
+    if (z.st === ZS.WINDUP) { // İri / Koç aiming a charge
+      z.stT -= dt;
+      z.cdir = Math.atan2(ty - z.y, tx - z.x);
+      z.dx = Math.cos(z.cdir); z.dy = Math.sin(z.cdir);
+      if (z.stT <= 0) { z.st = ZS.DASH; z.stT = charge.dur; z.hitSet = new Set(); }
+      this.separate(z, T, grid, hw, HC, dt, 0);
+      return true;
+    }
+    if (z.st === ZS.DASH && charge) {
+      z.stT -= dt;
+      const bx = z.x, by = z.y;
+      moveCircle(z, Math.cos(z.cdir) * charge.spd * dt, Math.sin(z.cdir) * charge.spd * dt, T.r);
+      if (this.walls.length) this.wallPush(z, T, dt);
+      for (const p of players) {
+        if (!z.hitSet) z.hitSet = new Set(); // a zombie restored mid-charge (new host) has none yet
+        if (z.hitSet.has(p.pid)) continue;
+        if (Math.hypot(p.x - z.x, p.y - z.y) < reach + 6) { z.hitSet.add(p.pid); this.hurt(p, charge.dmg); this.knock(p, z.x, z.y, charge.kb); }
       }
+      if (z.stT <= 0 || Math.hypot(z.x - bx, z.y - by) < charge.spd * dt * 0.4) { z.st = ZS.NORMAL; z.cd = charge.cd; }
+      return true;
+    }
+    if (z.st === ZS.SLAM) {
+      z.stT -= dt;
+      if (z.stT <= 0) {
+        z.st = ZS.NORMAL; z.cd = 3.5;
+        this.ev(['sl', Math.round(z.x), Math.round(z.y), 165]);
+        for (const p of players) if (Math.hypot(p.x - z.x, p.y - z.y) < 165) { this.hurt(p, 30); this.knock(p, z.x, z.y, 620); }
+      }
+      return true;
+    }
+    if (z.st === ZS.SPIT) {
+      z.stT -= dt;
+      if (z.stT <= 0) {
+        z.st = ZS.NORMAL;
+        const a0 = Math.atan2(ty - z.y, tx - z.x);
+        if (z.t === 20) { z.cd = 2.6; for (let i = -1; i <= 1; i++) this.spit(z, a0 + i * 0.22, 330); } else
+        if (z.t === 8) { // the queen sprays a fan
+          z.cd = 3;
+          for (let i = -3; i <= 3; i++) this.spit(z, a0 + i * 0.16, 300);
+        } else {
+          z.cd = 2.2 + Math.random() * 0.8;
+          this.spit(z, a0 + (Math.random() - 0.5) * 0.12, 340);
+        }
+      }
+      return true;
+    }
+    if (z.st === ZS.PHASE) { // Hayalet slips straight through walls and crates
+      z.stT -= dt;
+      const a = Math.atan2(ty - z.y, tx - z.x), sp = T.spd * 1.25 * (z.slowUntil > this.time ? z.slowK || 0.55 : 1);
+      if (dist > reach) { z.x += Math.cos(a) * sp * dt; z.y += Math.sin(a) * sp * dt; }
+      z.face = a;
+      if (dist < reach + 3) this.hurt(target, T.dps * dt);
+      if (z.stT <= 0 && !pointInObstacle(z.x, z.y, T.r)) { z.st = ZS.NORMAL; z.cd = 3 + Math.random() * 2; }
+      return true;
+    }
+    if (z.st === ZS.BURROW && z.t === 23) { // Dev Solucan: hunts under the ground, a red ring warns, then it bursts out
+      if (z.emT > 0) {
+        z.emT -= dt;
+        if (z.emT <= 0) {
+          z.st = ZS.NORMAL; z.cd = 4.5;
+          this.ev(['sl', Math.round(z.x), Math.round(z.y), 120]);
+          for (const p of players) if (Math.hypot(p.x - z.x, p.y - z.y) < 120) { this.hurt(p, 42); this.knock(p, z.x, z.y, 560); }
+          for (const t of this.turrets) if (t.hp != null && Math.hypot(t.x - z.x, t.y - z.y) < 120) t.hp -= 250;
+        }
+        return true;
+      }
+      z.stT -= dt;
+      const a = Math.atan2(ty - z.y, tx - z.x), sp = T.spd * 2.2 * z.sm, B = WORLD.bounds;
+      z.x = clamp(z.x + Math.cos(a) * Math.min(sp * dt, dist), B.x0 + T.r, B.x1 - T.r); z.y = clamp(z.y + Math.sin(a) * Math.min(sp * dt, dist), B.y0 + T.r, B.y1 - T.r);
+      z.face = a;
+      if ((dist < 30 || z.stT <= 0) && !pointInObstacle(z.x, z.y, 20)) { z.emT = 1.15; this.ev(['wm', Math.round(z.x), Math.round(z.y), 1.15]); }
+      return true;
+    }
+    if (z.st === ZS.BURROW) { // Kazıcı moving underground, straight at its target
+      z.stT -= dt;
+      const a = Math.atan2(ty - z.y, tx - z.x), sp = T.spd * 1.5 * z.sm;
+      const B = WORLD.bounds;
+      z.x = clamp(z.x + Math.cos(a) * sp * dt, B.x0 + T.r, B.x1 - T.r); z.y = clamp(z.y + Math.sin(a) * sp * dt, B.y0 + T.r, B.y1 - T.r);
+      z.face = a;
+      if ((dist < reach + 22 || z.stT <= 0) && !pointInObstacle(z.x, z.y, T.r)) {
+        z.st = ZS.NORMAL; z.cd = 7;
+        this.ev(['dg', Math.round(z.x), Math.round(z.y)]);
+        for (const p of players) if (Math.hypot(p.x - z.x, p.y - z.y) < 70) { this.hurt(p, 12); this.knock(p, z.x, z.y, 300); }
+      }
+      return true;
+    }
+    if (z.st === ZS.SCREAM) {
+      z.stT -= dt;
+      if (z.stT <= 0) {
+        z.st = ZS.NORMAL; z.cd2 = 6;
+        this.ev(['sc', Math.round(z.x), Math.round(z.y), 280]);
+        for (const o of this.zombies) if (!o.dead && o !== z && Math.hypot(o.x - z.x, o.y - z.y) < 280) o.rageT = this.time + 5;
+      }
+      return true;
+    }
+    if (z.st === ZS.THROW) { // Dev Hurda heaving a wrecked car
+      z.stT -= dt; z.face = Math.atan2(ty - z.y, tx - z.x);
+      if (z.stT <= 0) {
+        z.st = ZS.NORMAL; z.cd = 4.5;
+        const lead = 0.5, ex = clamp(tx + (target.vx || 0) * lead + (Math.random() - 0.5) * 60, WORLD.bounds.x0, WORLD.bounds.x1), ey = clamp(ty + (target.vy || 0) * lead + (Math.random() - 0.5) * 60, WORLD.bounds.y0, WORLD.bounds.y1);
+        (this.cars || (this.cars = [])).push({ x: ex, y: ey, t: 1.1 });
+        this.ev(['cr', Math.round(z.x), Math.round(z.y), Math.round(ex), Math.round(ey), 1.1]);
+      }
+      return true;
+    }
+    if (z.st === ZS.CAST) { // Cadı raising the dead
+      z.stT -= dt;
+      if (z.stT <= 0) {
+        z.st = ZS.NORMAL; z.cd2 = 7;
+        this.ev(['sm', Math.round(z.x), Math.round(z.y)]);
+        const G = (this.graves || []).filter((g) => Math.hypot(g[0] - z.x, g[1] - z.y) < 600).slice(-5);
+        for (let i = 0; i < 4 && this.zombies.length < maxAlive + 15; i++) { const g = G[i]; if (g) { this.spawnAt(i % 2 ? 1 : 0, g[0], g[1]); this.ev(['rz', Math.round(g[0]), Math.round(g[1])]); } else this.spawnAt(0, z.x, z.y); }
+      }
+      return true;
+    }
+    if (z.st === ZS.CROUCH) { // Sıçrayıcı gathering for a jump
+      z.stT -= dt; z.face = Math.atan2(ty - z.y, tx - z.x);
+      if (z.stT <= 0) { z.st = ZS.LEAP; z.stT = 0.7; z.lx0 = z.x; z.ly0 = z.y; const d = Math.min(dist, 420); z.lx1 = z.x + (tx - z.x) / dist * d; z.ly1 = z.y + (ty - z.y) / dist * d; }
+      return true;
+    }
+    if (z.st === ZS.LEAP) { // in the air: over barricades and crates
+      z.stT -= dt;
+      const k = 1 - Math.max(0, z.stT) / 0.7;
+      z.x = z.lx0 + (z.lx1 - z.lx0) * k; z.y = z.ly0 + (z.ly1 - z.ly0) * k;
+      if (z.stT <= 0) {
+        z.st = ZS.NORMAL; z.cd = 3.5;
+        moveCircle(z, 0, 0, T.r);
+        this.ev(['sl', Math.round(z.x), Math.round(z.y), 90]);
+        for (const p of players) if (Math.hypot(p.x - z.x, p.y - z.y) < 90) { this.hurt(p, 14); this.knock(p, z.x, z.y, 320); }
+      }
+      return true;
+    }
+    if (z.st === ZS.FUSE) { // Patlayan about to burst
+      z.stT -= dt;
+      if (z.stT <= 0) this.burst(z, null);
+      return true;
+    }
+    if (z.st === ZS.SUMMON) {
+      z.stT -= dt;
+      if (z.stT <= 0) {
+        z.st = ZS.NORMAL;
+        z.cd2 = z.t === 8 ? 8 : 6;
+        const kind = z.t === 8 ? 1 : 0, n = z.t === 8 ? 4 : 3;
+        this.ev(['sm', Math.round(z.x), Math.round(z.y)]);
+        for (let i = 0; i < n && this.zombies.length < maxAlive + 15; i++) this.spawnAt(kind, z.x, z.y);
+      }
+      return true;
+    }
+    return false;
+  },
+
+  // start a special move, or the moves of zombies that do not walk the usual way (ghost, bats, burrowers, healer)
+  zombieStart(z, c) {
+    const { dt, T, target, tx, ty, dist, reach, charge } = c;
+    if (z.los) {
+      if (z.t === 5 && dist < reach + 14) { z.st = ZS.FUSE; z.stT = 0.6; return true; }
+      if ((z.t === 7 || z.t === 8) && z.cd2 <= 0 && dist < 650) { z.st = ZS.SUMMON; z.stT = z.t === 8 ? 0.9 : 1; return true; }
+      if (z.t === 12 && z.cd <= 0 && dist > 150 && dist < 430) { z.st = ZS.CROUCH; z.stT = 0.55; return true; }
+      if (z.t === 17 && z.cd2 <= 0 && dist < 600) { z.st = ZS.SCREAM; z.stT = 0.8; return true; }
+      if (z.t === 19 && z.cd <= 0 && dist > 170 && dist < 700) { z.st = ZS.THROW; z.stT = 0.75; return true; }
+      if (z.t === 20 && z.cd2 <= 0 && dist < 650) { z.st = ZS.CAST; z.stT = 1; return true; }
+      if (z.t === 20 && z.cd <= 0 && dist < 520) { z.st = ZS.SPIT; z.stT = 0.5; return true; }
+      if (z.cd <= 0) {
+        if (charge && dist > charge.min && dist < charge.max) { z.st = ZS.WINDUP; z.stT = charge.wind; return true; }
+        if (z.t === 3 && dist < 150) { z.st = ZS.SLAM; z.stT = 0.9; return true; }
+        if ((z.t === 4 && dist < 470) || (z.t === 8 && dist < 520)) { z.st = ZS.SPIT; z.stT = z.t === 8 ? 0.6 : 0.4; return true; }
+        if ((z.t === 1 || z.t === 22) && dist < 150) { z.st = ZS.DASH; z.stT = 0.45; z.cd = 2.4; }
+      }
+    }
+    if (z.st === ZS.DASH && (z.t === 1 || z.t === 22)) { z.stT -= dt; if (z.stT <= 0) z.st = ZS.NORMAL; }
+
+    if (z.t === 10 && z.cd <= 0 && dist < 700 && (!z.los || dist < 300)) { z.st = ZS.PHASE; z.stT = 2.2; return true; }
+    if (z.t === 12 && z.cd <= 0 && !z.los && dist < 430 && dist > 120) { z.st = ZS.CROUCH; z.stT = 0.55; return true; }
+    if (z.t === 20) { // Cadı vanishes when cornered and appears elsewhere
+      z.tpT = (z.tpT == null ? 9 : z.tpT) - dt;
+      if (z.tpT <= 0 && (dist < 230 || Math.random() < 0.3)) {
+        z.tpT = 8 + Math.random() * 3;
+        for (let i = 0; i < 12; i++) {
+          const a = Math.random() * Math.PI * 2, d = 320 + Math.random() * 120, nx = tx + Math.cos(a) * d, ny = ty + Math.sin(a) * d;
+          if (pointInObstacle(nx, ny, T.r) || outOfMap(nx, ny)) continue;
+          this.ev(['tp', Math.round(z.x), Math.round(z.y), Math.round(nx), Math.round(ny)]);
+          z.x = nx; z.y = ny; break;
+        }
+      }
+    }
+    if (z.t === 21) { // bats fly over walls and barricades straight at their target, with a flutter
+      const a = Math.atan2(ty - z.y, tx - z.x) + Math.sin(this.time * 7 + z.id) * 0.55, sp = T.spd * z.sm * (z.slowUntil > this.time ? (z.slowK || 0.6) : 1) * (z.stunT > 0 ? 0 : 1), B = WORLD.bounds;
+      if (dist > reach) { z.x = clamp(z.x + Math.cos(a) * sp * dt, B.x0 + T.r, B.x1 - T.r); z.y = clamp(z.y + Math.sin(a) * sp * dt, B.y0 + T.r, B.y1 - T.r); }
+      else this.hurt(target, T.dps * dt);
+      z.face = a; z.dx = Math.cos(a); z.dy = Math.sin(a);
+      return true;
+    }
+    if (z.t === 23 && z.cd <= 0 && z.st === ZS.NORMAL) { z.st = ZS.BURROW; z.stT = 7; z.emT = 0; this.ev(['dg', Math.round(z.x), Math.round(z.y)]); return true; }
+    if (z.t === 16 && z.cd <= 0 && dist > 260) { z.st = ZS.BURROW; z.stT = 6; this.ev(['dg', Math.round(z.x), Math.round(z.y)]); return true; }
+    if (z.el === 3 && z.hp < (z.mx || z.hp)) z.hp = Math.min(z.mx, z.hp + z.mx * 0.03 * dt);
+    if (z.t === 15) { // Şifacı mends the zombies around it
+      z.cd2 -= dt;
+      if (z.cd2 <= 0) {
+        z.cd2 = 1;
+        let n = 0;
+        for (const o of this.zombies) {
+          if (o === z || o.dead || isBoss(o.t) || Math.hypot(o.x - z.x, o.y - z.y) > 170) continue;
+          const mx = zMaxHp(o.t, this.wave, this.waveN, DIFFS[this.diff].hp);
+          if (o.hp < mx) { o.hp = Math.min(mx, o.hp + mx * 0.07); n++; }
+        }
+        if (n) this.ev(['hz', Math.round(z.x), Math.round(z.y)]);
+      }
+    }
+    return false;
+  },
+
+  // ----- steering: walk to the target (or along the path map), get unstuck, claw whoever is in reach -----
+  zombieSteer(z, c) {
+    const { players, dt, grid, hw, HC, T, tx, ty, dist, reach } = c;
+    const ranged = z.t === 4 || z.t === 7 || z.t === 8 || z.t === 15 || z.t === 17 || z.t === 20;
+    let dx, dy, speed = T.spd * z.sm * (z.slowUntil > this.time ? z.slowK || 0.55 : 1) * (this.mev && this.mev.k === 'moon' ? 1.2 : 1) * (z.rageT > this.time ? 1.35 : 1);
+    if (z.los) {
+      let ax = tx, ay = ty;
+      if (dist < 220 && dist > reach + 20) {
+        // fan out so the crowd surrounds the player instead of queuing
+        const off = Math.min(70, dist * 0.35);
+        ax += Math.cos(z.slot) * off; ay += Math.sin(z.slot) * off;
+      }
+      dx = ax - z.x; dy = ay - z.y;
+      const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+      if (ranged) {
+        const near = z.t === 7 || z.t === 15 || z.t === 20 ? 280 : z.t === 17 ? 200 : 240, far = z.t === 7 || z.t === 20 ? 520 : z.t === 15 ? 420 : z.t === 17 ? 360 : 470;
+        if (dist < near) { dx = -dx; dy = -dy; speed *= 0.8; }
+        else if (dist < far) { const px = -dy * z.side, py = dx * z.side; dx = px; dy = py; speed *= 0.5; }
+      }
+    } else {
+      const f = fieldAhead(this.field, z.x, z.y, T.r);
+      if (f) { dx = f.x; dy = f.y; } else { dx = (tx - z.x) / dist; dy = (ty - z.y) / dist; }
+    }
+    if (z.st === ZS.DASH && (z.t === 1 || z.t === 22)) speed *= 1.9;
+    if (dist < reach && !ranged) speed = 0;
+
+    // stuck against something? sidestep for a moment
+    if (z.detT > 0) {
+      z.detT -= dt;
+      const c = Math.cos(z.det), sn = Math.sin(z.det);
+      const nx = dx * c - dy * sn, ny = dx * sn + dy * c;
+      dx = nx; dy = ny;
+    }
+    // smooth turning
+    z.dx += (dx - z.dx) * Math.min(1, dt * 8);
+    z.dy += (dy - z.dy) * Math.min(1, dt * 8);
+    const dl = Math.hypot(z.dx, z.dy) || 1;
+    const bx = z.x, by = z.y;
+    this.separate(z, T, grid, hw, HC, dt, speed, z.dx / dl, z.dy / dl);
+    if (this.walls.length) this.wallPush(z, T, dt);
+    if (this.turrets.length) this.turretPush(z, T, dt);
+    // stuck? (pressed into a wall or a crowd) step sideways toward whichever side is closer to the
+    // players on the path map; if that fails too, back off a little first
+    if (speed > 0 && Math.hypot(z.x - bx, z.y - by) < speed * dt * 0.3) {
+      z.stk = (z.stk || 0) + dt;
+      if (z.stk > 0.35) {
+        z.stuckN = (z.stuckN || 0) + 1; z.freeT = 0;
+        const a = Math.atan2(dy, dx), px = Math.cos(a + Math.PI / 2), py = Math.sin(a + Math.PI / 2), o = T.r + 30;
+        const l = fieldAt(this.field, z.x + px * o, z.y + py * o), r = fieldAt(this.field, z.x - px * o, z.y - py * o);
+        let side = l < r ? 1 : r < l ? -1 : (Math.random() < 0.5 ? 1 : -1);
+        if (z.stuckN % 3 === 0) side = -side;
+        z.det = side * (z.stuckN % 4 === 3 ? Math.PI * 0.8 : Math.PI / 2);
+        z.detT = 0.5 + Math.min(0.6, z.stuckN * 0.1);
+        z.stk = 0;
+        z.los = false; z.losT = 0.6; // follow the path map for a moment
+      }
+    } else { z.stk = 0; z.freeT = (z.freeT || 0) + dt; if (z.freeT > 2) { z.stuckN = 0; z.freeT = 0; } }
+    // walled in (the arena edge moved past it, or it keeps getting stuck)? move it to open ground
+    z.pkT = (z.pkT || 0) - dt;
+    if (z.pkT <= 0) { z.pkT = 1.5; if ((z.stuckN >= 3 || fieldAt(this.field, z.x, z.y) === Infinity) && escapePocket(z, T.r, 40)) { z.stuckN = 0; z.stk = 0; } }
+    // face the target when close (matters for the Kalkanlı's shield)
+    z.face = Math.atan2(ty - z.y, tx - z.x);
+
+    // claw whoever is in reach
+    if (T.dps > 0) {
+      let near = null, nd = Infinity;
+      for (const p of players) { const d = Math.hypot(p.x - z.x, p.y - z.y); if (d < nd) { nd = d; near = p; } }
+      if (near && nd < reach + 3) { this.hurt(near, T.dps * dt); if (z.t === 18) near.chillUntil = this.time + 1.2; }
     }
   },
 
