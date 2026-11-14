@@ -43,7 +43,7 @@ Kuşatma is a co-op top-down zombie survival game for the browser (1–20 player
 
 ## Working on it
 - After edits: `node --check` every changed module, then `node test/run.mjs`.
-- Browser tests (Playwright, desktop + phones 390×844 and 844×390, with the local miniflare server) live outside the repo because they contain panel details. If they are not around, write the checks you need.
+- Browser, server and network tests live in the private repo `Umvtt/kusatma-tests` (they know the panel, so never copy them here). Clone it next to this repo, `npm install`, then `node run.mjs` (quick check, ~3 min, after every change) or `node run.mjs --full` (before publishing). It runs the real Worker in miniflare and a local PeerJS server, so co-op tests need no internet. Its `netload` suite models a phone host's weak upload and prints guest freezes per minute: the number the connection builds must bring down. After a server deploy, refresh its Worker copy with its `tools/syncworker.sh`. Every bug the owner reports gets a test there.
 - Balance changes: check with quick simulations, not guesses.
 - Every update also updates `README.md` (Turkish, player-facing) so it matches the build; check it against the code.
 - Commit messages: Turkish title, short player-facing `- ` bullets.
