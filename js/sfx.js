@@ -7,15 +7,22 @@ let level = 0.5; // master volume when not muted
 let musicBus = null, musicLevel = 0.35; // the music's own level, under the master volume
 export function setVolume(v) { level = Math.max(0, Math.min(1, v)) * 0.7; if (master) master.gain.value = muted ? 0 : level; }
 let budget = 0, budgetT = 0;
+// touch phones get fewer sounds at once: each one is a few audio nodes, and a phone's audio thread runs out sooner
+const PHONE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+const BUDGET = PHONE ? 4 : 6;
 
 export function unlock() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
-  ctx = new AC();
+  // phones: a larger audio buffer, so a busy moment does not starve the sound and make it go dull for a second or two
+  try { ctx = new AC(PHONE ? { latencyHint: 'balanced' } : undefined); } catch (e) { ctx = new AC(); }
   master = ctx.createGain();
   master.gain.value = muted ? 0 : level;
+  // a gentle limiter (build 64): the default compressor (from -24 dB at 12:1, letting go over 0.25 s) squashed
+  // everything after each loud blast, which sounded like the game going muffled for a moment
   const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -10; comp.knee.value = 8; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.1;
   master.connect(comp).connect(ctx.destination);
   musicBus = ctx.createGain(); musicBus.gain.value = musicLevel; musicBus.connect(master);
   if (MUS.mode !== 'off' && !MUS.timer) { MUS.next = ctx.currentTime + 0.1; MUS.timer = setInterval(musicTick, 50); }
@@ -38,7 +45,7 @@ function vol(x, y, base) {
   if (!ctx || muted) return 0;
   const now = ctx.currentTime;
   if (now - budgetT > 0.05) { budgetT = now; budget = 0; }
-  if (budget > 6) return 0;
+  if (budget > BUDGET) return 0;
   const d = x == null ? 0 : Math.hypot(x - listener.x, y - listener.y);
   const v = base * Math.max(0, 1 - d / 1100);
   if (v < 0.01) return 0;

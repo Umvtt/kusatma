@@ -826,7 +826,7 @@ export class HostGame {
         p.gold, p.kills, p.sp, lvArr(p.lv),
         Math.max(0, r1(p.abAt - this.time)), p.shopReady ? 1 : 0, this.time < p.shieldUntil ? 1 : 0,
         p.alive ? 0 : r2((p.rev || 0) / REVIVE_TIME),
-        Math.max(0, r1(p.powerUntil - this.time)), Math.max(0, r1(p.hasteUntil - this.time)), p.wt, p.wp || 0, p.wb || 0, p.inv || [], Math.max(0, r1((p.chillUntil || 0) - this.time)),
+        Math.max(0, r1(p.powerUntil - this.time)), Math.max(0, r1(p.hasteUntil - this.time)), p.wt, p.wp || 0, p.wb || 0, p.inv ? p.inv.slice() : [] /* a copy: the confirmed snapshot keeps this row, and p.inv changes in place */, Math.max(0, r1((p.chillUntil || 0) - this.time)),
         p.tm | 0, p.pk | 0, p.deaths | 0, !p.alive && p.respAt && p.respAt < Infinity ? Math.max(0, r1(p.respAt - this.time)) : 0,
         (p.protUntil > this.time ? 1 : 0) | (p.invUntil > this.time ? 2 : 0) | (p.silUntil > this.time ? 4 : 0) | (p.spinUntil > this.time ? 8 : 0) | (p.guardUntil > this.time ? 16 : 0), p.assists | 0,
         p.pid === this.hostPid ? 0 : Math.round(p.ping || 0), Math.ceil(p.bs || 0),
@@ -837,7 +837,7 @@ export class HostGame {
       if (z.dead) continue;
       const now = this.time;
       const fl = (z.slowUntil > now ? 1 : 0) | (z.stunT > 0 ? 2 : 0) | (z.psT > now ? 4 : 0) | (z.brT > now ? 8 : 0) | (z.frozenT > now ? 16 : 0) | (z.meltT > now ? 32 : 0) | (z.t === 11 && z.armor <= 0 ? 64 : 0) | (z.st === ZS.BURROW ? 128 : 0) | ((z.el | 0) << 8) | (z.rageT > now ? 2048 : 0) | (z.ally ? 4096 : 0);
-      Z.push([z.id, z.t, Math.round(z.x), Math.round(z.y), Math.ceil(z.hp), z.st, z.st === ZS.WINDUP || z.st === ZS.DASH ? r2(z.cdir) : 0, z.t === 6 && z.face != null ? r2(z.face) : 0, fl]);
+      Z.push([z.id, z.t, Math.round(z.x), Math.round(z.y), Math.ceil(z.hp), z.st, z.st === ZS.WINDUP || z.st === ZS.DASH ? r2(z.cdir) : 0, (z.t === 6 || z.ally) && z.face != null ? r2(z.face) : 0, fl]);
     }
     return {
       t: 's', ph: this.phase === 'combat' ? 'c' : 'b', w: this.wave, n: this.waveN, hm: DIFFS[this.diff].hp,
