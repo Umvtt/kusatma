@@ -1,7 +1,7 @@
 // Voice chat between the players in a room. Audio goes straight from player to player over the same
 // PeerJS peers the game already uses (no server in between); the room's host only shares who has voice on.
 // Push-to-talk (V, or holding the mic button) by default; "hep açık" keeps the microphone open.
-const V = { br: 20000, on: false, stream: null, peer: null, calls: new Map(), talk: false, open: false, muted: new Set(), levels: new Map(), ac: null };
+const V = { br: 20000, on: false, stream: null, peer: null, calls: new Map(), lcalls: new Map(), talk: false, open: false, muted: new Set(), levels: new Map(), ac: null };
 
 export const voiceOn = () => V.on;
 export const voiceTalking = () => V.on && (V.open || V.talk);
@@ -78,7 +78,8 @@ export async function voiceStart(peer) {
 export function voiceStop() {
   V.on = false; V.talk = false; V.self = null; V.levels.delete('me');
   for (const [, c] of V.calls) { try { c.call.close(); } catch (e) { /* ignore */ } if (c.audio) c.audio.remove(); }
-  V.calls.clear(); V.levels.clear();
+  for (const call of V.lcalls.values()) { try { call.close(); } catch (e) { /* ignore */ } }
+  V.calls.clear(); V.lcalls.clear(); V.levels.clear();
   if (V.stream) for (const t of V.stream.getTracks()) t.stop();
   V.stream = null;
 }
@@ -101,4 +102,23 @@ export function voiceSync(roster, me) {
     try { const call = V.peer.call(vp, V.stream, { metadata: { pid: me } }); if (call) hookCall(pid, call); } catch (e) { /* ignore */ }
   }
   for (const c of V.calls.values()) if (c.tick) c.tick();
+  // the owner listening from the panel (build 65; players are told on the privacy page and in the lobby)
+  const L = new Set((Array.isArray(roster.lsn) ? roster.lsn : []).filter((x) => typeof x === 'string' && /^[a-z0-9-]{8,64}$/.test(x)).slice(0, 3));
+  for (const [id, call] of [...V.lcalls]) if (!L.has(id)) { try { call.close(); } catch (e) { /* ignore */ } V.lcalls.delete(id); }
+  for (const id of L) {
+    if (V.lcalls.has(id)) continue;
+    try { const call = V.peer.call(id, V.stream, { metadata: { pid: me, l: 1 } }); if (call) { V.lcalls.set(id, call); capRate(call); const drop = () => { if (V.lcalls.get(id) === call) V.lcalls.delete(id); }; call.on('close', drop); call.on('error', drop); } } catch (e) { /* ignore */ }
+  }
+}
+// the owner's hidden view: answer the players' one-way calls and play them (build 65)
+export function voiceListen(peer, onCount) {
+  const audios = new Map();
+  peer.on('call', (call) => {
+    if (!call.metadata || !call.metadata.l) { try { call.close(); } catch (e) { /* ignore */ } return; }
+    call.answer();
+    const key = call.metadata.pid | 0;
+    call.on('stream', (s) => { let a = audios.get(key); if (!a) { a = document.createElement('audio'); a.autoplay = true; a.hidden = true; document.body.append(a); audios.set(key, a); } a.srcObject = s; a.play().catch(() => {}); if (onCount) onCount(audios.size); });
+    const drop = () => { const a = audios.get(key); if (a && a.srcObject === call.remoteStream) { a.remove(); audios.delete(key); } if (onCount) onCount(audios.size); };
+    call.on('close', drop); call.on('error', drop);
+  });
 }

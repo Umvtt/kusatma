@@ -47,6 +47,7 @@ function voiceUi() {
     const t = !on ? '🎙 Sesli sohbeti aç' : '🎙 Sesli sohbeti kapat'; if (lb.textContent !== t) lb.textContent = t;
   }
   const o = $('#lb-vopen'); if (o) { o.hidden = !can; o.querySelector('input').checked = voiceOpenPref; }
+  const vn = $('#lb-vnote'); if (vn) vn.hidden = !can;
 }
 // called every frame while voice is on: my microphone level drives the ring around the button
 function voiceTick() {
@@ -92,6 +93,8 @@ const TAP_MS = 220;
     cb.onchange = () => setOpenMic(cb.checked);
     lab.append(cb, el('span', '', 'Mikrofon hep açık'));
     row.append(lb, lab); lc.before(row);
+    // moderators may join voice chat (build 65): said plainly where voice is turned on
+    const vn = el('p', 'voice-note', 'Herkes için güvenli bir oyun ortamı sağlamak amacıyla moderatörler zaman zaman sesli sohbete katılabilir. Konuşmalar kaydedilmez.'); vn.id = 'lb-vnote'; row.after(vn);
   }
 })();
 

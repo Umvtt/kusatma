@@ -115,7 +115,7 @@ function onData(raw) {
   else if (d.e === 'msg') { H.onMsg(str(d.text, 300), str(d.title, 120)); msgReceipt(str(d.mid, 12)); }
   else if (d.e === 'kick') H.onKick(str(d.text, 200));
   else if (d.e === 'ban') { LIVE.ban = str(d.text, 120); try { localStorage.setItem(BAN_KEY, LIVE.ban); } catch (e) { /* ignore */ } H.onBan(); }
-  else if (d.e === 'ev') H.onEv(['boss', 'gold', 'horde', 'mev', 'item', 'zombie'].includes(d.k) ? d.k : 'gold', d.n | 0, str(d.text, 120), { who: str(d.who, 16), i: d.i | 0, t: d.t | 0, q: str(d.q, 8) });
+  else if (d.e === 'ev') H.onEv(['boss', 'gold', 'horde', 'mev', 'item', 'zombie', 'wave', 'brk'].includes(d.k) ? d.k : 'gold', d.n | 0, str(d.text, 120), { who: str(d.who, 16), i: d.i | 0, t: d.t | 0, q: str(d.q, 8) });
   else if (d.e === 'gift') H.onGift(str(d.name, 16), d.n | 0);
   else if (d.e === 'acct') acctCheck().then(() => { H.onCfg(); if (H.onAcct) H.onAcct(); });
   else if (d.e === 'watch') { const r = H.detail(); if (r) send({ e: 'rd', d: r }); }

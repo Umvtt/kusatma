@@ -441,6 +441,7 @@ input[type=number]{-moz-appearance:textfield}input[type=number]::-webkit-inner-s
         <label>Event ends <input id="kecUntil" type="datetime-local"></label>
         <label>Daily limit per player <input id="kecCap" type="number" min="0" max="100000"></label>
         <label>Hourly limit per player <input id="kecHcap" type="number" min="0" max="100000"></label>
+        <label>Daily limit for solo games <input id="kecScap" type="number" min="0" max="100000"></label>
         <label>Daily reward <input id="kecLogin" type="number" min="0" max="10000"></label>
         <label>Gems for new accounts <input id="kecStart" type="number" min="0" max="100000"></label>
         <label>Name change cost <input id="kecRen" type="number" min="0" max="100000"></label>
@@ -854,7 +855,9 @@ async function kAcct(id){let j;try{j=await admin('kaget',[],{id});}catch(e){retu
   /* progress */
   const pr=box('Progress');const SS=P.st||{};kv(pr,[['Waves cleared',SS.waves||0],['Boss waves',SS.bosses||0],['Hard / Kâbus waves',SS.hard||0],['Waves with others',SS.coop||0],['Achievements',(P.ach||[]).length+' of 33']]);
   btns(pr,[smallBtn('Add kills',async()=>{const v=await ask({title:'Add kills for '+P.name,text:'Added to their total. Use a minus number to take kills away.',fields:[{id:'n',label:'Kills',type:'number',value:'100'}],ok:'Add'});if(!v)return;act(()=>admin('kaset',[],{id,addKills:+v.n|0}),'Kills changed');},''),
-    smallBtn('Set kills and waves',async()=>{const v=await ask({title:'Stats for '+P.name,fields:[{id:'k',label:'Kills',type:'number',value:String(P.kills||0)},{id:'b',label:'Best wave',type:'number',value:String(P.best||0)},{id:'g',label:'Games finished',type:'number',value:String(P.games||0)}],ok:'Save'});if(!v)return;act(()=>admin('kaset',[],{id,kills:Math.max(0,+v.k|0),best:Math.max(0,+v.b|0),games:Math.max(0,+v.g|0)}),'Stats saved');})]);
+    smallBtn('Set kills and waves',async()=>{const v=await ask({title:'Stats for '+P.name,fields:[{id:'k',label:'Kills',type:'number',value:String(P.kills||0)},{id:'b',label:'Best wave',type:'number',value:String(P.best||0)},{id:'g',label:'Games finished',type:'number',value:String(P.games||0)}],ok:'Save'});if(!v)return;act(()=>admin('kaset',[],{id,kills:Math.max(0,+v.k|0),best:Math.max(0,+v.b|0),games:Math.max(0,+v.g|0)}),'Stats saved');}),
+    smallBtn('Edit leaderboards',async()=>{const v=await ask({title:'Leaderboards for '+P.name,text:'Every board this player can be on. Changes show on the boards within a few minutes.',fields:[{id:'b',label:'Best wave',type:'number',value:String(P.best||0)},{id:'k',label:'Kills',type:'number',value:String(P.kills||0)},{id:'x',label:'XP (level)',type:'number',value:String(P.xp||0)},{id:'e',label:'Endless best wave',type:'number',value:String((P.st&&P.st.endless)||0)},{id:'w',label:'This week\'s XP (weekly board)',type:'number',value:String((P.wx&&P.wx.x)||0)},{id:'s',label:'Season XP',type:'number',value:String((P.sp&&P.sp.x)||0)},{id:'p',label:'PvP rating',type:'number',value:String(P.pv||0)}],ok:'Save'});if(!v)return;
+      const n=(x)=>Math.max(0,+x|0);act(()=>admin('kaset',[],{id,best:n(v.b),kills:n(v.k),xp:n(v.x),end:n(v.e),wk:n(v.w),sx:n(v.s),pv:n(v.p)}),'Leaderboards saved');})]);
   if(P.q&&P.q.d===kDay()){pr.append(mk('h3','',"Today's quests"));list(pr,P.q.L,q=>[mk('span','k',q.t+(q.k?' ('+q.k+')':'')),mk('span','d',q.p+' / '+q.n),mk('span','sp'),mk('span','chip',q.c?'claimed':q.p>=q.n?'ready':'in progress')]);}
   /* social */
   const so=box('Friends and privacy');kv(so,[['Friends',(P.fr||[]).length],['Waiting requests',(P.fq||[]).length],['Friend requests',(P.set||{}).fr===0?'off':'on'],['Shows online',(P.set||{}).on===0?'no':'yes'],['Shows room',(P.set||{}).room===0?'no':'yes'],['Leaderboard',P.hideLb?'hidden':'shown'],['Private messages',P.mute>Date.now()?'muted until '+when(P.mute):'allowed']]);
@@ -906,7 +909,7 @@ async function kEco(){let j;try{j=await admin('keco');}catch(e){note(e.message,'
     const kp=$('#kecK');kp.textContent='';for(const[n,l]of[[j.total.gems,'gems held by players'],[j.total.n,'accounts'],[today.eg||0,'gems earned today'],[today.es||0,'gems spent today'],[j.days.reduce((a,d)=>a+(d.es||0),0),'gems spent (30 days)']]){const k=mk('div','kpi');k.append(mk('b','',Number(n).toLocaleString()),mk('span','',l));kp.append(k);}
     const bars=(el,ax,key)=>{const box=$(el);box.textContent='';const mx=Math.max(1,...D.map(d=>d[key]||0));for(const d of D){const b=mk('div');b.style.height=Math.max(2,Math.round((d[key]||0)/mx*100))+'%';b.dataset.tip=d.d+'\n'+(d[key]||0).toLocaleString();box.append(b);}const a=$(ax);a.textContent='';if(D.length){a.append(mk('span','',D[0].d.slice(5)),mk('span','',D[D.length-1].d.slice(5)));}};
     bars('#kecE','#kecEa','eg');bars('#kecS','#kecSa','es');
-    $('#kecMul').value=String(E.until>Date.now()?E.mul:1);$('#kecUntil').value=E.until>Date.now()?toLocal(E.until):'';$('#kecCap').value=E.cap;$('#kecHcap').value=E.hcap;$('#kecLogin').value=E.login;$('#kecStart').value=E.start;$('#kecRen').value=E.ren;$('#kecSpinP').value=E.spinP==null?100:E.spinP;$('#kecSpinMax').value=E.spinMax==null?5:E.spinMax;
+    $('#kecMul').value=String(E.until>Date.now()?E.mul:1);$('#kecUntil').value=E.until>Date.now()?toLocal(E.until):'';$('#kecCap').value=E.cap;$('#kecHcap').value=E.hcap;$('#kecScap').value=E.scap==null?250:E.scap;$('#kecLogin').value=E.login;$('#kecStart').value=E.start;$('#kecRen').value=E.ren;$('#kecSpinP').value=E.spinP==null?100:E.spinP;$('#kecSpinMax').value=E.spinMax==null?5:E.spinMax;
     const gl=$('#kgList');gl.textContent='';for(const g of E.gifts.slice().reverse()){const it=mk('div','item');it.append(mk('span','k',g.n+' gems'),mk('span','d',g.text||''),mk('span','sp'),mk('span','d',g.until>Date.now()?'until '+when(g.until):'ended'));gl.append(it);}}
   if(t==='ksh')kShopDraw();}
 let KSH=null,kshCat='all';
@@ -954,7 +957,7 @@ function kDirty(){if(!KECO||!KSH)return;const E=KECO.eco;let n=Object.keys(KECO.
 $('#kshQ').oninput=()=>KSH&&kShopList();$('#kshOnly').onchange=()=>KSH&&kShopList();
 for(const s of['#kshFeat','#kshAll','#kshUntil'])$(s).addEventListener('change',kDirty);$('#kshAll').addEventListener('input',kDirty);
 $('#kshUndo').onclick=()=>{if(KECO)kShopDraw();};
-$('#kecSave').onclick=async()=>{if(!KECO)return;const E=Object.assign({},KECO.eco,{spinP:+$('#kecSpinP').value|0,spinMax:+$('#kecSpinMax').value|0,mul:+$('#kecMul').value,until:+$('#kecMul').value>1?(fromLocal($('#kecUntil').value)||Date.now()+7*864e5):0,cap:+$('#kecCap').value|0,hcap:+$('#kecHcap').value|0,login:+$('#kecLogin').value|0,start:+$('#kecStart').value|0,ren:+$('#kecRen').value|0});
+$('#kecSave').onclick=async()=>{if(!KECO)return;const E=Object.assign({},KECO.eco,{spinP:+$('#kecSpinP').value|0,spinMax:+$('#kecSpinMax').value|0,mul:+$('#kecMul').value,until:+$('#kecMul').value>1?(fromLocal($('#kecUntil').value)||Date.now()+7*864e5):0,cap:+$('#kecCap').value|0,hcap:+$('#kecHcap').value|0,scap:+$('#kecScap').value|0,login:+$('#kecLogin').value|0,start:+$('#kecStart').value|0,ren:+$('#kecRen').value|0});
   try{await admin('kecoset',[],E);await kEco();say('#kecMsg','Saved. Every open game has it now.','ok');}catch(e){say('#kecMsg',e.message,'bad');}};
 $('#kshSave').onclick=async()=>{if(!KECO||!KSH)return;const sa=+$('#kshAll').value|0;const E=Object.assign({},KECO.eco,{prices:KSH.prices,sale:KSH.sale,off:KSH.off,lim:KSH.lim,feat:$('#kshFeat').value,saleAll:sa,saleUntil:sa>0?(fromLocal($('#kshUntil').value)||Date.now()+3*864e5):0});
   try{await admin('kecoset',[],E);await kEco();say('#kshMsg','Saved. Every open game has the new shop now.','ok');}catch(e){say('#kshMsg',e.message,'bad');}};
@@ -1152,9 +1155,9 @@ fxScan(document);new MutationObserver(ms=>{for(const m of ms)for(const n of m.ad
     for(const o of b.parentNode.children)o.classList.toggle('hl',o===b);};
   const hide=(e)=>{const b=e.target.closest&&e.target.closest('.bars > div');if(b)b.classList.remove('hl');tip.hidden=true;};
   document.addEventListener('mouseover',show);document.addEventListener('mouseout',hide);document.addEventListener('touchstart',e=>{if(e.target.closest('.bars > div'))show(e);else tip.hidden=true;},{passive:true});})();
-const KMODE={normal:'Classic',endless:'Survival',boss:'Boss rush',hc:'One life',daily:'Daily challenge',sandbox:'Test area'},KMEV={dark:'Blackout',drop:'Supply plane',horde:'Horde rush',moon:'Blood moon'};
-const KGEAR=['Grenade','Barricade','Medkit','Air strike'];
-const KZT=[['0','Walker'],['1','Runner'],['2','Brute'],['4','Spitter'],['5','Bloater'],['6','Shield'],['7','Summoner'],['10','Ghost'],['11','Armoured'],['12','Leaper'],['13','Breeder'],['14','Crawler'],['15','Healer'],['16','Digger'],['17','Screamer'],['18','Frozen']],KBOSS=[['0','Random boss'],['3','Giant'],['8','Queen'],['9','Ram'],['19','Scrap Giant'],['20','Witch']];
+const KMODE={normal:'Classic',endless:'Survival',boss:'Boss rush',hc:'One life',daily:'Daily challenge',sandbox:'Test area'},KMEV={dark:'Karartma',drop:'İkmal uçağı',horde:'Sürü akını',moon:'Kanlı ay'};/* the game's own Turkish names (build 65) */
+const KGEAR=['El bombası','Barikat','İlk yardım','Hava saldırısı'];
+const KZT=[['0','Yürüyen'],['1','Koşucu'],['2','İri'],['4','Tükürücü'],['5','Patlayan'],['6','Kalkanlı'],['7','Çağırıcı'],['10','Hayalet'],['11','Zırhlı'],['12','Sıçrayıcı'],['13','Doğurgan'],['14','Sürüngen'],['15','Şifacı'],['16','Kazıcı'],['17','Çığlıkçı'],['18','Donmuş']],KBOSS=[['0','Random boss'],['3','Dev'],['8','Kraliçe'],['9','Koç'],['19','Dev Hurda'],['20','Cadı']];
 let CTL={cards:new Map(),t:0};
 function ctlDraw(cv,mm){const g=cv.getContext('2d'),W=cv.width,H=cv.height;g.fillStyle='#0b0b0b';g.fillRect(0,0,W,H);if(!mm){g.fillStyle='#555';g.font='12px system-ui';g.textAlign='center';g.fillText('No map yet',W/2,H/2);return;}
   const[x0,y0,x1,y1]=mm.b,s=Math.min(W/(x1-x0),H/(y1-y0)),ox=(W-(x1-x0)*s)/2,oy=(H-(y1-y0)*s)/2,X=x=>ox+(x-x0)*s,Y=y=>oy+(y-y0)*s;
@@ -1177,8 +1180,10 @@ function ctlPanel(code,names){const box=mk('div','ctlp'),who=()=>[['','Everyone'
   const grp=(title,...kids)=>{const g=mk('section','ctlp-g');g.append(mk('h3','',title));const r=mk('div','ctlp-r');r.append(...kids);g.append(r);box.append(g);return g;};
   const go=(label,fn,cls)=>{const b=mk('button',cls||'',label);b.type='button';b.onclick=async()=>{b.disabled=true;try{await fn();}finally{b.disabled=false;}};return b;};
   const lab=(t,el)=>{const l=mk('label','ctlp-f');l.append(mk('span','',t),el);return l;};
+  {const wv=mk('input');wv.type='number';wv.min=1;wv.max=200;wv.value=10;wv.style.width='90px';const bs=sel([['15','15 s'],['30','30 s'],['60','1 min'],['120','2 min'],['300','5 min'],['600','10 min']],'60');
+    grp('Wave & break',lab('Wave',wv),go('Go to this wave',()=>ctlAct(code,'wave',{n:Math.max(1,Math.min(200,+wv.value|0))})),lab('Break',bs),go('Start a break',()=>ctlAct(code,'brk',{n:+bs.value})));}
   const zt=sel(KZT),zn=sel(KCNT,'10');grp('Zombies',lab('Type',zt),lab('How many',zn),go('Send zombies',()=>ctlAct(code,'zombie',{t:+zt.value,n:+zn.value})));
-  const hn=sel([['20','20'],['30','30'],['50','50'],['80','80']],'30');const bt=sel(KBOSS);grp('Pressure',lab('Boss',bt),go('Send this boss',()=>ctlAct(code,'boss',{t:+bt.value})),lab('Runners',hn),go('Send a runner horde',()=>ctlAct(code,'horde',{n:+hn.value})));
+  const hn=sel([['20','20'],['30','30'],['50','50'],['80','80']],'30');const bt=sel(KBOSS);grp('Pressure',lab('Boss',bt),go('Send this boss',()=>ctlAct(code,'boss',{t:+bt.value})),lab('Koşucu',hn),go('Send a Koşucu horde',()=>ctlAct(code,'horde',{n:+hn.value})));
   const mv=sel(Object.entries(KMEV));grp('Map event',lab('Event',mv),go('Start this event',()=>ctlAct(code,'mev',{q:mv.value})));
   const gw=sel(who()),ga=sel(KAMT,'500');grp('Gold',lab('Player',gw),lab('Amount',ga),go('Give gold',()=>ctlAct(code,'gold',{who:gw.value,n:+ga.value})));
   const iw=sel(who()),ii=sel(KGEAR.map((x,i)=>[String(i),x])),inn=sel([['1','1'],['2','2'],['3','3'],['5','5']],'2');grp('Items',lab('Player',iw),lab('Item',ii),lab('How many',inn),go('Give items',()=>ctlAct(code,'item',{who:iw.value,i:+ii.value,n:+inn.value})));
@@ -1194,7 +1199,9 @@ async function ctlWatch(r){const S=sheet('Watching · '+r.title,true);S.d.classL
   let k;try{k=(await admin('kspec',[],{code:r.code})).k;}catch(e){msg.textContent=e.message==='gone'?'This game has ended.':e.message;return;}
   let id='';for(let i=0;i<20&&!id&&S.d.isConnected;i++){await new Promise(z=>setTimeout(z,1000));try{id=(await admin('kspecget',[],{k})).id;}catch(e){}}
   if(!S.d.isConnected)return;if(!id){msg.textContent='The game did not answer. It may be on an older build, or it just ended.';return;}
-  const f=document.createElement('iframe');f.className='watchf';f.setAttribute('allow','autoplay');f.src=GAMEURL()+'?spec='+encodeURIComponent(id)+'&k='+encodeURIComponent(k);view.replaceChildren(f);}
+  const f=document.createElement('iframe');f.className='watchf';f.setAttribute('allow','autoplay');const src=(l)=>GAMEURL()+'?spec='+encodeURIComponent(id)+'&k='+encodeURIComponent(k)+(l?'&lsn=1':'');f.src=src(false);view.replaceChildren(f);
+  /* build 65: hear the room's voice chat (players with voice on; they are told moderators may join, nothing is recorded) */
+  let on=false;const lb=mk('button','small','Listen to voice chat');lb.type='button';lb.onclick=()=>{on=!on;f.src=src(on);lb.textContent=on?'Stop listening':'Listen to voice chat';};side.prepend(lb);}
 function ctlCard(r){const c=mk('div','ctl-card'),h=mk('div','ctl-h'),cv=mk('canvas');cv.width=300;cv.height=190;pTag(c,{r:/^s/.test(r.code)?'':r.code,c:r.code,n:r.host||'',g:'k'});c.dataset.ctl=r.code;
   const t=mk('div');t.append(mk('b','',r.title),mk('span','d',r.sub));h.append(t);
   const info=mk('div','ctl-i');info.append(mk('span','d','Asking the host…'));

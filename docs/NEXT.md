@@ -3,7 +3,7 @@
 ## Added 14 Kasım 2026 (after build 63)
 Split agreed by the owner:
 - **Build 64 (done):** the old build 64 list below + items 5, 6, 7, 8 (leaderboard abuse, harder game, visible events, bodies inside the border).
-- **Build 65:** items 1, 2, 3, 4 (panel control room with voice listening, leaderboard editing, Turkish names in the panel, muting players).
+- **Build 65 (done):** items 1, 2, 3, 4 (panel control room with voice listening, leaderboard editing, Turkish names in the panel, muting players).
 - **Build 66:** items 9, 10 and 12, as a full separate build: the Roblox-like redesign of the whole site, very clean, plus the uncluttered phone screen and the social part below.
 - Voice: nothing is recorded or stored; moderators can only listen live. Players are told with a friendly, truthful note (privacy page + the lobby's voice area), e.g. "Herkes için güvenli bir oyun ortamı sağlamak amacıyla moderatörler zaman zaman sesli sohbete katılabilir. Konuşmalar kaydedilmez." ("To keep the game safe for everyone, moderators may sometimes join voice chat. Conversations are not recorded.")
 1. **Panel control room, full room control:** the owner can listen to a room's voice chat; set the current wave; start an intermission (break) of a chosen length that flows on into the next wave by itself; "all that stuff", all seamless. Voice listening needs the privacy page (gizlilik.html) to say so (see notes).

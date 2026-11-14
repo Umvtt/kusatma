@@ -8,7 +8,7 @@ import { startScene } from './scene.js';
 import { dashPage, dashGo, dashRefresh, dashSoft, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar } from './dash.js';
 import { FREE_CLS, ITEMS as COS } from './catalog.js';
 import * as sfx from './sfx.js';
-import { voiceOn, voiceStop, voiceSync, voicePtt, voiceRate, voiceBitrate } from './voice.js';
+import { voiceOn, voiceStop, voiceSync, voicePtt, voiceRate, voiceBitrate, voiceListen, voiceMute } from './voice.js';
 import { perfStart, perfStop, perfFrame, perfSnap, perfRelay } from './perf.js';
 import { consentStart, manage as cookieSettings } from './consent.js';
 import { CTL, layoutInit } from './layout.js';
@@ -20,7 +20,7 @@ import { $, IS_TOUCH, S, busy, el, menuMsg, renderer, setZoom, sleep, toast, zoo
 import { TAKEN, acctUi, authClose, blockUi } from './acct.js';
 import { buzz, notice, qaPop, quickPick, quickToggle, renderBoard, updateHud } from './hud.js';
 import { closeEsc, openEsc, openSettings, syncSettingsLabels } from './esc.js';
-import { addChat, closeChat, openChat } from './chat.js';
+import { addChat, closeChat, isMuted, openChat } from './chat.js';
 import { renderOver } from './over.js';
 import { TAP_MS, setOpenMic, voiceOpenPref, voiceUi } from './voiceui.js';
 import { renderLobby, roomDlg } from './lobby.js';
@@ -291,6 +291,7 @@ function onRoster(m) {
   const prevPhase = S.roster ? S.roster.ph : null;
   S.roster = m;
   voiceUi(); if (voiceOn()) voiceSync(m, S.me);
+  for (const p of m.players) if (p.pid !== S.me) voiceMute(p.pid, isMuted('v', p.name)); // players I muted stay muted (by name)
   // build the same map the host built (the host page shares it already)
   if (m.theme && MAPS[m.theme] && Number.isInteger(m.seed) && (m.theme !== WORLD.theme || m.seed !== WORLD.seed)) {
     const map = generateMap(m.theme, m.seed);
@@ -813,7 +814,7 @@ function liveNote(title, text) {
   clearTimeout(liveNote.t); liveNote.t = setTimeout(() => { b.hidden = true; }, Math.min(14000, 5000 + (text || '').length * 50));
 }
 // ?spec=<peer>&k=<key>: the owner's hidden spectator view (opened from the panel); it never joins the live list
-const WATCH = (() => { const q = new URLSearchParams(location.search), id = q.get('spec'), k = q.get('k'); return id && k && /^[a-z0-9-]{8,64}$/.test(id) && /^[A-Za-z0-9]{4,24}$/.test(k) ? { id, k } : null; })();
+const WATCH = (() => { const q = new URLSearchParams(location.search), id = q.get('spec'), k = q.get('k'); return id && k && /^[a-z0-9-]{8,64}$/.test(id) && /^[A-Za-z0-9]{4,24}$/.test(k) ? { id, k, lsn: q.get('lsn') === '1' } : null; })();
 async function watchStart(w) {
   document.body.classList.add('watching'); document.body.classList.remove('signed');
   $('#getapp').hidden = true; $('#dashpage').hidden = true;
@@ -824,6 +825,12 @@ async function watchStart(w) {
   S.game = new ClientGame(() => {}, 0); S.game.watcher = true; S.game.self.alive = false;
   net.onMsg = onMessage; net.onClose = () => { stopTicker(); cancelAnimationFrame(S.raf); S.raf = 0; S.role = null; show('menu'); menuMsg('Oyun bitti ya da bağlantı koptu.'); };
   net.send({ t: 'spec', k: w.k });
+  // &lsn=1: also hear the room's voice chat (players with voice on call this view, one way)
+  if (w.lsn && net.peer && net.peer.id) {
+    const tag = el('div', 'watch-lsn', 'Sesli sohbet dinleniyor: kimse konuşmuyor'); document.body.append(tag);
+    voiceListen(net.peer, (n) => { tag.textContent = n ? `Sesli sohbet dinleniyor: ${n} oyuncu` : 'Sesli sohbet dinleniyor: sesi açık oyuncu yok'; });
+    setTimeout(() => net.send({ t: 'lsn', id: net.peer.id }), 600);
+  }
   startTicker();
 }
 if (WATCH) watchStart(WATCH);
@@ -853,7 +860,7 @@ if (!WATCH) liveStart({
   // the owner's panel asks to watch this game unseen: open a spectator door (solo games too) and say where it is
   onSpec: async (k) => {
     const h = S.host; if (!h) return '';
-    if (!h.spec) { h.spec = new SpecHost(); h.spec.onJoin = (c) => { h.spec.sendTo(c, h.roster()); if (h.phase === 'combat' || h.phase === 'break') h.spec.sendTo(c, h.snapshot()); }; }
+    if (!h.spec) { h.spec = new SpecHost(); h.spec.onListen = () => { if (S.host === h) h.pushRoster(); }; h.spec.onJoin = (c) => { h.spec.sendTo(c, h.roster()); if (h.phase === 'combat' || h.phase === 'break') h.spec.sendTo(c, h.snapshot()); }; }
     h.spec.keys.add(k); if (h.spec.keys.size > 20) h.spec.keys.delete(h.spec.keys.values().next().value);
     return h.spec.open();
   },

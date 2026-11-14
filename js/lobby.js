@@ -7,6 +7,8 @@ import { LIVE, ACCT, ME, PUB, setPub, liveBlock, acctCheck, nameTaken, acctOp } 
 import { $, IS_TOUCH, S, ask, el, menuMsg, tipNext, toast } from './app.js';
 import { createRoom,  joinRoom, leave, myEntry, online, send } from './main.js';
 import { TAKEN, acctUi, blockUi } from './acct.js';
+import { isMuted, setMuted } from './chat.js';
+import { voiceMute } from './voice.js';
 
 // ---------- lobby ----------
 function renderLobby() {
@@ -47,6 +49,12 @@ function renderLobby() {
     else if (running || r.ph === 'over') chip = el('span', 'chip' + (p.inGame ? ' ok' : ''), p.inGame ? 'Oyunda' : 'Bekliyor');
     else chip = el('span', 'chip' + (p.ready ? ' ok' : ''), p.ready ? 'Hazır' : 'Bekliyor');
     li.append(dot, nm, chip);
+    if (p.pid !== S.me) { // mute this player's chat and voice (both at once here; separately on the scoreboard)
+      const m = isMuted('c', p.name) && isMuted('v', p.name), mb = el('button', 'btn ghost small mute' + (m ? ' on' : ''), m ? 'Susturuldu' : 'Sustur'); mb.type = 'button';
+      mb.setAttribute('aria-label', p.name + (m ? ' adlı oyuncunun sesini ve yazısını aç' : ' adlı oyuncuyu sustur (yazı ve ses)'));
+      mb.addEventListener('click', () => { setMuted('c', p.name, !m); setMuted('v', p.name, !m); voiceMute(p.pid, !m); renderLobby(); });
+      nm.append(mb);
+    }
     if (isHost && p.pid !== S.me) {
       const k = el('button', 'btn ghost small kick', 'At');
       k.type = 'button';
