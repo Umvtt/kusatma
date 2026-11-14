@@ -6,6 +6,7 @@ Kuşatma is a co-op top-down zombie survival game for the browser (1–20 player
 - Speaks Turkish and English, lives in Turkey, is **not a programmer**: explain in plain words, no jargon. Plays on desktop and phone, co-op with friends.
 - **No in-between messages while working** (no narrating reads, searches, tests or tool calls). The final reply can be long: what changed, what matters, what they need to know, plus the links. Questions are fine when something is ambiguous; ask in words they can answer.
 - **Be brutally honest, in plain words.** When the owner asks for something that is a bad idea (it would break things, cost a lot for little gain, hurt players, open a security hole, or there is a clearly better way), say so before doing it: what is wrong, what it would cost, and what you suggest instead, with no sugar-coating. End with one or two simple questions they can answer (e.g. "Do you want X even if Y happens?"). Point out weak spots in your own work the same way, never hide them. If they still want it after hearing why, do it properly.
+- **Never start a big build until the owner clearly says to start it** (e.g. "start build 59"). Agreeing to a plan, answering questions or making a decision is not a go.
 - Ask before big features or anything destructive. Write complete, production-ready code. Flag breaking changes, edge cases and security risks.
 - End every update with the links (chat only, never in the repo): the admin panel, https://umvtt.github.io/kusatma/, https://umvtt-games.umvtt.deno.net/, https://kusatma.umvtt.workers.dev/.
 - **Owner's rules for the app:** the APK file is named after its build ("Kuşatma 47.0.apk"); only important app changes are mandatory (raise `min`), never ordinary ones; the site's button says Güncelle when coming from the app. After every update tell the owner whether the APK changed, and mention any difference at all between the app and the site.
@@ -13,16 +14,17 @@ Kuşatma is a co-op top-down zombie survival game for the browser (1–20 player
 ## Files
 - `index.html`: the page. CSS and `js/main.js` load with `?v=<build>` and an import map gives **every** module `?v=<build>` (add new modules there). Bump all of them with `BUILD` in `js/config.js` on every build.
 - `js/config.js`: classes, weapon paths (`CP`, `weaponOf`), zombies, maps, modes, economy numbers, `BUILD`, protocol `VERSION` (bump it whenever the host↔guest messages change meaning; mixed versions then cannot share a room).
-- `js/host.js` (`HostGame`, authoritative simulation, runs in the room creator's browser) + `js/pvp.js` (PvP mixin). `js/client.js` (`ClientGame`: prediction, snapshot apply, effects). `js/render.js` (canvas). `js/world.js` (obstacles, path field). `js/net.js` (PeerJS). `js/live.js` (server socket, accounts). `js/main.js` (screens, lobby, HUD, armory, settings). `js/layout.js` (phone layout editor). `js/dash.js` (signed-in dashboard). `js/sfx.js`, `js/voice.js`, `js/scene.js`, `js/settings.js`, `js/consent.js`, `js/catalog.js`, `js/mapgen.js`.
+- `js/host.js` (`HostGame`, authoritative simulation, runs in the room creator's browser) + `js/pvp.js` (PvP mixin). `js/client.js` (`ClientGame`: prediction, snapshot apply, effects). `js/render.js` (canvas). `js/world.js` (obstacles, path field). `js/net.js` (PeerJS). `js/live.js` (server socket, accounts). `js/main.js` (screens, lobby, HUD, armory, settings). `js/layout.js` (phone layout editor). `js/dash.js` (signed-in dashboard). `js/sfx.js`, `js/voice.js`, `js/scene.js`, `js/settings.js`, `js/consent.js`, `js/catalog.js`, `js/mapgen.js`, `js/perf.js` (performance reports).
 - `css/style.css` (game; the end of the file holds the phone HUD block), `css/dash.css`, `css/legal.css`.
 - `gizlilik.html`, `cerezler.html`, `kosullar.html`: privacy, cookie, terms. Must stay truthful about what is collected; never mention the owner's panel or owner tools.
 - The owner's panel: an unlinked, randomly named `.html` at the repo root. Never write its address anywhere else in the repo, never link it, keep it bland (black and white).
-- `android/`: the WebView app (see history: app 47.0). Signing key and `google-services.json` are outside the repo.
+- `android/`: the WebView app (see history: app 48.0; `KusatmaApp` bridge: ready, pushToken, pushAllowed, pushAsk, version, netType, vibrate). Build: `gradle assembleRelease -PversionCode=<n>` with `KEYSTORE_FILE`/`KEYSTORE_PASSWORD`. Signing key and `google-services.json` are outside the repo.
 - `test/`: Node checks, no browser: `node test/run.mjs` (all modules parse, host cheat limits, ghost-zombie protocol under loss).
 - `docs/HISTORY.md`: per-build notes.
 
 ## How a game works
 - The room creator's browser runs `HostGame`; guests send inputs (position, hits, shots) 20×/s and get per-guest snapshots 15×/s over an unordered channel, built against what the guest last confirmed (`p.zh`). Zombie removals repeat until a newer snapshot is confirmed (`zh.seen`/`zh.rm`); guests also drop nearby zombies the host stopped mentioning. Events are numbered and applied once.
+- Links (build 59): a guest's snapshot is skipped while more than ~¼ s of data waits on its link (`linkGate` in net.js); the backup goes gzipped and only on an idle link; guests keep zombies walking through short gaps and show `#net-warn` after 1 s; voice is capped at 20 kbps (12 while the host struggles). Performance reports: `js/perf.js` → live `pf` → `Hub.kPerf` → `kp:<day>` → panel Performance (`kperf`).
 - Solo games use the same host and client in one page (`OfflineNet`).
 
 ## Trust rules (build 58)
@@ -43,7 +45,7 @@ Kuşatma is a co-op top-down zombie survival game for the browser (1–20 player
 
 ## Working on it
 - After edits: `node --check` every changed module, then `node test/run.mjs`.
-- Browser tests (Playwright, desktop + phones 390×844 and 844×390, with the local miniflare server) live outside the repo because they contain panel details. If they are not around, write the checks you need.
+- Browser, server and network tests live in the private repo `Umvtt/kusatma-tests` (they know the panel, so never copy them here). Clone it next to this repo, `npm install`, then `node run.mjs` (quick check, ~3 min, after every change) or `node run.mjs --full` (before publishing). It runs the real Worker in miniflare and a local PeerJS server, so co-op tests need no internet. Its `netload` suite models a phone host's weak upload and prints guest freezes per minute: the number the connection builds must bring down. After a server deploy, refresh its Worker copy with its `tools/syncworker.sh`. Every bug the owner reports gets a test there.
 - Balance changes: check with quick simulations, not guesses.
 - Every update also updates `README.md` (Turkish, player-facing) so it matches the build; check it against the code.
 - Commit messages: Turkish title, short player-facing `- ` bullets.

@@ -1,6 +1,6 @@
 // Screens, lobby, HUD and the glue between networking, the host simulation and the local game.
 import { ZTYPES, QUICK, PING_K, WEAPON_COST, weaponOf, pathOf, pathsFor, pathDesc, WMAX, ROMAN, BRANCH_SWAP, weaponSpent, AB_COST, AB_UP, GEAR, TEAM, TEAM_CHUNK, gearCost, gearMax, bashCd, MAPS, MAP_ORDER, DIFFS, DIFF_ORDER, MODES, MODE_ORDER, MEV, BUILD, VERSION, MAX_PLAYERS, scaleFor, GEM_DIFF, GEM_MODE, gemTag, CLASSES, CLASS_ORDER, UPGRADES, HEAL_COST, upgradeCost, CODE_LEN, ZOOM_MIN, ZOOM_MAX, clamp, APP_BUILD, TIPS, PVP, PVP_ORDER, TEAM_COL, TEAM_NAME, league } from './config.js';
-import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost } from './net.js';
+import { HostNet, OfflineNet, ClientNet, cleanCode, addIce, SpecHost, gunzip64 } from './net.js';
 import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { Renderer, drawCharacter, drawWeaponPreview, drawMapPreview } from './render.js';
@@ -9,13 +9,14 @@ import { dashPage, dashGo } from './dash.js';
 import { dashInit, dashShow, dashRefresh, dashSoft, dashTop, onFriends, onDm, onFr, gemIcon, notify, recentAdd, frList, drawAvatar, rewardText } from './dash.js';
 import { ownsCls, FREE_CLS, ITEMS as COS, titleOf } from './catalog.js';
 import * as sfx from './sfx.js';
-import { voiceOn, voiceStart, voiceStop, voiceSync, voicePtt, voiceOpen, voiceLevel, voiceMute, voiceMuted, voiceTalking, voiceSelfLevel } from './voice.js';
+import { voiceOn, voiceStart, voiceStop, voiceSync, voicePtt, voiceOpen, voiceLevel, voiceMute, voiceMuted, voiceTalking, voiceSelfLevel, voiceRate, voiceBitrate } from './voice.js';
+import { perfStart, perfStop, perfFrame, perfSnap, perfRelay } from './perf.js';
 import { consentStart, manage as cookieSettings } from './consent.js';
 import { CTL, layoutInit } from './layout.js';
 import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings, QUALITY, QORDER, QUAL } from './settings.js';
-import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePvp, liveBlock, acctSign, acctOut, acctCheck, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveConn, liveChat, errorReports, acctOp } from './live.js';
+import { LIVE, ACCT, ME, PUB, setPub, liveStart, liveStat, livePerf, livePvp, liveBlock, acctSign, acctOut, acctCheck, roomsGet, nameTaken, turnReady, diagRun, liveGame, liveGameEnd, liveWave, liveKills, inviteSend, friendsGet, liveCheat, liveConn, liveChat, errorReports, acctOp } from './live.js';
 
 let zoom = 1;
 try { const z = parseFloat(localStorage.getItem('kusatma-zoom')); if (z) zoom = clamp(z, ZOOM_MIN, ZOOM_MAX); } catch (e) { /* ignore */ }
@@ -247,7 +248,7 @@ async function joinRoom() {
   net.onMsg = onMessage;
   net.onClose = hostLost;
   S.name = name;
-  net.send({ t: 'hello', v: VERSION, name, ps: ACCT ? ME.pass : '', sid: TAB_ID });
+  net.send({ t: 'hello', v: VERSION, b: BUILD, name, ps: ACCT ? ME.pass : '', sid: TAB_ID });
   S.joinedAt = performance.now();
   startTicker();
   return true;
@@ -286,6 +287,7 @@ function leave(reason) {
   quickToggle(false);
   if (TUT.step >= 0) { TUT.step = -1; $('#tut').hidden = true; }
   if (voiceOn()) voiceStop();
+  perfStop(); S.perfOn = false;
   if (S.host && S.host.spec) { S.host.spec.destroy(); S.host.spec = null; }
   liveGameEnd();
   closeEsc(true);
@@ -344,7 +346,7 @@ async function reconnect(code, canTakeOver) {
       net.onMsg = onMessage;
       net.onClose = hostLost;
       S.rejoining = false;
-      net.send({ t: 'hello', v: VERSION, name: S.name || '', rejoin: { pid: S.me, tok: S.tok }, ps: ACCT ? ME.pass : '', sid: TAB_ID });
+      net.send({ t: 'hello', v: VERSION, b: BUILD, name: S.name || '', rejoin: { pid: S.me, tok: S.tok }, ps: ACCT ? ME.pass : '', sid: TAB_ID });
       toast('Yeniden bağlandın.', 'good');
       liveConn({ r: 'back', room: code, tries });
       return;
@@ -390,13 +392,14 @@ function onMessage(m) {
       S.tok = m.tok;
       S.rejoining = false;
       if (!S.game) S.game = new ClientGame(send, m.pid);
+      S.game.onlineGuest = S.role === 'client';
       break;
     case 'r': onRoster(m); break;
-    case 's': if (S.game) S.game.onSnap(m); break;
-    case 'o': if (S.role === 'spec') { S.over = m; break; } if (S.roster && m.P) m.tm = m.time; if (S.roster) recentAdd(S.roster.players.filter((p) => p.pid !== S.me)); liveGameEnd(); S.over = m; if (m.pvp) { S.pvpRank = null; if (S.role === 'host') livePvp(m); renderOver(); if (S.roster) route(); break; } m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '', tm: m.time | 0, gm: S.roster ? S.roster.mode || 'normal' : 'normal', solo: S.role === 'host' && !online() ? 1 : 0 }); renderOver(); if (S.roster) route(); break;
+    case 's': if (S.game) { S.game.onSnap(m); if (S.perfOn && S.role === 'client') perfSnap(performance.now(), m); } break;
+    case 'o': if (S.role === 'spec') { S.over = m; break; } if (S.roster && m.P) m.tm = m.time; if (S.roster) recentAdd(S.roster.players.filter((p) => p.pid !== S.me)); liveGameEnd(); perfStop(); S.perfOn = false; S.over = m; if (m.pvp) { S.pvpRank = null; if (S.role === 'host') livePvp(m); renderOver(); if (S.roster) route(); break; } m.record = saveBest(m.wave); liveStat(m.wave, S.role === 'host', ((m.P || []).find((x) => x.pid === S.me) || {}).kills, { cls: ((m.P || []).find((x) => x.pid === S.me) || {}).cls || '', map: m.theme || '', diff: m.diff || '', tm: m.time | 0, gm: S.roster ? S.roster.mode || 'normal' : 'normal', solo: S.role === 'host' && !online() ? 1 : 0 }); renderOver(); if (S.roster) route(); break;
     case 'c': addChat(m.pid, m.m); break;
     case 'bye': if (m.r !== 'left') liveConn({ r: ['kick', 'spam', 'full', 'version'].includes(m.r) ? m.r : 'kick', why: m.r || '', room: S.roster && S.roster.code, secs: S.joinedAt ? (performance.now() - S.joinedAt) / 1000 : 0 }); leave(BYE[m.r] || 'Odadan çıkarıldın.'); break;
-    case 'bk': if (S.role === 'client') { if (m.s && typeof m.s === 'object') S.backup = m.s; else if (typeof m.j === 'string' && m.j.length < 400000) { try { const b = JSON.parse(m.j); if (b && typeof b === 'object') S.backup = b; } catch (e) { /* ignore */ } } } break;
+    case 'bk': if (S.role === 'client') { if (typeof m.z === 'string' && m.z.length < 300000) gunzip64(m.z).then((j) => { const b = JSON.parse(j); if (b && typeof b === 'object') S.backup = b; }).catch(() => {}); else if (m.s && typeof m.s === 'object') S.backup = m.s; else if (typeof m.j === 'string' && m.j.length < 400000) { try { const b = JSON.parse(m.j); if (b && typeof b === 'object') S.backup = b; } catch (e) { /* ignore */ } } } break;
     default: break;
   }
 }
@@ -1112,6 +1115,29 @@ function renderPvpOver(o) {
   $('#over-note').textContent = isHost ? 'Lobiye dönünce takımlar ve sınıflar yeniden seçilir.' : 'Kurucu lobiye döndüğünde rövanş için hazırlanabilirsin.';
 }
 
+// ---------- performance reports (js/perf.js): what the game was doing when a report goes out ----------
+function perfCtx() {
+  const g = S.game, r = S.roster, me = g && g.ps ? g.ps.get(S.me) : null;
+  return {
+    role: S.role === 'client' ? 'g' : online() ? 'h' : 's', map: WORLD.theme || '', w: g ? g.wave | 0 : 0, z: g ? g.zs.size : 0,
+    pl: r && r.players ? r.players.length : 1, vo: voiceOn(), vb: voiceOn() ? voiceBitrate() : 0, q: QUAL.level + (SAVE.on ? '/saver' : ''),
+    ping: S.role === 'client' && me ? me.ping | 0 : 0, links: S.role === 'host' && S.net && S.net.linkStats ? () => S.net.linkStats() : null,
+  };
+}
+// a guest: is the link to the host direct or through the relay server? asked once per game from the connection's stats
+function relayCheck() {
+  if (S.role !== 'client' || !S.net || !S.net.conn) return;
+  setTimeout(async () => {
+    try {
+      const pc = S.net.conn.peerConnection; if (!pc) return;
+      const st = await pc.getStats(); let pair = null; const cands = new Map();
+      st.forEach((x) => { if (x.type === 'candidate-pair' && x.state === 'succeeded' && (x.nominated || x.selected)) pair = x; if (x.type === 'local-candidate') cands.set(x.id, x); });
+      const lc = pair && cands.get(pair.localCandidateId);
+      perfRelay(lc ? (lc.candidateType === 'relay' ? 'relay' : 'direct') : '?');
+    } catch (e) { /* ignore */ }
+  }, 8000);
+}
+
 // ---------- game loop + HUD ----------
 function startLoop() {
   if (S.raf) return;
@@ -1131,6 +1157,10 @@ function startLoop() {
     for (let left = dt, n = 0; left > 1e-4 && n < 5; n++) { const step = Math.min(0.05, left); left -= step; g.lastStep = left <= 1e-4 || n === 4; g.update(step); } // inputs go out once per frame, on the last step
     renderer.draw(g, g.roster);
     perfTick(now);
+    if (!S.perfOn) { S.perfOn = true; perfStart(perfCtx, livePerf); relayCheck(); }
+    perfFrame(now);
+    // the host's upload is struggling to keep a guest fed: voice steps down to a lighter rate until it recovers
+    if (S.role === 'host' && S.net && S.net.struggling && voiceOn() && (S.vrT = (S.vrT || 0) - dt) <= 0) { S.vrT = 1; voiceRate(S.net.struggling() ? 12000 : 20000); }
     S.hudT -= dt;
     if (S.hudT <= 0) { S.hudT = 0.1; updateHud(); }
     for (const n of g.notices.splice(0)) notice(n);
@@ -1425,7 +1455,7 @@ function updateHud() {
   { const kb = g.killedBy, db = $('#dead-by'), nm = kb === 'tr' ? 'Metro treni' : ZTYPES[kb] ? ZTYPES[kb].name : '';
     db.hidden = !nm || me.alive; if (nm && db.textContent !== 'Seni deviren: ' + nm) db.textContent = 'Seni deviren: ' + nm; }
   $('#dead-sub').textContent = g.ps.size > 1 ? 'Bir arkadaşın yanına gelip seni kaldırabilir · dalga bitince dönersin' : 'Dalga bitince geri döneceksin';
-  $('#net-warn').hidden = S.role !== 'client' || performance.now() - g.lastSnapAt < 1500;
+  $('#net-warn').hidden = S.role !== 'client' || performance.now() - g.lastSnapAt < 1000;
   if (!me.alive) {
     const sp = g.spectate != null ? g.ps.get(g.spectate) : null;
     const mine = g.ps.get(S.me);
@@ -2128,6 +2158,13 @@ $('#btn-promo').onclick = () => $('#btn-acct').click();
 // the Android app: a download button for Android browsers, and the back button inside the app
 const IN_APP = /KusatmaApp\//.test(navigator.userAgent);
 if (/Android/i.test(navigator.userAgent) && !IN_APP) $('#btn-apk').hidden = false;
+// inside an older app: an ordinary (not required) update is offered with a Güncelle button. It opens the phone's browser
+// (a link without the trailing slash is not one of the app's own addresses, so the app hands it to the browser),
+// where the download page waits; nothing blocks playing.
+const APP_V = (() => { try { return IN_APP && window.KusatmaApp && typeof window.KusatmaApp.version === 'function' ? +window.KusatmaApp.version() || 0 : 0; } catch (e) { return 0; } })();
+const appOld = () => IN_APP && APP_V > 0 && APP_V < APP_BUILD;
+const APP_UPD = 'https://umvtt.github.io/kusatma?guncelle=2';
+if (appOld()) { const b = $('#btn-apk'); b.href = APP_UPD; b.removeAttribute('download'); b.querySelector('.lbl-long').textContent = `Güncelle (${APP_BUILD}.0)`; b.querySelector('.lbl-short').textContent = 'Güncelle'; b.hidden = false; }
 // Android browsers first see a full-screen "get the app" page (once per visit); they can still play here
 if (/Android/i.test(navigator.userAgent) && !IN_APP && !/[?&](debug|nogetapp)/.test(location.search)) {
   let seen = false; try { seen = sessionStorage.getItem('kusatma-getapp') === '1'; } catch (e) { /* ignore */ }
@@ -2140,9 +2177,10 @@ $('#acct-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.
 // the app download is named after the app's build; the app's "important update" screen opens the site with ?guncelle=1
 { const f = `app/kusatma-${APP_BUILD}.0.apk`, n = `Kuşatma ${APP_BUILD}.0.apk`;
   for (const a of document.querySelectorAll('a[href="app/kusatma.apk"]')) { a.href = f; a.download = n; }
-  if (/[?&]guncelle=1/.test(location.search)) {
-    $('#getapp').hidden = false; $('.ga-h').textContent = 'Önemli güncelleme'; $('#ga-dl').textContent = 'Güncelle';
-    $('.ga-list').replaceChildren(el('li', '', 'Uygulamanın yeni sürümü gerekiyor'), el('li', '', 'Hesabın ve ilerlemen aynı kalır'), el('li', '', 'Eskisini silmene gerek yok, üstüne kurulur'));
+  if (/[?&]guncelle=[12]/.test(location.search)) {
+    const must = /[?&]guncelle=1/.test(location.search);
+    $('#getapp').hidden = false; $('.ga-h').textContent = must ? 'Önemli güncelleme' : `Yeni sürüm: ${APP_BUILD}.0`; $('#ga-dl').textContent = 'Güncelle';
+    $('.ga-list').replaceChildren(el('li', '', must ? 'Uygulamanın yeni sürümü gerekiyor' : 'İstersen güncelle; eski sürümle de oynamaya devam edebilirsin'), el('li', '', 'Hesabın ve ilerlemen aynı kalır'), el('li', '', 'Eskisini silmene gerek yok, üstüne kurulur'));
     $('.ga-how').textContent = 'Güncelle\'ye bas, inen "' + n + '" dosyasını aç ve Güncelle\'ye dokun.';
   } }
 const gaDone = () => { $('#getapp').hidden = true; try { sessionStorage.setItem('kusatma-getapp', '1'); } catch (e) { /* ignore */ } };

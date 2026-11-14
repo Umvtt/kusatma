@@ -304,6 +304,18 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean pushAllowed() { android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class); return (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) && (nm == null || nm.areNotificationsEnabled()); }
         @JavascriptInterface public void pushAsk() { ui.post(() -> { if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 78); }); }
         @JavascriptInterface public int version() { return BuildConfig.VERSION_CODE; }
+        // Wi-Fi or mobile data, for the game's performance reports (browsers on Android do not always say)
+        @JavascriptInterface public String netType() {
+            try {
+                android.net.ConnectivityManager cm = getSystemService(android.net.ConnectivityManager.class);
+                if (cm == null) return "";
+                android.net.NetworkCapabilities nc = cm.getNetworkCapabilities(cm.getActiveNetwork());
+                if (nc == null) return "none";
+                if (nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) || nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) return "wifi";
+                if (nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)) return "cell";
+                return "";
+            } catch (Exception e) { return ""; }
+        }
         @JavascriptInterface public void vibrate(String pattern) {
             try {
                 JSONArray a = new JSONArray(pattern);

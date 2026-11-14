@@ -2,6 +2,7 @@
 // Every incoming message is checked for shape and size so bad data can't crash the game.
 import { WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX, PLAYER_R, PLAYER_COLORS, QUICK, CLASSES, UPGRADES, HEAL_COST, upgradeCost, ZTYPES, zMaxHp, scaleFor, ZS, BOSS_ORDER, isBoss, CHARGE, SHIELD_ARC, BOSS_DMG, BOSS_CD, WEAPON_COST, ITEMS, BASH, WMAX, BRANCH_SWAP, weaponSpent, weaponOf, pathOk, newLv, lvArr, AB_COST, abDur, GEAR, GEAR_RANGE, TEAM, teamCost, TEAM_CHUNK, gearCost, gearMax, bashCd, FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER } from './config.js';
 import { PvpMixin } from './pvp.js';
+import { gzip64 } from './net.js';
 import { WORLD, setMap, setBounds, moveCircle, pointInObstacle, clearLine, buildField, fieldAhead, fieldAt, outOfMap, GW, GH, escapePocket } from './world.js';
 import { generateMap, METRO_TRACKS } from './mapgen.js';
 import { ITEMS as COS, checkPass, ownsCls, nkey } from './catalog.js';
@@ -109,7 +110,7 @@ export class HostGame {
     for (const e of s.E) { this.evSeq++; this.evLog.push(e); }
     if (this.evLog.length > 600) this.evLog.splice(0, this.evLog.length - 600);
     const logFirst = this.evSeq - this.evLog.length + 1;
-    const far = this.snapN % 4 === 0 ? s.Z.map((z) => [z[1], z[2] >> 3, z[3] >> 3]) : null;
+    let far = null; const now = performance.now(); // the minimap's coarse picture of every zombie, about twice a second per guest
     const R2 = 1800 * 1800, N2 = 1000 * 1000, q = this.snapN;
     // each zombie's state key, worked out once per snapshot instead of once per guest
     const keys = s.Z.map((z) => z[4] + ',' + z[5] + ',' + z[6] + ',' + z[7] + ',' + z[8]), bossF = s.Z.map((z) => isBoss(z[1]));
@@ -119,14 +120,14 @@ export class HostGame {
       const zh = p.zh || (p.zh = { ack: 0, hist: new Map(), ev0: es0 - 1 });
       const base = (zh.ack && zh.hist.get(zh.ack)) || null, bz = base ? base.zk : null;
       const full = !p.inGame || !p.alive, cur = new Map(), Z = [];
-      const odd = (zh.n = (zh.n || 0) + 1) & 1; // per guest, so a guest that gets every other snapshot still sees far zombies move
+      const third = (zh.n = (zh.n || 0) + 1) % 3 === 0; // per guest, so a guest that gets fewer snapshots still sees far zombies move
       for (let zi = 0; zi < s.Z.length; zi++) {
         const z = s.Z[zi], boss = bossF[zi], d2 = (z[2] - p.x) ** 2 + (z[3] - p.y) ** 2;
         if (!full && !boss && d2 >= R2) continue;
         const key = keys[zi];
         cur.set(z[0], key);
         if (!bz || bz.get(z[0]) !== key || (zh.rm && zh.rm.has(z[0]))) Z.push(z); // also in full when its removal was sent since the confirmed snapshot
-        else if (boss || d2 < N2 || odd) Z.push([z[0], z[2], z[3]]); // far, unchanged zombies move every other snapshot
+        else if (boss || d2 < N2 || third) Z.push([z[0], z[2], z[3]]); // far (off-screen), unchanged zombies move every third snapshot
       }
       // removals: every zombie this guest may have (from any snapshot sent, confirmed or not) that is gone now. A removal is
       // repeated until the guest confirms a snapshot newer than the last one that still carried the zombie, so one that
@@ -143,7 +144,7 @@ export class HostGame {
       zh.hist.set(q, { zk: cur, ev: this.evSeq, t: performance.now() });
       if (zh.hist.size > 48) zh.hist.delete(zh.hist.keys().next().value);
       const m = Object.assign({}, s, { Z, ZD, zd: bz ? 1 : 0, q, hi: this.hid, E, es: evFrom });
-      if (far && !full) m.ZF = far;
+      if (!full && now - (zh.zfAt || 0) > 550) { far = far || s.Z.map((z) => [z[1], z[2] >> 3, z[3] >> 3]); m.ZF = far; zh.zfAt = now; }
       this.net.sendSnap(p.pid, m);
     }
   }
@@ -237,7 +238,7 @@ export class HostGame {
       if (rj && typeof rj === 'object' && Number.isInteger(rj.pid) && typeof rj.tok === 'string' && rj.tok.length <= 40) {
         const old = this.players.get(rj.pid);
         if (old && old.tok === rj.tok && rj.pid !== this.hostPid && this.net.rebind(pid, rj.pid)) {
-          this.net.markPlayer(rj.pid);
+          this.net.markPlayer(rj.pid); old.build = m.b | 0;
           if (old.ghost) { old.ghost = false; old.inGame = !!old.wasInGame; if (old.inGame) this.catchUp(old); }
           this.sendTo(rj.pid, { t: 'w', pid: rj.pid, tok: old.tok });
           this.pushRoster();
@@ -251,7 +252,7 @@ export class HostGame {
         // the same browser tab (a reload keeps its id) always takes its place back at once, even before the old link goes quiet
         const same = [...this.players.values()].find((q) => nkey(q.name) === nm && q.pid !== this.hostPid && (q.ghost || (sid && q.sid === sid) || (this.net.silentFor && this.net.silentFor(q.pid) > 4000)));
         if (same && this.net.rebind(pid, same.pid)) {
-          this.net.markPlayer(same.pid);
+          this.net.markPlayer(same.pid); same.build = m.b | 0;
           if (same.ghost) { same.ghost = false; same.inGame = !!same.wasInGame; if (same.inGame) this.catchUp(same); }
           this.sendTo(same.pid, { t: 'w', pid: same.pid, tok: same.tok });
           this.pushRoster();
@@ -262,7 +263,7 @@ export class HostGame {
       if (this.players.size >= this.maxP) { const g = [...this.players.values()].filter((q) => q.ghost).sort((a, b) => a.ghostAt - b.ghostAt)[0]; if (g) this.removePlayer(g.pid); }
       this.net.markPlayer(pid);
       this.addPlayer(pid, cleanName(m.name, pid));
-      { const np = this.players.get(pid); if (np && typeof m.sid === 'string' && /^[a-z0-9]{6,24}$/.test(m.sid)) np.sid = m.sid; }
+      { const np = this.players.get(pid); if (np) np.build = m.b | 0; if (np && typeof m.sid === 'string' && /^[a-z0-9]{6,24}$/.test(m.sid)) np.sid = m.sid; }
       if (typeof m.ps === 'string') this.setPass(pid, m.ps);
       return;
     }
@@ -2317,10 +2318,17 @@ export class HostGame {
   sendBackup() {
     const succ = this.successor();
     if (succ == null || !this.net.code) return;
-    if (this.net.canSnap && !this.net.canSnap(succ)) { this.backupAcc = 4; return; } // busy: try again in a second
+    // only on an idle link: the backup must never hold up that player's snapshots (busy: try again in a second)
+    if (this.net.idle ? !this.net.idle(succ) : (this.net.canSnap && !this.net.canSnap(succ))) { this.backupAcc = 4; return; }
+    if (this.bkBusy) return;
     // rounded numbers and no per-hit bookkeeping: about a third of the size
     const j = JSON.stringify(this.backup(), (k, v) => (k === 'pend' || k === 'hitSet' || k === 'zsent' || k === 'zh' || k === '_c' ? undefined : typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 10) / 10 : v));
-    this.net.send(succ, { t: 'bk', j });
+    // build 59+ players get it gzipped (about 5x smaller); older ones the plain text they understand
+    const sp = this.players.get(succ);
+    if (sp && sp.build >= 59 && typeof CompressionStream === 'function') {
+      this.bkBusy = true;
+      gzip64(j).then((z) => { this.bkBusy = false; this.net.send(succ, { t: 'bk', z }); }, () => { this.bkBusy = false; this.net.send(succ, { t: 'bk', j }); });
+    } else this.net.send(succ, { t: 'bk', j });
   }
 
   backup() {
