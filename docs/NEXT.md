@@ -1,6 +1,11 @@
 # Planned work (owner's list, newest first). Do each part only when the owner says "start build N".
 
 ## Added 14 Kasım 2026 (after build 63)
+Split agreed by the owner:
+- **Build 64:** the old build 64 list below + items 5, 6, 7, 8 (leaderboard abuse, harder game, visible events, bodies inside the border).
+- **Build 65:** items 1, 2, 3, 4 (panel control room with voice listening, leaderboard editing, Turkish names in the panel, muting players).
+- **Build 66:** items 9 and 10 only, as a full separate build: the Roblox-like redesign of the whole site, very clean, plus the uncluttered phone screen.
+- Voice: players are told (privacy page + an in-game note) that room voice is temporarily stored for security; the exact wording must match what the code really does (see build 65).
 1. **Panel control room, full room control:** the owner can listen to a room's voice chat; set the current wave; start an intermission (break) of a chosen length that flows on into the next wave by itself; "all that stuff", all seamless. Voice listening needs the privacy page (gizlilik.html) to say so (see notes).
 2. **Panel: edit every leaderboard value** (weekly board, best wave, season XP, clan boards…).
 3. **Panel: Turkish game names stay Turkish** (zombie names, boss names, classes, maps… exactly as in the game).
