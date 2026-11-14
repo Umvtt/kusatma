@@ -12,7 +12,7 @@ const DECAL_SCALE = 0.4;
 // screen are drawn.
 const TILE = 256;                // tile size in decal pixels (640 world pixels)
 const TILE_W = TILE / DECAL_SCALE;
-const TILE_DROP = 140;           // fades (1.5 s each) after the last mark before a tile is empty enough to throw away
+const TILE_DROP = 40;            // fades (1 s each) after the last mark before a tile is thrown away (build 64: ~40 s)
 const MINI_W = 180;
 const SKIN = '#d9a77a';
 // extra shading and small details on characters and zombies (off on the low graphics level)
@@ -66,15 +66,15 @@ export class Renderer {
     if (!keepDecals && !sameMap) this.clearDecals();
   }
 
-  // Blood and scorch marks fade out over about a minute and a half; every few seconds check the ground
+  // Blood and scorch marks fade out: mostly gone in about 20 s, thrown away after 40 s (build 64, was a minute and a half); every few seconds check the ground
   // picture still has pixels (a dropped canvas reads back as transparent) and rebuild it if not.
   upkeep(dt) {
     this.fadeT += dt;
-    if (this.fadeT >= 1.5) {
+    if (this.fadeT >= 1) {
       this.fadeT = 0;
       for (const [k, t] of this.tiles) {
         if (++t.fades > TILE_DROP) { this.tiles.delete(k); continue; }
-        const g = t.g; g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,0.025)'; g.fillRect(0, 0, TILE, TILE); g.globalCompositeOperation = 'source-over';
+        const g = t.g; g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,0.09)'; g.fillRect(0, 0, TILE, TILE); // 0.91 per second: 15 % left after 20 s g.globalCompositeOperation = 'source-over';
       }
     }
     this.checkT += dt;

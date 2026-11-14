@@ -1,8 +1,8 @@
 // Shared game constants. Everything the player sees is Turkish; code identifiers stay English.
 
-export const VERSION = 22;
+export const VERSION = 23;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 63;
+export const BUILD = 64;
 // the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
 export const APP_BUILD = 48;
 export const MAX_PLAYERS = 20;
@@ -115,9 +115,10 @@ export const MEV = {
 export const MEV_ORDER = ['dark', 'drop', 'horde', 'moon'];
 export const DIFFS = {
   kolay: { name: 'Kolay', desc: 'Zombiler daha zayıf ve az.', hp: 0.75, dmg: 0.7, count: 0.8, spd: 0.95, gold: 1.2 },
-  normal: { name: 'Normal', desc: 'Dengeli bir kuşatma.', hp: 1, dmg: 1, count: 1, spd: 1, gold: 1 },
-  zor: { name: 'Zor', desc: 'Daha çok, daha güçlü zombi.', hp: 1.3, dmg: 1.3, count: 1.2, spd: 1.08, gold: 1 },
-  kabus: { name: 'Kâbus', desc: 'Sadece en iyi takımlar için.', hp: 1.7, dmg: 1.6, count: 1.4, spd: 1.15, gold: 0.9 },
+  // build 64: Normal and up are much harder (maxed-out teams found them too easy); Kolay is unchanged
+  normal: { name: 'Normal', desc: 'Zorlu bir kuşatma.', hp: 1.15, dmg: 1.15, count: 1.1, spd: 1.02, gold: 1 },
+  zor: { name: 'Zor', desc: 'Daha çok, daha güçlü zombi.', hp: 1.55, dmg: 1.5, count: 1.3, spd: 1.1, gold: 1 },
+  kabus: { name: 'Kâbus', desc: 'Sadece en iyi takımlar için.', hp: 2.1, dmg: 1.95, count: 1.55, spd: 1.18, gold: 0.9 },
 };
 
 export const PLAYER_COLORS = [
@@ -739,8 +740,11 @@ export const SHIELD_ARC = 1.15;
 export const scaleFor = (n) => { const k = Math.max(1, Math.min(MAX_PLAYERS, n | 0 || 1)) - 1; return { count: 1 + 0.2 * k, hp: 1 + 0.05 * k, boss: 1 + 0.2 * k }; };
 export const zMaxHp = (t, wave, n, hm = 1) => {
   const S = scaleFor(n);
-  return ZTYPES[t].hp * hm * (1 + (Math.max(1, wave) - 1) * 0.12) * (ZTYPES[t].boss ? S.boss : S.hp);
+  // from wave 10 on zombies toughen faster, so a fully upgraded team still has to fight (build 64)
+  return ZTYPES[t].hp * hm * (1 + (Math.max(1, wave) - 1) * 0.12) * (1 + Math.max(0, wave - 10) * 0.05) * (ZTYPES[t].boss ? S.boss : S.hp);
 };
+// zombies hit harder from wave 8 on (build 64): +3.5 % a wave, so armour upgrades don't make late waves harmless
+export const zDmgK = (wave) => 1 + Math.max(0, wave - 8) * 0.035;
 
 // zombie states sent over the network
 export const ZS = { NORMAL: 0, WINDUP: 1, DASH: 2, SLAM: 3, SPIT: 4, FUSE: 5, SUMMON: 6, PHASE: 7, CROUCH: 8, LEAP: 9, BURROW: 10, SCREAM: 11, THROW: 12, CAST: 13 };

@@ -129,8 +129,13 @@ export const ZombieMixin = {
         if (!pointInObstacle(nx, ny, T.r + 2) && !players.some((p) => Math.hypot(p.x - nx, p.y - ny) < 600)) { z.x = nx; z.y = ny; z.st = ZS.NORMAL; z.detT = 0; }
       }
     }
+    // a hacked zombie: ours until its time runs out (checked before anything else, so a stun can't keep it, and its ring, past that)
+    if (z.ally) { z.stunT = 0; z.kvx = 0; z.kvy = 0; this.allyZombie(z, T, dt, grid, hw, HC); return; }
     // knocked back and dazed by a Dipçik
     if (z.stunT > 0) {
+      // a charger dazed while aiming or rushing forgets that charge: it used to rush off afterwards along the old line,
+      // looking stuck facing one way
+      if (z.st === ZS.WINDUP || z.st === ZS.DASH) { z.st = ZS.NORMAL; z.stT = 0; z.hitSet = null; z.cd = Math.max(z.cd, 1); }
       z.stunT -= dt;
       if (z.kvx || z.kvy) {
         moveCircle(z, z.kvx * dt, z.kvy * dt, T.r);
@@ -143,7 +148,6 @@ export const ZombieMixin = {
       return true;
     }
 
-    if (z.ally) { this.allyZombie(z, T, dt, grid, hw, HC); return; }
     // pick the nearest living player now and then
     z.rt -= dt;
     if (z.rt <= 0) {
@@ -533,6 +537,7 @@ export const ZombieMixin = {
     for (const o of this.zombies) { if (o === z || o.dead || o.ally || o.st === ZS.BURROW || (o.id === z.aSkip && z.aSkipT > now)) continue; const d = (o.x - z.x) ** 2 + (o.y - z.y) ** 2; if (d < bd) { bd = d; best = o; } }
     if (!best) { this.wander(z, T, dt); return; }
     const dx = best.x - z.x, dy = best.y - z.y, d = Math.hypot(dx, dy) || 1, reach = T.r + ZTYPES[best.t].r + 4;
+    z.face = Math.atan2(dy, dx);
     if (d > reach) {
       const sp = T.spd * z.sm * 1.15 * dt, st = Math.min(sp, d - reach), bx = z.x, by = z.y;
       if (z.t === 21) { z.x += dx / d * st; z.y += dy / d * st; } // bats fly over everything

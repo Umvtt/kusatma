@@ -1,8 +1,8 @@
 // Fighting on the host: guest hits (checked against what the weapon can do), damage and kills, on-hit effects
 // (burning, poison, chains, marks), abilities, the bash, one-use items, bombs, players going down and being revived.
 // These methods are added to HostGame (see the bottom of host.js).
-import { DIFFS, PLAYER_R, CLASSES, ZTYPES, ZS, isBoss, BOSS_DMG, BASH, weaponOf, abDur, GEAR, GEAR_RANGE, bashCd, stats, clamp } from './config.js';
-import { WORLD, pointInObstacle } from './world.js';
+import { DIFFS, PLAYER_R, CLASSES, ZTYPES, ZS, isBoss, BOSS_DMG, BASH, weaponOf, abDur, GEAR, GEAR_RANGE, bashCd, zDmgK, stats, clamp } from './config.js';
+import { WORLD, pointInObstacle, escapePocket } from './world.js';
 import { num, r2, REVIVE_R, REVIVE_TIME } from './host-util.js';
 
 export const CombatMixin = {
@@ -455,7 +455,11 @@ export const CombatMixin = {
       for (const [, z] of cand.slice(0, n)) {
         z.ally = p.pid; z.allyUntil = now + dur; z.allyK = L >= 2 ? 2 : 1; z.allyB = L >= 3 ? 1.5 : 1; z.tg = null; took++;
         // whatever it was in the middle of (a charge, a jump, a spit, a scream, a fuse...) stops here, so it never stays frozen in that pose
+        const was = z.st;
         z.st = ZS.NORMAL; z.stT = 0; z.stunT = 0; z.kvx = 0; z.kvy = 0; z.rageT = 0; z.cd = Math.min(z.cd || 0, 0.25); z.hitSet = null;
+        // nor does it keep being slowed, frozen or marked by us, and a Hayalet taken inside a wall is put back on open ground
+        z.slowUntil = 0; z.frozenT = 0; z.markT = 0; z.detT = 0; z.emT = 0;
+        if (was === ZS.PHASE && pointInObstacle(z.x, z.y, ZTYPES[z.t].r)) escapePocket(z, ZTYPES[z.t].r, 60);
       }
       // in PvP: enemies in the cone lose their abilities for a moment, slow down and can't hide
       for (const q of this.foesOf(p)) {
@@ -517,6 +521,7 @@ export const CombatMixin = {
     p.lastBy = src !== undefined ? src : this.curZ ? this.curZ.t : p.lastBy;
     const sprint = p.cls === 'izci' && (p.lv.ab | 0) >= 3 && this.time < p.abUntil;
     if (this.curBoss) dmg *= BOSS_DMG;
+    if (this.mode !== 'pvp') dmg *= zDmgK(this.wave);
     const pf = this.pc(p).fx || {};
     if (pf.thorns && this.curZ && !this.curZ.dead && Math.hypot(this.curZ.x - p.x, this.curZ.y - p.y) < 160) this.damage(this.curZ, dmg * pf.thorns * 3, p);
     let hit = dmg * DIFFS[this.diff].dmg * (this.time < p.shieldUntil ? 0.3 : 1) * this.pc(p).st.armor * (sprint ? 0.4 : 1) * (p.spinUntil > this.time ? 0.6 : 1) * (p.guardUntil > this.time ? 0.7 : 1);
@@ -647,6 +652,19 @@ export const CombatMixin = {
   },
 
   updateRevives(dt) {
+    // a body lying where the moving arena edge has passed is carried back inside, so it can always be reached and revived
+    // (checked twice a second; p.sp makes the player's own screen take the new spot)
+    this.bodyT = (this.bodyT || 0) - dt;
+    if (this.bodyT <= 0) {
+      this.bodyT = 0.5; const B = WORLD.bounds, m = PLAYER_R + 24;
+      for (const p of this.inGame()) {
+        if (p.alive || !B) continue;
+        const nx = Math.max(B.x0 + m, Math.min(B.x1 - m, p.x)), ny = Math.max(B.y0 + m, Math.min(B.y1 - m, p.y));
+        if (nx === p.x && ny === p.y) continue;
+        p.x = nx; p.y = ny; if (pointInObstacle(p.x, p.y, PLAYER_R)) escapePocket(p, PLAYER_R, 60);
+        p.sp = (p.sp | 0) + 1; p.spAt = this.time; p.acmSp = p.sp;
+      }
+    }
     if (this.mode === 'hc') return; // Tek Can: whoever goes down stays down
     const ps = this.inGame();
     for (const p of ps) {

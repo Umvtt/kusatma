@@ -548,7 +548,8 @@ export class ClientGame {
       z.x += (z.tx - z.x) * kf; z.y += (z.ty - z.y) * kf;
       const moved = Math.hypot(z.x - ox, z.y - oy);
       z.walk += moved * 0.12;
-      if (z.st === ZS.WINDUP || z.st === ZS.DASH && z.t === 2) z.face = lerpAngle(z.face, z.cdir, 0.3);
+      if ((z.fl & 4096) && z.sface) z.face = lerpAngle(z.face, z.sface, 0.3); // a hacked zombie turns to the zombie it fights
+      else if (z.st === ZS.WINDUP || z.st === ZS.DASH && z.t === 2) z.face = lerpAngle(z.face, z.cdir, 0.3);
       else if (moved > 0.05) z.face = lerpAngle(z.face, Math.atan2(z.y - oy, z.x - ox), 0.18);
       // our own hits not confirmed by the host yet: the host has applied them well within 0.45 s, so anything older was
       // damage it reduced (armour, elites, shields) - forget it, or the zombie stays "dead" here with a sliver of health

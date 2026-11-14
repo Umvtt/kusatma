@@ -721,6 +721,22 @@ function liveNews() {
   b.textContent = LIVE.news.on ? LIVE.news.text : '';
   b.hidden = !(LIVE.news.on && LIVE.news.text);
 }
+// the owner's events (gem weekends, shop sales): a bright strip at the top of every screen while one is on (build 64).
+// In a game it is a smaller pill shown only between waves, so it never covers the fight.
+function evStrip() {
+  const sh = LIVE.shop, now = Date.now(), b = $('#ev-strip'); if (!b) return;
+  let t = '', until = 0;
+  if (sh && sh.mul > 1 && (!sh.until || sh.until > now)) { t = `${sh.mul}× ELMAS ETKİNLİĞİ: her dalga ${sh.mul} kat elmas`; until = sh.until || 0; }
+  else if (sh && sh.saleAll > 0 && sh.saleUntil > now) { t = `MAĞAZADA %${sh.saleAll} İNDİRİM`; until = sh.saleUntil; }
+  const inFight = S.screen === 'game' && S.game && S.game.phase === 'combat';
+  const show = !!t && !inFight;
+  b.hidden = !show; document.body.classList.toggle('has-ev', show);
+  if (!show) return;
+  b.classList.toggle('mini', S.screen === 'game');
+  $('#evs-t').textContent = t;
+  if (until) { const s = Math.max(0, Math.round((until - now) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); $('#evs-left').textContent = 'bitmesine ' + (d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : `${m} dk ${s % 60} sn`); } else $('#evs-left').textContent = '';
+}
+setInterval(evStrip, 1000);
 // ---------- room invites: send to online friends, and the pop-up when a friend calls you ----------
 function invDraw() {
   // online friends first; offline ones can be called too (their phone gets a notice that joins the room when tapped)
