@@ -2,7 +2,7 @@
 
 export const VERSION = 23;
 // Increase by one with every release; shown in the bottom-left corner.
-export const BUILD = 70;
+export const BUILD = 71;
 // the Android app's own build: its download is named after it ("Kuşatma 44.0.apk")
 export const APP_BUILD = 49;
 export const MAX_PLAYERS = 20;
@@ -131,6 +131,8 @@ export const PLAYER_COLORS = [
 export const CLASS_ORDER = ['asker', 'doktor', 'tamirci', 'nisanci', 'kalkanci', 'alevci', 'bombaci', 'izci', 'muhendis', 'kimyager', 'komutan', 'tesla', 'avci', 'kilicci', 'egitmen', 'ajan', 'hacker'];
 
 // kind: 'b' bullet, 'f' flame, 'g' grenade
+// each class's own colour (lobby cards, menus); a new class adds its colour here (build 70: moved from lobby.js)
+export const CLASS_COL = { asker: '#ff6b2c', doktor: '#22c55e', tamirci: '#38bdf8', nisanci: '#a78bfa', kalkanci: '#60a5fa', alevci: '#f97316', bombaci: '#ef4444', izci: '#facc15', muhendis: '#2dd4bf', kimyager: '#84cc16', komutan: '#f59e0b', tesla: '#22d3ee', avci: '#a3e635', kilicci: '#f43f5e', egitmen: '#e879f9', ajan: '#94a3b8', hacker: '#4cf0d0' };
 export const CLASSES = {
   asker: {
     name: 'Asker', weapon: 'Tüfek', tiers: ['Tüfek', 'Piyade tüfeği', 'Savaş tüfeği'], desc: 'Dengeli ve dayanıklı. Her duruma uyar.',
@@ -696,32 +698,39 @@ export const upgradeCost = (u, lv) => Math.round(u.base * Math.pow(1.55, lv));
 
 // t index is sent over the network
 export const ZTYPES = [
-  { name: 'Yürüyen', hp: 40, spd: 72, r: 15, dps: 14, gold: 5, col: '#6f8a58', dark: '#3e5233' },
-  { name: 'Koşucu', hp: 24, spd: 140, r: 12, dps: 9, gold: 7, col: '#a5b56b', dark: '#5d6a35' },
-  { name: 'İri', hp: 260, spd: 52, r: 25, dps: 30, gold: 25, col: '#55704c', dark: '#2c3d28' },
-  { name: 'Dev', hp: 1600, spd: 62, r: 40, dps: 50, gold: 150, col: '#8a4a3c', dark: '#4a221a' },
-  { name: 'Tükürücü', hp: 50, spd: 88, r: 14, dps: 6, gold: 12, col: '#8f9a3a', dark: '#4d5420' },
-  { name: 'Patlayan', hp: 45, spd: 96, r: 15, dps: 0, gold: 10, col: '#c07a3a', dark: '#6a3a18' },
-  { name: 'Kalkanlı', hp: 120, spd: 62, r: 18, dps: 18, gold: 18, col: '#6a7682', dark: '#2d3540' },
-  { name: 'Çağırıcı', hp: 90, spd: 70, r: 16, dps: 8, gold: 25, col: '#7a5a8a', dark: '#352440' },
-  { name: 'Kraliçe', hp: 1400, spd: 55, r: 36, dps: 30, gold: 150, col: '#8a9a2a', dark: '#3d4512', boss: true },
-  { name: 'Koç', hp: 1800, spd: 72, r: 36, dps: 40, gold: 150, col: '#7a4a32', dark: '#36190f', boss: true },
-  { name: 'Hayalet', hp: 55, spd: 95, r: 14, dps: 11, gold: 14, col: '#b9c8d6', dark: '#5a6a7a' },
-  { name: 'Zırhlı', hp: 190, spd: 58, r: 19, dps: 20, gold: 22, col: '#6e7a5a', dark: '#2f3826' },
-  { name: 'Sıçrayıcı', hp: 60, spd: 88, r: 14, dps: 10, gold: 14, col: '#8f7a4a', dark: '#4a3c20' },
-  { name: 'Doğurgan', hp: 170, spd: 50, r: 22, dps: 14, gold: 20, col: '#9a8a5a', dark: '#544824' },
-  { name: 'Sürüngen', hp: 14, spd: 165, r: 9, dps: 6, gold: 2, col: '#7a9a5a', dark: '#3a4a26' },
-  { name: 'Şifacı', hp: 85, spd: 66, r: 15, dps: 5, gold: 22, col: '#6aa88a', dark: '#2a5040' },
-  { name: 'Kazıcı', hp: 75, spd: 90, r: 15, dps: 14, gold: 16, col: '#8a6a3a', dark: '#4a361a' },
-  { name: 'Çığlıkçı', hp: 65, spd: 78, r: 15, dps: 6, gold: 18, col: '#b07a8a', dark: '#5a3040' },
-  { name: 'Donmuş', hp: 100, spd: 62, r: 17, dps: 12, gold: 18, col: '#9ec8e0', dark: '#4a6a80' },
-  { name: 'Dev Hurda', hp: 2000, spd: 50, r: 44, dps: 50, gold: 170, col: '#6a5a4a', dark: '#2f2820', boss: true },
-  { name: 'Cadı', hp: 1500, spd: 74, r: 30, dps: 25, gold: 170, col: '#6a4a8a', dark: '#2a1a3a', boss: true },
-  { name: 'Yarasa', hp: 22, spd: 150, r: 10, dps: 7, gold: 6, col: '#5a4a5a', dark: '#2a1e2a' },
-  { name: 'Zombi köpek', hp: 34, spd: 185, r: 12, dps: 11, gold: 6, col: '#7a6a4a', dark: '#3a2e1e' },
-  { name: 'Dev Solucan', hp: 1700, spd: 70, r: 42, dps: 40, gold: 180, col: '#a06a6a', dark: '#4a2a2a', boss: true },
+  { key: 'walker', name: 'Yürüyen', hp: 40, spd: 72, r: 15, dps: 14, gold: 5, col: '#6f8a58', dark: '#3e5233'  },
+  { key: 'runner', name: 'Koşucu', hp: 24, spd: 140, r: 12, dps: 9, gold: 7, col: '#a5b56b', dark: '#5d6a35' , spawn: { from: 2, base: 0.08, step: 0.02, max: 0.28, off: 0 } },
+  { key: 'big', name: 'İri', hp: 260, spd: 52, r: 25, dps: 30, gold: 25, col: '#55704c', dark: '#2c3d28' , spawn: { from: 3, base: 0.03, step: 0.01, max: 0.14, off: 0 } },
+  { key: 'giant', name: 'Dev', hp: 1600, spd: 62, r: 40, dps: 50, gold: 150, col: '#8a4a3c', dark: '#4a221a'  },
+  { key: 'spitter', name: 'Tükürücü', hp: 50, spd: 88, r: 14, dps: 6, gold: 12, col: '#8f9a3a', dark: '#4d5420' , spawn: { from: 4, base: 0.02, step: 0.01, max: 0.12, off: 0 } },
+  { key: 'boomer', name: 'Patlayan', hp: 45, spd: 96, r: 15, dps: 0, gold: 10, col: '#c07a3a', dark: '#6a3a18' , spawn: { from: 5, base: 0.02, step: 0.01, max: 0.1, off: 5 } },
+  { key: 'shield', name: 'Kalkanlı', hp: 120, spd: 62, r: 18, dps: 18, gold: 18, col: '#6a7682', dark: '#2d3540' , spawn: { from: 6, base: 0.02, step: 0.01, max: 0.1, off: 6 } },
+  { key: 'summoner', name: 'Çağırıcı', hp: 90, spd: 70, r: 16, dps: 8, gold: 25, col: '#7a5a8a', dark: '#352440' , spawn: { from: 8, base: 0.015, step: 0.005, max: 0.05, off: 8 } },
+  { key: 'queen', name: 'Kraliçe', hp: 1400, spd: 55, r: 36, dps: 30, gold: 150, col: '#8a9a2a', dark: '#3d4512', boss: true  },
+  { key: 'ram', name: 'Koç', hp: 1800, spd: 72, r: 36, dps: 40, gold: 150, col: '#7a4a32', dark: '#36190f', boss: true  },
+  { key: 'ghost', name: 'Hayalet', hp: 55, spd: 95, r: 14, dps: 11, gold: 14, col: '#b9c8d6', dark: '#5a6a7a' , spawn: { from: 7, base: 0.015, step: 0.005, max: 0.05, off: 7 } },
+  { key: 'armored', name: 'Zırhlı', hp: 190, spd: 58, r: 19, dps: 20, gold: 22, col: '#6e7a5a', dark: '#2f3826' , spawn: { from: 9, base: 0.015, step: 0.005, max: 0.05, off: 9 } },
+  { key: 'leaper', name: 'Sıçrayıcı', hp: 60, spd: 88, r: 14, dps: 10, gold: 14, col: '#8f7a4a', dark: '#4a3c20' , spawn: { from: 6, base: 0.02, step: 0.006, max: 0.06, off: 6 } },
+  { key: 'bloater', name: 'Doğurgan', hp: 170, spd: 50, r: 22, dps: 14, gold: 20, col: '#9a8a5a', dark: '#544824' , spawn: { from: 8, base: 0.012, step: 0.004, max: 0.04, off: 8 } },
+  { key: 'crawler', name: 'Sürüngen', hp: 14, spd: 165, r: 9, dps: 6, gold: 2, col: '#7a9a5a', dark: '#3a4a26' , spawn: { from: 12, base: 0.01, step: 0.003, max: 0.03, off: 12 } },
+  { key: 'healer', name: 'Şifacı', hp: 85, spd: 66, r: 15, dps: 5, gold: 22, col: '#6aa88a', dark: '#2a5040' , spawn: { from: 10, base: 0.01, step: 0.003, max: 0.025, off: 10 } },
+  { key: 'digger', name: 'Kazıcı', hp: 75, spd: 90, r: 15, dps: 14, gold: 16, col: '#8a6a3a', dark: '#4a361a' , spawn: { from: 7, base: 0.012, step: 0.004, max: 0.04, off: 7 } },
+  { key: 'screamer', name: 'Çığlıkçı', hp: 65, spd: 78, r: 15, dps: 6, gold: 18, col: '#b07a8a', dark: '#5a3040' , spawn: { from: 9, base: 0.01, step: 0.003, max: 0.025, off: 9 } },
+  { key: 'frozen', name: 'Donmuş', hp: 100, spd: 62, r: 17, dps: 12, gold: 18, col: '#9ec8e0', dark: '#4a6a80' , spawn: { from: 6, base: 0.012, step: 0.004, max: 0.04, off: 6 } },
+  { key: 'scrap', name: 'Dev Hurda', hp: 2000, spd: 50, r: 44, dps: 50, gold: 170, col: '#6a5a4a', dark: '#2f2820', boss: true  },
+  { key: 'witch', name: 'Cadı', hp: 1500, spd: 74, r: 30, dps: 25, gold: 170, col: '#6a4a8a', dark: '#2a1a3a', boss: true  },
+  { key: 'bat', name: 'Yarasa', hp: 22, spd: 150, r: 10, dps: 7, gold: 6, col: '#5a4a5a', dark: '#2a1e2a' , spawn: { from: 7, base: 0.008, step: 0.003, max: 0.025, off: 7, pack: 4 } },
+  { key: 'dog', name: 'Zombi köpek', hp: 34, spd: 185, r: 12, dps: 11, gold: 6, col: '#7a6a4a', dark: '#3a2e1e' , spawn: { from: 5, base: 0.008, step: 0.003, max: 0.025, off: 5, pack: 3 } },
+  { key: 'worm', name: 'Dev Solucan', hp: 1700, spd: 70, r: 42, dps: 40, gold: 180, col: '#a06a6a', dark: '#4a2a2a', boss: true  },
 ];
 ZTYPES[3].boss = true;
+// build 70: zombies by name (ZK.dog === 22) for new code, instead of bare numbers
+export const ZK = Object.fromEntries(ZTYPES.map((z, i) => [z.key, i]));
+// the order wave rolls go through the spawn table (each type's `spawn` rule above); a new zombie is added here
+// (anywhere: the order only shifts the odds a little), anything left over is a Yürüyen
+export const SPAWN_ORDER = ['bat', 'dog', 'digger', 'screamer', 'frozen', 'big', 'spitter', 'boomer', 'shield', 'summoner', 'ghost', 'armored', 'leaper', 'bloater', 'healer', 'crawler', 'runner'];
+// the chance of one zombie of this type in wave w (0 before its first wave)
+export function spawnChance(t, w) { const s = ZTYPES[t].spawn; return s && w >= s.from ? Math.min(s.max, s.base + (w - s.off) * s.step) : 0; }
 export const BOSS_ORDER = [3, 8, 9, 19, 20, 23]; // Dev, Kraliçe, Koç, Dev Hurda, Cadı, Dev Solucan, then repeat
 // build 36: bosses are tougher (1.8x health; the host also gives them 1.4x damage and 35% faster attacks)
 for (const t of BOSS_ORDER) { ZTYPES[t].boss = true; ZTYPES[t].hp = Math.round(ZTYPES[t].hp * 1.8); }

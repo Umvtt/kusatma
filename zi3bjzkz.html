@@ -1164,6 +1164,11 @@ fxScan(document);new MutationObserver(ms=>{for(const m of ms)for(const n of m.ad
 const KMODE={normal:'Classic',endless:'Survival',boss:'Boss rush',hc:'One life',daily:'Daily challenge',sandbox:'Test area'},KMEV={dark:'Karartma',drop:'İkmal uçağı',horde:'Sürü akını',moon:'Kanlı ay'};/* the game's own Turkish names (build 65) */
 const KGEAR=['El bombası','Barikat','İlk yardım','Hava saldırısı'];
 const KZT=[['0','Yürüyen'],['1','Koşucu'],['2','İri'],['4','Tükürücü'],['5','Patlayan'],['6','Kalkanlı'],['7','Çağırıcı'],['10','Hayalet'],['11','Zırhlı'],['12','Sıçrayıcı'],['13','Doğurgan'],['14','Sürüngen'],['15','Şifacı'],['16','Kazıcı'],['17','Çığlıkçı'],['18','Donmuş']],KBOSS=[['0','Random boss'],['3','Dev'],['8','Kraliçe'],['9','Koç'],['19','Dev Hurda'],['20','Cadı']];
+/* build 70: class, map, zombie and boss names come from the game's own config, so new content shows up here by itself
+   (the lists above are only a fallback if it cannot be loaded) */
+import('./js/config.js').then((C)=>{for(const id of C.CLASS_ORDER)KCN[id]=C.CLASSES[id].name;for(const id of C.MAP_ORDER)KMN[id]=C.MAPS[id].name;
+  for(const[id,d]of Object.entries(C.DIFFS||{}))if(d&&d.name)KDN[id]=d.name;
+  KZT.length=0;C.ZTYPES.forEach((z,i)=>{if(!C.BOSS_ORDER.includes(i))KZT.push([String(i),z.name]);});KBOSS.length=1;for(const i of C.BOSS_ORDER)KBOSS.push([String(i),C.ZTYPES[i].name]);}).catch(()=>{});
 let CTL={cards:new Map(),t:0};
 function ctlDraw(cv,mm){const g=cv.getContext('2d'),W=cv.width,H=cv.height;g.fillStyle='#0b0b0b';g.fillRect(0,0,W,H);if(!mm){g.fillStyle='#555';g.font='12px system-ui';g.textAlign='center';g.fillText('No map yet',W/2,H/2);return;}
   const[x0,y0,x1,y1]=mm.b,s=Math.min(W/(x1-x0),H/(y1-y0)),ox=(W-(x1-x0)*s)/2,oy=(H-(y1-y0)*s)/2,X=x=>ox+(x-x0)*s,Y=y=>oy+(y-y0)*s;
