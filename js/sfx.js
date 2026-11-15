@@ -182,6 +182,9 @@ export function flame(level) {
 }
 export function waveStart() { const v = vol(null, null, 0.45); if (v) { tone(v, 0.9, 110, 90, 'sawtooth'); tone(v * 0.7, 0.9, 165, 135, 'sawtooth', 0.05); } }
 export function waveClear() { const v = vol(null, null, 0.35); if (v) { tone(v, 0.2, 440, 440, 'triangle'); tone(v, 0.35, 660, 660, 'triangle', 0.15); } }
+// build 67: the luck wheel: a click per slice passing the pointer, a short fanfare for the prize
+export function spinTick() { const v = vol(null, null, 0.1); if (v) { burst(v, 0.025, 3200, 4, 'bandpass'); tone(v * 0.5, 0.03, 1500, 1100, 'triangle'); } }
+export function spinWin(big) { const v = vol(null, null, 0.3); if (!v) return; const f = big ? [523, 659, 784, 1047, 1319] : [523, 659, 784, 1047]; f.forEach((x, i) => tone(v, 0.22, x, x, 'triangle', i * 0.09)); }
 export function buy() { const v = vol(null, null, 0.25); if (v) { tone(v, 0.08, 880, 880, 'square'); tone(v, 0.12, 1320, 1320, 'square', 0.06); } }
 export function down() { const v = vol(null, null, 0.4); if (v) tone(v, 0.6, 400, 80, 'sawtooth'); }
 export function summon(x, y) { const v = vol(x, y, 0.35); if (v) { tone(v, 0.7, 220, 110, 'sine'); tone(v * 0.6, 0.7, 330, 165, 'triangle', 0.05); burst(v * 0.3, 0.5, 600, 4, 'bandpass'); } }

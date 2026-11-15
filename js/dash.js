@@ -7,6 +7,7 @@ import { CLASSES, CLASS_ORDER, DIFFS, MAPS, BUILD, dailyRules, league, LEAGUES, 
 import { drawCharacter, drawPet, drawMapPreview } from './render.js';
 import { msgPop, callFriend } from './social.js';
 import { setTheme } from './app.js';
+import * as sfx from './sfx.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -382,7 +383,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Baştan yenilenmiş, sade görünüm: düz ve dolu renkler, parlamalar ve renk geçişleri yok. Butonlar basınca gerçekten basılıyor, telefonda dokununca hafif titriyor.', 'Temalar artık her yerde: menü, lobi, cephanelik, oyun ekranı ve pencereler. Her temanın kendi süsü var: kar yağıyor, kan damlıyor, ateşböcekleri uçuyor, kum esiyor, neon parlıyor, altın ışıldıyor. Profiller de sahibinin temasıyla açılıyor.', 'Ana sayfa yeni: en üstte arkadaşların, altında resimli oyun kutuları (Hızlı oyna, Tek başına, Oda kur, modlar, sıralama). Telefonda alttaki menü uygulama gibi.', 'Arkadaşınla sesli görüşmedeyken oda sesli sohbeti açılamaz; arama başlarken oda sesli sohbeti kendiliğinden kapanır.', 'Arkadaş mesajları ekranda kart olarak çıkıyor ve oradan yanıtlanabiliyor; arkadaşlarını sesli arayabilirsin.'];
+const WHATS_NEW = ['Şans çarkı yenilendi: kendi ekranında açılıyor, büyük çark, ışıklar, tık sesleri ve konfeti.', 'Çevrimdışı bir arkadaşını aradığında telefonuna arama bildirimi gidiyor; oyunu açınca arama çalıyor.', 'Baştan yenilenmiş, sade görünüm: düz ve dolu renkler, parlamalar ve renk geçişleri yok. Butonlar basınca gerçekten basılıyor, telefonda dokununca hafif titriyor.', 'Temalar artık her yerde: menü, lobi, cephanelik, oyun ekranı ve pencereler. Her temanın kendi süsü var: kar yağıyor, kan damlıyor, ateşböcekleri uçuyor, kum esiyor, neon parlıyor, altın ışıldıyor. Profiller de sahibinin temasıyla açılıyor.', 'Ana sayfa yeni: en üstte arkadaşların, altında resimli oyun kutuları (Hızlı oyna, Tek başına, Oda kur, modlar, sıralama). Telefonda alttaki menü uygulama gibi.', 'Arkadaşınla sesli görüşmedeyken oda sesli sohbeti açılamaz; arama başlarken oda sesli sohbeti kendiliğinden kapanır.', 'Arkadaş mesajları ekranda kart olarak çıkıyor ve oradan yanıtlanabiliyor; arkadaşlarını sesli arayabilirsin.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -436,81 +437,161 @@ export function bannerEl(id, cls) {
   return d;
 }
 
-// ---------- the daily spin wheel ----------
+// ---------- the daily spin wheel (build 67: its own full-screen view, opened from a small card on the home page) ----------
 const SPIN = [['10', 'gem'], ['25', 'gem'], ['50', 'gem'], ['100', 'gem'], ['250', 'gem'], ['120 XP', 'xp'], ['350 XP', 'xp'], ['Unvan', 'item'], ['Çerçeve', 'item']];
-const SPIN_COL = ['#24402e', '#1f3a4a', '#2f2a4a', '#4a2a2a', '#5a4a12', '#203a3a', '#2a3a20', '#4a2a44', '#5a3a14'];
-function drawWheel(cv, rot) {
+const SPIN_COL = ['#2563eb', '#0891b2', '#0d9488', '#7c3aed', '#db2777', '#d97706', '#ea580c', '#9333ea', '#e11d48'];
+const SPIN_IC = { gem: '💎', xp: '⭐', item: '🎁' };
+// the wheel: flat slices with an icon and the prize, a rim of lights (blinking while it turns), a hub in the middle
+function drawWheel(cv, rot, blink) {
   const S = cv.clientWidth || 180, dpr = Math.min(2, window.devicePixelRatio || 1);
-  if (cv.width !== S * dpr) { cv.width = S * dpr; cv.height = S * dpr; }
+  if (cv.width !== Math.round(S * dpr)) { cv.width = Math.round(S * dpr); cv.height = Math.round(S * dpr); }
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, S, S);
-  const r = S / 2 - 6, n = SPIN.length, a0 = -Math.PI / 2;
-  g.save(); g.translate(S / 2, S / 2); g.rotate(rot);
+  const c = S / 2, rim = Math.max(6, S * 0.045), r = c - rim - 2, n = SPIN.length, a0 = -Math.PI / 2;
+  g.fillStyle = '#14151a'; g.beginPath(); g.arc(c, c, c - 1, 0, Math.PI * 2); g.fill();
+  g.save(); g.translate(c, c); g.rotate(rot);
   for (let i = 0; i < n; i++) {
     const a = a0 + (i / n) * Math.PI * 2 - Math.PI / n, b = a + Math.PI * 2 / n;
     g.fillStyle = SPIN_COL[i]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, r, a, b); g.closePath(); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,0.15)'; g.lineWidth = 1; g.stroke();
-    g.save(); g.rotate(a0 + (i / n) * Math.PI * 2); g.fillStyle = SPIN[i][1] === 'item' ? '#ffd34d' : '#ece6d6'; g.font = `700 ${Math.round(S / 17)}px Inter, system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle';
-    g.fillText(SPIN[i][0], r - 8, 0); g.restore();
+    g.fillStyle = 'rgba(0,0,0,0.14)'; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, r, a + (b - a) / 2, b); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = Math.max(1, S / 220); g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * r, Math.sin(a) * r); g.stroke();
+    // icon by the rim, the prize between it and the hub, shrunk until it fits
+    g.save(); g.rotate(a0 + (i / n) * Math.PI * 2); g.textBaseline = 'middle';
+    const inner = S >= 240 ? S * 0.135 + 16 : Math.max(10, S * 0.075) + 6, icS = Math.round(S / 14); // the ÇEVİR button covers 27 % of the wheel
+    g.textAlign = 'center'; g.font = `${icS}px system-ui, sans-serif`; g.fillText(SPIN_IC[SPIN[i][1]], r - icS * 0.85, 0);
+    if (S >= 140) {
+      const outer = r - icS * 1.6, room = outer - inner; let fs = Math.round(S / 17);
+      g.font = `800 ${fs}px Montserrat, Inter, system-ui, sans-serif`;
+      while (fs > 8 && g.measureText(SPIN[i][0]).width > room) { fs--; g.font = `800 ${fs}px Montserrat, Inter, system-ui, sans-serif`; }
+      g.textAlign = 'center'; g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowOffsetY = 1; g.fillText(SPIN[i][0], (inner + outer) / 2, 0); g.shadowColor = 'transparent';
+    }
+    g.restore();
   }
   g.restore();
-  g.fillStyle = '#ece6d6'; g.beginPath(); g.arc(S / 2, S / 2, 12, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = '#ffd34d'; g.lineWidth = 4; g.beginPath(); g.arc(S / 2, S / 2, r + 2, 0, Math.PI * 2); g.stroke();
-  g.fillStyle = '#ff6b2c'; g.beginPath(); g.moveTo(S / 2 - 10, 2); g.lineTo(S / 2 + 10, 2); g.lineTo(S / 2, 22); g.closePath(); g.fill();
+  // rim with lights
+  g.strokeStyle = '#2a2c33'; g.lineWidth = rim; g.beginPath(); g.arc(c, c, r + rim / 2, 0, Math.PI * 2); g.stroke();
+  const L = n * 2;
+  for (let k = 0; k < L; k++) {
+    const a = (k / L) * Math.PI * 2, on = blink == null ? true : (k + blink) % 2 === 0;
+    g.fillStyle = on ? '#ffe08a' : '#6b5a2a'; g.beginPath(); g.arc(c + Math.cos(a) * (r + rim / 2), c + Math.sin(a) * (r + rim / 2), Math.max(2, rim * 0.28), 0, Math.PI * 2); g.fill();
+  }
+  // hub
+  g.fillStyle = '#f3f5fb'; g.beginPath(); g.arc(c, c, Math.max(10, S * 0.075), 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#2a2c33'; g.beginPath(); g.arc(c, c, Math.max(4, S * 0.03), 0, Math.PI * 2); g.fill();
 }
 let spinRot = 0;
-// the prize window after a spin: a big icon, what you got, your balance and the next spin
-function spinPop(j, what, again) {
-  const old = document.querySelector('.spin-pop'); if (old) old.remove();
-  const bg = el('div', 'spin-pop'), box = el('div', 'spin-box dp-card'), ic = el('div', 'spin-ic');
-  if (j.it && ITEMS[j.it]) { const it = ITEMS[j.it]; ic.append(el('span', 'spin-it', it.name)); ic.classList.add('item'); }
-  else if (j.x) { ic.append(el('b', '', '+' + fmt(j.x)), el('span', '', 'XP')); ic.classList.add('xp'); }
-  else { ic.append(gemIcon(54), el('b', '', '+' + fmt(j.g))); ic.classList.add('gem'); }
-  const bal = el('p', 'spin-bal'); bal.append(document.createTextNode('Bakiyen: '), gemIcon(15), el('b', '', fmt(ME.gems)));
-  const s = ME.spin || {}, max = LIVE.shop && LIVE.shop.spinMax != null ? LIVE.shop.spinMax : 5;
-  const left = Math.max(0, max - (s.n | 0));
-  const acts = el('div', 'row spin-acts');
-  const close = btn('btn', 'Kapat', () => bg.remove());
-  acts.append(close);
-  if (left > 0 && !again.disabled) { const a = btn('btn primary', '', () => { bg.remove(); again.click(); }); a.append(document.createTextNode('Tekrar çevir · '), gemIcon(14), el('b', '', fmt(LIVE.shop && LIVE.shop.spinP != null ? LIVE.shop.spinP : 100))); acts.append(a); }
-  box.append(el('p', 'eyebrow', 'Şans çarkı'), ic, el('h3', '', what), bal, el('p', 'dim', left > 0 ? `Bugün ${left} çevirme hakkın kaldı.` : 'Bugünlük çevirmelerin bitti. Yarın ücretsiz çevirme yenilenir.'), acts);
-  bg.append(box); bg.addEventListener('click', (e) => { if (e.target === bg) bg.remove(); });
-  document.body.append(bg); close.focus();
-}
+const spinState = () => { const sh = LIVE.shop || {}, s = ME.spin || { free: true, n: 0 }; const max = sh.spinMax == null ? 5 : sh.spinMax, price = sh.spinP == null ? 100 : sh.spinP; return { s, max, price, left: Math.max(0, max - (s.n | 0)) }; };
+// the small card on the home page: a slowly turning wheel, today's state and one button that opens the wheel
 function spinCard() {
-  const c = el('div', 'dp-card spin-card'), cv = el('canvas', 'wheel');
+  const { s, left } = spinState();
+  const c = el('div', 'dp-card spin-card' + (s.free ? ' ready' : '')), cv = el('canvas', 'wheel');
   const t = el('div', 'spin-t');
-  const sp = ME.spin || { free: true, n: 0 }, sh = LIVE.shop || {}, price = sh.spinP == null ? 100 : sh.spinP, max = sh.spinMax == null ? 5 : sh.spinMax;
-  const hd = el('h3', '', sp.free ? 'Bugünkü ücretsiz çevirmen hazır!' : 'Bugünkü ücretsiz çevirmeni kullandın');
-  t.append(el('p', 'eyebrow', 'Şans çarkı'), hd,
-    el('p', 'dim', `Ekstra çevirme ${price} elmas (günde en çok ${max}).`));
-  { const pr = el('div', 'spin-prizes'); for (const [v, k] of SPIN) { const c2 = el('span', 'sp-chip ' + k); if (k === 'gem') c2.append(gemIcon(13), el('b', '', v)); else c2.append(el('b', '', v)); pr.append(c2); } t.append(pr); }
-  const b = btn('btn primary' + (sp.free ? '' : ' gem-btn'), '');
-  const label = () => { b.replaceChildren(); const s = ME.spin || sp; hd.textContent = s.free ? 'Bugünkü ücretsiz çevirmen hazır!' : (s.n | 0) >= max ? 'Bugünlük çevirmelerin bitti' : 'Ücretsiz çevirmeni kullandın'; if (s.free) b.textContent = 'Ücretsiz çevir'; else if ((s.n | 0) >= max) { b.textContent = 'Yarın tekrar gel'; b.disabled = true; } else { b.append(document.createTextNode('Tekrar çevir · '), gemIcon(14), el('b', '', fmt(price))); } };
-  label();
-  b.onclick = async () => {
-    const s = ME.spin || sp; b.disabled = true;
-    const j = await acctOp('spin', { buy: s.free ? 0 : 1 });
-    if (!j.ok) { b.disabled = false; H.toast({ gems: 'Yeterli elmasın yok.', max: 'Bugünlük bu kadar. Yarın gel!', used: 'Ücretsiz çevirmeni kullandın.', slow: 'Biraz bekle.' }[j.reason] || 'Çevrilemedi.', 'bad'); return; }
-    ME.spin = { free: false, n: j.n }; ME.gems = j.gems;
-    if (j.it && !ME.own.includes(j.it)) ME.own.push(j.it); if (j.pass) ME.pass = j.pass;
-    // spin: several turns, then stop with the prize under the pointer
-    const n = SPIN.length, target = -(j.i / n) * Math.PI * 2, from = spinRot, to = target - Math.PI * 2 * (5 + Math.floor(spinRot / (Math.PI * 2))) - Math.PI * 2 * 5;
-    const t0 = performance.now(), dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 3600;
-    const step = (now) => {
-      const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 4);
-      spinRot = from + (to - from) * e; drawWheel(cv, spinRot);
-      if (k < 1) { requestAnimationFrame(step); return; }
-      spinRot = to % (Math.PI * 2);
-      const what = j.it ? `${ITEMS[j.it] ? ITEMS[j.it].name : j.it} kazandın!` : j.x ? `+${j.x} XP kazandın!` : `+${fmt(j.g)} elmas kazandın!`;
-      notify('gem', 'Şans çarkı', what); if (j.g) gemBurst(); topBar(); b.disabled = false; label(); spinPop(j, what, b);
-    };
-    requestAnimationFrame(step);
-  };
-  t.append(b);
-  c.append(cv, t);
+  t.append(el('p', 'eyebrow', 'Şans çarkı'), el('h3', '', s.free ? 'Ücretsiz çevirmen hazır!' : left > 0 ? `Bugün ${left} çevirme hakkın var` : 'Bugünlük çevirmelerin bitti'),
+    el('p', 'dim', 'Elmas, XP, unvan ya da çerçeve kazan. Her gün bir çevirme bedava.'));
+  const b = btn('btn ' + (s.free ? 'play' : 'primary'), s.free ? 'Çarkı çevir' : 'Çarkı aç', () => openSpin());
+  t.append(b); c.append(cv, t);
+  cv.addEventListener('click', () => openSpin());
   requestAnimationFrame(() => drawWheel(cv, spinRot));
   return c;
 }
+// the wheel's own screen
+function openSpin() {
+  if (document.querySelector('.spin-scr')) return;
+  const scr = el('div', 'spin-scr'); scr.setAttribute('role', 'dialog'); scr.setAttribute('aria-modal', 'true'); scr.setAttribute('aria-label', 'Şans çarkı');
+  scr.dataset.theme = $('#dashpage').dataset.theme || 'gece';
+  const top = el('div', 'spin-top');
+  const chip = el('span', 'spin-chip');
+  const x = btn('spin-x', '✕', () => close()); x.setAttribute('aria-label', 'Kapat');
+  top.append(el('h2', 'spin-h', 'Şans çarkı'), chip, x);
+  const stage = el('div', 'spin-stage'), cv = el('canvas', 'spin-wheel'), ptr = el('div', 'spin-ptr');
+  const hub = btn('spin-hub', 'ÇEVİR', () => go());
+  stage.append(cv, ptr, hub);
+  const act = btn('btn big', '', () => go());
+  const pr = el('div', 'spin-prizes'); for (let i = 0; i < SPIN.length; i++) { const [v, k] = SPIN[i]; const c2 = el('span', 'sp-chip ' + k); c2.style.setProperty('--sc', SPIN_COL[i]); c2.append(el('i', '', SPIN_IC[k]), el('b', '', v)); pr.append(c2); }
+  const foot = el('div', 'spin-foot'); foot.append(act, el('p', 'dim spin-note', ''), pr);
+  const res = el('div', 'spin-res'); res.hidden = true;
+  const fx = el('canvas', 'spin-fx');
+  scr.append(top, stage, foot, res, fx);
+  document.body.append(scr); document.body.classList.add('spin-open');
+  let busy = false, dead = false;
+  const label = () => {
+    const { s, max, price, left } = spinState();
+    chip.textContent = s.free ? '1 ücretsiz çevirme' : `${left}/${max} hak kaldı`;
+    act.replaceChildren(); act.className = 'btn big ' + (s.free ? 'play' : 'primary'); act.disabled = busy || (!s.free && left <= 0);
+    if (busy) act.textContent = 'Dönüyor…';
+    else if (s.free) act.textContent = 'Ücretsiz çevir';
+    else if (left <= 0) act.textContent = 'Yarın tekrar gel';
+    else act.append(document.createTextNode('Çevir · '), gemIcon(16), el('b', '', fmt(price)));
+    hub.disabled = act.disabled;
+    foot.querySelector('.spin-note').textContent = s.free ? `Sonraki çevirmeler ${price} elmas, günde en çok ${max}.` : left > 0 ? `Her çevirme ${price} elmas. Ücretsiz çevirme yarın yenilenir.` : 'Ücretsiz çevirme yarın yenilenir.';
+  };
+  const size = () => { const W = window.innerWidth, Hh = window.innerHeight, side = Hh <= 520 && W > Hh; const w = side ? Math.min(Hh - 120, W * 0.5) : Math.min(460, W - 40, Hh - 300); stage.style.setProperty('--ws', Math.max(180, Math.floor(w)) + 'px'); drawWheel(cv, spinRot, 0); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  function close() { if (dead) return; dead = true; removeEventListener('resize', size); removeEventListener('keydown', onKey); document.body.classList.remove('spin-open'); scr.classList.add('out'); setTimeout(() => scr.remove(), 180); dashSoftSoon(); }
+  addEventListener('resize', size); addEventListener('keydown', onKey);
+  label(); requestAnimationFrame(size);
+  const vibe = (p) => { try { if (!matchMedia('(pointer: coarse)').matches) return; if (window.KusatmaApp && window.KusatmaApp.vibrate) window.KusatmaApp.vibrate(JSON.stringify([p])); else if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* ignore */ } };
+  async function go() {
+    if (busy) return;
+    const { s, left } = spinState(); if (!s.free && left <= 0) return;
+    busy = true; label(); res.hidden = true; try { sfx.unlock(); } catch (e) { /* ignore */ }
+    const j = await acctOp('spin', { buy: s.free ? 0 : 1 });
+    if (!j.ok) { busy = false; label(); H.toast({ gems: 'Yeterli elmasın yok.', max: 'Bugünlük bu kadar. Yarın gel!', used: 'Ücretsiz çevirmeni kullandın.', slow: 'Biraz bekle.' }[j.reason] || 'Çevrilemedi.', 'bad'); return; }
+    ME.spin = { free: false, n: j.n }; ME.gems = j.gems;
+    if (j.it && !ME.own.includes(j.it)) ME.own.push(j.it); if (j.pass) ME.pass = j.pass;
+    // several full turns, landing somewhere inside the prize's slice (not always dead centre)
+    const n = SPIN.length, seg = Math.PI * 2 / n, jit = (Math.random() - 0.5) * seg * 0.6;
+    const base = spinRot - (spinRot % (Math.PI * 2)), to = base - Math.PI * 2 * 6 - (j.i / n) * Math.PI * 2 + jit, from = spinRot;
+    const t0 = performance.now(), dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 5200;
+    let lastSeg = null, blinkT = 0, blink = 0;
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 4);
+      spinRot = from + (to - from) * e;
+      const cur = Math.floor(((-spinRot / seg) + 0.5) % n + n) % n;
+      if (cur !== lastSeg) { if (lastSeg !== null) { try { sfx.spinTick(); } catch (er) { /* ignore */ } ptr.classList.remove('tick'); void ptr.offsetWidth; ptr.classList.add('tick'); if (k > 0.55) vibe(5); } lastSeg = cur; }
+      if (now - blinkT > 110) { blinkT = now; blink ^= 1; }
+      drawWheel(cv, spinRot, blink);
+      if (k < 1) { requestAnimationFrame(step); return; }
+      spinRot = to % (Math.PI * 2); drawWheel(cv, spinRot, 0);
+      busy = false; label();
+      const what = j.it ? `${ITEMS[j.it] ? ITEMS[j.it].name : j.it} kazandın!` : j.x ? `+${j.x} XP kazandın!` : `+${fmt(j.g)} elmas kazandın!`;
+      notify('gem', 'Şans çarkı', what); if (j.g) gemBurst(); topBar();
+      try { sfx.spinWin(!!j.it || j.g >= 100); } catch (er) { /* ignore */ }
+      vibe(60); confetti(fx, SPIN_COL[j.i % n]); showRes(j, what);
+    };
+    requestAnimationFrame(step);
+  }
+  function showRes(j, what) {
+    const box = el('div', 'spin-box'), ic = el('div', 'spin-ic');
+    if (j.it && ITEMS[j.it]) { ic.append(el('i', '', '🎁'), el('span', 'spin-it', ITEMS[j.it].name)); ic.classList.add('item'); }
+    else if (j.x) { ic.append(el('i', '', '⭐'), el('b', '', '+' + fmt(j.x) + ' XP')); ic.classList.add('xp'); }
+    else { ic.append(gemIcon(46), el('b', '', '+' + fmt(j.g))); ic.classList.add('gem'); }
+    const bal = el('p', 'spin-bal'); bal.append(document.createTextNode('Bakiyen: '), gemIcon(15), el('b', '', fmt(ME.gems)));
+    const { s, left, price } = spinState();
+    const acts = el('div', 'row spin-acts');
+    acts.append(btn('btn', 'Tamam', () => { res.hidden = true; act.focus({ preventScroll: true }); }));
+    if (!s.free && left > 0) { const a = btn('btn primary', '', () => { res.hidden = true; go(); }); a.append(document.createTextNode('Tekrar · '), gemIcon(14), el('b', '', fmt(price))); acts.append(a); }
+    box.append(ic, el('h3', '', what), bal, acts);
+    res.replaceChildren(box); res.hidden = false;
+    res.onclick = (e) => { if (e.target === res) res.hidden = true; };
+  }
+}
+// a quick burst of paper over the wheel's screen
+function confetti(cv, main) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const W = cv.clientWidth, Hh = cv.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = Hh * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cols = [main, '#ffd34d', '#ffffff', '#22c55e', '#ff6b2c', '#5be3ff'], P = [];
+  for (let i = 0; i < 120; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, v = 6 + Math.random() * 9; P.push({ x: W / 2, y: Hh * 0.45, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: Math.random() * 6, w: 5 + Math.random() * 6, c: cols[i % cols.length], s: (Math.random() - 0.5) * 0.4 }); }
+  const t0 = performance.now();
+  const f = (now) => {
+    const k = (now - t0) / 1800; g.clearRect(0, 0, W, Hh); if (k >= 1) return;
+    for (const p of P) { p.vy += 0.32; p.vx *= 0.985; p.x += p.vx; p.y += p.vy; p.r += p.s; g.save(); g.globalAlpha = 1 - k; g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.c; g.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2); g.restore(); }
+    requestAnimationFrame(f);
+  };
+  requestAnimationFrame(f);
+}
+// after the wheel closes: fresh top bar, and the home card shows today's state again (in place, keeping the scroll)
+function dashSoftSoon() { setTimeout(() => { if (!ACCT || $('#dashpage').hidden) return; topBar(); const old = document.querySelector('.spin-card'); if (old) old.replaceWith(spinCard()); }, 200); }
 
 // a pet on its own little canvas, turning slowly
 function petCanvas(id, S) {
@@ -1523,7 +1604,7 @@ export function dashRefresh() { if (!ACCT || $('#dashpage').hidden) return; appl
 // player is typing or has a window open on top
 export function dashSoft() {
   if (!ACCT || $('#dashpage').hidden || page === 'locker') return;
-  if (document.querySelector('#buy-dlg:not([hidden]), #prof-dlg:not([hidden]), #form-dlg:not([hidden]), #rep-dlg:not([hidden]), #dm:not([hidden]), .spin-pop, #thm-pv:not([hidden])')) { softLater = true; return; }
+  if (document.querySelector('#buy-dlg:not([hidden]), #prof-dlg:not([hidden]), #form-dlg:not([hidden]), #rep-dlg:not([hidden]), #dm:not([hidden]), .spin-pop, .spin-scr, #thm-pv:not([hidden])')) { softLater = true; return; }
   const a = document.activeElement;
   if (a && a.closest && a.closest('#dp-page') && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) { softLater = true; return; }
   softLater = false;
