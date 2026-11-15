@@ -230,9 +230,9 @@ function topBar() {
 }
 
 // ---------- pages ----------
-const PAGES = { clan: clanPage, season: seasonPage, quests: questsPage, home: homePage, play: playPage, profile: profilePage, locker: lockerPage, shop: shopPage, friends: friendsPage, top: topPage, account: accountPage };
+const PAGES = { players: playersPage, clan: clanPage, season: seasonPage, quests: questsPage, home: homePage, play: playPage, profile: profilePage, locker: lockerPage, shop: shopPage, friends: friendsPage, top: topPage, account: accountPage };
 // each page has its own address under the game's root: /oyun, /oyun/gorevler, /oyun/magaza...
-const SLUG = { clan: 'klan', home: '', play: 'oyna', quests: 'gorevler', season: 'sezon', shop: 'magaza', profile: 'profil', locker: 'dolap', friends: 'arkadaslar', top: 'siralama', account: 'ayarlar' };
+const SLUG = { players: 'oyuncular', clan: 'klan', home: '', play: 'oyna', quests: 'gorevler', season: 'sezon', shop: 'magaza', profile: 'profil', locker: 'dolap', friends: 'arkadaslar', top: 'siralama', account: 'ayarlar' };
 const ROOT = () => window.KROOT || './';
 export function pageFromPath() { const m = location.pathname.slice(ROOT().length).match(/^oyun(?:\/([a-z]+))?\/?$/); if (!m) return null; const s = m[1] || ''; return Object.keys(SLUG).find((k) => SLUG[k] === s) || null; }
 function setPath(p, replace) {
@@ -383,7 +383,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Şans çarkı yenilendi: kendi ekranında açılıyor, büyük çark, ışıklar, tık sesleri ve konfeti.', 'Çevrimdışı bir arkadaşını aradığında telefonuna arama bildirimi gidiyor; oyunu açınca arama çalıyor.', 'Baştan yenilenmiş, sade görünüm: düz ve dolu renkler, parlamalar ve renk geçişleri yok. Butonlar basınca gerçekten basılıyor, telefonda dokununca hafif titriyor.', 'Temalar artık her yerde: menü, lobi, cephanelik, oyun ekranı ve pencereler. Her temanın kendi süsü var: kar yağıyor, kan damlıyor, ateşböcekleri uçuyor, kum esiyor, neon parlıyor, altın ışıldıyor. Profiller de sahibinin temasıyla açılıyor.', 'Ana sayfa yeni: en üstte arkadaşların, altında resimli oyun kutuları (Hızlı oyna, Tek başına, Oda kur, modlar, sıralama). Telefonda alttaki menü uygulama gibi.', 'Arkadaşınla sesli görüşmedeyken oda sesli sohbeti açılamaz; arama başlarken oda sesli sohbeti kendiliğinden kapanır.', 'Arkadaş mesajları ekranda kart olarak çıkıyor ve oradan yanıtlanabiliyor; arkadaşlarını sesli arayabilirsin.'];
+const WHATS_NEW = ['Oyuncu bul: adın bir kısmını yazman yeter. Tüm oyuncuları listeleyen yeni Oyuncular sayfası (telefonda Arkadaşlar sayfasından).', 'Şans çarkı yenilendi: kendi ekranında açılıyor, büyük çark, ışıklar, tık sesleri ve konfeti.', 'Çevrimdışı bir arkadaşını aradığında telefonuna arama bildirimi gidiyor; oyunu açınca arama çalıyor.', 'Baştan yenilenmiş, sade görünüm: düz ve dolu renkler, parlamalar ve renk geçişleri yok. Butonlar basınca gerçekten basılıyor, telefonda dokununca hafif titriyor.', 'Temalar artık her yerde: menü, lobi, cephanelik, oyun ekranı ve pencereler. Her temanın kendi süsü var: kar yağıyor, kan damlıyor, ateşböcekleri uçuyor, kum esiyor, neon parlıyor, altın ışıldıyor. Profiller de sahibinin temasıyla açılıyor.', 'Ana sayfa yeni: en üstte arkadaşların, altında resimli oyun kutuları (Hızlı oyna, Tek başına, Oda kur, modlar, sıralama). Telefonda alttaki menü uygulama gibi.', 'Arkadaşınla sesli görüşmedeyken oda sesli sohbeti açılamaz; arama başlarken oda sesli sohbeti kendiliğinden kapanır.', 'Arkadaş mesajları ekranda kart olarak çıkıyor ve oradan yanıtlanabiliyor; arkadaşlarını sesli arayabilirsin.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -770,6 +770,81 @@ function playPage(sec) {
   ul.append(el('li', 'empty', 'Yükleniyor…')); load();
 }
 
+// ---------- finding players (build 67.1): any part of a name, a list of everyone ----------
+const PL = { q: '', sort: '', L: [], n: 0, busy: false };
+function plRow(r) {
+  const li = el('li', 'fr-row pl-row'); li.append(avatar(r.eq || {}, 40));
+  const tx = el('div', 'fr-tx'); const nm = el('div', 'pl-nm'); nm.append(nameEl(r.name, r.eq || {}), lvlBadge(r.lvl));
+  tx.append(nm, el('span', 'dim', r.me ? 'Sen' : r.on ? '● Çevrimiçi' : r.fr ? 'Arkadaşın' : 'Çevrimdışı'));
+  if (r.on && !r.me) tx.lastChild.classList.add('on');
+  li.append(tx);
+  const acts = el('div', 'fr-acts'); acts.append(btn('btn small ghost', 'Profil', () => openProfile({ id: r.id })));
+  if (!r.me && !r.fr) acts.append(btn('btn small', 'Ekle', async (e) => { e.target.disabled = true; const j = await acctOp('fadd', { id: r.id }); H.toast(j.ok ? (j.now ? `${r.name} ile artık arkadaşsınız!` : 'İstek gönderildi.') : j.reason === 'closed' ? 'Bu oyuncu istek almıyor.' : 'Gönderilemedi.', j.ok ? 'good' : 'bad'); if (j.ok) refreshFriends(); }));
+  li.append(acts); li.addEventListener('click', (e) => { if (!e.target.closest('button')) openProfile({ id: r.id }); });
+  return li;
+}
+async function plLoad(more) {
+  if (PL.busy) return; PL.busy = true;
+  const j = await acctOp('find', { q: PL.q, sort: PL.sort, off: more ? PL.L.length : 0 });
+  PL.busy = false;
+  if (!j.ok) { H.toast(j.reason === 'slow' ? 'Biraz yavaş ara.' : 'Oyuncular yüklenemedi.', 'bad'); return; }
+  PL.L = more ? PL.L.concat(j.L) : j.L; PL.n = j.n; plDraw();
+}
+function plDraw() {
+  const box = $('#pl-box'); if (!box) return;
+  const ul = el('ul', 'fr-list');
+  if (!PL.L.length) ul.append(el('li', 'empty', PL.q ? `"${PL.q}" ile eşleşen oyuncu yok.` : PL.sort === 'on' ? 'Şu an çevrimiçi kimse yok.' : 'Henüz oyuncu yok.'));
+  for (const r of PL.L) ul.append(plRow(r));
+  box.replaceChildren(el('p', 'note pl-n', PL.q ? `${fmt(PL.n)} oyuncu bulundu` : `${fmt(PL.n)} oyuncu`), ul);
+  if (PL.L.length < PL.n) box.append(btn('btn ghost pl-more', 'Daha fazla göster', () => plLoad(true)));
+}
+function playersPage(sec, arg) {
+  if (typeof arg === 'string') PL.q = arg.slice(0, 16);
+  head(sec, 'Topluluk', 'Oyuncular');
+  const c = card('');
+  const inp = el('input', 'pl-in'); inp.maxLength = 16; inp.placeholder = 'Adın bir kısmını yaz (ör. "kar")'; inp.autocomplete = 'off'; inp.spellcheck = false; inp.value = PL.q;
+  let t = 0; inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { PL.q = inp.value.trim(); plLoad(false); }, 300); });
+  inp.addEventListener('keydown', (e) => e.stopPropagation());
+  const tabs = el('div', 'seg-tabs');
+  for (const [k, n] of [['', 'Hepsi'], ['on', 'Çevrimiçi'], ['lvl', 'En yüksek seviye'], ['new', 'Yeni gelenler']]) {
+    const b = btn('', n, () => { PL.sort = k; for (const x of tabs.children) x.setAttribute('aria-selected', String(x === b)); plLoad(false); }); b.setAttribute('aria-selected', String(k === PL.sort)); tabs.append(b);
+  }
+  const box = el('div', 'pl-box'); box.id = 'pl-box'; box.append(el('p', 'note', 'Yükleniyor…'));
+  c.append(inp, segTabs(tabs), box); sec.append(c);
+  plLoad(false);
+  if (!IS_PHONE()) setTimeout(() => inp.focus({ preventScroll: true }), 50);
+}
+const IS_PHONE = () => matchMedia('(pointer: coarse)').matches;
+// the search box in the top bar: suggestions while typing, Enter (or "Tümünü gör") opens the players page
+function searchInit() {
+  const inp = $('#dp-search'), wrap = inp.closest('.dp-search');
+  const pop = el('div', 'srch-pop'); pop.hidden = true; wrap.append(pop);
+  let t = 0, seq = 0;
+  const close = () => { pop.hidden = true; };
+  const goAll = () => { const q = inp.value.trim(); close(); inp.value = ''; inp.blur(); PL.sort = ''; dashGo('players', q); };
+  inp.addEventListener('input', () => {
+    clearTimeout(t); const q = inp.value.trim();
+    if (q.length < 2) { close(); return; }
+    t = setTimeout(async () => {
+      const my = ++seq; const j = await acctOp('find', { q });
+      if (my !== seq || inp.value.trim() !== q) return;
+      pop.replaceChildren();
+      const L = j.ok ? j.L.slice(0, 6) : [];
+      if (!L.length) pop.append(el('p', 'note', j.ok ? 'Eşleşen oyuncu yok.' : 'Aranamadı.'));
+      for (const r of L) {
+        const b = btn('srch-it', '', () => { close(); inp.value = ''; openProfile({ id: r.id }); });
+        b.append(avatar(r.eq || {}, 30), nameEl(r.name, r.eq || {}), lvlBadge(r.lvl)); if (r.on) b.append(el('i', 'srch-on'));
+        pop.append(b);
+      }
+      if (j.ok) pop.append(btn('srch-all', j.n > L.length ? `Tüm sonuçlar (${fmt(j.n)})` : 'Oyuncular sayfasını aç', goAll));
+      pop.hidden = false;
+    }, 250);
+  });
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); goAll(); } else if (e.key === 'Escape') { close(); inp.blur(); } });
+  inp.addEventListener('focus', () => { if (pop.childElementCount && inp.value.trim().length >= 2) pop.hidden = false; });
+  document.addEventListener('pointerdown', (e) => { if (!wrap.contains(e.target)) close(); });
+}
+
 // ---------- profile and wardrobe ----------
 function profileView(p, mine) {
   const wrap = el('div', 'prof');
@@ -1033,7 +1108,7 @@ let FR = { L: [], q: [], un: {} }, frTab = 'list';
 export const frList = () => FR.L;
 function friendsPage(sec, arg) {
   if (arg === 'add') frTab = 'add';
-  head(sec, 'Arkadaşlar', 'Arkadaşların');
+  head(sec, 'Arkadaşlar', 'Arkadaşların', btn('btn small primary', '🔍 Oyuncu bul', () => dashGo('players')));
   const tabs = el('div', 'seg-tabs');
   for (const [k, n] of [['list', `Arkadaşlar (${FR.L.length})`], ['req', `İstekler${FR.q.length ? ' (' + FR.q.length + ')' : ''}`], ['recent', 'Son oynadıkların'], ['add', 'Arkadaş ekle']]) {
     const b = btn('', n, () => { frTab = k; dashGo('friends'); }); b.setAttribute('aria-selected', String(k === frTab)); tabs.append(b);
@@ -1571,7 +1646,7 @@ export function dashInit(hooks) {
   $('#dp-bell').onclick = (e) => { e.stopPropagation(); bellToggle(); };
   $('#bell-clear').onclick = (e) => { e.stopPropagation(); bellSet([]); bellDraw(); bellBadge(); };
   document.addEventListener('click', (e) => { const p = $('#bell-pop'); if (!p.hidden && !p.contains(e.target)) { p.hidden = true; $('#dp-bell').setAttribute('aria-expanded', 'false'); } });
-  $('#dp-search').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.value.trim()) { openProfile({ name: e.target.value.trim() }); e.target.value = ''; } });
+  searchInit();
   $('#dm-close').onclick = () => { $('#dm').hidden = true; dmWith = null; };
   $('#dm-call').onclick = () => { if (dmWith) startCall(dmWith); };
   $('#dm-send').onclick = sendDm;
