@@ -277,13 +277,23 @@ public class MainActivity extends Activity {
         ui.postDelayed(slow, 10000); // no page after 10 s: try the next address
         status.setText(site == 0 ? "Sunucuya bağlanılıyor…" : "Yedek sunucu deneniyor…");
         String link = getIntent() != null ? getIntent().getStringExtra("link") : null;
+        stopRing(getIntent());
         web.loadUrl(SITES[site] + (link != null && link.matches("[a-z/]{0,40}") ? link : "") + "?app=" + BuildConfig.VERSION_CODE);
+    }
+
+    // app 49: opened from a ringing call: stop the ringing (the call itself rings inside the game once it connects)
+    private void stopRing(Intent i) {
+        int id = i != null ? i.getIntExtra("call", 0) : 0;
+        if (id == 0) return;
+        android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
+        if (nm != null) nm.cancel(id);
     }
 
     // a tapped notification while the app is already running: go to the page it points at
     @Override protected void onNewIntent(Intent i) {
         super.onNewIntent(i);
         setIntent(i);
+        stopRing(i);
         String link = i.getStringExtra("link");
         if (link != null && link.matches("[a-z/]{0,40}") && web != null && loaded) web.loadUrl(SITES[site] + link + "?app=" + BuildConfig.VERSION_CODE);
     }

@@ -22,7 +22,7 @@ export function msgPop(m, friend, info) {
     clearTimeout(card.t); const f = el('form', 'soc-reply'), inp = el('input'); inp.maxLength = 200; inp.placeholder = m.n + ' kişisine yaz…'; inp.autocomplete = 'off';
     const s = el('button', 'btn small play', 'Gönder'); s.type = 'submit'; f.append(inp, s); card.append(f); go.remove(); inp.focus();
     inp.addEventListener('keydown', (e) => e.stopPropagation());
-    f.onsubmit = async (e) => { e.preventDefault(); const t = inp.value.trim(); if (!t) return; s.disabled = true; const ok = await H.send(fr.id, t); if (ok) { card.classList.add('sent'); tx.lastChild.textContent = 'Gönderildi: ' + t; f.remove(); setTimeout(() => card.remove(), 1600); } else { s.disabled = false; tx.lastChild.textContent = 'Gönderilemedi, yeniden dene.'; } };
+    f.onsubmit = async (e) => { e.preventDefault(); const t = inp.value.trim(); if (!t) return; s.disabled = true; const ok = await H.send(fr.g ? 'g:' + fr.g : fr.id, t); if (ok) { card.classList.add('sent'); tx.lastChild.textContent = 'Gönderildi: ' + t; f.remove(); setTimeout(() => card.remove(), 1600); } else { s.disabled = false; tx.lastChild.textContent = 'Gönderilemedi, yeniden dene.'; } };
   };
   if (!info) tx.onclick = () => { if (!H.inGame()) { card.remove(); H.openDm(fr); } };
   const x = el('button', 'soc-x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Kapat'); x.onclick = () => card.remove();
@@ -56,7 +56,8 @@ function draw() {
   }
   b.replaceChildren(av, tx, acts);
 }
-function ringStart() { ringStop(); const beep = () => { try { sfx.unlock(); sfx.buy(); } catch (e) { /* ignore */ } if (navigator.vibrate && IS_TOUCH) try { navigator.vibrate([200, 120, 200]); } catch (e) { /* ignore */ } }; beep(); C.ring = setInterval(beep, 2200); }
+// incoming: a phone trill every 2.2 s; outgoing (back): the ringback tone every 3 s until they answer
+function ringStart(back) { ringStop(); if (back) { const t = () => { try { sfx.unlock(); sfx.ringBack(); } catch (e) { /* ignore */ } }; t(); C.ring = setInterval(t, 3000); return; } const beep = () => { try { sfx.unlock(); sfx.ringIn(); } catch (e) { /* ignore */ } if (navigator.vibrate && IS_TOUCH) try { navigator.vibrate([200, 120, 200]); } catch (e) { /* ignore */ } }; beep(); C.ring = setInterval(beep, 2200); }
 function ringStop() { clearInterval(C.ring); C.ring = null; }
 async function mic() { try { return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); } catch (e) { return null; } }
 function openPeer() {
@@ -82,7 +83,7 @@ export async function callFriend(f) {
   C.stream = await mic(); if (!C.stream) { end(false); return 'mic'; }
   C.peer = await openPeer(); if (!C.peer || C.st !== 'out') { end(false); return 'net'; }
   C.peer.on('call', (call) => { if (C.st !== 'out' && C.st !== 'on') { try { call.close(); } catch (e) { /* ignore */ } return; } call.answer(C.stream); hook(call); });
-  liveCall(f.id, 'ring', C.peer.id);
+  liveCall(f.id, 'ring', C.peer.id); ringStart(true);
   clearTimeout(C.ringT); C.ringT = setTimeout(() => { if (C.st === 'out') end(true); }, 35000);
   return '';
 }
