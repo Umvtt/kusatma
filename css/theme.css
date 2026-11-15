@@ -337,3 +337,7 @@ body.soc-calling #soc-call:not([hidden]) ~ #soc-gvc { top: calc(max(14px, env(sa
 .mute-ic:hover { background: var(--panel-3); }
 .mute-ic:active { transform: scale(.92); }
 .mute-ic.on { background: color-mix(in srgb, var(--danger) 30%, var(--panel-2)); }
+.wpn-swap { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.wpn-swap .coin { width: 14px; height: 14px; margin-left: 4px; }
+.wpn-swap b { color: var(--gold); }
+.wpn-swap[disabled] b { color: var(--dim); }
