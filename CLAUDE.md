@@ -14,7 +14,7 @@ Kuşatma is a co-op top-down zombie survival game for the browser (1–20 player
 - **Owner's rules for the app:** the APK file is named after its build ("Kuşatma 47.0.apk"); only important app changes are mandatory (raise `min`), never ordinary ones; the site's button says Güncelle when coming from the app. After every update tell the owner whether the APK changed, and mention any difference at all between the app and the site.
 
 ## Owner's standing limits (from the sessions up to build 71)
-- **Usage is limited:** be efficient. Short answers, no needless re-reading; for small fixes run the Node checks and the suites that touch the change, the full quick run (~6 min) for builds; say plainly which tests ran.
+- **Testing:** run the Node checks and the suites that touch the change for small fixes, the full quick run (~6 min) for builds; say plainly which tests ran.
 - **Google Drive:** only the folder named "Kusatma" may be touched (keys and server backups live there: `Kusatma-anahtarlar.zip`, `kusatma-sunucu-yapi71.zip`); never read or change anything outside it.
 - **Secrets never go in a repo** (signing key and password, google-services.json, panel key, Cloudflare/Deno tokens, the Worker source, the forwarder key) and are never printed in chat. The test repo's Worker copy must keep `FWDK` replaced (`tools/syncworker.sh`).
 - **Never write the panel's address anywhere in the repo**; keep the panel black and white.
