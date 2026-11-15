@@ -1,5 +1,8 @@
 # Planned work (owner's list, newest first). Do each part only when the owner says "start build N".
 
+## Added 15 Kasım 2026 (after build 71, waiting for the owner's answers and a go)
+- **Planned content ahead of time, all editable in the panel (build 72 plan):** a season calendar (seasons with their own start and end dates, default 2 months, prepared in advance; the next one starts by itself, the panel warns when nothing is prepared), daily (and weekly) quests from a pool the panel edits, plus optional special days planned ahead with the same quests for everyone. Open questions to the owner: do PvP ranks and clan scores follow the new 2-month season; how many tiers for 2 months (check real XP data first); new season cosmetics for the first 2-month season; same quests for everyone or each player their own mix.
+
 ## Added 15–16 Kasım 2026 (builds 67.1–71, all done)
 - **67.1–67.3 (done):** luck wheel on its own screen; info-only call notices; calls ring an away friend's phone; find players by part of a name (Oyuncular page); the locker shows where each item comes from.
 - **68 / app 49.0 (done):** group chats; the phone rings like a real call (app 49); ring sounds for both sides; clan invites with a clear state; wheel gem counter.
