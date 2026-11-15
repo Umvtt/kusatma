@@ -22,6 +22,7 @@ Kuşatma is a co-op top-down zombie survival game for the browser (1–20 player
 - `gizlilik.html`, `cerezler.html`, `kosullar.html`: privacy, cookie, terms. Must stay truthful about what is collected; never mention the owner's panel or owner tools.
 - The owner's panel: an unlinked, randomly named `.html` at the repo root. Never write its address anywhere else in the repo, never link it, keep it bland (black and white).
 - `android/`: the WebView app (see history: app 49.0; `KusatmaApp` bridge: ready, pushToken, pushAllowed, pushAsk, version, netType, vibrate). Build: `gradle assembleRelease -PversionCode=<n>` with `KEYSTORE_FILE`/`KEYSTORE_PASSWORD`. Signing key and `google-services.json` are outside the repo.
+- `package.json`, `metadata.json`, `tools/studio-serve.mjs`: only so tools like Google AI Studio can import and run the repo (`npm run dev` starts a dependency-free file server on `PORT` or 3000 that serves only the public files, never the owner's panel, docs, tests or android). The real sites don't use them (kept out of workers.dev by `.assetsignore`). Never add dependencies or a build step there.
 - `test/`: Node checks, no browser: `node test/run.mjs` (all modules parse, host cheat limits, ghost-zombie protocol under loss).
 - `docs/HISTORY.md`: per-build notes.
 

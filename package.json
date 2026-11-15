@@ -1,0 +1,11 @@
+{
+  "name": "kusatma",
+  "private": true,
+  "description": "Kuşatma: plain ES modules, no build step. These scripts only start a local file server (tools/studio-serve.mjs) for tools such as Google AI Studio; the real site is GitHub Pages and workers.dev.",
+  "scripts": {
+    "dev": "node tools/studio-serve.mjs",
+    "start": "node tools/studio-serve.mjs",
+    "test": "node test/run.mjs"
+  },
+  "engines": { "node": ">=18" }
+}

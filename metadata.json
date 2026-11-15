@@ -1,0 +1,5 @@
+{
+  "name": "Kuşatma",
+  "description": "Co-op top-down zombie survival game for the browser (1–20 players, plus PvP).",
+  "requestFramePermissions": ["microphone"]
+}

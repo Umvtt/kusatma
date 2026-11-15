@@ -10,3 +10,6 @@ wrangler.toml
 404.html
 test/
 docs/
+package.json
+metadata.json
+tools/
