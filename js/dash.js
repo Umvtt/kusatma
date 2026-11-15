@@ -760,7 +760,7 @@ function playPage(sec) {
   const jr = el('div', 'join-row'); const inp = el('input', 'code-input'); inp.maxLength = 6; inp.placeholder = 'ODA KODU'; inp.autocomplete = 'off'; inp.spellcheck = false;
   const jb = btn('btn', 'Katıl', () => H.join(inp.value)); inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') jb.click(); });
   jr.append(inp, jb); a2.append(jr);
-  const a3 = btn('dp-act', ''); a3.append(el('strong', '', 'Tek başına oyna'), el('span', '', 'Kilitli sınıfları da deneyebilirsin (elmas kazandırmaz).')); a3.onclick = () => H.solo();
+  const a3 = btn('dp-act', ''); a3.append(el('strong', '', 'Tek başına oyna'), el('span', '', 'Kilitli sınıfları da deneyebilirsin (elmasın 0,3 katı).')); a3.onclick = () => H.solo();
   acts.append(a0, a1, a2, a3);
   sec.append(acts);
   sec.append(dailyCard());
@@ -1156,6 +1156,9 @@ function friendsPage(sec, arg) {
   const box = el('div', 'fr-box'); box.id = 'fr-box'; sec.append(box);
   drawFriends();
   friendsGet().then((d) => { if (d) onFriends(d); });
+  // build 69.4: keep it fresh (who is online, in which room) every 5 s, but only while this page is open and visible
+  clearInterval(friendsPage.t);
+  friendsPage.t = setInterval(() => { if (page !== 'friends' || $('#dashpage').hidden) { clearInterval(friendsPage.t); return; } if (document.hidden || frTab === 'grp' || frTab === 'add') return; friendsGet().then((d) => { if (d && page === 'friends') onFriends(d); }); }, 5000);
 }
 function drawFriends() {
   const box = $('#fr-box'); if (!box) return;
@@ -1297,10 +1300,12 @@ function groupMenu(g) {
   const mem = el('ul', 'grp-pick'); for (const m of g.mem) { const li = el('li'); li.append(avatar(m.eq || {}, 28), nameEl(m.name, m.eq || {})); mem.append(li); }
   const nm = el('input'); nm.maxLength = 24; nm.value = g.name; nm.addEventListener('keydown', (e) => e.stopPropagation());
   const ren = btn('btn small', 'Adı kaydet', async () => { const j = await acctOp('gren', { g: g.id, name: nm.value.trim() }); H.toast(j.ok ? 'Grubun adı değişti.' : 'Değiştirilemedi.', j.ok ? 'good' : 'bad'); if (j.ok) groupsLoad(); });
-  const sel = el('select', 'grp-add'); sel.append(el('option', '', 'Arkadaş ekle…')); for (const f of FR.L) if (!g.mem.some((m) => m.id === f.id)) { const o = el('option', '', f.name); o.value = f.id; sel.append(o); }
-  sel.onchange = async () => { if (!sel.value) return; const j = await acctOp('gadd', { g: g.id, id: sel.value }); H.toast(j.ok ? 'Eklendi.' : j.reason === 'full' ? 'Grup dolu (20 kişi).' : 'Eklenemedi.', j.ok ? 'good' : 'bad'); close(); groupsLoad(); };
+  // build 69.4: every friend not in the group with a one-tap Ekle (any member can add their friends)
+  const addL = el('ul', 'grp-pick grp-addl');
+  for (const f of FR.L) if (!g.mem.some((m) => m.id === f.id)) { const li = el('li'); const b = btn('btn small primary', '+ Ekle', async () => { b.disabled = true; b.textContent = '…'; const j = await acctOp('gadd', { g: g.id, id: f.id }); if (!j.ok) { b.disabled = false; b.textContent = '+ Ekle'; H.toast(j.reason === 'full' ? 'Grup dolu (20 kişi).' : j.reason === 'many' ? 'Bu kişi çok fazla grupta.' : 'Eklenemedi.', 'bad'); return; } b.textContent = '✓ Eklendi'; b.classList.replace('primary', 'ghost'); g.mem.push({ id: f.id, name: f.name, eq: f.eq }); groupsLoad(); }); li.append(avatar(f.eq || {}, 28), nameEl(f.name, f.eq || {}), b); addL.append(li); }
+  const sel = addL.childElementCount ? addL : el('p', 'note', 'Eklenecek arkadaşın kalmadı.');
   const row = el('div', 'join-row'); row.append(nm, ren);
-  body.append(el('p', 'note', `${g.mem.length} kişi`), mem, row, sel);
+  body.append(el('p', 'eyebrow', 'Arkadaş ekle'), sel, el('p', 'eyebrow', `Üyeler (${g.mem.length})`), mem, el('p', 'eyebrow', 'Grup adı'), row);
   const leave = btn('btn danger', 'Gruptan ayrıl', async () => { const j = await acctOp('gleave', { g: g.id }); close(); if (dmWith && dmWith.g === g.id) { $('#dm').hidden = true; dmWith = null; } groupsLoad(); H.toast(j.ok ? 'Gruptan ayrıldın.' : 'Ayrılamadın.', j.ok ? '' : 'bad'); });
   const close = grpDlg(g.name, body, leave);
 }
@@ -1315,7 +1320,7 @@ function grpDlg(title, body, action) {
 async function openGroup(gid) {
   const g0 = GR.L.find((x) => x.id === gid) || { id: gid, name: 'Grup', mem: [] };
   dmWith = { g: gid, name: g0.name };
-  const d = $('#dm'); d.hidden = false; d.classList.add('grp'); $('#dm-call').hidden = false; dashGvc();
+  const d = $('#dm'); d.hidden = false; d.classList.add('grp'); $('#dm-call').hidden = false; $('#dm-gset').hidden = false; dashGvc();
   $('#dm-name').replaceChildren(el('strong', '', g0.name)); $('#dm-st').textContent = g0.mem.length ? `${g0.mem.length} kişi` : '';
   const av = $('#dm-av'); drawAvatar(av, (g0.mem[0] && g0.mem[0].eq) || {}, { size: 36 });
   const log = $('#dm-log'); log.replaceChildren(el('p', 'note', 'Yükleniyor…')); $('#dm-in').value = '';
@@ -1323,7 +1328,7 @@ async function openGroup(gid) {
   if (!dmWith || dmWith.g !== gid) return;
   log.replaceChildren();
   if (!j.ok) { log.append(el('p', 'note', 'Grup açılamadı.')); return; }
-  $('#dm-name').replaceChildren(el('strong', '', j.g.name)); $('#dm-st').textContent = j.g.mem.map((m) => m.name).join(', ');
+  $('#dm-name').replaceChildren(el('strong', '', j.g.name)); $('#dm-st').textContent = IS_PHONE() ? `${j.g.mem.length} kişi · ⚙️ ayarlar` : j.g.mem.map((m) => m.name).join(', ');
   for (const m of j.L) addMsg(m);
   delete FR.un['g:' + gid]; ME.un = Object.values(FR.un).reduce((s, n) => s + n, 0);
   if (g0.un) { g0.un = 0; topBar(); if (page === 'friends') drawFriends(); }
@@ -1352,7 +1357,7 @@ export function onGmsg(m) {
 let dmWith = null;
 export async function openDm(f) {
   if (f && f.g) { openGroup(f.g); return; }
-  dmWith = f; $('#dm').classList.remove('grp'); $('#dm-call').hidden = false; dashGvc();
+  dmWith = f; $('#dm').classList.remove('grp'); $('#dm-call').hidden = false; $('#dm-gset').hidden = true; dashGvc();
   const d = $('#dm'); d.hidden = false;
   $('#dm-name').replaceChildren(nameEl(f.name, f.eq));
   $('#dm-st').textContent = frStatus(f);
@@ -1804,6 +1809,7 @@ export function dashInit(hooks) {
   document.addEventListener('click', (e) => { const p = $('#bell-pop'); if (!p.hidden && !p.contains(e.target)) { p.hidden = true; $('#dp-bell').setAttribute('aria-expanded', 'false'); } });
   searchInit();
   $('#dm-close').onclick = () => { $('#dm').hidden = true; dmWith = null; };
+  $('#dm-gset').onclick = () => { if (dmWith && dmWith.g) { const g = GR.L.find((x) => x.id === dmWith.g); if (g) groupMenu(g); } };
   $('#dm-call').onclick = async () => {
     if (!dmWith) return;
     if (!dmWith.g) { startCall(dmWith); return; }
