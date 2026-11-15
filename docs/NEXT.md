@@ -5,7 +5,7 @@
 - **68 / app 49.0 (done):** group chats; the phone rings like a real call (app 49); ring sounds for both sides; clan invites with a clear state; wheel gem counter.
 - **69–69.5 (done):** Sosyal tab; calling/ringing state; group voice chat (never with the room's voice or a call); gem events lift the daily limit to 4000; '56 / 1000' card; scoreboard mutes fixed; panel XP & level log, Level up / Set level; branch-swap button; smaller, draggable call strip; iPhone-only home-screen app; group settings ⚙️ with one-tap add and search; friends refresh; solo games 0.30× gems.
 - **70 (done):** the general feel: voice retries and blocked-sound fix, group voice rings, friends refresh everywhere without redraws, seating fixes.
-- **71 (done):** loose ends (tests for branch swap and path reset, old CSS cleanup, this list) and making content easy to add (docs/CONTENT.md, test/content.mjs, the test repo's sync70, zombie spawn rules as data, panel names from config).
+- **71 (done):** loose ends (tests for branch swap and path reset, this list; the old CSS cleanup was tried and undone because it changed screens) and making content easy to add (docs/CONTENT.md, test/content.mjs, the test repo's sync70, zombie spawn rules as data, panel names from config).
 - Open, only if wanted: a speed build for late waves on phones; group voice for more than 8 people (needs a paid relay); a real ringing screen for group calls.
 
 ## Added 15 Kasım 2026 (during build 67)
