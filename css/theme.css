@@ -341,3 +341,14 @@ body.soc-calling #soc-call:not([hidden]) ~ #soc-gvc { top: calc(max(14px, env(sa
 .wpn-swap .coin { width: 14px; height: 14px; margin-left: 4px; }
 .wpn-swap b { color: var(--gold); }
 .wpn-swap[disabled] b { color: var(--dim); }
+/* build 69.3: a call in progress (or being placed) is a small pill that covers nothing important:
+   under the top bar on the right in the menus, under the boss bar in a game; only an incoming ring stays a full card */
+.soc-call.mini { width: auto; max-width: min(340px, calc(100vw - 24px)); left: auto; right: max(12px, env(safe-area-inset-right, 0px)); top: 72px; transform: none; padding: 6px 8px 6px 6px; gap: 8px; grid-template-columns: auto minmax(0, 1fr) auto; border-radius: 999px; animation: none; }
+.soc-call.mini .soc-av, .soc-call.mini .gvc-ic { width: 30px; height: 30px; font-size: 16px; }
+.soc-call.mini .soc-tx strong { font-size: 13px; }
+.soc-call.mini .soc-st { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.soc-call.mini .soc-acts { grid-column: auto; gap: 4px; }
+.soc-call.mini .soc-acts .btn { flex: none; padding: 5px 10px; min-height: 0; font-size: 12px; border-radius: 999px; }
+body.playing .soc-call.mini { top: auto; bottom: auto; top: 96px; right: 50%; transform: translateX(50%); opacity: .92; }
+#soc-call.mini:not([hidden]) ~ #soc-gvc.mini { top: 112px; }
+body.soc-calling .soc-pops { top: max(12px, env(safe-area-inset-top, 0px)); }
