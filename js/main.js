@@ -5,7 +5,7 @@ import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { drawCharacter } from './render.js';
 import { startScene } from './scene.js';
-import { dashPage, dashGo, dashRefresh, dashSoft, dashTop, onFriends, onDm, onGmsg, groupsLoad, onFr, gemIcon, notify, recentAdd, frList, drawAvatar, openDm } from './dash.js';
+import { dashPage, dashGo, dashRefresh, dashSoft, dashTop, onFriends, onDm, onGmsg, groupsLoad, dashGvc, onFr, gemIcon, notify, recentAdd, frList, drawAvatar, openDm } from './dash.js';
 import { FREE_CLS, ITEMS as COS } from './catalog.js';
 import * as sfx from './sfx.js';
 import { voiceOn, voiceStop, voiceSync, voicePtt, voiceRate, voiceBitrate, voiceListen, voiceMute } from './voice.js';
@@ -16,7 +16,7 @@ import { WORLD, setMap } from './world.js';
 import { generateMap } from './mapgen.js';
 import { SETTINGS, onSettings, setSetting, resetSettings, QUALITY, QORDER, QUAL } from './settings.js';
 import { LIVE, ACCT, ME, acctOp, liveStart, liveStat, livePerf, livePvp, liveBlock, acctCheck, roomsGet, nameTaken, turnReady, liveGameEnd, inviteSend, friendsGet, liveCheat, liveConn, liveChat, errorReports, dmSend } from './live.js';
-import { socialInit, onCall } from './social.js';
+import { socialInit, onCall, onGvc } from './social.js';
 import { $, IS_TOUCH, S, busy, el, menuMsg, renderer, setZoom, sleep, toast, zoom } from './app.js';
 import { TAKEN, acctUi, authClose, blockUi } from './acct.js';
 import { buzz, notice, qaPop, quickPick, quickToggle, renderBoard, updateHud } from './hud.js';
@@ -764,6 +764,7 @@ socialInit({
   inGame: () => S.screen === 'game',
   send: async (id, t) => { const j = id.startsWith('g:') ? await acctOp('gsend', { g: id.slice(2), x: t }) : await dmSend(id, t); return !!(j && j.ok); },
   voiceOff: () => voiceOffForCall(),
+  onGvcChange: () => dashGvc(),
   toast: (t) => toast(t),
 });
 // ---------- room invites: send to online friends, and the pop-up when a friend calls you ----------
@@ -900,6 +901,7 @@ if (!WATCH) liveStart({
   onInv: (v) => invIn(v),
   onFriends: (d) => { onFriends(d); if (!$('#inv-dlg').hidden) invDraw(); },
   onGmsg: (m) => onGmsg(m),
+  onGvc: (g, L) => onGvc(g, L),
   onGrp: () => groupsLoad(),
   onDm: (m) => { if ($('#dm').hidden) notify('dm', `${m.n} sana yazdı`, m.x, 'friends'); onDm(m); },
   onCall: (d) => onCall(d, (id) => (frList() || []).find((f) => f.id === id)),
