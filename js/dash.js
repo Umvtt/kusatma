@@ -5,7 +5,7 @@ import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, da
 import { ITEMS, SLOTS, SLOT_OF, RARITY, FREE_CLS, isFree, titleOf } from './catalog.js';
 import { CLASSES, CLASS_ORDER, DIFFS, MAPS, BUILD, dailyRules, league, LEAGUES, clsNext, BADGES, APP_BUILD } from './config.js';
 import { drawCharacter, drawPet, drawMapPreview } from './render.js';
-import { msgPop, callFriend } from './social.js';
+import { msgPop, callFriend, gvcJoin, gvcIn, gvcOf } from './social.js';
 import { setTheme } from './app.js';
 import * as sfx from './sfx.js';
 
@@ -247,7 +247,7 @@ export function dashGo(p, arg, fromHistory) {
   if (!fromHistory && ACCT && !$('#dashpage').hidden) setPath(p, !shown2);
   shown2 = true;
   page = p;
-  for (const b of document.querySelectorAll('[data-dp]')) b.setAttribute('aria-selected', String(b.dataset.dp === p || ((p === 'locker' || ((p === 'top' || p === 'account') && innerWidth <= 880)) && b.dataset.dp === 'profile')));
+  for (const b of document.querySelectorAll('[data-dp]')) b.setAttribute('aria-selected', String(b.dataset.dp === p || (['clan', 'players'].includes(p) && b.dataset.dp === 'friends') || ((p === 'locker' || ((p === 'top' || p === 'account') && innerWidth <= 880)) && b.dataset.dp === 'profile')));
   if (!ACCT) return;
   const main = $('#dp-page');
   main.replaceChildren();
@@ -355,7 +355,10 @@ function homePage(sec) {
   const today = card('Bugün kazandığın');
   const cap = (LIVE.shop && LIVE.shop.cap) || 400;
   const tb = el('div', 'xpbar gem'); const tf = el('i'); tf.style.width = Math.min(100, Math.round(100 * ME.gd / cap)) + '%'; tb.append(tf);
-  today.append(gemAmt(ME.gd, 'gem-amt big'), tb, el('p', 'note', ME.gd >= cap ? 'Bugünkü sınıra ulaştın. Yarın devam!' : `Günde en çok ${cap} elmas kazanılır. Zor dalgalar ve bosslar daha çok verir.`));
+  // build 69: "56 / 1000" with the gem icon; the limit rises (to 4000) during a gem event and says so
+  const ev = LIVE.shop && LIVE.shop.mul > 1, amt = el('div', 'gem-amt big gd-amt'); amt.append(gemIcon(22), el('b', '', fmt(ME.gd)), el('span', 'gd-cap', ' / ' + fmt(cap)));
+  if (ev) amt.append(el('span', 'gd-ev', `${LIVE.shop.mul}× etkinlik`));
+  today.append(amt, tb, el('p', 'note', ME.gd >= cap ? 'Bugünkü sınıra ulaştın. Yarın devam!' : ev ? `Elmas etkinliği: bugün ${fmt(cap)} elmasa kadar kazanabilirsin!` : 'Zor dalgalar ve bosslar daha çok elmas verir.'));
   // featured item
   const fid = (LIVE.shop && LIVE.shop.feat) || 'h.kovboy';
   const feat = card('Öne çıkan', btn('btn small ghost', 'Mağaza', () => dashGo('shop')));
@@ -383,7 +386,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Klan davetleri: gönderdiğin davet "✓ Davet edildi" olarak görünür ve tekrar gönderilemez; arkadaşlarını tek dokunuşla davet et. Katılma isteğin de "✓ İstek gönderildi" olarak kalır.', 'Grup sohbetleri: Arkadaşlar > Gruplar\'dan arkadaşlarınla bir grup kur, hepiniz aynı yerde yazışın. Grup mesajları da ekranda kart olarak çıkar ve oradan yanıtlanır.', 'Uygulama 49.0: arkadaşın seni aradığında telefonun gerçek bir arama gibi çalar, kilit ekranında da. Site ile telefon birbirini arayabilir.', 'Aramalarda zil sesi: arayan tarafta çalma sesi, aranan tarafta telefon zili.', 'Şans çarkı: sahip olduğun bir ödül çıkarsa yerine 150 elmas aldığını açıkça yazıyor; çark ekranında elmas sayacın görünüyor.'];
+const WHATS_NEW = ['Elmas etkinliklerinde günlük elmas sınırı 4000! Ana sayfada bugün ne kadar kazandığını "56 / 1000" gibi görürsün.', 'Skor tablosundaki susturma butonları düzeltildi.', 'Grup sesli sohbeti: grubu aç, 🔊 butonuna bas (8 kişiye kadar). Oyun içi sesli sohbetle ve aramalarla çakışmaz.', 'Yeni Sosyal sekmesi: arkadaşlar, gruplar, klan ve oyuncu bulma tek yerde.', 'Aramada artık karşı tarafın telefonu ya da oyunu çalıyor mu görürsün: aranıyor, çalıyor, telefonu çalıyor.', 'Klan davetleri: gönderdiğin davet "✓ Davet edildi" olarak görünür ve tekrar gönderilemez; arkadaşlarını tek dokunuşla davet et. Katılma isteğin de "✓ İstek gönderildi" olarak kalır.', 'Grup sohbetleri: Arkadaşlar > Gruplar\'dan arkadaşlarınla bir grup kur, hepiniz aynı yerde yazışın. Grup mesajları da ekranda kart olarak çıkar ve oradan yanıtlanır.', 'Uygulama 49.0: arkadaşın seni aradığında telefonun gerçek bir arama gibi çalar, kilit ekranında da. Site ile telefon birbirini arayabilir.', 'Aramalarda zil sesi: arayan tarafta çalma sesi, aranan tarafta telefon zili.', 'Şans çarkı: sahip olduğun bir ödül çıkarsa yerine 150 elmas aldığını açıkça yazıyor; çark ekranında elmas sayacın görünüyor.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -774,6 +777,18 @@ function playPage(sec) {
   ul.append(el('li', 'empty', 'Yükleniyor…')); load();
 }
 
+// build 69: every social thing under one Sosyal tab: friends, groups, clan, finding players
+function socialBar(sec, cur) {
+  const h = el('div', 'dp-pagehead'); const t = el('div'); t.append(el('p', 'eyebrow', 'Sosyal'), el('h2', 'dp-h', { friends: 'Arkadaşların', grp: 'Grupların', clan: ME.clan ? 'Klanın' : 'Klanlar', players: 'Oyuncular' }[cur] || 'Sosyal')); h.append(t); sec.append(h);
+  const bar = el('div', 'soc-hub');
+  const un = (ME.un | 0), fq = (ME.fq || []).length;
+  for (const [k, ic, n, go] of [['friends', '👥', 'Arkadaşlar', () => { frTab = 'list'; dashGo('friends'); }], ['grp', '💬', 'Gruplar', () => { frTab = 'grp'; dashGo('friends'); }], ['clan', '🚩', 'Klan', () => dashGo('clan')], ['players', '🔍', 'Oyuncu bul', () => dashGo('players')]]) {
+    const b = btn('soc-hub-b' + (k === cur ? ' on' : ''), '', go); b.append(el('i', '', ic), el('span', '', n));
+    const c = k === 'friends' ? fq : k === 'grp' ? GR.un() : 0; if (c || (k === 'friends' && un - GR.un() > 0)) b.append(el('span', 'badge', String(c || un - GR.un())));
+    bar.append(b);
+  }
+  sec.append(bar);
+}
 // ---------- finding players (build 67.1): any part of a name, a list of everyone ----------
 const PL = { q: '', sort: '', L: [], n: 0, busy: false };
 function plRow(r) {
@@ -804,7 +819,7 @@ function plDraw() {
 }
 function playersPage(sec, arg) {
   if (typeof arg === 'string') PL.q = arg.slice(0, 16);
-  head(sec, 'Topluluk', 'Oyuncular');
+  socialBar(sec, 'players');
   const c = card('');
   const inp = el('input', 'pl-in'); inp.maxLength = 16; inp.placeholder = 'Adın bir kısmını yaz (ör. "kar")'; inp.autocomplete = 'off'; inp.spellcheck = false; inp.value = PL.q;
   let t = 0; inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { PL.q = inp.value.trim(); plLoad(false); }, 300); });
@@ -1130,12 +1145,14 @@ let FR = { L: [], q: [], un: {} }, frTab = 'list';
 export const frList = () => FR.L;
 function friendsPage(sec, arg) {
   if (arg === 'add') frTab = 'add';
-  head(sec, 'Arkadaşlar', 'Arkadaşların', btn('btn small primary', '🔍 Oyuncu bul', () => dashGo('players')));
+  socialBar(sec, frTab === 'grp' ? 'grp' : 'friends');
   const tabs = el('div', 'seg-tabs');
-  for (const [k, n] of [['list', `Arkadaşlar (${FR.L.length})`], ['req', `İstekler${FR.q.length ? ' (' + FR.q.length + ')' : ''}`], ['grp', `Gruplar${GR.un() ? ' (' + GR.un() + ')' : ''}`], ['recent', 'Son oynadıkların'], ['add', 'Arkadaş ekle']]) {
+  if (frTab !== 'grp') {
+  for (const [k, n] of [['list', `Arkadaşlar (${FR.L.length})`], ['req', `İstekler${FR.q.length ? ' (' + FR.q.length + ')' : ''}`], ['recent', 'Son oynadıkların'], ['add', 'Arkadaş ekle']]) {
     const b = btn('', n, () => { frTab = k; dashGo('friends'); }); b.setAttribute('aria-selected', String(k === frTab)); tabs.append(b);
   }
   sec.append(segTabs(tabs));
+  }
   const box = el('div', 'fr-box'); box.id = 'fr-box'; sec.append(box);
   drawFriends();
   friendsGet().then((d) => { if (d) onFriends(d); });
@@ -1256,7 +1273,7 @@ function drawGroups(box) {
     const li = el('li', 'fr-row grp-row'); li.append(groupAv(g));
     const tx = el('div', 'fr-tx'); tx.append(el('strong', '', g.name), el('span', 'dim', g.last ? (g.last.s ? g.last.x : (g.last.n ? g.last.n + ': ' : '') + g.last.x) : `${g.mem.length} kişi`));
     li.append(tx);
-    const acts = el('div', 'fr-acts'); if (g.un) acts.append(el('span', 'badge', String(g.un)));
+    const acts = el('div', 'fr-acts'); if (g.vc) acts.append(el('span', 'gvc-live', `🔊 ${g.vc}`)); if (g.un) acts.append(el('span', 'badge', String(g.un)));
     acts.append(btn('btn small ghost', '⋯', (e) => { e.stopPropagation(); groupMenu(g); }));
     li.append(acts); li.addEventListener('click', () => openGroup(g.id)); ul.append(li);
   }
@@ -1298,7 +1315,7 @@ function grpDlg(title, body, action) {
 async function openGroup(gid) {
   const g0 = GR.L.find((x) => x.id === gid) || { id: gid, name: 'Grup', mem: [] };
   dmWith = { g: gid, name: g0.name };
-  const d = $('#dm'); d.hidden = false; d.classList.add('grp'); $('#dm-call').hidden = true;
+  const d = $('#dm'); d.hidden = false; d.classList.add('grp'); $('#dm-call').hidden = false; dashGvc();
   $('#dm-name').replaceChildren(el('strong', '', g0.name)); $('#dm-st').textContent = g0.mem.length ? `${g0.mem.length} kişi` : '';
   const av = $('#dm-av'); drawAvatar(av, (g0.mem[0] && g0.mem[0].eq) || {}, { size: 36 });
   const log = $('#dm-log'); log.replaceChildren(el('p', 'note', 'Yükleniyor…')); $('#dm-in').value = '';
@@ -1311,6 +1328,14 @@ async function openGroup(gid) {
   delete FR.un['g:' + gid]; ME.un = Object.values(FR.un).reduce((s, n) => s + n, 0);
   if (g0.un) { g0.un = 0; topBar(); if (page === 'friends') drawFriends(); }
   if (!IS_PHONE()) $('#dm-in').focus();
+}
+// build 69: group voice: the drawer's 🔊 button joins; its label and the group rows show who is talking
+export function dashGvc() {
+  const b = $('#dm-call');
+  if (dmWith && dmWith.g) { const n = gvcOf(dmWith.g).length, inIt = gvcIn() === dmWith.g; b.textContent = inIt ? '🔊 İçeridesin' : n ? `🔊 Katıl (${n})` : '🔊 Sesli sohbet'; b.title = b.getAttribute('aria-label') || ''; b.setAttribute('aria-label', 'Grup sesli sohbeti'); b.disabled = inIt; b.classList.toggle('live', n > 0); }
+  else if (dmWith) { b.textContent = '📞'; b.disabled = false; b.classList.remove('live'); b.setAttribute('aria-label', 'Sesli ara'); }
+  for (const g of GR.L) g.vc = gvcOf(g.id).length || 0;
+  if (page === 'friends' && frTab === 'grp') drawFriends();
 }
 // a group message arrived over the live link
 export function onGmsg(m) {
@@ -1327,7 +1352,7 @@ export function onGmsg(m) {
 let dmWith = null;
 export async function openDm(f) {
   if (f && f.g) { openGroup(f.g); return; }
-  dmWith = f; $('#dm').classList.remove('grp'); $('#dm-call').hidden = false;
+  dmWith = f; $('#dm').classList.remove('grp'); $('#dm-call').hidden = false; dashGvc();
   const d = $('#dm'); d.hidden = false;
   $('#dm-name').replaceChildren(nameEl(f.name, f.eq));
   $('#dm-st').textContent = frStatus(f);
@@ -1519,7 +1544,7 @@ const CL_ERR = { name: 'Klan adı 3–20 harf ya da rakam olmalı.', tag: 'Etike
 const clErr = (r) => H.toast(CL_ERR[r.reason] || 'Olmadı.', 'bad');
 function clanPage(sec, arg) {
   const mine = ME.clan && ME.clan.id;
-  head(sec, 'Klan', arg && arg !== mine ? 'Klan' : mine ? 'Klanın' : 'Klanlar');
+  socialBar(sec, 'clan');
   const box = el('div', 'clan-wrap'); box.append(el('p', 'note', 'Yükleniyor…')); sec.append(box);
   const id = arg || mine;
   if (!id) { clanBrowse(box); return; }
@@ -1779,7 +1804,13 @@ export function dashInit(hooks) {
   document.addEventListener('click', (e) => { const p = $('#bell-pop'); if (!p.hidden && !p.contains(e.target)) { p.hidden = true; $('#dp-bell').setAttribute('aria-expanded', 'false'); } });
   searchInit();
   $('#dm-close').onclick = () => { $('#dm').hidden = true; dmWith = null; };
-  $('#dm-call').onclick = () => { if (dmWith) startCall(dmWith); };
+  $('#dm-call').onclick = async () => {
+    if (!dmWith) return;
+    if (!dmWith.g) { startCall(dmWith); return; }
+    if (gvcIn() === dmWith.g) return;
+    const r = await gvcJoin(dmWith.g, dmWith.name, ACCT.id);
+    if (r) H.toast({ busy: 'Önce şu anki aramanı kapat.', full: 'Sesli sohbet dolu (8 kişi).', mic: 'Sesli sohbet için mikrofon izni gerekli.', net: 'Bağlanılamadı, tekrar dene.' }[r] || 'Katılınamadı.', 'bad');
+  };
   $('#dm-send').onclick = sendDm;
   $('#dm-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendDm(); e.stopPropagation(); });
   $('#prof-close').onclick = () => { $('#prof-dlg').hidden = true; };

@@ -22,7 +22,7 @@ function voiceOffForCall() { if (!voiceOn()) return false; voiceStop(); send({ t
 async function toggleVoice() {
   if (voiceOn()) { voiceStop(); send({ t: 'voice', on: false }); voiceUi(); return; }
   if (!S.net || !S.net.peer) { toast('Sesli sohbet için bir odada olmalısın.'); return; }
-  if (callState()) { toast('Bir arkadaşınla görüşmedeyken oda sesli sohbeti açılamaz. Önce aramayı kapat.', 'bad'); return; } // build 67: one microphone use at a time
+  if (callState()) { toast('Bir aramadayken ya da grup sesli sohbetindeyken oda sesli sohbeti açılamaz. Önce onu kapat.', 'bad'); return; } // build 67: one microphone use at a time
   const ok = await voiceStart(S.net.peer);
   if (!ok) { toast('Mikrofona izin verilmedi. Tarayıcının adres çubuğundan izin verebilirsin.', 'bad'); return; }
   voiceOpen(voiceOpenPref);

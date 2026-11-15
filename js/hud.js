@@ -296,7 +296,21 @@ function updateGearHud(g, me) {
 }
 $('#btn-shop-ready').addEventListener('click', () => { if (S.game) send({ t: 'ready', r: !S.game.self.shopReady }); });
 // ---------- scoreboard ----------
+// one listener for the mute toggles (pointerdown, so a redraw between press and release can't swallow it)
+let boardHooked = false;
+function hookBoard() {
+  if (boardHooked) return; boardHooked = true;
+  $('#board').addEventListener('pointerdown', (e) => {
+    const b = e.target.closest && e.target.closest('.mute-ic'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    const k = b.dataset.mk, n = b.dataset.mn, pid = +b.dataset.mp;
+    if (k === 'c') { const on = !isMuted('c', n); setMuted('c', n, on); toast(on ? `${n} artık susturuldu (yazı).` : `${n} yazıları tekrar görünür.`); }
+    else { const on = !voiceMuted(pid); setMuted('v', n, on); voiceMute(pid, on); toast(on ? `${n} sesi susturuldu.` : `${n} sesi açıldı.`); }
+    renderBoard();
+  }, true);
+}
 function renderBoard() {
+  hookBoard();
   const g = S.game;
   if (!g) return;
   $('#board-wave').textContent = g.pv ? (PVP[g.pv[0]] || PVP.tdm).name : `Dalga ${g.wave}`;
@@ -313,9 +327,9 @@ function renderBoard() {
     const td = el('td'); td.append(who);
     const act = el('td');
     if (pid !== S.me) { // mute this player's text chat, and their voice if they have it on (remembered by name)
-      const cm = isMuted('c', info.name), mc = el('button', 'btn ghost small' + (cm ? ' on' : ''), cm ? 'Yazıyı aç' : 'Yazıyı sustur'); mc.type = 'button';
-      mc.addEventListener('click', () => { setMuted('c', info.name, !cm); renderBoard(); }); act.append(mc);
-      if (info.vo && voiceOn()) { const vm = voiceMuted(pid), mb = el('button', 'btn ghost small' + (vm ? ' on' : ''), vm ? 'Sesi aç' : 'Sesi sustur'); mb.type = 'button'; mb.addEventListener('click', () => { setMuted('v', info.name, !vm); voiceMute(pid, !vm); renderBoard(); }); act.append(mb); }
+      // build 69: small icon toggles; handled by one listener on the board (the board redraws often, so per-button clicks got lost)
+      const cm = isMuted('c', info.name), mc = el('button', 'mute-ic' + (cm ? ' on' : ''), cm ? '💬✕' : '💬'); mc.type = 'button'; mc.dataset.mk = 'c'; mc.dataset.mn = info.name; mc.dataset.mp = pid; mc.title = cm ? 'Yazısını aç' : 'Yazısını sustur'; act.append(mc);
+      if (info.vo && voiceOn()) { const vm = voiceMuted(pid), mb = el('button', 'mute-ic' + (vm ? ' on' : ''), vm ? '🔇' : '🔊'); mb.type = 'button'; mb.dataset.mk = 'v'; mb.dataset.mn = info.name; mb.dataset.mp = pid; mb.title = vm ? 'Sesini aç' : 'Sesini sustur'; act.append(mb); }
     }
     if (isHost && pid !== S.me) {
       const b = el('button', 'btn ghost small', 'At'); b.type = 'button';

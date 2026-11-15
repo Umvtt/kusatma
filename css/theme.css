@@ -63,21 +63,22 @@ body { background: var(--bg); transition: background-color .3s; }
 .screen.menu { background: transparent; }
 .dashpage { animation: dpIn .35s ease; }
 /* moving particles over the menus (never in battle, in battery saver or with reduced motion) */
-body::after {
-  content: ''; position: fixed; left: 0; right: 0; top: -400px; height: calc(100vh + 400px); z-index: 7; pointer-events: none;
+/* build 69: drawn BEHIND the page's content (a negative layer inside each screen), never over cards */
+.screen::before, .dashpage::before {
+  content: ''; position: fixed; left: 0; right: 0; top: -400px; height: calc(100vh + 400px); z-index: -1; pointer-events: none;
   background: var(--fx); background-size: 400px 400px; opacity: .8; animation: fxFall 26s linear infinite;
 }
-body[data-theme="kar"]::after { animation-duration: 16s; }
-body[data-theme="orman"]::after { animation-name: fxRise; animation-duration: 40s; opacity: .9; }
-body[data-theme="col"]::after { top: 0; left: -400px; right: auto; width: calc(100vw + 400px); height: 100vh; animation-name: fxBlow; animation-duration: 14s; }
-body[data-theme="altin"]::after { animation: fxTwinkle 3.2s ease-in-out infinite alternate; top: 0; height: 100vh; }
-body[data-theme="neon"]::after { top: 0; height: 100vh; background-size: 4px 4px; animation: none; opacity: 1; }
-body[data-theme="gece"]::after, body:not([data-theme])::after, body.playing::after, body.saver::after { display: none; }
+body[data-theme="kar"] .screen::before, body[data-theme="kar"] .dashpage::before { animation-duration: 16s; }
+body[data-theme="orman"] .screen::before, body[data-theme="orman"] .dashpage::before { animation-name: fxRise; animation-duration: 40s; opacity: .9; }
+body[data-theme="col"] .screen::before, body[data-theme="col"] .dashpage::before { top: 0; left: -400px; right: auto; width: calc(100vw + 400px); height: 100vh; animation-name: fxBlow; animation-duration: 14s; }
+body[data-theme="altin"] .screen::before, body[data-theme="altin"] .dashpage::before { animation: fxTwinkle 3.2s ease-in-out infinite alternate; top: 0; height: 100vh; }
+body[data-theme="neon"] .screen::before, body[data-theme="neon"] .dashpage::before { top: 0; height: 100vh; background-size: 4px 4px; animation: none; opacity: 1; }
+body[data-theme="gece"] .screen::before, body[data-theme="gece"] .dashpage::before, body:not([data-theme]) .screen::before, body.playing .screen::before, body.saver .screen::before, body.saver .dashpage::before, .screen.game::before { display: none; }
 @keyframes fxFall { to { transform: translateY(400px); } }
 @keyframes fxRise { from { transform: translateY(400px); } to { transform: none; } }
 @keyframes fxBlow { to { transform: translateX(400px); } }
 @keyframes fxTwinkle { from { opacity: .25; } to { opacity: .9; } }
-@media (prefers-reduced-motion: reduce) { body::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .screen::before, .dashpage::before { animation: none; } }
 
 /* ---------- flat surfaces ---------- */
 .card, .menu-card, .confirm-card, .settings-dlg, .esc-card, .dp-card {
@@ -86,7 +87,7 @@ body[data-theme="gece"]::after, body:not([data-theme])::after, body.playing::aft
 }
 .dp-card { background: var(--panel); }
 /* the theme's small ornament only where the card's top-right corner is surely empty: a header with just its title */
-.dp-card:has(> .dp-card-h > h3:only-child) { background: var(--panel) var(--orn) no-repeat right 16px top 16px / 22px 22px; }
+
 .card .card, .dp-card .dp-card { box-shadow: none; }
 .confirm { background: rgba(0,0,0,.6); backdrop-filter: none; -webkit-backdrop-filter: none; }
 .confirm-card, .settings-dlg, .esc-card { border-radius: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
@@ -296,3 +297,43 @@ button, .btn, a, [role="button"], .mode-tile, .item-card, .class-card, .choice {
 .item-card.locked { opacity: .55; filter: grayscale(.6); }
 .item-card.locked:hover { opacity: .8; }
 .ic-lock { position: absolute; top: 8px; right: 10px; font-size: 14px; z-index: 3; }
+
+/* build 69: Sosyal hub (friends, groups, clan, find players) and a ringing call card */
+.soc-hub { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 4px; }
+.soc-hub-b { appearance: none; position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; border: 0; border-radius: 16px; background: var(--panel); color: var(--dim); font: 800 13px var(--body); cursor: pointer; box-shadow: inset 0 -3px 0 rgba(0,0,0,.2); transition: transform .12s, background-color .15s; }
+.soc-hub-b i { font-style: normal; font-size: 22px; line-height: 1; }
+.soc-hub-b.on { background: var(--accent); color: var(--accent-ink); }
+.soc-hub-b:active { transform: scale(.96); }
+.soc-hub-b .badge { position: absolute; top: 6px; right: 8px; }
+@media (hover: hover) { .soc-hub-b:not(.on):hover { background: var(--panel-2); color: var(--text); } }
+.soc-call.ringing { animation: socInC .28s cubic-bezier(.2,1.3,.4,1), ringPulse 1.1s ease-in-out .3s infinite; border-color: var(--play); }
+.soc-call.ringing .soc-av { animation: ringShake 1.1s ease-in-out infinite; }
+@keyframes ringPulse { 50% { box-shadow: 0 0 0 6px rgba(34,197,94,.25), 0 14px 34px rgba(0,0,0,.45); } }
+@keyframes ringShake { 0%, 60%, 100% { transform: none; } 10%, 30%, 50% { transform: rotate(-10deg); } 20%, 40% { transform: rotate(10deg); } }
+@media (prefers-reduced-motion: reduce) { .soc-call.ringing, .soc-call.ringing .soc-av { animation: none; } }
+.soc-call.gvc { grid-template-columns: auto minmax(0, 1fr); border-color: var(--accent); }
+.soc-call.gvc .gvc-ic { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; background: var(--soft); }
+body.soc-calling #soc-call:not([hidden]) ~ #soc-gvc { top: calc(max(14px, env(safe-area-inset-top, 0px)) + 140px); }
+#dm-call.live { background: var(--play); color: #fff; }
+.gvc-live { font-size: 12px; font-weight: 800; color: var(--play); white-space: nowrap; }
+
+/* build 69: today's gems as "56 / 1000"; open rooms as clean rows */
+.gd-amt { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.gd-amt .gd-cap { font-family: var(--body); font-size: 16px; color: var(--dim); font-weight: 700; }
+.gd-ev { align-self: center; padding: 3px 9px; border-radius: 999px; background: var(--gold); color: #241402; font: 800 12px var(--body); }
+.dp-rooms li:not(.empty) { padding: 10px 12px; border: 0; border-radius: 14px; background: var(--panel-2); gap: 10px; }
+.dp-rooms li .rc { flex: none; padding: 3px 8px; border-radius: 8px; background: var(--soft); font-size: 13px; }
+.dp-rooms li .rh { font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-rooms li .btn { margin-left: auto; flex: none; }
+.dp-rooms li .rm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); font-size: 13px; }
+/* build 69: room settings breathe: the map preview row and each section heading get space */
+.map-pv-row { margin: 12px 0 18px; gap: 12px; }
+.map-pv { border-radius: 12px; border-color: var(--line); }
+.settings-card .sub-head { margin-top: 20px; }
+.choice-list { gap: 8px; }
+/* build 69: scoreboard mute toggles: small round icons on the right of the row */
+.board td:last-child { white-space: nowrap; text-align: right; }
+.mute-ic { appearance: none; width: 34px; height: 34px; margin-left: 6px; border: 0; border-radius: 50%; background: var(--panel-2); color: var(--text); font-size: 15px; line-height: 1; cursor: pointer; vertical-align: middle; transition: transform .1s, background-color .15s; }
+.mute-ic:hover { background: var(--panel-3); }
+.mute-ic:active { transform: scale(.92); }
+.mute-ic.on { background: color-mix(in srgb, var(--danger) 30%, var(--panel-2)); }

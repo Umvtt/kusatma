@@ -586,6 +586,9 @@ const b64=u=>btoa(String.fromCharCode(...u)),unb64=s=>Uint8Array.from(atob(s),c=
 const load=()=>{try{return JSON.parse(localStorage.getItem(STORE)||'{}');}catch(e){return{};}};
 const keep=o=>localStorage.setItem(STORE,JSON.stringify(o));
 /* glass dialogs and toasts instead of the browser's prompt/confirm */
+/* levels from XP, the same curve as the server (100 XP for level 2, then +40 per level) */
+const xpAt=L=>{let x=0;for(let l=1;l<L;l++)x+=100+40*(l-1);return x;};
+const pLvl=xp=>{let l=1;while(l<100&&xp>=xpAt(l+1))l++;return l;};
 function ask(o){return new Promise(res=>{const d=document.createElement('div');d.className='dlg';const c=document.createElement('div');c.className='card';d.append(c);
   const h=document.createElement('h2');h.textContent=o.title||'';c.append(h);if(o.text){const p=document.createElement('p');p.textContent=o.text;c.append(p);}
   const F={};for(const f of o.fields||[]){const l=document.createElement('label');l.textContent=f.label;let i;if(f.type==='select'){i=document.createElement('select');for(const[v,t]of f.options){const op=document.createElement('option');op.value=v;op.textContent=t;i.append(op);}}else if(f.type==='area'){i=document.createElement('textarea');}else{i=document.createElement('input');i.type=f.type||'text';}
@@ -735,7 +738,7 @@ const actTxt=x=>{let d='';try{const o=JSON.parse(x.d||'{}');d=o.k||o.text||o.why
 async function loadAlog(){const box=$('#alList');try{const L=(await admin('alog')).log.slice().reverse();box.textContent='';for(const x of L){const it=mk('div','item');it.append(mk('span','d',when(x.t)),mk('span','k',actTxt(x)));if(x.ids&&x.ids.length)it.append(mk('span','d',x.ids.join(', ')));box.append(it);}if(!L.length)box.append(mk('p','','Nothing yet.'));}catch(e){say('#alMsg',e.message,'bad');}}
 $('#alRefresh').onclick=loadAlog;
 /* Logs: everything the server saw in the last 30 days */
-const LGK=[['session','Sessions'],['room','Rooms'],['game','Games'],['wave','Waves'],['chat','Chat'],['social','Friends & DMs'],['shop','Shop'],['gems','Gems'],['reward','Rewards'],['account','Accounts'],['profile','Profile'],['cheat','Anti-cheat'],['conn','Connection'],['error','Errors'],['redeem','Codes'],['panel','Panel']];
+const LGK=[['session','Sessions'],['room','Rooms'],['game','Games'],['wave','Waves'],['chat','Chat'],['social','Friends & DMs'],['shop','Shop'],['gems','Gems'],['xp','XP & levels'],['reward','Rewards'],['account','Accounts'],['profile','Profile'],['cheat','Anti-cheat'],['conn','Connection'],['error','Errors'],['redeem','Codes'],['panel','Panel']];
 const LG={k:new Set(),next:'',rows:[],busy:0,timer:0,seq:0};
 (()=>{const box=$('#lgK');const all=mk('button','chip','All');all.type='button';all.dataset.k='';box.append(all);for(const[k,l]of LGK){const b=mk('button','chip',l);b.type='button';b.dataset.k=k;box.append(b);}
   const sync=()=>{for(const b of box.children)b.setAttribute('aria-pressed',String(b.dataset.k?LG.k.has(b.dataset.k):!LG.k.size));};sync();
@@ -843,6 +846,9 @@ async function kAcct(id){let j;try{j=await admin('kaget',[],{id});}catch(e){retu
   /* economy */
   const ec=box('Gems and XP');kv(ec,[['Balance',(P.gems||0).toLocaleString()+' gems'],['Level',(P.lvl||kLvl(P.xp||0))]]);
   btns(ec,[smallBtn('Give gems',async()=>{const v=await ask({title:'Gems for '+P.name,fields:[{id:'n',label:'Gems',type:'number',value:'100'},{id:'t',label:'Note they see under the title (optional)',max:120},{id:'why',label:'Note for the gem history',max:40,value:'gift'}],ok:'Give'});if(!v)return;act(()=>admin('kagem',[],{id,n:+v.n|0,text:v.t,why:v.why,tell:1}),'Sent');},''),
+    smallBtn('Level up',async()=>{const L=pLvl(P.xp||0);if(L>=100){note('Already level 100');return;}const n=xpAt(L+1)-(P.xp||0);const v=await ask({title:'Level up '+P.name+' to '+(L+1)+'?',text:'Adds '+n+' XP; the level reward is paid.',fields:[],ok:'Level up'});if(!v)return;act(()=>admin('kaxp',[],{id,n,text:'',tell:0}),'Now level '+(L+1));},''),
+    smallBtn('Set level',async()=>{const L=pLvl(P.xp||0);const v=await ask({title:'Level for '+P.name,text:'Now level '+L+'. Going up pays the level rewards on the way; going down only lowers XP (gems and items stay).',fields:[{id:'l',label:'Level (1–100)',type:'number',value:String(L)}],ok:'Set level'});if(!v)return;const T=Math.max(1,Math.min(100,+v.l|0));if(T===L)return;
+      if(T>L)act(()=>admin('kaxp',[],{id,n:xpAt(T)-(P.xp||0),text:'',tell:0}),'Now level '+T);else act(()=>admin('kaset',[],{id,gems:P.gems|0,xp:xpAt(T)}),'Now level '+T);},''),
     smallBtn('Give XP',async()=>{const v=await ask({title:'XP for '+P.name,text:'Added on top of what they have. Level-ups pay their level rewards.',fields:[{id:'n',label:'XP',type:'number',value:'500'},{id:'t',label:'Note they see (optional)',max:120}],ok:'Give XP'});if(!v)return;act(()=>admin('kaxp',[],{id,n:+v.n|0,text:v.t,tell:1}),'XP sent');},''),
     smallBtn('Take gems',async()=>{const v=await ask({title:'Take gems from '+P.name,fields:[{id:'n',label:'Gems',type:'number',value:'100'},{id:'why',label:'Reason',max:40}],ok:'Take',danger:true});if(!v)return;act(()=>admin('kagem',[],{id,n:-(+v.n|0),why:v.why||'taken'}),'Taken');}),
     smallBtn('Set exact values',async()=>{const v=await ask({title:'Set gems and XP',fields:[{id:'g',label:'Gems',type:'number',value:String(P.gems||0)},{id:'x',label:'XP',type:'number',value:String(P.xp||0)}],ok:'Save'});if(!v)return;act(()=>admin('kaset',[],{id,gems:+v.g|0,xp:+v.x|0}));})]);
