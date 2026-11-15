@@ -1,5 +1,13 @@
 # Planned work (owner's list, newest first). Do each part only when the owner says "start build N".
 
+## Added 15–16 Kasım 2026 (builds 67.1–71, all done)
+- **67.1–67.3 (done):** luck wheel on its own screen; info-only call notices; calls ring an away friend's phone; find players by part of a name (Oyuncular page); the locker shows where each item comes from.
+- **68 / app 49.0 (done):** group chats; the phone rings like a real call (app 49); ring sounds for both sides; clan invites with a clear state; wheel gem counter.
+- **69–69.5 (done):** Sosyal tab; calling/ringing state; group voice chat (never with the room's voice or a call); gem events lift the daily limit to 4000; '56 / 1000' card; scoreboard mutes fixed; panel XP & level log, Level up / Set level; branch-swap button; smaller, draggable call strip; iPhone-only home-screen app; group settings ⚙️ with one-tap add and search; friends refresh; solo games 0.30× gems.
+- **70 (done):** the general feel: voice retries and blocked-sound fix, group voice rings, friends refresh everywhere without redraws, seating fixes.
+- **71 (done):** loose ends (tests for branch swap and path reset, this list; the old CSS cleanup was tried and undone because it changed screens) and making content easy to add (docs/CONTENT.md, test/content.mjs, the test repo's sync70, zombie spawn rules as data, panel names from config).
+- Open, only if wanted: a speed build for late waves on phones; group voice for more than 8 people (needs a paid relay); a real ringing screen for group calls.
+
 ## Added 15 Kasım 2026 (during build 67)
 - **Build 67 (done):** the redesign the owner asked for after build 66: flat, minimal, filled look (no gradients or glow), themes that change every screen and profile with their own decorations (not only colours), and a better feel on phone and PC (real button presses, tap vibration, smoother screens).
 - Later, if wanted: remove the old gradient lines that build 67 now always overrides (tidy-up only, nothing visible).

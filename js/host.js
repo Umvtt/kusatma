@@ -1,6 +1,6 @@
 // The host's browser runs this: zombies, waves, damage, gold and upgrades.
 // Every incoming message is checked for shape and size so bad data can't crash the game.
-import { WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX,  PLAYER_COLORS, QUICK, CLASSES,    ZTYPES,  scaleFor, ZS, BOSS_ORDER, isBoss,   BOSS_DMG,        weaponOf,  newLv, lvArr,   GEAR,  TEAM, teamCost,     FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER } from './config.js';
+import { WORLD_W, WORLD_H, CX, CY, areaFor, MAPS, MAP_ORDER, DIFFS, MAX_PLAYERS, VERSION, NAME_MAX,  PLAYER_COLORS, QUICK, CLASSES,    ZTYPES, ZK, SPAWN_ORDER, spawnChance, scaleFor, ZS, BOSS_ORDER, isBoss,   BOSS_DMG,        weaponOf,  newLv, lvArr,   GEAR,  TEAM, teamCost,     FIRST_BREAK, BREAK_TIME, START_GOLD, stats, clamp, MODE_ORDER, dailyRules, MEV, MEV_ORDER, PVP_ORDER } from './config.js';
 import { PvpMixin } from './pvp.js';
 import { CombatMixin } from './host-combat.js';
 import { ZombieMixin } from './host-zombies.js';
@@ -510,30 +510,14 @@ export class HostGame {
     this.waveN = n;
     const w = this.wave;
     const total = Math.min(450, Math.round((8 + w * 5) * scaleFor(n).count * DIFFS[this.diff].count * (this.mode === 'boss' ? 0.55 : 1)));
-    const pRun = w >= 2 ? Math.min(0.28, 0.08 + w * 0.02) : 0;
-    const pBig = w >= 3 ? Math.min(0.14, 0.03 + w * 0.01) : 0;
-    const pSpit = w >= 4 ? Math.min(0.12, 0.02 + w * 0.01) : 0;
-    const pBoom = w >= 5 ? Math.min(0.1, 0.02 + (w - 5) * 0.01) : 0;
-    const pShield = w >= 6 ? Math.min(0.1, 0.02 + (w - 6) * 0.01) : 0;
-    const pSummon = w >= 8 ? Math.min(0.05, 0.015 + (w - 8) * 0.005) : 0;
-    const pGhost = w >= 7 ? Math.min(0.05, 0.015 + (w - 7) * 0.005) : 0;
-    const pArmor = w >= 9 ? Math.min(0.05, 0.015 + (w - 9) * 0.005) : 0;
-    const pLeap = w >= 6 ? Math.min(0.06, 0.02 + (w - 6) * 0.006) : 0;
-    const pBloat = w >= 8 ? Math.min(0.04, 0.012 + (w - 8) * 0.004) : 0;
-    const pHeal = w >= 10 ? Math.min(0.025, 0.01 + (w - 10) * 0.003) : 0;
-    const pCrawl = w >= 12 ? Math.min(0.03, 0.01 + (w - 12) * 0.003) : 0;
-    const pDig = w >= 7 ? Math.min(0.04, 0.012 + (w - 7) * 0.004) : 0;
-    const pScream = w >= 9 ? Math.min(0.025, 0.01 + (w - 9) * 0.003) : 0;
-    const pFrost = w >= 6 ? Math.min(0.04, 0.012 + (w - 6) * 0.004) : 0;
-    const pBat = w >= 7 ? Math.min(0.025, 0.008 + (w - 7) * 0.003) : 0;
-    const pDog = w >= 5 ? Math.min(0.025, 0.008 + (w - 5) * 0.003) : 0;
-    const table = [[21, pBat], [22, pDog], [16, pDig], [17, pScream], [18, pFrost], [2, pBig], [4, pSpit], [5, pBoom], [6, pShield], [7, pSummon], [10, pGhost], [11, pArmor], [12, pLeap], [13, pBloat], [15, pHeal], [14, pCrawl], [1, pRun]];
+    // build 70: the spawn table comes from each zombie's `spawn` rule in config.js (ZTYPES, SPAWN_ORDER)
+    const table = SPAWN_ORDER.map((k) => [ZK[k], spawnChance(ZK[k], w)]);
     this.queue = [];
     for (let i = 0; i < total; i++) {
       let r = Math.random(), t = 0;
       for (const [type, pr] of table) { if (r < pr) { t = type; break; } r -= pr; }
       this.queue.push(t);
-      if (t === 21) this.queue.push(21, 21, 21, 21); else if (t === 22) this.queue.push(22, 22, 22);
+      const pk = ZTYPES[t].spawn && ZTYPES[t].spawn.pack; if (pk) for (let k = 0; k < pk; k++) this.queue.push(t); // pack animals come in groups
     }
     this.bossWave = 0;
     if (w % 5 === 0 || this.mode === 'boss') {
