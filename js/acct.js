@@ -3,7 +3,7 @@ import { DIFFS, BUILD, MAX_PLAYERS } from './config.js';
 import { drawCharacter } from './render.js';
 import { dashInit, dashShow, dashRefresh } from './dash.js';
 import { ACCT, liveBlock, acctSign, acctOut, diagRun } from './live.js';
-import { $, S, actToast, ask, el, toast } from './app.js';
+import { $, S, actToast, ask, el, setTheme, toast } from './app.js';
 import { NAME_OK, createRoom,  joinRoom, quickPlay, sceneGo } from './main.js';
 import { roomDlg } from './lobby.js';
 import { openSettings } from './esc.js';
@@ -121,6 +121,7 @@ function dpShow() {
   const on = !!ACCT; document.body.classList.toggle('signed', on); $('#dashpage').hidden = !on;
   dashShow(on);
   if (!on && sceneGo) sceneGo();
+  if (!on) setTheme('gece');
 }
 function roomItems(rooms, max) {
   if (!rooms) return [el('li', 'empty', 'Odalar yüklenemedi.')];

@@ -1,10 +1,10 @@
-:root { --bg: #0c0e14; --panel: #141721; --line: #232939; --text: #f3f5fb; --dim: #8e96ac; --accent: #ff6b2c; --display: 'Fredoka', system-ui, sans-serif; --body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif; color-scheme: dark; }
+:root { --bg: #101012; --panel: #1b1b1e; --line: #2e2f34; --text: #f3f5fb; --dim: #9598a5; --accent: #ff6b2c; --display: 'Montserrat', system-ui, sans-serif; --body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; color-scheme: dark; }
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 84px; }
 body { margin: 0; background: radial-gradient(900px 500px at 10% -10%, rgba(255,107,44,.16), transparent 60%), radial-gradient(800px 500px at 100% 0, rgba(76,201,240,.08), transparent 60%), var(--bg); background-attachment: fixed; color: var(--text); font: 16px/1.7 var(--body); -webkit-font-smoothing: antialiased; }
 a { color: #ffb27a; text-underline-offset: 3px; }
 a:hover { color: #ffd0ac; }
-.lg-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px max(20px, calc((100vw - 1100px) / 2)); background: rgba(12,14,20,.82); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.lg-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px max(20px, calc((100vw - 1100px) / 2)); background: rgba(16,16,18,.82); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
 .lg-logo { font-family: var(--display); font-size: 22px; color: var(--text); text-decoration: none; letter-spacing: .3px; }
 .lg-logo span { color: var(--accent); }
 .lg-sp { flex: 1; }
@@ -17,20 +17,20 @@ a:hover { color: #ffd0ac; }
 .lg-hero { grid-column: 1 / -1; }
 .lg-hero .eyebrow { margin: 0; color: var(--accent); font-size: 12.5px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
 .lg-hero h1 { margin: 6px 0 8px; font-family: var(--display); font-weight: 400; font-size: clamp(32px, 5vw, 48px); line-height: 1.1; }
-.lg-hero p { margin: 0; max-width: 720px; color: #b6bdd1; font-size: 17px; }
+.lg-hero p { margin: 0; max-width: 720px; color: #bfc1c8; font-size: 17px; }
 .lg-meta { margin-top: 14px !important; display: inline-flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--dim) !important; font-size: 13px !important; }
 .lg-toc { position: sticky; top: 84px; align-self: start; display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 16px; background: rgba(255,255,255,.025); border: 1px solid var(--line); }
 .lg-toc b { padding: 4px 10px 8px; font-size: 12px; color: var(--dim); letter-spacing: 1.5px; text-transform: uppercase; }
-.lg-toc a { padding: 6px 10px; border-radius: 8px; color: #bac0d0; text-decoration: none; font-size: 14px; line-height: 1.4; }
+.lg-toc a { padding: 6px 10px; border-radius: 8px; color: #c0c2ca; text-decoration: none; font-size: 14px; line-height: 1.4; }
 .lg-toc a:hover { background: rgba(255,255,255,.05); color: var(--text); }
 .lg-doc { min-width: 0; display: flex; flex-direction: column; gap: 18px; }
 .lg-doc section { padding: 22px 24px; border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)); border: 1px solid var(--line); }
 .lg-doc h2 { margin: 0 0 10px; font-size: 20px; font-weight: 700; display: flex; gap: 10px; align-items: baseline; }
 .lg-doc h2 .n { color: var(--accent); font-family: var(--display); font-weight: 400; font-size: 16px; }
 .lg-doc h3 { margin: 16px 0 6px; font-size: 16px; }
-.lg-doc p { margin: 0 0 10px; color: #bfc5d6; }
+.lg-doc p { margin: 0 0 10px; color: #c6c8cf; }
 .lg-doc p:last-child { margin-bottom: 0; }
-.lg-doc ul { margin: 6px 0 10px; padding-left: 20px; color: #bfc5d6; }
+.lg-doc ul { margin: 6px 0 10px; padding-left: 20px; color: #c6c8cf; }
 .lg-doc li { margin: 4px 0; }
 .lg-doc li::marker { color: var(--accent); }
 .lg-note { padding: 12px 14px; border-radius: 12px; background: rgba(255,107,44,.08); border: 1px solid rgba(255,107,44,.25); color: #f0dccb !important; }
