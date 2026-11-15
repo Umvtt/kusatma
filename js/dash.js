@@ -1305,7 +1305,10 @@ function groupMenu(g) {
   for (const f of FR.L) if (!g.mem.some((m) => m.id === f.id)) { const li = el('li'); const b = btn('btn small primary', '+ Ekle', async () => { b.disabled = true; b.textContent = '…'; const j = await acctOp('gadd', { g: g.id, id: f.id }); if (!j.ok) { b.disabled = false; b.textContent = '+ Ekle'; H.toast(j.reason === 'full' ? 'Grup dolu (20 kişi).' : j.reason === 'many' ? 'Bu kişi çok fazla grupta.' : 'Eklenemedi.', 'bad'); return; } b.textContent = '✓ Eklendi'; b.classList.replace('primary', 'ghost'); g.mem.push({ id: f.id, name: f.name, eq: f.eq }); groupsLoad(); }); li.append(avatar(f.eq || {}, 28), nameEl(f.name, f.eq || {}), b); addL.append(li); }
   const sel = addL.childElementCount ? addL : el('p', 'note', 'Eklenecek arkadaşın kalmadı.');
   const row = el('div', 'join-row'); row.append(nm, ren);
-  body.append(el('p', 'eyebrow', 'Arkadaş ekle'), sel, el('p', 'eyebrow', `Üyeler (${g.mem.length})`), mem, el('p', 'eyebrow', 'Grup adı'), row);
+  // build 69.5: one search box filters both lists (friends to add and members)
+  const q = el('input', 'grp-q'); q.placeholder = '🔍 Oyuncu ara'; q.maxLength = 16; q.autocomplete = 'off'; q.addEventListener('keydown', (e) => e.stopPropagation());
+  q.addEventListener('input', () => { const t = q.value.trim().toLocaleLowerCase('tr'); for (const li of body.querySelectorAll('.grp-pick li')) { const n = (li.querySelector('.nm') || li).textContent.toLocaleLowerCase('tr'); li.hidden = !!t && !n.includes(t); } });
+  body.append(q, el('p', 'eyebrow', 'Arkadaş ekle'), sel, el('p', 'eyebrow', `Üyeler (${g.mem.length})`), mem, el('p', 'eyebrow', 'Grup adı'), row);
   const leave = btn('btn danger', 'Gruptan ayrıl', async () => { const j = await acctOp('gleave', { g: g.id }); close(); if (dmWith && dmWith.g === g.id) { $('#dm').hidden = true; dmWith = null; } groupsLoad(); H.toast(j.ok ? 'Gruptan ayrıldın.' : 'Ayrılamadın.', j.ok ? '' : 'bad'); });
   const close = grpDlg(g.name, body, leave);
 }
