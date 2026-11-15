@@ -266,3 +266,26 @@ button, .btn, a, [role="button"], .mode-tile, .item-card, .class-card, .choice {
   .choice { min-height: 48px; }
 }
 ::selection { background: var(--accent); color: var(--accent-ink); }
+
+/* ---------- players page and search suggestions (67.1) ---------- */
+.dp-search { position: relative; }
+.srch-pop { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 20; display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.45); animation: dlgIn .15s ease-out; }
+.srch-pop .note { padding: 8px 10px; }
+.srch-it { appearance: none; display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 10px; background: none; color: var(--text); font: 600 14px var(--body); text-align: left; cursor: pointer; }
+.srch-it:hover, .srch-it:focus-visible { background: var(--panel-2); }
+.srch-it canvas { width: 30px; height: 30px; flex: none; }
+.srch-it .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch-on { width: 8px; height: 8px; border-radius: 50%; background: var(--play); margin-left: auto; flex: none; }
+.srch-all { appearance: none; margin-top: 4px; padding: 9px; border: 0; border-radius: 10px; background: var(--soft); color: var(--accent); font: 800 13px var(--body); cursor: pointer; }
+.pl-in { margin-bottom: 10px; }
+.pl-box { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.pl-n { margin: 0; }
+.pl-row { cursor: pointer; transition: background-color .15s; border-radius: 12px; }
+@media (hover: hover) { .pl-row:hover { background: var(--panel-2); } }
+.pl-nm { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pl-row .dim.on { color: var(--play); font-weight: 700; }
+.pl-more { align-self: center; }
+.pl-row .fr-tx { min-width: 0; flex: 1; }
+.pl-nm .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-nm .lvl-b { flex: none; }
+@media (max-width: 560px) { .pl-row .fr-acts .btn.ghost { display: none; } } /* on phones the whole row opens the profile */
