@@ -137,7 +137,7 @@ function buildWeaponTab(list, g) {
     const sw = el('button', 'btn small wpn-swap'); sw.append(el('span', '', `${other.name} dalına geç`), el('span', 'coin'), el('b', '', fmt(BRANCH_SWAP))); // build 69: the price shows with its coin
     sw.type = 'button';
     sw.title = other.desc;
-    sw.addEventListener('click', () => { send({ t: 'buy', k: 'wswap' }); sfx.buy(); });
+    sw.addEventListener('pointerdown', (e) => { if (sw.disabled || e.button > 0) return; e.preventDefault(); send({ t: 'buy', k: 'wswap' }); sfx.buy(); }); // build 69.2: pointerdown (the list redraws and swallowed clicks)
     S.shopUpd.push(() => { const ok = gold() >= BRANCH_SWAP && alive(); sw.disabled = !ok; sw.title = ok ? other.desc : (alive() ? `Altının yetmiyor (${fmt(BRANCH_SWAP)} gerekli)` : 'Önce ayağa kalk'); });
     acts.append(sw);
   }
