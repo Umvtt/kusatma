@@ -5,7 +5,7 @@ import { liveCall, sysNotify, turnReady } from './live.js';
 import { makeCallPeer, addIce } from './net.js';
 import * as sfx from './sfx.js';
 
-let H = { openDm: () => {}, avatar: () => {}, inGame: () => false, send: async () => false };
+let H = { openDm: () => {}, avatar: () => {}, inGame: () => false, send: async () => false, voiceOff: () => false, toast: () => {} };
 export function socialInit(h) { H = Object.assign(H, h); }
 
 // ---------- message pop-ups ----------
@@ -75,6 +75,7 @@ function hook(call) {
 export async function callFriend(f) {
   if (C.st) return 'busy';
   if (!navigator.mediaDevices) return 'mic';
+  if (H.voiceOff()) H.toast('Oda sesli sohbeti arama için kapatıldı.');
   C.st = 'out'; C.who = f; draw();
   C.stream = await mic(); if (!C.stream) { end(false); return 'mic'; }
   C.peer = await openPeer(); if (!C.peer || C.st !== 'out') { end(false); return 'net'; }
@@ -86,6 +87,7 @@ export async function callFriend(f) {
 async function accept() {
   if (C.st !== 'in') return;
   ringStop(); const who = C.who, theirs = C.theirs;
+  if (H.voiceOff()) H.toast('Oda sesli sohbeti arama için kapatıldı.');
   C.stream = await mic(); if (!C.stream) { end(true); return; }
   C.peer = await openPeer(); if (!C.peer || C.st !== 'in') { end(true); return; }
   liveCall(who.id, 'ok', C.peer.id);

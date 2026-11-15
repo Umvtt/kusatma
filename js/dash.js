@@ -4,8 +4,9 @@
 import { ACCT, ME, LIVE, acctOp, owns, friendsGet, dmHistory, dmSend, topGet, dailyGet, roomsGet, acctCheck, sysNotifyOn, sysNotifySet, appPushCan, appPushOn, appPushSet } from './live.js';
 import { ITEMS, SLOTS, SLOT_OF, RARITY, FREE_CLS, isFree, titleOf } from './catalog.js';
 import { CLASSES, CLASS_ORDER, DIFFS, MAPS, BUILD, dailyRules, league, LEAGUES, clsNext, BADGES, APP_BUILD } from './config.js';
-import { drawCharacter, drawPet } from './render.js';
+import { drawCharacter, drawPet, drawMapPreview } from './render.js';
 import { msgPop, callFriend } from './social.js';
+import { setTheme } from './app.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -89,7 +90,8 @@ export const THEMES = {
 let pvTheme = null;
 const curThm = () => (pvTheme && THEMES[pvTheme] ? pvTheme : ME.eq.thm && THEMES[ME.eq.thm] ? ME.eq.thm : 't.gece');
 function applyTheme() {
-  $('#dashpage').dataset.theme = curThm().slice(2);
+  const t = curThm().slice(2);
+  $('#dashpage').dataset.theme = t; setTheme(t); // build 67: the whole site, not only this panel
 }
 function previewTheme(id) {
   if (!THEMES[id]) return;
@@ -299,22 +301,38 @@ function homePage(sec) {
   lv.append(lvlBadge(ME.lvl), el('span', '', `Seviye ${ME.lvl}`), bar, el('span', 'dim', `${fmt(ME.lx)} / ${fmt(ME.ln)} XP`));
   txt.append(lv);
   const acts = el('div', 'dp-hero-acts');
-  acts.append(btn('btn big play-btn', 'Oyna', () => dashGo('play')), btn('btn tile-btn t-blue quick-btn', 'Hızlı oyna', () => H.quick()), btn('btn tile-btn t-purple', 'Tek başına', () => H.solo()), btn('btn tile-btn t-teal', 'Oda kur', () => H.roomDlg()), btn('btn tile-btn phone-only', 'Sıralama', () => dashGo('top')));
+  acts.append(btn('btn big play-btn', 'Oyna', () => H.quick()));
   txt.append(acts);
   heroBox.append(cv, txt);
-  sec.append(heroBox);
+  // build 67: friends first (like the big game platforms), then the ways to play as picture tiles
+  const fr = el('section', 'home-fr-sec');
+  const frh = el('div', 'home-h'); frh.append(el('h3', '', 'Arkadaşlar'), btn('btn small ghost', 'Tümü', () => dashGo('friends')));
+  const strip = el('div', 'fr-strip big'); strip.id = 'home-fr';
+  const add = btn('fr-dot add', '', () => dashGo('friends', 'add')); add.append(el('span', 'plus', '+'), el('span', 'fn', 'Ekle'));
+  strip.append(add);
+  fr.append(frh, scroller(strip));
+  sec.append(fr, heroBox);
+  friendsGet().then((d) => { if (d) onFriends(d); });
+  const mh = el('div', 'home-h'); mh.append(el('h3', '', 'Nasıl oynamak istersin?'));
+  const modes = el('div', 'mode-tiles');
+  for (const [cls, title, sub, map, ic, fn] of [
+    ['m-green', 'Hızlı oyna', 'Açık bir odaya hemen katıl', 'meydan', '⚡', () => H.quick()],
+    ['m-purple', 'Tek başına', 'Kendi hızında, istediğin kadar', 'orman', '🎯', () => H.solo()],
+    ['m-teal', 'Oda kur', 'Arkadaşlarınla kendi odan', 'liman', '🏠', () => H.roomDlg()],
+    ['m-orange', 'Odalar ve modlar', 'Günlük, PvP, sonsuz, boss', 'kar', '🗺️', () => dashGo('play')],
+    ['m-gold', 'Sıralama', 'En iyiler ve haftalık tablo', 'metro', '🏆', () => dashGo('top')],
+  ]) {
+    const b = btn('mode-tile ' + cls, '', fn);
+    const cv2 = el('canvas', 'mt-cv'); cv2.width = 240; cv2.height = 140; cv2.setAttribute('aria-hidden', 'true');
+    try { drawMapPreview(cv2, map); } catch (e) { /* ignore */ }
+    const art = el('span', 'mt-art'); art.append(cv2, el('span', 'mt-ic', ic));
+    const tx = el('span', 'mt-tx'); tx.append(el('strong', '', title), el('span', '', sub));
+    b.append(art, tx); modes.append(b);
+  }
+  sec.append(mh, modes);
   sec.append(newsCard());
   sec.append(dailyCard());
   sec.append(spinCard());
-
-  // friends strip
-  const fr = card('Arkadaşlar', btn('btn small ghost', 'Tümü', () => dashGo('friends')));
-  const strip = el('div', 'fr-strip'); strip.id = 'home-fr';
-  const add = btn('fr-dot add', '', () => dashGo('friends', 'add')); add.append(el('span', 'plus', '+'), el('span', 'fn', 'Ekle'));
-  strip.append(add);
-  fr.append(scroller(strip));
-  sec.append(fr);
-  friendsGet().then((d) => { if (d) onFriends(d); });
 
   const row = el('div', 'dp-grid3');
   // daily reward
@@ -364,7 +382,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Yeni görünüm: daha parlak renkler, yuvarlak yazılar, büyük yeşil Oyna düğmesi ve renkli kısayollar; telefonda daha sade bir oyun ekranı.', 'Arkadaşından mesaj gelince ekranın üstünde bir kart çıkıyor; Yanıtla\'ya basıp oyundayken bile hemen cevap verebilirsin.', 'Arkadaşlarını sesli arayabilirsin: arkadaş listesinde Ara, mesaj penceresinde telefon düğmesi. Ulaşılamazsa telefonuna cevapsız arama bildirimi gider.', 'Oyuncuları susturabilirsin; tek başına oyunlarda günlük elmas sınırı daha düşük.'];
+const WHATS_NEW = ['Baştan yenilenmiş, sade görünüm: düz ve dolu renkler, parlamalar ve renk geçişleri yok. Butonlar basınca gerçekten basılıyor, telefonda dokununca hafif titriyor.', 'Temalar artık her yerde: menü, lobi, cephanelik, oyun ekranı ve pencereler. Her temanın kendi süsü var: kar yağıyor, kan damlıyor, ateşböcekleri uçuyor, kum esiyor, neon parlıyor, altın ışıldıyor. Profiller de sahibinin temasıyla açılıyor.', 'Ana sayfa yeni: en üstte arkadaşların, altında resimli oyun kutuları (Hızlı oyna, Tek başına, Oda kur, modlar, sıralama). Telefonda alttaki menü uygulama gibi.', 'Arkadaşınla sesli görüşmedeyken oda sesli sohbeti açılamaz; arama başlarken oda sesli sohbeti kendiliğinden kapanır.', 'Arkadaş mesajları ekranda kart olarak çıkıyor ve oradan yanıtlanabiliyor; arkadaşlarını sesli arayabilirsin.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -431,7 +449,7 @@ function drawWheel(cv, rot) {
     const a = a0 + (i / n) * Math.PI * 2 - Math.PI / n, b = a + Math.PI * 2 / n;
     g.fillStyle = SPIN_COL[i]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, r, a, b); g.closePath(); g.fill();
     g.strokeStyle = 'rgba(255,255,255,0.15)'; g.lineWidth = 1; g.stroke();
-    g.save(); g.rotate(a0 + (i / n) * Math.PI * 2); g.fillStyle = SPIN[i][1] === 'item' ? '#ffd34d' : '#ece6d6'; g.font = `700 ${Math.round(S / 17)}px Nunito, system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle';
+    g.save(); g.rotate(a0 + (i / n) * Math.PI * 2); g.fillStyle = SPIN[i][1] === 'item' ? '#ffd34d' : '#ece6d6'; g.font = `700 ${Math.round(S / 17)}px Inter, system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle';
     g.fillText(SPIN[i][0], r - 8, 0); g.restore();
   }
   g.restore();
@@ -675,6 +693,7 @@ function playPage(sec) {
 function profileView(p, mine) {
   const wrap = el('div', 'prof');
   const ban = el('div', 'prof-banner'); ban.dataset.theme = ((p.eq && p.eq.thm) || 't.gece').slice(2);
+  wrap.dataset.theme = ban.dataset.theme; // build 67: a profile is shown in its owner's theme
   if (p.eq && ITEMS[p.eq.ban]) ban.append(bannerEl(p.eq.ban, 'ban-bg'));
   const av = avatar(p.eq, 120, mine ? heroCls() : 'asker');
   const info = el('div', 'prof-info');
@@ -753,7 +772,7 @@ function drawClassPic(cv, cls, S, eq) {
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.translate(S * 0.42, S * 0.55); g.scale(S / 44, S / 44);
   if (CLASSES[cls]) drawCharacter(g, cls, colorOf(eq || ME.eq), -0.6, 0, { alive: true, hat: eq && eq.hat, wsk: eq && eq.wsk });
-  else { g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.arc(0, 0, 15, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(255,255,255,0.5)'; g.font = '700 16px Nunito'; g.textAlign = 'center'; g.fillText('?', 0, 6); }
+  else { g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.arc(0, 0, 15, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(255,255,255,0.5)'; g.font = '700 16px Inter'; g.textAlign = 'center'; g.fillText('?', 0, 6); }
 }
 let lockSlot = 'hat', lockCls = '';
 function lockerPage(sec) {
@@ -1031,7 +1050,7 @@ export function onFriends(d) {
   if (hs) {
     const keep = hs.querySelector('.add');
     hs.replaceChildren(...d.L.slice(0, 12).map((f) => {
-      const b = btn('fr-dot' + (f.on ? ' on' : ''), '', () => (f.room ? H.join(f.room) : openProfile({ id: f.id })));
+      const b = btn('fr-dot' + (f.on ? ' on' : ''), '', () => (f.room ? H.join(f.room) : openDm(f)));
       const w = el('span', 'fr-av'); w.append(avatar(f.eq, 56)); if (f.on) w.append(el('i', 'dot'));
       b.append(w, el('span', 'fn', f.name), el('span', 'fs', f.room ? 'Katıl' : f.on ? 'Çevrimiçi' : ago(f.last)));
       return b;

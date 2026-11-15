@@ -23,7 +23,7 @@ import { buzz, notice, qaPop, quickPick, quickToggle, renderBoard, updateHud } f
 import { closeEsc, openEsc, openSettings, syncSettingsLabels } from './esc.js';
 import { addChat, closeChat, isMuted, openChat } from './chat.js';
 import { renderOver } from './over.js';
-import { TAP_MS, setOpenMic, voiceOpenPref, voiceUi } from './voiceui.js';
+import { TAP_MS, setOpenMic, voiceOpenPref, voiceUi, voiceOffForCall } from './voiceui.js';
 import { renderLobby, roomDlg } from './lobby.js';
 import { shopKey, shopTabStep } from './shop.js';
 
@@ -505,6 +505,15 @@ setMute(sfx.isMuted());
 $('#btn-mute').addEventListener('click', () => { sfx.unlock(); setMute(sfx.toggleMute()); });
 // browsers only allow sound after the first click or key press
 window.addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
+// build 67: a tiny tick under the thumb when a menu button is pressed on a phone (not in battle; follows the vibration setting)
+let tapAt = 0;
+window.addEventListener('pointerdown', (e) => {
+  if (!IS_TOUCH || !SETTINGS.vibe || S.screen === 'game' || e.pointerType !== 'touch') return;
+  const b = e.target.closest && e.target.closest('button, .btn, [role="button"], [role="tab"]');
+  if (!b || b.disabled) return;
+  const now = performance.now(); if (now - tapAt < 60) return; tapAt = now;
+  try { if (window.KusatmaApp && window.KusatmaApp.vibrate) window.KusatmaApp.vibrate('[8]'); else if (navigator.vibrate) navigator.vibrate(8); } catch (err) { /* ignore */ }
+}, { capture: true, passive: true });
 window.addEventListener('keydown', () => sfx.unlock(), { capture: true });
 let vKeyAt = 0;
 window.addEventListener('keydown', (e) => { if (e.code === 'KeyV' && !e.repeat && voiceOn() && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))) { vKeyAt = performance.now(); if (!voiceOpenPref) voicePtt(true); voiceUi(); } });
@@ -754,6 +763,8 @@ socialInit({
   avatar: (cv, eq, o) => drawAvatar(cv, eq, o),
   inGame: () => S.screen === 'game',
   send: async (id, t) => { const j = await dmSend(id, t); return !!(j && j.ok); },
+  voiceOff: () => voiceOffForCall(),
+  toast: (t) => toast(t),
 });
 // ---------- room invites: send to online friends, and the pop-up when a friend calls you ----------
 function invDraw() {

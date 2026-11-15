@@ -3,6 +3,7 @@ import { voiceOn, voiceStart, voiceStop, voicePtt, voiceOpen, voiceTalking, voic
 import { send } from './main.js';
 import { $, IS_TOUCH, S, el, toast } from './app.js';
 import { buzz } from './hud.js';
+import { callState } from './social.js';
 
 // ---------- voice chat ----------
 // The mic button: tap once to turn voice on. Then hold it to talk (the finger may slide off it, talking stops only
@@ -16,9 +17,12 @@ function setOpenMic(on) {
   try { localStorage.setItem('kusatma-mik', on ? '1' : '0'); } catch (e) { /* ignore */ }
   voiceOpen(voiceOpenPref); voiceUi();
 }
+// the room's voice chat goes off (a friend call starts); tells the room
+function voiceOffForCall() { if (!voiceOn()) return false; voiceStop(); send({ t: 'voice', on: false }); voiceUi(); return true; }
 async function toggleVoice() {
   if (voiceOn()) { voiceStop(); send({ t: 'voice', on: false }); voiceUi(); return; }
   if (!S.net || !S.net.peer) { toast('Sesli sohbet için bir odada olmalısın.'); return; }
+  if (callState()) { toast('Bir arkadaşınla görüşmedeyken oda sesli sohbeti açılamaz. Önce aramayı kapat.', 'bad'); return; } // build 67: one microphone use at a time
   const ok = await voiceStart(S.net.peer);
   if (!ok) { toast('Mikrofona izin verilmedi. Tarayıcının adres çubuğundan izin verebilirsin.', 'bad'); return; }
   voiceOpen(voiceOpenPref);
@@ -98,4 +102,4 @@ const TAP_MS = 220;
   }
 })();
 
-export { TAP_MS, setOpenMic, toggleVoice, voiceLabel, voiceOpenPref, voiceTick, voiceUi };
+export { TAP_MS, setOpenMic, toggleVoice, voiceLabel, voiceOpenPref, voiceTick, voiceUi, voiceOffForCall };

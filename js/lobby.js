@@ -183,6 +183,7 @@ function buildClassCards() {
     const b = el('button', 'class-card');
     b.type = 'button';
     b.dataset.cls = id;
+    b.style.setProperty('--cc', CLASS_COL[id] || '#7c5cff'); // build 67: every class has its own colour
     b.setAttribute('role', 'radio');
     const top = el('div', 'class-top');
     const pv = el('canvas', 'class-preview');
@@ -219,6 +220,8 @@ function buildClassCards() {
     cl.append(b);
   }
 }
+// build 67: a colour per class for its card (role-like: attackers warm, support green, defence blue, specialists purple)
+const CLASS_COL = { asker: '#ff6b2c', doktor: '#22c55e', tamirci: '#38bdf8', nisanci: '#a78bfa', kalkanci: '#60a5fa', alevci: '#f97316', bombaci: '#ef4444', izci: '#facc15', muhendis: '#2dd4bf', kimyager: '#84cc16', komutan: '#f59e0b', tesla: '#22d3ee', avci: '#a3e635', kilicci: '#f43f5e', egitmen: '#e879f9', ajan: '#94a3b8', hacker: '#4cf0d0' };
 const CLASS_ROLE = { asker: 'Saldırı', doktor: 'Destek', tamirci: 'Savunma', nisanci: 'Keskin nişancı', kalkanci: 'Tank', alevci: 'Yakın dövüş', bombaci: 'Alan hasarı', izci: 'Hız ve ganimet', muhendis: 'Dron ve destek', kimyager: 'Zehir ve kontrol', komutan: 'Liderlik', tesla: 'Zincirleme hasar', avci: 'Delici atış' };
 // The side panel with everything about one class: stats, ability, passive, mastery and weapons.
 const CLASS_TIPS = {

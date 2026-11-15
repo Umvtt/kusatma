@@ -36,6 +36,15 @@ const S = {
 const renderer = new Renderer($('#game'));
 const IS_TOUCH = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches);
 document.body.classList.toggle('touch', IS_TOUCH);
+// build 67: the worn theme colours the whole site (menu, lobby, armory, HUD, dialogs), not only the signed-in panel;
+// remembered so the next visit opens in it before the account loads
+const THEME_IDS = ['gece', 'orman', 'kan', 'kar', 'col', 'neon', 'altin'];
+function setTheme(t) {
+  if (!THEME_IDS.includes(t)) t = 'gece';
+  document.body.dataset.theme = t;
+  try { if (t === 'gece') localStorage.removeItem('kusatma-tema'); else localStorage.setItem('kusatma-tema', t); } catch (e) { /* ignore */ }
+}
+try { setTheme(localStorage.getItem('kusatma-tema') || 'gece'); } catch (e) { setTheme('gece'); }
 try { if (IS_TOUCH && !localStorage.getItem('kusatma-zoom')) zoom = 0.85; } catch (e) { /* ignore */ }
 window.addEventListener('resize', () => renderer.resize());
 // a note with one button (a friend who is playing: Katıl); stays 9 s
@@ -98,4 +107,4 @@ function setZoom(z) {
   try { localStorage.setItem('kusatma-zoom', zoom.toFixed(3)); } catch (e) { /* ignore */ }
 }
 
-export { $, $ID, IS_TOUCH, LD, S, actToast, ask, busy, confirmCb, el, fmt, loading, menuMsg, renderer, setHid, setPct, setT, setZoom, sleep, tipNext, toast, zoom };
+export { $, $ID, IS_TOUCH, LD, S, actToast, ask, busy, confirmCb, el, fmt, loading, menuMsg, renderer, setHid, setPct, setT, setTheme, setZoom, sleep, tipNext, toast, zoom };

@@ -1,5 +1,9 @@
 # Planned work (owner's list, newest first). Do each part only when the owner says "start build N".
 
+## Added 15 Kasım 2026 (during build 67)
+- **Build 67 (done):** the redesign the owner asked for after build 66: flat, minimal, filled look (no gradients or glow), themes that change every screen and profile with their own decorations (not only colours), and a better feel on phone and PC (real button presses, tap vibration, smoother screens).
+- Later, if wanted: remove the old gradient lines that build 67 now always overrides (tidy-up only, nothing visible).
+
 ## Added 14 Kasım 2026 (after build 63)
 Split agreed by the owner:
 - **Build 64 (done):** the old build 64 list below + items 5, 6, 7, 8 (leaderboard abuse, harder game, visible events, bodies inside the border).
