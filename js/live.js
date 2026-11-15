@@ -105,6 +105,8 @@ function onData(raw) {
   else if (d.e === 'pvp') { ME.gems += Math.max(0, d.g | 0); ME.pvp = Object.assign({}, ME.pvp || {}, { rp: d.rp | 0 }); if (H.onPvp) H.onPvp(d); }
   else if (d.e === 'gem') { const n = Math.max(0, d.n | 0); ME.gems += n; ME.gd += n; addXp(Math.max(0, d.xp | 0)); if (H.onGem) H.onGem(n, d.xp | 0, !!d.cap); }
   else if (d.e === 'fl') { if (H.onFriends) H.onFriends(cleanFl(d)); }
+  else if (d.e === 'gmsg') { const m = { g: str(d.g, 16), gn: str(d.gn, 24), f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now(), s: d.s ? 1 : 0 }; if (!m.s) sysNotify(m.gn, m.n + ': ' + m.x.slice(0, 120), 'dm'); if (H.onGmsg) H.onGmsg(m); }
+  else if (d.e === 'grp') { if (H.onGrp) H.onGrp(); }
   else if (d.e === 'dm') { sysNotify(str(d.n, 16), str(d.x, 120), 'dm'); if (H.onDm) H.onDm({ f: str(d.f, 12), n: str(d.n, 16), x: str(d.x, 200), t: +d.t || Date.now() }); }
   else if (d.e === 'dmh') { const w = DMW.get(str(d.w, 12)); if (w) { DMW.delete(str(d.w, 12)); w(d.ok ? cleanMsgs(d.L) : null); } }
   else if (d.e === 'dmok') { const w = DMW.get('c' + (d.c | 0)); if (w) { DMW.delete('c' + (d.c | 0)); w(d); } }

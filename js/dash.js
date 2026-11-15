@@ -383,7 +383,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Dolapta her eşyanın nereden geldiği yazıyor; henüz kazanmadığın ödüller kilitli olarak, nasıl kazanılacağıyla görünüyor.', 'Oyuncu bul: adın bir kısmını yazman yeter. Tüm oyuncuları listeleyen yeni Oyuncular sayfası (telefonda Arkadaşlar sayfasından).', 'Şans çarkı yenilendi: kendi ekranında açılıyor, büyük çark, ışıklar, tık sesleri ve konfeti.', 'Çevrimdışı bir arkadaşını aradığında telefonuna arama bildirimi gidiyor; oyunu açınca arama çalıyor.', 'Baştan yenilenmiş, sade görünüm: düz ve dolu renkler, parlamalar ve renk geçişleri yok. Butonlar basınca gerçekten basılıyor, telefonda dokununca hafif titriyor.', 'Temalar artık her yerde: menü, lobi, cephanelik, oyun ekranı ve pencereler. Her temanın kendi süsü var: kar yağıyor, kan damlıyor, ateşböcekleri uçuyor, kum esiyor, neon parlıyor, altın ışıldıyor. Profiller de sahibinin temasıyla açılıyor.', 'Ana sayfa yeni: en üstte arkadaşların, altında resimli oyun kutuları (Hızlı oyna, Tek başına, Oda kur, modlar, sıralama). Telefonda alttaki menü uygulama gibi.', 'Arkadaşınla sesli görüşmedeyken oda sesli sohbeti açılamaz; arama başlarken oda sesli sohbeti kendiliğinden kapanır.', 'Arkadaş mesajları ekranda kart olarak çıkıyor ve oradan yanıtlanabiliyor; arkadaşlarını sesli arayabilirsin.'];
+const WHATS_NEW = ['Klan davetleri: gönderdiğin davet "✓ Davet edildi" olarak görünür ve tekrar gönderilemez; arkadaşlarını tek dokunuşla davet et. Katılma isteğin de "✓ İstek gönderildi" olarak kalır.', 'Grup sohbetleri: Arkadaşlar > Gruplar\'dan arkadaşlarınla bir grup kur, hepiniz aynı yerde yazışın. Grup mesajları da ekranda kart olarak çıkar ve oradan yanıtlanır.', 'Uygulama 49.0: arkadaşın seni aradığında telefonun gerçek bir arama gibi çalar, kilit ekranında da. Site ile telefon birbirini arayabilir.', 'Aramalarda zil sesi: arayan tarafta çalma sesi, aranan tarafta telefon zili.', 'Şans çarkı: sahip olduğun bir ödül çıkarsa yerine 150 elmas aldığını açıkça yazıyor; çark ekranında elmas sayacın görünüyor.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -501,7 +501,8 @@ function openSpin() {
   const top = el('div', 'spin-top');
   const chip = el('span', 'spin-chip');
   const x = btn('spin-x', '✕', () => close()); x.setAttribute('aria-label', 'Kapat');
-  top.append(el('h2', 'spin-h', 'Şans çarkı'), chip, x);
+  const gemBox = el('span', 'spin-gems'); const gemsEl = () => gemBox.replaceChildren(gemIcon(16), el('b', '', fmt(ME.gems))); gemsEl();
+  top.append(el('h2', 'spin-h', 'Şans çarkı'), gemBox, chip, x);
   const stage = el('div', 'spin-stage'), cv = el('canvas', 'spin-wheel'), ptr = el('div', 'spin-ptr');
   const hub = btn('spin-hub', 'ÇEVİR', () => go());
   stage.append(cv, ptr, hub);
@@ -538,6 +539,7 @@ function openSpin() {
     if (!j.ok) { busy = false; label(); H.toast({ gems: 'Yeterli elmasın yok.', max: 'Bugünlük bu kadar. Yarın gel!', used: 'Ücretsiz çevirmeni kullandın.', slow: 'Biraz bekle.' }[j.reason] || 'Çevrilemedi.', 'bad'); return; }
     ME.spin = { free: false, n: j.n }; ME.gems = j.gems;
     if (j.it && !ME.own.includes(j.it)) ME.own.push(j.it); if (j.pass) ME.pass = j.pass;
+    if (!s.free) gemBox.replaceChildren(gemIcon(16), el('b', '', fmt(j.gems - (j.g | 0)))); // the price comes off now, the prize lands with the wheel
     // several full turns, landing somewhere inside the prize's slice (not always dead centre)
     const n = SPIN.length, seg = Math.PI * 2 / n, jit = (Math.random() - 0.5) * seg * 0.6;
     const base = spinRot - (spinRot % (Math.PI * 2)), to = base - Math.PI * 2 * 6 - (j.i / n) * Math.PI * 2 + jit, from = spinRot;
@@ -553,8 +555,10 @@ function openSpin() {
       if (k < 1) { requestAnimationFrame(step); return; }
       spinRot = to % (Math.PI * 2); drawWheel(cv, spinRot, 0);
       busy = false; label();
-      const what = j.it ? `${ITEMS[j.it] ? ITEMS[j.it].name : j.it} kazandın!` : j.x ? `+${j.x} XP kazandın!` : `+${fmt(j.g)} elmas kazandın!`;
-      notify('gem', 'Şans çarkı', what); if (j.g) gemBurst(); topBar();
+      // an item you already own pays 150 gems instead (the server's rule): say so, so the wheel and the prize agree
+      const dup = SPIN[j.i % n] && SPIN[j.i % n][1] === 'item' && !j.it && j.g;
+      const what = j.it ? `${ITEMS[j.it] ? ITEMS[j.it].name : j.it} kazandın!` : dup ? `${SPIN[j.i % n][0]} zaten sende: yerine +${fmt(j.g)} elmas!` : j.x ? `+${j.x} XP kazandın!` : `+${fmt(j.g)} elmas kazandın!`;
+      notify('gem', 'Şans çarkı', what); if (j.g) gemBurst(); topBar(); gemsEl();
       try { sfx.spinWin(!!j.it || j.g >= 100); } catch (er) { /* ignore */ }
       vibe(60); confetti(fx, SPIN_COL[j.i % n]); showRes(j, what);
     };
@@ -1128,7 +1132,7 @@ function friendsPage(sec, arg) {
   if (arg === 'add') frTab = 'add';
   head(sec, 'Arkadaşlar', 'Arkadaşların', btn('btn small primary', '🔍 Oyuncu bul', () => dashGo('players')));
   const tabs = el('div', 'seg-tabs');
-  for (const [k, n] of [['list', `Arkadaşlar (${FR.L.length})`], ['req', `İstekler${FR.q.length ? ' (' + FR.q.length + ')' : ''}`], ['recent', 'Son oynadıkların'], ['add', 'Arkadaş ekle']]) {
+  for (const [k, n] of [['list', `Arkadaşlar (${FR.L.length})`], ['req', `İstekler${FR.q.length ? ' (' + FR.q.length + ')' : ''}`], ['grp', `Gruplar${GR.un() ? ' (' + GR.un() + ')' : ''}`], ['recent', 'Son oynadıkların'], ['add', 'Arkadaş ekle']]) {
     const b = btn('', n, () => { frTab = k; dashGo('friends'); }); b.setAttribute('aria-selected', String(k === frTab)); tabs.append(b);
   }
   sec.append(segTabs(tabs));
@@ -1158,6 +1162,7 @@ function drawFriends() {
     box.append(c);
     return;
   }
+  if (frTab === 'grp') { drawGroups(box); return; }
   if (frTab === 'add') {
     const c = card('Ad ile ekle');
     const row = el('div', 'join-row'); const inp = el('input', 'field-in'); inp.maxLength = 16; inp.placeholder = 'Oyuncu adı'; inp.autocomplete = 'off';
@@ -1218,6 +1223,7 @@ export function onFriends(d) {
   frNewRooms(d);
   FR = d;
   ME.fq = d.q; ME.un = Object.values(d.un).reduce((s, n) => s + n, 0);
+  if (!GR.on) { GR.on = 1; groupsLoad(); }
   topBar();
   if (page === 'friends') drawFriends();
   const hs = $('#home-fr');
@@ -1238,10 +1244,90 @@ export function onFriends(d) {
 }
 const refreshFriends = () => friendsGet().then((d) => { if (d) onFriends(d); });
 
+// ---------- group chats (build 68): friends together, opened in the same message drawer ----------
+const GR = { L: [], un: () => GR.L.reduce((t, g) => t + (g.un | 0), 0) };
+export async function groupsLoad() { const j = await acctOp('glist', {}); if (j.ok) { GR.L = j.L; if (page === 'friends' && frTab === 'grp') drawFriends(); topBar(); } return GR.L; }
+function groupAv(g) { const w = el('div', 'grp-av'); for (const m of (g.mem || []).slice(0, 3)) w.append(avatar(m.eq || {}, 28)); return w; }
+function drawGroups(box) {
+  const c = card('Gruplar', btn('btn small primary', '+ Yeni grup', newGroup));
+  const ul = el('ul', 'fr-list');
+  if (!GR.L.length) ul.append(el('li', 'empty', 'Henüz bir grubun yok. Arkadaşlarınla bir grup kur, hepiniz aynı yerde konuşun.'));
+  for (const g of GR.L) {
+    const li = el('li', 'fr-row grp-row'); li.append(groupAv(g));
+    const tx = el('div', 'fr-tx'); tx.append(el('strong', '', g.name), el('span', 'dim', g.last ? (g.last.s ? g.last.x : (g.last.n ? g.last.n + ': ' : '') + g.last.x) : `${g.mem.length} kişi`));
+    li.append(tx);
+    const acts = el('div', 'fr-acts'); if (g.un) acts.append(el('span', 'badge', String(g.un)));
+    acts.append(btn('btn small ghost', '⋯', (e) => { e.stopPropagation(); groupMenu(g); }));
+    li.append(acts); li.addEventListener('click', () => openGroup(g.id)); ul.append(li);
+  }
+  c.append(ul); box.append(c);
+  groupsLoad.t = groupsLoad.t || 0; if (Date.now() - groupsLoad.t > 15000) { groupsLoad.t = Date.now(); groupsLoad(); }
+}
+// pick friends (and a name) for a new group
+function newGroup() {
+  const pick = new Set(), body = el('div', 'grp-new');
+  const nm = el('input'); nm.maxLength = 24; nm.placeholder = 'Grup adı (isteğe bağlı)'; nm.autocomplete = 'off'; nm.addEventListener('keydown', (e) => e.stopPropagation());
+  const ul = el('ul', 'grp-pick');
+  if (!FR.L.length) ul.append(el('li', 'empty', 'Önce arkadaş eklemen gerekiyor.'));
+  for (const f of FR.L) { const li = el('li'); const cb = el('input'); cb.type = 'checkbox'; cb.onchange = () => { if (cb.checked) pick.add(f.id); else pick.delete(f.id); go.disabled = !pick.size; }; const lb = el('label'); lb.append(cb, avatar(f.eq || {}, 28), nameEl(f.name, f.eq || {})); li.append(lb); ul.append(li); }
+  const go = btn('btn primary', 'Grubu kur', async () => { go.disabled = true; const j = await acctOp('gnew', { name: nm.value.trim(), mem: [...pick] }); if (!j.ok) { go.disabled = false; H.toast({ many: 'En çok 20 grubun olabilir.', slow: 'Biraz bekle, sonra tekrar dene.', mem: 'En az bir arkadaş seç.' }[j.reason] || 'Grup kurulamadı.', 'bad'); return; } close(); await groupsLoad(); openGroup(j.g.id); });
+  go.disabled = true;
+  body.append(nm, el('p', 'note', 'Kimler olsun? (en çok 19 arkadaş)'), ul);
+  const close = grpDlg('Yeni grup', body, go);
+}
+function groupMenu(g) {
+  const body = el('div', 'grp-new');
+  const mem = el('ul', 'grp-pick'); for (const m of g.mem) { const li = el('li'); li.append(avatar(m.eq || {}, 28), nameEl(m.name, m.eq || {})); mem.append(li); }
+  const nm = el('input'); nm.maxLength = 24; nm.value = g.name; nm.addEventListener('keydown', (e) => e.stopPropagation());
+  const ren = btn('btn small', 'Adı kaydet', async () => { const j = await acctOp('gren', { g: g.id, name: nm.value.trim() }); H.toast(j.ok ? 'Grubun adı değişti.' : 'Değiştirilemedi.', j.ok ? 'good' : 'bad'); if (j.ok) groupsLoad(); });
+  const sel = el('select', 'grp-add'); sel.append(el('option', '', 'Arkadaş ekle…')); for (const f of FR.L) if (!g.mem.some((m) => m.id === f.id)) { const o = el('option', '', f.name); o.value = f.id; sel.append(o); }
+  sel.onchange = async () => { if (!sel.value) return; const j = await acctOp('gadd', { g: g.id, id: sel.value }); H.toast(j.ok ? 'Eklendi.' : j.reason === 'full' ? 'Grup dolu (20 kişi).' : 'Eklenemedi.', j.ok ? 'good' : 'bad'); close(); groupsLoad(); };
+  const row = el('div', 'join-row'); row.append(nm, ren);
+  body.append(el('p', 'note', `${g.mem.length} kişi`), mem, row, sel);
+  const leave = btn('btn danger', 'Gruptan ayrıl', async () => { const j = await acctOp('gleave', { g: g.id }); close(); if (dmWith && dmWith.g === g.id) { $('#dm').hidden = true; dmWith = null; } groupsLoad(); H.toast(j.ok ? 'Gruptan ayrıldın.' : 'Ayrılamadın.', j.ok ? '' : 'bad'); });
+  const close = grpDlg(g.name, body, leave);
+}
+// a small dialog for groups; returns its close function
+function grpDlg(title, body, action) {
+  const bg = el('div', 'confirm grp-dlg'), box = el('div', 'confirm-card');
+  const x = btn('btn small ghost', 'Kapat', () => bg.remove());
+  const acts = el('div', 'row'); acts.append(x, action);
+  box.append(el('h3', '', title), body, acts); bg.append(box); bg.addEventListener('click', (e) => { if (e.target === bg) bg.remove(); });
+  document.body.append(bg); return () => bg.remove();
+}
+async function openGroup(gid) {
+  const g0 = GR.L.find((x) => x.id === gid) || { id: gid, name: 'Grup', mem: [] };
+  dmWith = { g: gid, name: g0.name };
+  const d = $('#dm'); d.hidden = false; d.classList.add('grp'); $('#dm-call').hidden = true;
+  $('#dm-name').replaceChildren(el('strong', '', g0.name)); $('#dm-st').textContent = g0.mem.length ? `${g0.mem.length} kişi` : '';
+  const av = $('#dm-av'); drawAvatar(av, (g0.mem[0] && g0.mem[0].eq) || {}, { size: 36 });
+  const log = $('#dm-log'); log.replaceChildren(el('p', 'note', 'Yükleniyor…')); $('#dm-in').value = '';
+  const j = await acctOp('gget', { g: gid });
+  if (!dmWith || dmWith.g !== gid) return;
+  log.replaceChildren();
+  if (!j.ok) { log.append(el('p', 'note', 'Grup açılamadı.')); return; }
+  $('#dm-name').replaceChildren(el('strong', '', j.g.name)); $('#dm-st').textContent = j.g.mem.map((m) => m.name).join(', ');
+  for (const m of j.L) addMsg(m);
+  delete FR.un['g:' + gid]; ME.un = Object.values(FR.un).reduce((s, n) => s + n, 0);
+  if (g0.un) { g0.un = 0; topBar(); if (page === 'friends') drawFriends(); }
+  if (!IS_PHONE()) $('#dm-in').focus();
+}
+// a group message arrived over the live link
+export function onGmsg(m) {
+  if (m.f === ACCT.id) return;
+  if (dmWith && dmWith.g === m.g && !$('#dm').hidden) { addMsg(m); acctOp('gget', { g: m.g }); return; }
+  const g = GR.L.find((x) => x.id === m.g);
+  if (!m.s) { FR.un['g:' + m.g] = (FR.un['g:' + m.g] || 0) + 1; ME.un = (ME.un | 0) + 1; }
+  if (g) { g.un = (g.un | 0) + 1; g.last = { n: m.n, x: m.x, t: m.t, s: m.s | 0 }; } else groupsLoad();
+  topBar(); if (page === 'friends') drawFriends();
+  if (!m.s) msgPop({ n: `${m.gn} · ${m.n}`, x: m.x, f: m.f }, { id: m.f, name: m.gn, eq: {}, g: m.g });
+}
+
 // the message drawer
 let dmWith = null;
 export async function openDm(f) {
-  dmWith = f;
+  if (f && f.g) { openGroup(f.g); return; }
+  dmWith = f; $('#dm').classList.remove('grp'); $('#dm-call').hidden = false;
   const d = $('#dm'); d.hidden = false;
   $('#dm-name').replaceChildren(nameEl(f.name, f.eq));
   $('#dm-st').textContent = frStatus(f);
@@ -1258,9 +1344,11 @@ export async function openDm(f) {
 }
 function addMsg(m) {
   const log = $('#dm-log');
+  if (m.s) { log.append(el('p', 'dm-sys', m.x)); log.scrollTop = log.scrollHeight; return; }
   if (log.firstChild && log.firstChild.classList && log.firstChild.classList.contains('note')) log.firstChild.remove();
   const mine = m.f === ACCT.id;
   const b = el('div', 'dm-msg' + (mine ? ' me' : ''));
+  if (!mine && dmWith && dmWith.g && m.n) b.append(el('span', 'dm-n', m.n));
   b.append(el('span', 'dm-x', m.x), el('span', 'dm-t', new Date(m.t).toLocaleTimeString('tr', { hour: '2-digit', minute: '2-digit' })));
   log.append(b); log.scrollTop = log.scrollHeight;
 }
@@ -1268,7 +1356,7 @@ async function sendDm() {
   const inp = $('#dm-in'), x = inp.value.trim();
   if (!x || !dmWith) return;
   inp.value = '';
-  const j = await dmSend(dmWith.id, x);
+  const j = dmWith.g ? await acctOp('gsend', { g: dmWith.g, x }) : await dmSend(dmWith.id, x);
   if (j.ok && j.m) addMsg(j.m);
   else { inp.value = x; H.toast({ mute: 'Mesaj göndermen yönetici tarafından geçici olarak kapatıldı.', friend: 'Sadece arkadaşlarına mesaj atabilirsin.', slow: 'Biraz yavaş yaz.', text: 'Mesaj boş.' }[j.reason] || 'Gönderilemedi.', 'bad'); }
 }
@@ -1427,7 +1515,7 @@ function badgesCard(have) {
 
 // ---------- clans ----------
 const CL_ROLE = { l: 'Lider', o: 'Yardımcı', m: 'Üye' };
-const CL_ERR = { name: 'Klan adı 3–20 harf ya da rakam olmalı.', tag: 'Etiket 2–4 harf ya da rakam olmalı.', bad: 'Bu ad kullanılamaz.', taken: 'Bu ad alınmış.', tagtaken: 'Bu etiket alınmış.', gems: 'Klan kurmak 1.000 elmas.', inclan: 'Zaten bir klandasın.', full: 'Klan dolu.', role: 'Bunu yapmaya yetkin yok.', nouser: 'Böyle bir oyuncu yok.', gone: 'Bulunamadı.', slow: 'Biraz yavaş, birazdan tekrar dene.' };
+const CL_ERR = { name: 'Klan adı 3–20 harf ya da rakam olmalı.', tag: 'Etiket 2–4 harf ya da rakam olmalı.', bad: 'Bu ad kullanılamaz.', taken: 'Bu ad alınmış.', tagtaken: 'Bu etiket alınmış.', gems: 'Klan kurmak 1.000 elmas.', inclan: 'Zaten bir klandasın.', already: 'Bu oyuncuya zaten davet gönderdin. Kabul etmesini bekle.', full: 'Klan dolu.', role: 'Bunu yapmaya yetkin yok.', nouser: 'Böyle bir oyuncu yok.', gone: 'Bulunamadı.', slow: 'Biraz yavaş, birazdan tekrar dene.' };
 const clErr = (r) => H.toast(CL_ERR[r.reason] || 'Olmadı.', 'bad');
 function clanPage(sec, arg) {
   const mine = ME.clan && ME.clan.id;
@@ -1442,7 +1530,18 @@ function clanPage(sec, arg) {
     const t = el('div', 'clan-title'); t.append(el('span', 'clan-t big', '[' + c.tag + ']'), el('strong', '', c.name));
     top.append(t, el('p', 'note', c.desc || 'Açıklama yok.'), el('p', 'clan-meta', `${c.n}/${c.max} üye · bu sezon ${fmt(c.score)} puan · ${c.open ? 'herkes katılabilir' : 'istekle katılım'}`));
     const acts = el('div', 'row-btns');
-    if (!me && !mine) acts.append(btn('btn primary', c.open ? 'Katıl' : 'Katılma isteği gönder', async () => { const r = await acctOp('cjoin', { id: c.id }); if (!r.ok) { clErr(r); return; } H.toast(r.joined ? 'Klana katıldın!' : 'İstek gönderildi.', 'good'); await acctCheck(); dashGo('clan'); }));
+    if (!me && !mine) {
+      // build 68: one tap, a clear state: "İstek gönderildi ✓" stays (and stays after a reload) instead of letting you send again
+      const jb = btn('btn primary', j.asked ? '✓ İstek gönderildi' : c.open ? 'Katıl' : 'Katılma isteği gönder', async () => {
+        jb.disabled = true; jb.textContent = 'Gönderiliyor…';
+        const r = await acctOp('cjoin', { id: c.id });
+        if (!r.ok) { jb.disabled = false; jb.textContent = c.open ? 'Katıl' : 'Katılma isteği gönder'; clErr(r); return; }
+        if (r.joined) { H.toast('Klana katıldın!', 'good'); await acctCheck(); dashGo('clan'); return; }
+        jb.textContent = '✓ İstek gönderildi'; jb.classList.replace('primary', 'ghost'); H.toast('İstek gönderildi. Bir yetkili kabul edince klana katılırsın.', 'good');
+      });
+      if (j.asked) { jb.disabled = true; jb.classList.replace('primary', 'ghost'); }
+      acts.append(jb);
+    }
     if (me) acts.append(btn('btn ghost', me === 'l' && c.n > 1 ? 'Klandan ayrıl (liderlik devredilir)' : 'Klandan ayrıl', async () => { if (!confirm('Klandan ayrılmak istediğine emin misin?')) return; const r = await acctOp('cleave'); if (!r.ok) { clErr(r); return; } ME.clan = null; dashGo('clan'); }));
     if (me === 'l') acts.append(btn('btn ghost danger', 'Klanı dağıt', async () => { if (!confirm('Klan tamamen silinecek. Emin misin?')) return; const r = await acctOp('cdel'); if (!r.ok) { clErr(r); return; } ME.clan = null; dashGo('clan'); }));
     top.append(acts); box.replaceChildren(top);
@@ -1451,8 +1550,22 @@ function clanPage(sec, arg) {
       const op = el('label', 'voice-open'); const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!c.open; op.append(cb, el('span', '', 'Herkes istek beklemeden katılabilsin'));
       const inv = el('input'); inv.placeholder = 'Oyuncu adı'; inv.maxLength = 16;
       st.append(desc, op, btn('btn small', 'Kaydet', async () => { const r = await acctOp('cset', { desc: desc.value, open: cb.checked ? 1 : 0 }); if (!r.ok) clErr(r); else { H.toast('Kaydedildi.', 'good'); dashGo('clan'); } }),
-        el('div', 'clan-inv'), btn('btn small primary', 'Davet et', async () => { const r = await acctOp('cinv', { name: inv.value.trim() }); if (!r.ok) clErr(r); else { H.toast('Davet gönderildi.', 'good'); inv.value = ''; } }));
-      st.querySelector('.clan-inv').append(inv);
+        el('div', 'clan-inv'));
+      // build 68: invites: by name or one tap on a friend; each shows "✓ Davet edildi" and can't be sent twice; pending ones are listed
+      const pend = new Set((c.inv || []).map((x) => x.i)), memIds = new Set((c.mem || []).map((m) => m.i));
+      const sendInv = async (name, b) => { if (!name) return; b.disabled = true; const old = b.textContent; b.textContent = 'Gönderiliyor…'; const r = await acctOp('cinv', { name }); if (!r.ok) { b.disabled = false; b.textContent = old; clErr(r); return false; } b.textContent = '✓ Davet edildi'; b.classList.replace('primary', 'ghost'); H.toast(`${name} davet edildi.`, 'good'); return true; };
+      const ib = btn('btn small primary', 'Davet et', async () => { if (await sendInv(inv.value.trim(), ib)) { inv.value = ''; setTimeout(() => dashGo('clan'), 900); } });
+      inv.addEventListener('input', () => { ib.disabled = false; ib.textContent = 'Davet et'; ib.classList.replace('ghost', 'primary'); });
+      st.querySelector('.clan-inv').append(inv, ib);
+      const invBox = el('div', 'clan-invs'); st.append(invBox);
+      const drawInv = () => {
+        invBox.replaceChildren();
+        const frs = FR.L.filter((f) => !memIds.has(f.id));
+        if (frs.length) { const fl = el('ul', 'clan-fr'); for (const f of frs) { const li = el('li'); const done = pend.has(f.id); const b = btn('btn small ' + (done ? 'ghost' : 'primary'), done ? '✓ Davet edildi' : 'Davet et', () => sendInv(f.name, b)); b.disabled = done; li.append(avatar(f.eq || {}, 28), nameEl(f.name, f.eq || {}), b); fl.append(li); } invBox.append(el('p', 'eyebrow', 'Arkadaşlarını davet et'), fl); }
+        const others = (c.inv || []).filter((x) => !frs.some((f) => f.id === x.i));
+        if (others.length) { const pl = el('ul', 'clan-pend'); for (const x of others) pl.append(el('li', '', `${x.n} · davet edildi (${ago(x.t)}, ${x.by})`)); invBox.append(el('p', 'eyebrow', 'Bekleyen davetler'), pl); }
+      };
+      drawInv(); if (!FR.L.length) friendsGet().then((d) => { if (d) { onFriends(d); drawInv(); } }); // friends may not have loaded yet
       if (c.req && c.req.length) { const rq = el('ul', 'clan-req'); for (const q of c.req) { const li = el('li'); li.append(el('b', '', q.name), el('small', '', 'Sv ' + q.lvl), btn('btn small primary', 'Kabul', async () => { const r = await acctOp('cacc', { i: q.i }); if (!r.ok) clErr(r); dashGo('clan'); }), btn('btn small ghost', 'Reddet', async () => { await acctOp('cno', { i: q.i }); dashGo('clan'); })); rq.append(li); } st.append(el('p', 'note', 'Katılma istekleri'), rq); }
       box.append(st);
     }

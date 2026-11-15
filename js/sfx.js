@@ -182,6 +182,9 @@ export function flame(level) {
 }
 export function waveStart() { const v = vol(null, null, 0.45); if (v) { tone(v, 0.9, 110, 90, 'sawtooth'); tone(v * 0.7, 0.9, 165, 135, 'sawtooth', 0.05); } }
 export function waveClear() { const v = vol(null, null, 0.35); if (v) { tone(v, 0.2, 440, 440, 'triangle'); tone(v, 0.35, 660, 660, 'triangle', 0.15); } }
+// app 49 / build 68: call sounds: an incoming phone trill (two short warbles) and the caller's ringback tone ("tuut")
+export function ringIn() { const v = vol(null, null, 0.22); if (!v) return; for (let k = 0; k < 2; k++) for (let i = 0; i < 8; i++) tone(v, 0.05, i % 2 ? 1180 : 940, i % 2 ? 1180 : 940, 'square', k * 0.6 + i * 0.05); }
+export function ringBack() { const v = vol(null, null, 0.16); if (v) tone(v, 1.0, 425, 425, 'sine'); }
 // build 67: the luck wheel: a click per slice passing the pointer, a short fanfare for the prize
 export function spinTick() { const v = vol(null, null, 0.1); if (v) { burst(v, 0.025, 3200, 4, 'bandpass'); tone(v * 0.5, 0.03, 1500, 1100, 'triangle'); } }
 export function spinWin(big) { const v = vol(null, null, 0.3); if (!v) return; const f = big ? [523, 659, 784, 1047, 1319] : [523, 659, 784, 1047]; f.forEach((x, i) => tone(v, 0.22, x, x, 'triangle', i * 0.09)); }

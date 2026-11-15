@@ -31,7 +31,47 @@ public class Push extends FirebaseMessagingService {
         getSharedPreferences("kusatma", MODE_PRIVATE).edit().putString("push", token).apply();
     }
 
+    // app 49: a friend calling rings like a phone call (own channel with the ringtone, repeats until answered or
+    // dismissed, shows over the lock screen); the server cancels it when the caller hangs up ("callend")
+    static final String CALL = "kusatma-call";
+    static void callChannel(Context c) {
+        if (Build.VERSION.SDK_INT < 26) return;
+        NotificationManager nm = c.getSystemService(NotificationManager.class);
+        if (nm == null || nm.getNotificationChannel(CALL) != null) return;
+        NotificationChannel ch = new NotificationChannel(CALL, "Aramalar", NotificationManager.IMPORTANCE_HIGH);
+        ch.setDescription("Arkadaşların seni sesli aradığında telefon gibi çalar");
+        ch.setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE),
+            new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+        ch.enableVibration(true); ch.setVibrationPattern(new long[] { 0, 800, 600, 800, 600 });
+        ch.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+        nm.createNotificationChannel(ch);
+    }
+    static int callId(String cid) { return 0x5000 + Math.abs((cid == null ? "" : cid).hashCode() % 0x1000); }
+    private void call(RemoteMessage m) {
+        java.util.Map<String, String> d = m.getData();
+        String cid = d.get("cid"), name = d.get("n");
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (nm == null) return;
+        if ("callend".equals(d.get("type"))) { nm.cancel(callId(cid)); return; }
+        callChannel(this);
+        Intent i = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("link", "oyun/arkadaslar").putExtra("call", callId(cid));
+        PendingIntent open = PendingIntent.getActivity(this, callId(cid), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Intent no = new Intent(this, Decline.class).putExtra("id", callId(cid));
+        PendingIntent dec = PendingIntent.getBroadcast(this, callId(cid), no, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        android.app.Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new android.app.Notification.Builder(this, CALL) : new android.app.Notification.Builder(this);
+        b.setSmallIcon(R.drawable.ic_stat).setColor(0xFF22C55E).setContentTitle("📞 " + (name == null ? "Arkadaşın" : name))
+            .setContentText("Kuşatma'dan sesli arama · açmak için dokun").setCategory(android.app.Notification.CATEGORY_CALL)
+            .setPriority(android.app.Notification.PRIORITY_MAX).setOngoing(true).setAutoCancel(true).setContentIntent(open).setFullScreenIntent(open, true)
+            .addAction(new android.app.Notification.Action.Builder(null, "Reddet", dec).build())
+            .addAction(new android.app.Notification.Action.Builder(null, "Aç", open).build());
+        if (Build.VERSION.SDK_INT >= 26) b.setTimeoutAfter(45000);
+        android.app.Notification n = b.build(); n.flags |= android.app.Notification.FLAG_INSISTENT;
+        nm.notify(callId(cid), n);
+    }
+
     @Override public void onMessageReceived(RemoteMessage m) {
+        String ty = m.getData().get("type");
+        if ("call".equals(ty) || "callend".equals(ty)) { call(m); return; }
         String title = m.getData().get("title"), body = m.getData().get("body"), link = m.getData().get("link");
         if (m.getNotification() != null) { title = m.getNotification().getTitle(); body = m.getNotification().getBody(); }
         if (title == null) return;
