@@ -45,6 +45,19 @@ function setTheme(t) {
   try { if (t === 'gece') localStorage.removeItem('kusatma-tema'); else localStorage.setItem('kusatma-tema', t); } catch (e) { /* ignore */ }
 }
 try { setTheme(localStorage.getItem('kusatma-tema') || 'gece'); } catch (e) { setTheme('gece'); }
+// build 69.4: an iPhone-only web app: only iPhones and iPads get the home-screen tags (full screen, icon, name); Android
+// keeps its own app and computers see nothing. A one-time tip in Safari says how to add it.
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (IS_IOS) {
+  const add = (tag, a) => { const e = document.createElement(tag); for (const k in a) e.setAttribute(k, a[k]); document.head.append(e); };
+  add('meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }); add('meta', { name: 'mobile-web-app-capable', content: 'yes' });
+  add('meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' }); add('meta', { name: 'apple-mobile-web-app-title', content: 'Kuşatma' });
+  add('link', { rel: 'apple-touch-icon', href: 'app/icon.png' }); add('link', { rel: 'manifest', href: 'app/ios.webmanifest' });
+  const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  document.body.classList.toggle('ios-app', !!standalone);
+  let told = false; try { told = localStorage.getItem('kusatma-ios-ipucu') === '1'; } catch (e) { /* ignore */ }
+  if (!standalone && !told) setTimeout(() => { toast('iPhone ipucu: Paylaş ⎙ → "Ana Ekrana Ekle" ile Kuşatma uygulama gibi tam ekran açılır.'); try { localStorage.setItem('kusatma-ios-ipucu', '1'); } catch (e) { /* ignore */ } }, 4000);
+}
 try { if (IS_TOUCH && !localStorage.getItem('kusatma-zoom')) zoom = 0.85; } catch (e) { /* ignore */ }
 window.addEventListener('resize', () => renderer.resize());
 // a note with one button (a friend who is playing: Katıl); stays 9 s

@@ -36,11 +36,26 @@ export function msgPop(m, friend, info) {
 
 // ---------- voice calls ----------
 const C = { st: '', who: null, peer: null, stream: null, call: null, audio: null, t0: 0, timer: null, ringT: null, ring: null, card: null };
-const callBox = () => { let b = $('#soc-call'); if (!b) { b = el('div', 'soc-call'); b.id = 'soc-call'; b.hidden = true; document.body.append(b); } return b; };
+// build 69.4: the call strip can be dragged anywhere (it remembers the spot for this visit); taps on its buttons still work
+const DRAG = {};
+function draggable(b) {
+  if (b.dataset.drag) return; b.dataset.drag = '1';
+  const put = (x, y) => { const r = b.getBoundingClientRect(); x = Math.max(4, Math.min(innerWidth - r.width - 4, x)); y = Math.max(4, Math.min(innerHeight - r.height - 4, y)); b.style.left = x + 'px'; b.style.top = y + 'px'; b.style.right = 'auto'; b.style.transform = 'none'; b.classList.add('dragged'); DRAG[b.id] = { x, y }; };
+  b.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button, input') || !b.classList.contains('mini')) return;
+    const r = b.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+    b.setPointerCapture(e.pointerId); e.preventDefault();
+    const mv = (ev) => put(ev.clientX - dx, ev.clientY - dy);
+    const up = () => { b.removeEventListener('pointermove', mv); b.removeEventListener('pointerup', up); b.removeEventListener('pointercancel', up); };
+    b.addEventListener('pointermove', mv); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
+  });
+  b.restore = () => { const p = DRAG[b.id]; if (p && b.classList.contains('mini')) put(p.x, p.y); else { b.style.left = b.style.top = b.style.right = b.style.transform = ''; b.classList.remove('dragged'); } };
+}
+const callBox = () => { let b = $('#soc-call'); if (!b) { b = el('div', 'soc-call'); b.id = 'soc-call'; b.hidden = true; document.body.append(b); } draggable(b); return b; };
 function draw() {
   const b = callBox(); C.card = b; document.body.classList.toggle('soc-calling', !!C.st);
   if (!C.st) { b.hidden = true; b.replaceChildren(); return; }
-  b.hidden = false; b.classList.toggle('mini', C.st === 'on' || C.st === 'out'); b.classList.toggle('ringing', C.st === 'in' || (C.st === 'out' && !!(C.pushed || C.rang)));
+  b.hidden = false; b.classList.toggle('mini', C.st === 'on' || C.st === 'out'); requestAnimationFrame(() => b.restore()); b.classList.toggle('ringing', C.st === 'in' || (C.st === 'out' && !!(C.pushed || C.rang)));
   const av = el('canvas', 'soc-av'); av.width = av.height = 48; try { H.avatar(av, C.who.eq || {}, { size: 48 }); } catch (e) { /* ignore */ }
   const tx = el('div', 'soc-tx'), st = el('span', 'soc-st');
   tx.append(el('strong', '', C.who.name), st);
@@ -156,10 +171,10 @@ export function onGvc(gid, L) {
   gvcDraw(); if (H.onGvcChange) H.onGvcChange();
 }
 function gvcDraw() {
-  let b = $('#soc-gvc'); if (!b) { b = el('div', 'soc-call gvc'); b.id = 'soc-gvc'; b.hidden = true; document.body.append(b); }
+  let b = $('#soc-gvc'); if (!b) { b = el('div', 'soc-call gvc'); b.id = 'soc-gvc'; b.hidden = true; document.body.append(b); } draggable(b);
   document.body.classList.toggle('soc-calling', !!(C.st || G.g));
   if (!G.g) { b.hidden = true; b.replaceChildren(); return; }
-  b.hidden = false; b.classList.add('mini');
+  b.hidden = false; b.classList.add('mini'); requestAnimationFrame(() => b.restore());
   const L = gvcOf(G.g), tx = el('div', 'soc-tx');
   tx.append(el('strong', '', '🔊 ' + G.name), el('span', 'soc-st', G.peer ? `${L.length} kişi sesli sohbette` + (L.length > 1 ? ' · ' + L.filter((x) => x.a !== G.me).map((x) => x.n + (G.audios.has(x.a) ? '' : ' (bağlanıyor)')).join(', ') : ' · diğerlerini bekliyorsun') : 'bağlanıyor…'));
   const acts = el('div', 'soc-acts');

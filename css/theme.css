@@ -352,3 +352,28 @@ body.soc-calling #soc-call:not([hidden]) ~ #soc-gvc { top: calc(max(14px, env(sa
 body.playing .soc-call.mini { top: auto; bottom: auto; top: 96px; right: 50%; transform: translateX(50%); opacity: .92; }
 #soc-call.mini:not([hidden]) ~ #soc-gvc.mini { top: 112px; }
 body.soc-calling .soc-pops { top: max(12px, env(safe-area-inset-top, 0px)); }
+/* build 69.4: phones: the call strip is a tiny pill (avatar, name, two round buttons) and the message drawer is calmer */
+@media (max-width: 600px), (max-height: 500px) {
+  .soc-call.mini { top: 64px; padding: 4px 4px 4px 4px; gap: 6px; max-width: 230px; }
+  body.playing .soc-call.mini { top: 70px; }
+  .soc-call.mini .soc-st { display: none; }
+  .soc-call.mini .soc-av, .soc-call.mini .gvc-ic { width: 26px; height: 26px; font-size: 14px; }
+  .soc-call.mini .soc-tx strong { font-size: 12px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .soc-call.mini .soc-acts .btn { width: 30px; height: 30px; padding: 0; font-size: 0; }
+  .soc-call.mini .soc-acts .btn.danger::before { content: '✕'; font-size: 14px; }
+  .soc-call.mini .soc-acts .btn.ghost::before { content: '🎤'; font-size: 13px; }
+  .dm-head { gap: 6px; }
+  .dm-head .btn { padding: 6px 9px; min-height: 0; }
+  #dm-st { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .grp-dlg .confirm-card { padding: 16px; max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .grp-row .btn.ghost { padding: 4px 10px; }
+}
+.grp-addl li { padding: 4px 6px; border-radius: 10px; }
+.grp-addl li .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#dm-gset { flex: none; }
+/* iPhone home-screen app: keep the top bar clear of the notch */
+body.ios-app .dp-top { padding-top: max(10px, env(safe-area-inset-top, 0px)); }
+body.ios-app .lp-top { padding-top: max(14px, env(safe-area-inset-top, 0px)); }
+.soc-call.mini { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.soc-call.mini:active { cursor: grabbing; }
+.soc-call.mini.dragged { bottom: auto; }
