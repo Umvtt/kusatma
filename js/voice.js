@@ -1,7 +1,7 @@
 // Voice chat between the players in a room. Audio goes straight from player to player over the same
 // PeerJS peers the game already uses (no server in between); the room's host only shares who has voice on.
 // Push-to-talk (V, or holding the mic button) by default; "hep açık" keeps the microphone open.
-const V = { br: 20000, on: false, stream: null, peer: null, calls: new Map(), lcalls: new Map(), talk: false, open: false, muted: new Set(), levels: new Map(), ac: null };
+const V = { retry: new Map(), br: 20000, on: false, stream: null, peer: null, calls: new Map(), lcalls: new Map(), talk: false, open: false, muted: new Set(), levels: new Map(), ac: null };
 
 export const voiceOn = () => V.on;
 export const voiceTalking = () => V.on && (V.open || V.talk);
@@ -15,6 +15,20 @@ export function voiceOpen(on) { V.open = !!on; setTrack(); }
 export function voicePtt(down) { V.talk = !!down; setTrack(); }
 export function voiceMute(pid, m) { if (m) V.muted.add(pid); else V.muted.delete(pid); const c = V.calls.get(pid); if (c && c.audio) c.audio.muted = !!m; }
 
+// build 70: a browser may block sound that starts without a tap (phones especially); such players start on the next tap
+const PEND = new Set();
+export function playAudio(a) { const p = a.play(); if (p && p.catch) p.catch(() => { PEND.add(a); }); }
+if (typeof window !== 'undefined') window.addEventListener('pointerdown', () => { for (const a of PEND) { a.play().then(() => PEND.delete(a)).catch(() => {}); } if (V.ac && V.ac.state === 'suspended') V.ac.resume().catch(() => {}); }, { capture: true, passive: true });
+// a call that never brings sound (blocked network path, a peer that went away) is dropped after 12 s so it is tried again
+// (3 s later), instead of hanging silent forever; a connection that fails later is dropped the same way
+export function watchCall(call, onDead) {
+  let done = false; const dead = () => { if (done) return; done = true; clearTimeout(t); onDead(); };
+  const t = setTimeout(() => { if (!call.__live) dead(); }, 12000);
+  call.on('stream', () => { call.__live = true; });
+  const pc = call.peerConnection;
+  if (pc) pc.addEventListener('iceconnectionstatechange', () => { if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') dead(); });
+  return dead;
+}
 function meter(pid, stream) {
   try {
     V.ac = V.ac || new (window.AudioContext || window.webkitAudioContext)();
@@ -49,11 +63,12 @@ function hookCall(pid, call) {
     capRate(call);
     if (!rec.audio) { rec.audio = document.createElement('audio'); rec.audio.autoplay = true; rec.audio.hidden = true; document.body.append(rec.audio); }
     rec.audio.srcObject = s; rec.audio.muted = V.muted.has(pid);
-    rec.audio.play().catch(() => {});
+    playAudio(rec.audio);
     rec.tick = meter(pid, s);
   });
-  const drop = () => { if (V.calls.get(pid) === rec) { V.calls.delete(pid); V.levels.delete(pid); if (rec.audio) rec.audio.remove(); } };
+  const drop = () => { if (V.calls.get(pid) === rec) { V.calls.delete(pid); V.levels.delete(pid); V.retry.set(pid, Date.now() + 3000); if (rec.audio) rec.audio.remove(); PEND.delete(rec.audio); } };
   call.on('close', drop); call.on('error', drop);
+  watchCall(call, () => { try { call.close(); } catch (e) { /* ignore */ } drop(); });
 }
 
 // turn voice on: ask for the microphone, answer calls from the room
@@ -62,6 +77,7 @@ export async function voiceStart(peer) {
   if (!peer || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
   try { V.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); } catch (e) { return false; }
   V.on = true; V.peer = peer; setTrack();
+  try { V.ac = V.ac || new (window.AudioContext || window.webkitAudioContext)(); if (V.ac.state === 'suspended') V.ac.resume().catch(() => {}); } catch (e) { /* ignore */ }
   V.self = meter('me', V.stream);
   if (!peer.__voice) {
     peer.__voice = true;
@@ -98,7 +114,7 @@ export function voiceSync(roster, me) {
   }
   for (const [pid, c] of [...V.calls]) if (!want.has(pid)) { try { c.call.close(); } catch (e) { /* ignore */ } if (c.audio) c.audio.remove(); V.calls.delete(pid); V.levels.delete(pid); }
   for (const [pid, vp] of want) {
-    if (V.calls.has(pid) || me > pid) continue; // the lower number calls, so each pair has one call
+    if (V.calls.has(pid) || me > pid || (V.retry.get(pid) || 0) > Date.now()) continue; // the lower number calls, so each pair has one call
     try { const call = V.peer.call(vp, V.stream, { metadata: { pid: me } }); if (call) hookCall(pid, call); } catch (e) { /* ignore */ }
   }
   for (const c of V.calls.values()) if (c.tick) c.tick();

@@ -112,7 +112,7 @@ function onData(raw) {
   else if (d.e === 'dmok') { const w = DMW.get('c' + (d.c | 0)); if (w) { DMW.delete('c' + (d.c | 0)); w(d); } }
   else if (d.e === 'lvl') { if (Array.isArray(d.L)) for (const r of d.L.slice(0, 20)) { ME.gems += r.g | 0; if (r.it && ITEMS[r.it] && !ME.own.includes(r.it)) ME.own.push(r.it); if (H.onRoad) H.onRoad(r.l | 0, r.g | 0, ITEMS[r.it] ? r.it : ''); } }
   else if (d.e === 'inv') { sysNotify('Oda daveti', `${str(d.f, 16)} seni odasına çağırıyor.`, 'inv'); if (H.onInv) H.onInv({ fid: str(d.fid, 12), f: str(d.f, 16), room: str(d.room, 6).toUpperCase().replace(/[^A-Z0-9]/g, ''), rn: str(d.rn, 24), n: d.n | 0, mx: d.mx | 0, eq: d.eq && typeof d.eq === 'object' ? cleanEq(d.eq) : {} }); }
-  else if (d.e === 'gvc') { if (H.onGvc && Array.isArray(d.L)) H.onGvc(str(d.g, 16), d.L.slice(0, 20).map((x) => ({ a: str(x.a, 12), n: str(x.n, 16), id: str(x.id, 64) }))); }
+  else if (d.e === 'gvc') { if (H.onGvc && Array.isArray(d.L)) H.onGvc(str(d.g, 16), d.L.slice(0, 20).map((x) => ({ a: str(x.a, 12), n: str(x.n, 16), id: str(x.id, 64) })), d.st ? 1 : 0); }
   else if (d.e === 'call') { if (H.onCall) H.onCall({ k: str(d.k, 6), f: str(d.f, 12), n: str(d.n, 16), eq: d.eq && typeof d.eq === 'object' ? d.eq : {}, id: str(d.id, 64), why: str(d.why, 8) }); }
   else if (d.e === 'invok') { const w = DMW.get('i' + str(d.to, 12)); if (w) { DMW.delete('i' + str(d.to, 12)); w(d); } }
   else if (d.e === 'fr') { if (d.k !== 'acc') sysNotify('Arkadaşlık isteği', `${str(d.n, 16)} seni arkadaş olarak eklemek istiyor.`, 'fr'); if (H.onFr) H.onFr(d.k === 'acc' ? 'acc' : 'req', str(d.n, 16)); }

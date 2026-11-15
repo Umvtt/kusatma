@@ -4,6 +4,7 @@ import { $, el, IS_TOUCH } from './app.js';
 import { liveCall, liveGvc, sysNotify, turnReady } from './live.js';
 import { makeCallPeer, addIce } from './net.js';
 import * as sfx from './sfx.js';
+import { playAudio, watchCall } from './voice.js';
 
 let H = { openDm: () => {}, avatar: () => {}, inGame: () => false, send: async () => false, voiceOff: () => false, toast: () => {} };
 export function socialInit(h) { H = Object.assign(H, h); }
@@ -39,7 +40,7 @@ const C = { st: '', who: null, peer: null, stream: null, call: null, audio: null
 // build 69.4: the call strip can be dragged anywhere (it remembers the spot for this visit); taps on its buttons still work
 const DRAG = {};
 function draggable(b) {
-  if (b.dataset.drag) return; b.dataset.drag = '1';
+  if (b.dataset.drag) return; b.dataset.drag = '1'; b.title = 'Sürükleyerek istediğin yere taşıyabilirsin';
   const put = (x, y) => { const r = b.getBoundingClientRect(); x = Math.max(4, Math.min(innerWidth - r.width - 4, x)); y = Math.max(4, Math.min(innerHeight - r.height - 4, y)); b.style.left = x + 'px'; b.style.top = y + 'px'; b.style.right = 'auto'; b.style.transform = 'none'; b.classList.add('dragged'); DRAG[b.id] = { x, y }; };
   b.addEventListener('pointerdown', (e) => {
     if (e.target.closest('button, input') || !b.classList.contains('mini')) return;
@@ -49,13 +50,15 @@ function draggable(b) {
     const up = () => { b.removeEventListener('pointermove', mv); b.removeEventListener('pointerup', up); b.removeEventListener('pointercancel', up); };
     b.addEventListener('pointermove', mv); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
   });
+  // the first time a strip shows up, a short tip says it can be moved
+  b.tip = () => { let seen = false; try { seen = localStorage.getItem('kusatma-surukle') === '1'; } catch (e) { /* ignore */ } if (seen || !b.classList.contains('mini')) return; try { localStorage.setItem('kusatma-surukle', '1'); } catch (e) { /* ignore */ } H.toast && H.toast('İpucu: arama şeridini ⠿ yerinden tutup istediğin yere sürükleyebilirsin.'); };
   b.restore = () => { const p = DRAG[b.id]; if (p && b.classList.contains('mini')) put(p.x, p.y); else { b.style.left = b.style.top = b.style.right = b.style.transform = ''; b.classList.remove('dragged'); } };
 }
 const callBox = () => { let b = $('#soc-call'); if (!b) { b = el('div', 'soc-call'); b.id = 'soc-call'; b.hidden = true; document.body.append(b); } draggable(b); return b; };
 function draw() {
   const b = callBox(); C.card = b; document.body.classList.toggle('soc-calling', !!C.st);
   if (!C.st) { b.hidden = true; b.replaceChildren(); return; }
-  b.hidden = false; b.classList.toggle('mini', C.st === 'on' || C.st === 'out'); requestAnimationFrame(() => b.restore()); b.classList.toggle('ringing', C.st === 'in' || (C.st === 'out' && !!(C.pushed || C.rang)));
+  b.hidden = false; b.classList.toggle('mini', C.st === 'on' || C.st === 'out'); requestAnimationFrame(() => { b.restore(); b.tip(); }); b.classList.toggle('ringing', C.st === 'in' || (C.st === 'out' && !!(C.pushed || C.rang)));
   const av = el('canvas', 'soc-av'); av.width = av.height = 48; try { H.avatar(av, C.who.eq || {}, { size: 48 }); } catch (e) { /* ignore */ }
   const tx = el('div', 'soc-tx'), st = el('span', 'soc-st');
   tx.append(el('strong', '', C.who.name), st);
@@ -86,8 +89,9 @@ function openPeer() {
 }
 function hook(call) {
   C.call = call;
-  call.on('stream', (s) => { if (!C.audio) { C.audio = el('audio'); C.audio.autoplay = true; C.audio.hidden = true; document.body.append(C.audio); } C.audio.srcObject = s; C.audio.play().catch(() => {}); if (C.st !== 'on') { C.st = 'on'; C.t0 = Date.now(); ringStop(); draw(); } });
+  call.on('stream', (s) => { if (!C.audio) { C.audio = el('audio'); C.audio.autoplay = true; C.audio.hidden = true; document.body.append(C.audio); } C.audio.srcObject = s; playAudio(C.audio); if (C.st !== 'on') { C.st = 'on'; C.t0 = Date.now(); ringStop(); draw(); } });
   call.on('close', () => end(false)); call.on('error', () => end(false));
+  watchCall(call, () => { if (C.call === call && C.st !== 'on') { H.toast('Bağlantı kurulamadı. Tekrar dene.', 'bad'); end(true); } }); // build 70
 }
 // call a friend { id, name, eq }
 export async function callFriend(f) {
@@ -125,14 +129,33 @@ export const callState = () => C.st || (G.g ? 'grp' : '');
 
 // ---------- group voice chat (build 69): everyone in the group's voice room talks to everyone (peer to peer, up to 8);
 // never together with a one-to-one call or the game room's voice chat (joining turns the room's voice off) ----------
-const G = { g: '', name: '', peer: null, stream: null, me: '', L: [], calls: new Map(), audios: new Map(), lists: new Map() };
+const G = { g: '', name: '', peer: null, stream: null, me: '', L: [], calls: new Map(), audios: new Map(), lists: new Map(), retry: new Map(), meters: new Map(), ringing: '' };
+// a speaking meter per remote stream (build 70: the strip glows and names light up while someone talks)
+let AC = null;
+function meterOf(stream) {
+  try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume().catch(() => {}); const an = AC.createAnalyser(); an.fftSize = 256; AC.createMediaStreamSource(stream).connect(an); const buf = new Uint8Array(256);
+    return () => { an.getByteTimeDomainData(buf); let t = 0; for (const v of buf) t += (v - 128) * (v - 128); return Math.sqrt(t / 256); }; } catch (e) { return () => 0; }
+}
+// every 2 s while in a group voice chat: call whoever I should call and am not connected to (the smaller account id
+// calls), and light up who is talking
+setInterval(() => {
+  if (!G.g || !G.peer || !G.stream) return;
+  const L = gvcOf(G.g), now = Date.now();
+  for (const x of L) if (x.a !== G.me && x.id && !G.calls.has(x.a) && G.me < x.a && (G.retry.get(x.a) || 0) < now) { try { gvcHook(x.a, G.peer.call(x.id, G.stream)); } catch (e) { /* ignore */ } }
+}, 2000);
+setInterval(() => {
+  const b = $('#soc-gvc'); if (!b || b.hidden || !G.g) return;
+  let any = false; for (const [a, f] of G.meters) { const on = f() > 6; any = any || on; const n = b.querySelector(`[data-a="${a}"]`); if (n) n.classList.toggle('talk', on); }
+  b.classList.toggle('talking', any);
+}, 200);
 export const gvcOf = (gid) => G.lists.get(gid) || [];
 export const gvcIn = () => G.g;
 function gvcHook(a, call) {
+  watchCall(call, () => { try { call.close(); } catch (e) { /* ignore */ } if (G.calls.get(a) === call) G.calls.delete(a); G.retry.set(a, Date.now() + 3000); gvcDraw(); });
   const old = G.calls.get(a); if (old && old !== call) { try { old.close(); } catch (e) { /* ignore */ } }
   G.calls.set(a, call);
-  call.on('stream', (s) => { let au = G.audios.get(a); if (!au) { au = el('audio'); au.autoplay = true; au.hidden = true; document.body.append(au); G.audios.set(a, au); } au.srcObject = s; au.play().catch(() => {}); gvcDraw(); });
-  const gone = () => { if (G.calls.get(a) === call) { G.calls.delete(a); const au = G.audios.get(a); if (au) { au.remove(); G.audios.delete(a); } gvcDraw(); } };
+  call.on('stream', (s) => { let au = G.audios.get(a); if (!au) { au = el('audio'); au.autoplay = true; au.hidden = true; document.body.append(au); G.audios.set(a, au); } au.srcObject = s; playAudio(au); G.meters.set(a, meterOf(s)); gvcDraw(); });
+  const gone = () => { if (G.calls.get(a) === call) { G.calls.delete(a); G.meters.delete(a); const au = G.audios.get(a); if (au) { au.remove(); G.audios.delete(a); } gvcDraw(); } };
   call.on('close', gone); call.on('error', gone);
 }
 export async function gvcJoin(gid, name, me) {
@@ -151,18 +174,35 @@ export async function gvcJoin(gid, name, me) {
   try { sfx.unlock(); sfx.waveClear(); } catch (e) { /* ignore */ }
   return '';
 }
+// build 70: "X started a voice chat in <group>": a ringing card (Katıl / Yoksay) for about 20 s
+function gvcRing(gid, who) {
+  gvcRingStop(); G.ringing = gid;
+  const name = H.groupName(gid) || 'Grup';
+  let b = $('#soc-gring'); if (!b) { b = el('div', 'soc-call ringing gring'); b.id = 'soc-gring'; document.body.append(b); }
+  const tx = el('div', 'soc-tx'); tx.append(el('strong', '', '🔊 ' + name), el('span', 'soc-st', `${who} sesli sohbet başlattı`));
+  const acts = el('div', 'soc-acts');
+  const go = el('button', 'btn play', 'Katıl'); go.type = 'button'; go.onclick = () => { gvcRingStop(); if (H.joinGroupVoice) H.joinGroupVoice(gid, name); };
+  const no = el('button', 'btn ghost', 'Yoksay'); no.type = 'button'; no.onclick = () => gvcRingStop();
+  acts.append(go, no); b.replaceChildren(el('div', 'gvc-ic', '💬'), tx, acts); b.hidden = false;
+  const beep = () => { try { sfx.unlock(); sfx.ringIn(); } catch (e) { /* ignore */ } if (navigator.vibrate && IS_TOUCH) try { navigator.vibrate([150, 100, 150]); } catch (e) { /* ignore */ } };
+  beep(); G.ringT = setInterval(beep, 2600); G.ringEnd = setTimeout(gvcRingStop, 20000);
+  sysNotify(name, `${who} sesli sohbet başlattı`, 'dm');
+}
+function gvcRingStop() { G.ringing = ''; clearInterval(G.ringT); clearTimeout(G.ringEnd); const b = $('#soc-gring'); if (b) b.hidden = true; }
 export function gvcLeave() {
   if (G.g) liveGvc(G.g, 'leave', '');
   for (const c of G.calls.values()) { try { c.close(); } catch (e) { /* ignore */ } }
-  for (const a of G.audios.values()) a.remove();
+  for (const a of G.audios.values()) a.remove(); G.meters.clear();
   try { if (G.peer) G.peer.destroy(); } catch (e) { /* ignore */ }
   if (G.stream) for (const t of G.stream.getTracks()) t.stop();
   Object.assign(G, { g: '', name: '', peer: null, stream: null, calls: new Map(), audios: new Map() });
   gvcDraw(); if (H.onGvcChange) H.onGvcChange();
 }
 // the server's list of who is in a group's voice room
-export function onGvc(gid, L) {
+export function onGvc(gid, L, st) {
   G.lists.set(gid, L);
+  if (st && L.length && G.g !== gid && !C.st && !G.g && !L.some((x) => x.a === G.me) && H.groupName) gvcRing(gid, L[0].n);
+  if (!L.length && G.ringing === gid) gvcRingStop();
   if (G.g === gid && G.peer) {
     if (!L.some((x) => x.a === G.me) && Date.now() - (G.joinedAt || 0) > 4000) { gvcLeave(); return; } // dropped by the server
     for (const x of L) if (x.a !== G.me && x.id && !G.calls.has(x.a) && G.me < x.a) gvcHook(x.a, G.peer.call(x.id, G.stream)); // one side calls: the smaller account id
@@ -174,9 +214,13 @@ function gvcDraw() {
   let b = $('#soc-gvc'); if (!b) { b = el('div', 'soc-call gvc'); b.id = 'soc-gvc'; b.hidden = true; document.body.append(b); } draggable(b);
   document.body.classList.toggle('soc-calling', !!(C.st || G.g));
   if (!G.g) { b.hidden = true; b.replaceChildren(); return; }
-  b.hidden = false; b.classList.add('mini'); requestAnimationFrame(() => b.restore());
+  b.hidden = false; b.classList.add('mini'); requestAnimationFrame(() => { b.restore(); b.tip(); });
   const L = gvcOf(G.g), tx = el('div', 'soc-tx');
-  tx.append(el('strong', '', '🔊 ' + G.name), el('span', 'soc-st', G.peer ? `${L.length} kişi sesli sohbette` + (L.length > 1 ? ' · ' + L.filter((x) => x.a !== G.me).map((x) => x.n + (G.audios.has(x.a) ? '' : ' (bağlanıyor)')).join(', ') : ' · diğerlerini bekliyorsun') : 'bağlanıyor…'));
+  const st = el('span', 'soc-st');
+  if (!G.peer) st.textContent = 'bağlanıyor…';
+  else if (L.length < 2) st.textContent = 'diğerlerini bekliyorsun…';
+  else for (const x of L.filter((y) => y.a !== G.me)) { const n = el('span', 'gvc-n' + (G.audios.has(x.a) ? '' : ' wait'), x.n); n.dataset.a = x.a; st.append(n); }
+  tx.append(el('strong', '', `🔊 ${G.name} · ${L.length}`), st);
   const acts = el('div', 'soc-acts');
   const mute = el('button', 'btn ghost', 'Sessize al'); mute.type = 'button';
   mute.onclick = () => { const t = G.stream && G.stream.getAudioTracks()[0]; if (!t) return; t.enabled = !t.enabled; mute.textContent = t.enabled ? 'Sessize al' : 'Sesi aç'; };
