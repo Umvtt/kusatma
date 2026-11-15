@@ -40,7 +40,7 @@ const callBox = () => { let b = $('#soc-call'); if (!b) { b = el('div', 'soc-cal
 function draw() {
   const b = callBox(); C.card = b; document.body.classList.toggle('soc-calling', !!C.st);
   if (!C.st) { b.hidden = true; b.replaceChildren(); return; }
-  b.hidden = false; b.classList.toggle('ringing', C.st === 'in' || (C.st === 'out' && !!(C.pushed || C.rang)));
+  b.hidden = false; b.classList.toggle('mini', C.st === 'on' || C.st === 'out'); b.classList.toggle('ringing', C.st === 'in' || (C.st === 'out' && !!(C.pushed || C.rang)));
   const av = el('canvas', 'soc-av'); av.width = av.height = 48; try { H.avatar(av, C.who.eq || {}, { size: 48 }); } catch (e) { /* ignore */ }
   const tx = el('div', 'soc-tx'), st = el('span', 'soc-st');
   tx.append(el('strong', '', C.who.name), st);
@@ -159,7 +159,7 @@ function gvcDraw() {
   let b = $('#soc-gvc'); if (!b) { b = el('div', 'soc-call gvc'); b.id = 'soc-gvc'; b.hidden = true; document.body.append(b); }
   document.body.classList.toggle('soc-calling', !!(C.st || G.g));
   if (!G.g) { b.hidden = true; b.replaceChildren(); return; }
-  b.hidden = false;
+  b.hidden = false; b.classList.add('mini');
   const L = gvcOf(G.g), tx = el('div', 'soc-tx');
   tx.append(el('strong', '', '🔊 ' + G.name), el('span', 'soc-st', G.peer ? `${L.length} kişi sesli sohbette` + (L.length > 1 ? ' · ' + L.filter((x) => x.a !== G.me).map((x) => x.n + (G.audios.has(x.a) ? '' : ' (bağlanıyor)')).join(', ') : ' · diğerlerini bekliyorsun') : 'bağlanıyor…'));
   const acts = el('div', 'soc-acts');
