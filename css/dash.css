@@ -489,13 +489,6 @@ body.signed .build { z-index: 41; }
 .show-pick .chip-opt[aria-pressed="true"] { border-color: #ffd34d; background: rgba(255,211,77,.14); }
 .bio-in { width: 100%; resize: vertical; min-height: 54px; font: 14px var(--body); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--t-line); background: rgba(0,0,0,.25); color: var(--text); }
 
-/* spin wheel */
-.spin-card { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px; align-items: center; background: linear-gradient(135deg, rgba(255,211,77,.12), transparent 55%), var(--t-card); }
-.spin-card .wheel { width: 180px; height: 180px; display: block; }
-.spin-t { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-.spin-t h3 { margin: 0; font-size: 18px; }
-.spin-t .dim { margin: 0 0 6px; font-size: 13px; line-height: 1.45; }
-@media (max-width: 600px) { .spin-card { grid-template-columns: 120px minmax(0, 1fr); gap: 12px; } .spin-card .wheel { width: 120px; height: 120px; } .spin-t h3 { font-size: 15px; } }
 .self-start { align-self: flex-start; }
 /* build 33: hero buttons in a tidy grid, and the "what's on" card */
 .dp-hero-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-width: 420px; }
@@ -512,21 +505,6 @@ body.signed .build { z-index: 41; }
 .ic-prev > .ban-prev { justify-self: stretch; width: auto; min-width: 120px; height: 72px; }
 .q-headx { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 
-/* spin wheel: prize chips and the prize window */
-.spin-prizes { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 6px; }
-.sp-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--t-line); font-size: 12px; background: rgba(255,255,255,.03); }
-.sp-chip.gem { border-color: rgba(91,227,255,.35); } .sp-chip.xp { border-color: rgba(255,211,77,.35); } .sp-chip.item { border-color: rgba(200,140,255,.4); }
-.spin-pop { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(0,0,0,.6); padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); overflow-y: auto; animation: secIn .15s ease; }
-.spin-box { width: min(360px, 100%); max-height: calc(100dvh - 24px); overflow-y: auto; align-items: center; text-align: center; padding: 24px 22px; }
-.spin-ic { width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 2px; margin: 6px auto 2px; background: radial-gradient(circle, rgba(91,227,255,.18), transparent 70%); animation: spinPop .5s cubic-bezier(.3,1.6,.5,1); }
-.spin-ic b { font: 800 26px var(--display, inherit); } .spin-ic.xp { background: radial-gradient(circle, rgba(255,211,77,.2), transparent 70%); } .spin-ic.xp span { color: #ffd34d; font-weight: 700; }
-.spin-ic.item { background: radial-gradient(circle, rgba(200,140,255,.22), transparent 70%); } .spin-it { font: 700 16px var(--display, inherit); padding: 0 8px; }
-.spin-box h3 { margin: 4px 0 0; font-size: 18px; } .spin-bal { display: inline-flex; align-items: center; gap: 5px; margin: 0; }
-.spin-acts { justify-content: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
-@keyframes spinPop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .spin-ic, .spin-pop { animation: none; } }
-/* short screens (phones held sideways): smaller prize circle so the buttons always show */
-@media (max-height: 520px) { .spin-box { padding: 12px 16px; gap: 6px; } .spin-ic { width: 76px; height: 76px; margin: 0 auto; } .spin-ic b { font-size: 20px; } .spin-ic svg { width: 34px; height: 34px; } .spin-box h3 { font-size: 16px; } .spin-box .eyebrow { margin: 0; } .spin-acts { margin-top: 2px; } }
 
 .streak-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .sc-d { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 8px; border: 1px solid var(--t-line); background: rgba(255,255,255,.02); font-size: 11px; min-width: 0; }
@@ -675,3 +653,67 @@ body.signed .build { z-index: 41; }
   .dp-nav button[aria-selected="true"] svg { fill: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--t-a) 85%, #fff), var(--t-a)); border-radius: 999px; padding: 4px 16px; box-sizing: content-box; box-shadow: 0 4px 12px var(--t-glow); }
   .dp-nav button svg { padding: 4px 16px; box-sizing: content-box; }
 }
+
+/* ===== build 67: the luck wheel ===== */
+/* home card: a small turning wheel and one button */
+.spin-card { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 18px; align-items: center; }
+.spin-card .wheel { width: 132px; height: 132px; display: block; cursor: pointer; animation: spinIdle 40s linear infinite; }
+.spin-card.ready .wheel { animation-duration: 12s; }
+.spin-t { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.spin-t h3 { margin: 0; font-family: var(--display); font-size: 19px; text-transform: none; letter-spacing: 0; }
+.spin-t .dim { margin: 0 0 4px; font-size: 13px; line-height: 1.45; }
+@keyframes spinIdle { to { transform: rotate(360deg); } }
+@media (max-width: 600px) { .spin-card { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; } .spin-card .wheel { width: 96px; height: 96px; } .spin-t h3 { font-size: 16px; } }
+/* the wheel's own screen */
+body.spin-open { overflow: hidden; }
+.spin-scr {
+  position: fixed; inset: 0; z-index: 150; display: flex; flex-direction: column; align-items: center; color: var(--text);
+  padding: max(10px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(14px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: var(--sky) repeat-x left bottom / 600px 140px, var(--pat), var(--bg); overflow-y: auto; overscroll-behavior: contain;
+  animation: spinScrIn .22s ease-out;
+}
+.spin-scr.out { opacity: 0; transform: scale(.98); transition: opacity .18s, transform .18s; }
+@keyframes spinScrIn { from { opacity: 0; transform: scale(1.02); } }
+.spin-top { width: min(560px, 100%); display: flex; align-items: center; gap: 10px; padding: 6px 0 4px; }
+.spin-h { margin: 0; font-family: var(--display); font-weight: 800; font-size: 24px; flex: 1; }
+.spin-chip { padding: 6px 12px; border-radius: 999px; background: var(--soft); color: var(--accent); font-weight: 800; font-size: 13px; white-space: nowrap; }
+.spin-x { appearance: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--panel-2); color: var(--text); font-size: 18px; cursor: pointer; box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+.spin-x:active { transform: scale(.94); }
+.spin-stage { --ws: 360px; position: relative; width: var(--ws); height: var(--ws); margin: auto 0 0; flex: none; }
+.spin-wheel { width: 100%; height: 100%; display: block; border-radius: 50%; box-shadow: 0 0 0 6px var(--panel), 0 18px 50px rgba(0,0,0,.5); }
+.spin-ptr { position: absolute; left: 50%; top: -14px; width: 34px; height: 44px; margin-left: -17px; transform-origin: 50% 20%; z-index: 2;
+  background: var(--accent); clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%); filter: drop-shadow(0 3px 0 rgba(0,0,0,.35)); }
+.spin-ptr.tick { animation: ptrTick .12s ease-out; }
+@keyframes ptrTick { 40% { transform: rotate(-16deg); } }
+.spin-hub { appearance: none; position: absolute; left: 50%; top: 50%; width: 27%; height: 27%; transform: translate(-50%, -50%); border-radius: 50%; border: 5px solid var(--panel); background: var(--accent); color: var(--accent-ink);
+  font: 900 clamp(13px, calc(var(--ws) / 22), 22px) var(--display); letter-spacing: .04em; cursor: pointer; box-shadow: inset 0 -5px 0 rgba(0,0,0,.22), 0 6px 18px rgba(0,0,0,.4); transition: transform .1s; z-index: 2; }
+.spin-hub:active:not(:disabled) { transform: translate(-50%, -50%) scale(.94); }
+.spin-hub:disabled { cursor: default; filter: saturate(.6); }
+.spin-foot { width: min(560px, 100%); display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 22px 0 auto; }
+.spin-foot > .btn { width: min(360px, 100%); font-size: 18px; }
+.spin-note { margin: 0; font-size: 13px; text-align: center; }
+.spin-prizes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 2px 0 0; }
+.sp-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--panel); border: 0; box-shadow: inset 0 -3px 0 var(--sc, var(--line)); font-size: 13px; }
+.sp-chip i { font-style: normal; }
+.spin-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
+.spin-res { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.55); animation: spinScrIn .2s ease-out; }
+.spin-box { width: min(340px, 100%); display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 24px 22px; border-radius: 24px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+.spin-ic { width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 4px; background: var(--panel-2); box-shadow: inset 0 -5px 0 rgba(0,0,0,.25); animation: spinPop .5s cubic-bezier(.2,1.5,.4,1); }
+.spin-ic i { font-style: normal; font-size: 40px; line-height: 1; }
+.spin-ic b { font: 800 22px var(--display); }
+.spin-ic.gem { background: color-mix(in srgb, #5be3ff 18%, var(--panel-2)); } .spin-ic.xp { background: color-mix(in srgb, #ffd34d 18%, var(--panel-2)); } .spin-ic.item { background: color-mix(in srgb, #c084fc 20%, var(--panel-2)); }
+.spin-it { font: 700 14px var(--display); padding: 0 8px; }
+.spin-box h3 { margin: 0; font-family: var(--display); font-size: 20px; text-transform: none; letter-spacing: 0; }
+.spin-bal { display: inline-flex; align-items: center; gap: 5px; margin: 0; color: var(--dim); }
+.spin-acts { justify-content: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+@keyframes spinPop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+/* phones held sideways: wheel on the left, buttons on the right */
+@media (max-height: 520px) and (orientation: landscape) {
+  .spin-scr { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 24px; align-items: center; justify-items: center; }
+  .spin-top { grid-column: 1 / -1; width: 100%; }
+  .spin-stage { margin: 0; grid-row: 2; }
+  .spin-foot { margin: 0; grid-row: 2; grid-column: 2; }
+  .spin-prizes { display: none; }
+  .spin-h { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .spin-card .wheel, .spin-scr, .spin-ic, .spin-ptr.tick, .spin-res { animation: none; } }
