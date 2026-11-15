@@ -1,7 +1,7 @@
 # Planned work (owner's list, newest first). Do each part only when the owner says "start build N".
 
-## Added 15 Kasım 2026 (after build 71, waiting for the owner's answers and a go)
-- **Planned content ahead of time, all editable in the panel (build 72 plan):** a season calendar (seasons with their own start and end dates, default 2 months, prepared in advance; the next one starts by itself, the panel warns when nothing is prepared), daily (and weekly) quests from a pool the panel edits, plus optional special days planned ahead with the same quests for everyone. Open questions to the owner: do PvP ranks and clan scores follow the new 2-month season; how many tiers for 2 months (check real XP data first); new season cosmetics for the first 2-month season; same quests for everyone or each player their own mix.
+## Added 15 Kasım 2026 (after build 71)
+- **Planned content ahead of time, all editable in the panel (build 72 plan, agreed, waiting for "start build 72"):** a season calendar where each season keeps its own dates (monthly, as now) and the owner prepares the next ones in advance (first: December and January, each with its own name, theme and new reward cosmetics); the next prepared season starts by itself, an unprepared month copies the last one and the panel warns days ahead. Seasons a bit harder: 350 XP per tier instead of 250 (30 tiers = 10,500 XP, about one wave-15 game a day; check against real season XP data during the build). Daily and weekly quests come from a pool the panel edits (types on/off, amounts, gems), each player keeps their own mix; special days planned ahead give everyone the same quests. PvP ranks and clan scores follow the same seasons (monthly, no change).
 
 ## Added 15–16 Kasım 2026 (builds 67.1–71, all done)
 - **67.1–67.3 (done):** luck wheel on its own screen; info-only call notices; calls ring an away friend's phone; find players by part of a name (Oyuncular page); the locker shows where each item comes from.
