@@ -5,7 +5,7 @@ import { HostGame, cleanName } from './host.js';
 import { ClientGame } from './client.js';
 import { drawCharacter } from './render.js';
 import { startScene } from './scene.js';
-import { dashPage, dashGo, dashRefresh, dashSoft, dashTop, onFriends, onDm, onGmsg, groupsLoad, dashGvc, onFr, gemIcon, notify, recentAdd, frList, drawAvatar, openDm } from './dash.js';
+import { dashPage, dashGo, dashRefresh, dashSoft, dashTop, onFriends, onDm, onGmsg, groupsLoad, dashGvc, grpName, joinGroupVoice, onFr, gemIcon, notify, recentAdd, frList, drawAvatar, openDm } from './dash.js';
 import { FREE_CLS, ITEMS as COS } from './catalog.js';
 import * as sfx from './sfx.js';
 import { voiceOn, voiceStop, voiceSync, voicePtt, voiceRate, voiceBitrate, voiceListen, voiceMute } from './voice.js';
@@ -765,6 +765,8 @@ socialInit({
   send: async (id, t) => { const j = id.startsWith('g:') ? await acctOp('gsend', { g: id.slice(2), x: t }) : await dmSend(id, t); return !!(j && j.ok); },
   voiceOff: () => voiceOffForCall(),
   onGvcChange: () => dashGvc(),
+  groupName: (g) => grpName(g),
+  joinGroupVoice: (g, n) => joinGroupVoice(g, n),
   toast: (t) => toast(t),
 });
 // ---------- room invites: send to online friends, and the pop-up when a friend calls you ----------
@@ -901,7 +903,7 @@ if (!WATCH) liveStart({
   onInv: (v) => invIn(v),
   onFriends: (d) => { onFriends(d); if (!$('#inv-dlg').hidden) invDraw(); },
   onGmsg: (m) => onGmsg(m),
-  onGvc: (g, L) => onGvc(g, L),
+  onGvc: (g, L, st) => onGvc(g, L, st),
   onGrp: () => groupsLoad(),
   onDm: (m) => { if ($('#dm').hidden) notify('dm', `${m.n} sana yazdı`, m.x, 'friends'); onDm(m); },
   onCall: (d) => onCall(d, (id) => (frList() || []).find((f) => f.id === id)),

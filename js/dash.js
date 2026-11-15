@@ -252,7 +252,7 @@ export function dashGo(p, arg, fromHistory) {
   const main = $('#dp-page');
   main.replaceChildren();
   main.scrollTop = 0;
-  const sec = el('section', 'dp-sec');
+  const sec = el('section', 'dp-sec' + (p !== dashGo.last || arg !== dashGo.lastArg ? ' enter' : '')); dashGo.last = p; dashGo.lastArg = arg; // build 70: only a real page change fades in; a refresh of the same page doesn't flicker
   main.append(sec);
   PAGES[p](sec, arg);
   if (p === 'home') heroStart();
@@ -386,7 +386,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Elmas etkinliklerinde günlük elmas sınırı 4000! Ana sayfada bugün ne kadar kazandığını "56 / 1000" gibi görürsün.', 'Skor tablosundaki susturma butonları düzeltildi.', 'Grup sesli sohbeti: grubu aç, 🔊 butonuna bas (8 kişiye kadar). Oyun içi sesli sohbetle ve aramalarla çakışmaz.', 'Yeni Sosyal sekmesi: arkadaşlar, gruplar, klan ve oyuncu bulma tek yerde.', 'Aramada artık karşı tarafın telefonu ya da oyunu çalıyor mu görürsün: aranıyor, çalıyor, telefonu çalıyor.', 'Klan davetleri: gönderdiğin davet "✓ Davet edildi" olarak görünür ve tekrar gönderilemez; arkadaşlarını tek dokunuşla davet et. Katılma isteğin de "✓ İstek gönderildi" olarak kalır.', 'Grup sohbetleri: Arkadaşlar > Gruplar\'dan arkadaşlarınla bir grup kur, hepiniz aynı yerde yazışın. Grup mesajları da ekranda kart olarak çıkar ve oradan yanıtlanır.', 'Uygulama 49.0: arkadaşın seni aradığında telefonun gerçek bir arama gibi çalar, kilit ekranında da. Site ile telefon birbirini arayabilir.', 'Aramalarda zil sesi: arayan tarafta çalma sesi, aranan tarafta telefon zili.', 'Şans çarkı: sahip olduğun bir ödül çıkarsa yerine 150 elmas aldığını açıkça yazıyor; çark ekranında elmas sayacın görünüyor.'];
+const WHATS_NEW = ['Daha akıcı: sesli sohbet bağlanamazsa kendiliğinden yeniden dener, arkadaş listesi kendini yeniler, sayfalar titremez.', 'Grup sesli sohbeti başlayınca çalar: Katıl ya da Yoksay. Konuşan kişinin adı yanar.', 'Silah dalını değiştirince artık "Dal değişti" yazıyor.', 'Arama şeridini istediğin yere sürükleyebilirsin.', 'iPhone: Safari\'de Paylaş → Ana Ekrana Ekle ile tam ekran uygulama gibi.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -1156,9 +1156,6 @@ function friendsPage(sec, arg) {
   const box = el('div', 'fr-box'); box.id = 'fr-box'; sec.append(box);
   drawFriends();
   friendsGet().then((d) => { if (d) onFriends(d); });
-  // build 69.4: keep it fresh (who is online, in which room) every 5 s, but only while this page is open and visible
-  clearInterval(friendsPage.t);
-  friendsPage.t = setInterval(() => { if (page !== 'friends' || $('#dashpage').hidden) { clearInterval(friendsPage.t); return; } if (document.hidden || frTab === 'grp' || frTab === 'add') return; friendsGet().then((d) => { if (d && page === 'friends') onFriends(d); }); }, 5000);
 }
 function drawFriends() {
   const box = $('#fr-box'); if (!box) return;
@@ -1240,6 +1237,8 @@ function frNewRooms(d) {
   frRooms = now;
 }
 export function onFriends(d) {
+  // build 70: the list is asked for every 5 s; nothing is redrawn when nothing changed (no flicker, no jumping)
+  const sig = JSON.stringify(d); if (sig === onFriends.sig) return; onFriends.sig = sig;
   frNewRooms(d);
   FR = d;
   ME.fq = d.q; ME.un = Object.values(d.un).reduce((s, n) => s + n, 0);
@@ -1336,6 +1335,16 @@ async function openGroup(gid) {
   delete FR.un['g:' + gid]; ME.un = Object.values(FR.un).reduce((s, n) => s + n, 0);
   if (g0.un) { g0.un = 0; topBar(); if (page === 'friends') drawFriends(); }
   if (!IS_PHONE()) $('#dm-in').focus();
+}
+// build 70: friends (who is online, in which room, new requests and messages) stay fresh on every page of the panel,
+// on PC and phones: asked over the live link every 5 s while the panel is on screen (one small message, no page reload)
+setInterval(() => { if (ACCT && !document.hidden && !$('#dashpage').hidden) friendsGet().then((d) => { if (d) onFriends(d); }); }, 5000);
+// build 70: for the ringing card: a group's name, and joining its voice chat (opens the group too)
+export const grpName = (gid) => (GR.L.find((x) => x.id === gid) || {}).name || '';
+export async function joinGroupVoice(gid, name) {
+  if (ACCT && !$('#dashpage').hidden) openGroup(gid);
+  const r = await gvcJoin(gid, name, ACCT.id);
+  if (r) H.toast({ busy: 'Önce şu anki aramanı kapat.', full: 'Sesli sohbet dolu (8 kişi).', mic: 'Sesli sohbet için mikrofon izni gerekli.', net: 'Bağlanılamadı, tekrar dene.' }[r] || 'Katılınamadı.', 'bad');
 }
 // build 69: group voice: the drawer's 🔊 button joins; its label and the group rows show who is talking
 export function dashGvc() {

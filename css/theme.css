@@ -377,3 +377,37 @@ body.ios-app .lp-top { padding-top: max(14px, env(safe-area-inset-top, 0px)); }
 .soc-call.mini { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
 .soc-call.mini:active { cursor: grabbing; }
 .soc-call.mini.dragged { bottom: auto; }
+
+/* ===== build 70: seating fixes and a calmer feel ===== */
+/* message drawer header: avatar, one-line name and status, then same-size round buttons */
+.dm-head { gap: 8px; min-height: 60px; }
+.dm-head canvas { width: 36px; height: 36px; flex: none; border-radius: 50%; }
+.dm-who #dm-name, .dm-who #dm-st { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm-who #dm-name { font-size: 15px; }
+.dm-who #dm-st { color: var(--dim); font-weight: 500; font-size: 12px; margin-top: 2px; }
+.dm-head .btn { flex: none; height: 36px; min-height: 36px; padding: 0 12px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; }
+#dm-gset, #dm-call { width: 40px; padding: 0; font-size: 16px; }
+#dm.grp #dm-call { width: auto; padding: 0 12px; font-size: 13px; }
+/* Sosyal tab buttons: icon and label side by side, the badge sits after the label (not on the corner) */
+.soc-hub { gap: 8px; }
+.soc-hub-b { flex-direction: row; justify-content: center; gap: 8px; padding: 12px 10px; min-height: 52px; font-size: 14px; }
+.soc-hub-b i { font-size: 18px; }
+.soc-hub-b .badge { position: static; margin-left: 2px; }
+@media (max-width: 600px) { .soc-hub { grid-template-columns: repeat(2, minmax(0, 1fr)); } .soc-hub-b { min-height: 46px; font-size: 13px; } }
+/* group voice: who is talking lights up; the whole strip glows softly while anyone talks */
+.gvc-n { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 999px; transition: background-color .15s, color .15s; }
+.gvc-n.wait { opacity: .55; }
+.gvc-n.talk { background: var(--play); color: #fff; }
+.soc-call.gvc.talking { box-shadow: 0 0 0 2px var(--play), 0 10px 26px rgba(0,0,0,.4); }
+.soc-call.gring { grid-template-columns: auto minmax(0, 1fr); }
+.soc-call.gring .gvc-ic { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; background: var(--soft); }
+/* no hover lifts or jumps on touch screens; quick, quiet transitions everywhere else */
+@media (hover: none) { .dp-act:hover, .item-card:hover, .mode-tile:hover, .lp-cls:hover { transform: none; box-shadow: inherit; } }
+.dp-sec { animation: none; }
+.dp-sec.enter { animation: secIn .22s ease; }
+@media (prefers-reduced-motion: reduce) { .dp-sec.enter { animation: none; } }
+/* phones: in the menus the call strip sits low on the right (above the bottom bar), clear of headers and the message box top */
+@media (max-width: 600px) { body:not(.playing) .soc-call.mini:not(.dragged) { top: auto; bottom: calc(132px + env(safe-area-inset-bottom, 0px)); } }
+/* a small grip on the call strip says it can be dragged */
+.soc-call.mini { position: fixed; padding-left: 18px; }
+.soc-call.mini::after { content: '⠿'; position: absolute; left: 5px; top: 50%; transform: translateY(-50%); font-size: 13px; line-height: 1; color: var(--dim); pointer-events: none; }

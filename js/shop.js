@@ -3,7 +3,7 @@ import { WEAPON_COST, weaponOf, pathOf, pathsFor, pathDesc, WMAX, ROMAN, BRANCH_
 import { drawWeaponPreview } from './render.js';
 import * as sfx from './sfx.js';
 import { CTL } from './layout.js';
-import { $, IS_TOUCH, S, el, fmt, setHid } from './app.js';
+import { $, IS_TOUCH, S, el, fmt, setHid, toast } from './app.js';
 import {  send } from './main.js';
 
 // ---------- shop ----------
@@ -137,7 +137,7 @@ function buildWeaponTab(list, g) {
     const sw = el('button', 'btn small wpn-swap'); sw.append(el('span', '', `${other.name} dalına geç`), el('span', 'coin'), el('b', '', fmt(BRANCH_SWAP))); // build 69: the price shows with its coin
     sw.type = 'button';
     sw.title = other.desc;
-    sw.addEventListener('pointerdown', (e) => { if (sw.disabled || e.button > 0) return; e.preventDefault(); send({ t: 'buy', k: 'wswap' }); sfx.buy(); }); // build 69.2: pointerdown (the list redraws and swallowed clicks)
+    sw.addEventListener('click', () => { if (sw.disabled) return; send({ t: 'buy', k: 'wswap' }); sfx.buy(); });
     S.shopUpd.push(() => { const ok = gold() >= BRANCH_SWAP && alive(); sw.disabled = !ok; sw.title = ok ? other.desc : (alive() ? `Altının yetmiyor (${fmt(BRANCH_SWAP)} gerekli)` : 'Önce ayağa kalk'); });
     acts.append(sw);
   }
@@ -266,7 +266,17 @@ function updateShop() {
   if (!open) return;
   const me = g.self;
   const sig = `${S.shopTab}|${g.cls}|${me.wt}|${me.wp}|${me.wb}`;
-  if (sig !== S.shopSig) { S.shopSig = sig; buildShop(); }
+  if (sig !== S.shopSig) {
+    // build 70: a branch swap or a weapon level keeps the list where it was and says what happened (it used to jump
+    // to the top with no word, so the swap looked like it did nothing)
+    const old = S.shopSig, keep = old && old.split('|')[0] === S.shopTab ? $('#shop-list').scrollTop : 0;
+    S.shopSig = sig; buildShop(); $('#shop-list').scrollTop = keep;
+    const o = old ? old.split('|') : null;
+    if (o && o[0] === S.shopTab && o[2] === String(me.wt) && o[3] === String(me.wp) && o[4] !== String(me.wb) && me.wb) {
+      const P = pathOf(g.cls, me.wp), br = P && P.br && P.br[me.wb - 1];
+      if (br) toast(`Dal değişti: artık ${br.name}`, 'good');
+    }
+  }
   const n = shopAffordable(g);
   for (const t of $('#shop-tabs').children) {
     const on = t.dataset.tab === S.shopTab;
