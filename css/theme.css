@@ -84,8 +84,9 @@ body[data-theme="gece"]::after, body:not([data-theme])::after, body.playing::aft
   background: var(--panel); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,.28);
   backdrop-filter: none; -webkit-backdrop-filter: none;
 }
-.dp-card { background: var(--panel) var(--orn) no-repeat right 14px top 14px / 22px 22px; }
-.dp-card:has(> .card-head .btn, > .dp-h .btn) { background-image: none; }
+.dp-card { background: var(--panel); }
+/* the theme's small ornament only where the card's top-right corner is surely empty: a header with just its title */
+.dp-card:has(> .dp-card-h > h3:only-child) { background: var(--panel) var(--orn) no-repeat right 16px top 16px / 22px 22px; }
 .card .card, .dp-card .dp-card { box-shadow: none; }
 .confirm { background: rgba(0,0,0,.6); backdrop-filter: none; -webkit-backdrop-filter: none; }
 .confirm-card, .settings-dlg, .esc-card { border-radius: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
@@ -289,3 +290,9 @@ button, .btn, a, [role="button"], .mode-tile, .item-card, .class-card, .choice {
 .pl-nm .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-nm .lvl-b { flex: none; }
 @media (max-width: 560px) { .pl-row .fr-acts .btn.ghost { display: none; } } /* on phones the whole row opens the profile */
+
+/* locker: where each item comes from; things still to earn are greyed with a lock (67.3) */
+.ic-src { font-size: 11.5px; color: var(--dim); font-weight: 600; line-height: 1.25; }
+.item-card.locked { opacity: .55; filter: grayscale(.6); }
+.item-card.locked:hover { opacity: .8; }
+.ic-lock { position: absolute; top: 8px; right: 10px; font-size: 14px; z-index: 3; }

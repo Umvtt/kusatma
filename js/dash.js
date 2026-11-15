@@ -383,7 +383,7 @@ function homePage(sec) {
   if (LIVE.news.on && LIVE.news.text) { const n = el('div', 'dp-news'); n.append(el('strong', '', 'Duyuru'), el('span', '', LIVE.news.text)); sec.prepend(n); }
 }
 // what's on now (events with a countdown, players online) and what this version added
-const WHATS_NEW = ['Oyuncu bul: adın bir kısmını yazman yeter. Tüm oyuncuları listeleyen yeni Oyuncular sayfası (telefonda Arkadaşlar sayfasından).', 'Şans çarkı yenilendi: kendi ekranında açılıyor, büyük çark, ışıklar, tık sesleri ve konfeti.', 'Çevrimdışı bir arkadaşını aradığında telefonuna arama bildirimi gidiyor; oyunu açınca arama çalıyor.', 'Baştan yenilenmiş, sade görünüm: düz ve dolu renkler, parlamalar ve renk geçişleri yok. Butonlar basınca gerçekten basılıyor, telefonda dokununca hafif titriyor.', 'Temalar artık her yerde: menü, lobi, cephanelik, oyun ekranı ve pencereler. Her temanın kendi süsü var: kar yağıyor, kan damlıyor, ateşböcekleri uçuyor, kum esiyor, neon parlıyor, altın ışıldıyor. Profiller de sahibinin temasıyla açılıyor.', 'Ana sayfa yeni: en üstte arkadaşların, altında resimli oyun kutuları (Hızlı oyna, Tek başına, Oda kur, modlar, sıralama). Telefonda alttaki menü uygulama gibi.', 'Arkadaşınla sesli görüşmedeyken oda sesli sohbeti açılamaz; arama başlarken oda sesli sohbeti kendiliğinden kapanır.', 'Arkadaş mesajları ekranda kart olarak çıkıyor ve oradan yanıtlanabiliyor; arkadaşlarını sesli arayabilirsin.'];
+const WHATS_NEW = ['Dolapta her eşyanın nereden geldiği yazıyor; henüz kazanmadığın ödüller kilitli olarak, nasıl kazanılacağıyla görünüyor.', 'Oyuncu bul: adın bir kısmını yazman yeter. Tüm oyuncuları listeleyen yeni Oyuncular sayfası (telefonda Arkadaşlar sayfasından).', 'Şans çarkı yenilendi: kendi ekranında açılıyor, büyük çark, ışıklar, tık sesleri ve konfeti.', 'Çevrimdışı bir arkadaşını aradığında telefonuna arama bildirimi gidiyor; oyunu açınca arama çalıyor.', 'Baştan yenilenmiş, sade görünüm: düz ve dolu renkler, parlamalar ve renk geçişleri yok. Butonlar basınca gerçekten basılıyor, telefonda dokununca hafif titriyor.', 'Temalar artık her yerde: menü, lobi, cephanelik, oyun ekranı ve pencereler. Her temanın kendi süsü var: kar yağıyor, kan damlıyor, ateşböcekleri uçuyor, kum esiyor, neon parlıyor, altın ışıldıyor. Profiller de sahibinin temasıyla açılıyor.', 'Ana sayfa yeni: en üstte arkadaşların, altında resimli oyun kutuları (Hızlı oyna, Tek başına, Oda kur, modlar, sıralama). Telefonda alttaki menü uygulama gibi.', 'Arkadaşınla sesli görüşmedeyken oda sesli sohbeti açılamaz; arama başlarken oda sesli sohbeti kendiliğinden kapanır.', 'Arkadaş mesajları ekranda kart olarak çıkıyor ve oradan yanıtlanabiliyor; arkadaşlarını sesli arayabilirsin.'];
 const leftT = (t) => { const s = Math.max(0, Math.round((t - Date.now()) / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} gün ${h} sa` : h ? `${h} sa ${m} dk` : m ? `${m} dk ${s % 60} sn` : `${s} sn`; };
 function newsCard() {
   const c = card('Neler var?'); c.classList.add('dp-whatsnew');
@@ -969,6 +969,14 @@ function lockerPage(sec) {
     b.onclick = () => equip(slot.k, id === dflt ? '' : id);
     grid.append(b);
   }
+  // things you can still earn in this slot (level, season, wheel): greyed, with how to get them
+  const earn = Object.keys(ITEMS).filter((id) => id.startsWith(slot.p + '.') && !owns(id) && !isFree(id) && (ITEMS[id].reward || ITEMS[id].season || ITEMS[id].wheel));
+  for (const id of earn) {
+    const b = itemCard(id, false, { equip: true }), sr = srcOf(id);
+    b.classList.add('locked'); b.append(el('span', 'ic-lock', '🔒'));
+    b.onclick = () => { H.toast(`${ITEMS[id].name}: ${sr.t}.`); };
+    grid.append(b);
+  }
   right.append(grid);
   const more = Object.keys(ITEMS).filter((id) => id.startsWith(slot.p + '.') && !owns(id) && !isFree(id) && !ITEMS[id].reward).length;
   if (more) right.append(btn('btn ghost', `Mağazada ${more} ${slot.name.toLowerCase()} daha`, () => dashGo('shop', slot.p)));
@@ -1016,6 +1024,16 @@ function shopPage(sec, tab) {
   sec.append(grid);
 }
 function left(t) { const m = Math.max(0, (t - Date.now()) / 60000); return m > 1440 ? `${Math.ceil(m / 1440)} gün kaldı` : m > 60 ? `${Math.ceil(m / 60)} saat kaldı` : `${Math.ceil(m)} dk kaldı`; }
+// where an item comes from (67.3): shown on every locker card, and on locked ones how to get them
+function srcOf(id) {
+  const it = ITEMS[id] || {};
+  if (isFree(id)) return { ic: '🎁', t: 'Herkese ücretsiz' };
+  if (it.season) return { ic: '🏅', t: it.season === 'p' ? 'Sezon ödülü (premium yol)' : 'Sezon ödülü (ücretsiz yol)', go: 'season' };
+  if (it.wheel) return { ic: '🎡', t: 'Şans çarkından', go: 'home' };
+  if (it.reward) return { ic: '⭐', t: `${it.reward}. seviye ödülü`, go: 'quests' };
+  if (it.soon) return { ic: '⏳', t: 'Yakında' };
+  return { ic: '💎', t: 'Mağazadan', go: 'shop' };
+}
 function itemCard(id, big, o = {}) {
   const it = ITEMS[id]; if (!it) return el('div');
   const have = owns(id) || isFree(id), price = priceOf(id), kind = id[0];
@@ -1032,7 +1050,7 @@ function itemCard(id, big, o = {}) {
   b.append(pv);
   b.append(el('span', 'ic-r', RARITY[it.r] || ''), el('span', 'ic-name', it.name));
   if (kind === 'c' && CLASSES[it.cls]) b.append(el('span', 'ic-desc', `${CLASSES[it.cls].ab.name} · ${CLASSES[it.cls].pas.name}`));
-  if (o.equip) return b;
+  if (o.equip) { const sr = srcOf(id); b.append(el('span', 'ic-src', sr.ic + ' ' + sr.t)); return b; }
   const pr = el('span', 'ic-price');
   if (have) pr.append(el('b', 'own', 'Sahipsin'));
   else if (it.soon) pr.append(el('b', 'soon', 'Yakında'));
