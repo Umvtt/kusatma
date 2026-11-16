@@ -13,3 +13,4 @@ docs/
 package.json
 metadata.json
 tools/
+.claude/
